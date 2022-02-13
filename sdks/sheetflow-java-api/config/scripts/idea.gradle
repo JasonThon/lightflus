@@ -1,0 +1,22 @@
+apply plugin: 'idea'
+
+project.idea {
+    project {
+        jdkName = JavaVersion.VERSION_12
+        languageLevel = JavaVersion.VERSION_12
+
+        vcs = "Git"
+
+        ipr.withXml { provider ->
+            def projectRoot = provider.node.component.find { it.@name == 'ProjectRootManager' }
+            projectRoot.output.@url = 'file://$PROJECT_DIR$/build'
+        }
+    }
+
+    workspace.iws.withXml { provider ->
+        def junitDefaults = provider.node.component.find { it.@name == 'RunManager' }.configuration.find {
+            it.@type == 'JUnit'
+        }
+        junitDefaults.option.find { it.@name == 'WORKING_DIRECTORY' }.@value = '$MODULE_DIR$'
+    }
+}

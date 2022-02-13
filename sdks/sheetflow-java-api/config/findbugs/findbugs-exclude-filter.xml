@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+
+<FindBugsFilter>
+    <Match>
+        <Class name="net.thingworks.jarvis.util.presenter.internal.AbstractPresenter" />
+        <Or>
+            <Method name="equals" />
+        </Or>
+        <Bug pattern="EQ_UNUSUAL" />
+    </Match>
+    <Match>
+        <Package name="net.thingworks.sel.formula.executor" />
+    </Match>
+    <Match>
+        <Package name="net.thingworks.jarvis.common.queryable.parser" />
+    </Match>
+    <Match>
+        <Package name="net.thingworks.jarvis.form.domain.form.item" />
+    </Match>
+    <Match>
+        <Package name="net.thingworks.jarvis.indicator.domain.service" />
+    </Match>
+</FindBugsFilter>

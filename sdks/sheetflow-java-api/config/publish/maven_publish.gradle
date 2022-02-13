@@ -1,0 +1,56 @@
+//./gradlew {project}:publish
+apply plugin: 'maven-publish'
+
+buildscript {
+    ext.fullVersion = project.version
+
+    if (project.hasProperty("minorVersion")) {
+        ext.fullVersion += ".${project.getProperty("minorVersion")}"
+    } else {
+        ext.fullVersion += ".0"
+    }
+
+    if (project.hasProperty("released")) {
+        ext.fullVersion = project.fullVersion
+    } else {
+        ext.fullVersion = project.fullVersion + "-SNAPSHOT"
+    }
+}
+
+//打包源码
+task sourceJar(type: Jar) {
+    from sourceSets.main.allJava
+}
+
+publishing {
+    publications {
+        maven(MavenPublication) {
+            groupId project.group
+            artifactId project.name
+            version project.fullVersion
+            from components.java
+
+            //配置上传源码
+            artifact sourceJar {
+                classifier "sources"
+            }
+        }
+    }
+
+    repositories {
+
+        maven {
+            credentials {
+                username 'uuMJfd'
+                password project.getProperty("repoPassword")
+            }
+
+            if (project.hasProperty("released")) {
+                url = 'https://repo.rdc.aliyun.com/repository/124293-release-LeJrRe/'
+            } else {
+                url = 'https://repo.rdc.aliyun.com/repository/124293-snapshot-iwPsjw/'
+            }
+        }
+
+    }
+}

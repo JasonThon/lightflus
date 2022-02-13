@@ -1,0 +1,6 @@
+dependencies {
+    compile(
+        "org.antlr:antlr4-runtime",
+        project(":sheetflow-common"),
+    )
+}

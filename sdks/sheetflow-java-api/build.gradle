@@ -1,0 +1,86 @@
+buildscript {
+    ext.kotlin_version = "1.2.61"
+    ext.springBootVersion = '2.2.0.RELEASE'
+    ext.dependencyManagementVersion = '1.0.8.RELEASE'
+    ext.lombokVersion = "5.3.0"
+    ext.spotbugsVersion = '4.4.4'
+    ext.pmdVersion = '6.26.0'
+
+    repositories {
+        maven { url 'http://maven.aliyun.com/nexus/content/groups/public/' }
+        maven { url 'https://nexus.nuiton.org/nexus/content/groups/releases' }
+        mavenCentral()
+    }
+
+    dependencies {
+        classpath "org.springframework.boot:spring-boot-gradle-plugin:$springBootVersion"
+        classpath "io.spring.gradle:dependency-management-plugin:$dependencyManagementVersion"
+        classpath "io.freefair.gradle:lombok-plugin:$lombokVersion"
+
+        classpath group: 'net.sourceforge.pmd', name: 'pmd', version: "$pmdVersion"
+        classpath group: 'net.sourceforge.pmd', name: 'pmd-java', version: "$pmdVersion"
+        classpath group: 'net.sourceforge.pmd', name: 'pmd-xml', version: "$pmdVersion"
+    }
+}
+
+plugins {
+    id "io.spring.dependency-management" version "$dependencyManagementVersion"
+    id "com.github.spotbugs" version "$spotbugsVersion"
+    id "io.freefair.lombok" version "$lombokVersion"
+}
+
+apply from: "$rootDir/config/scripts/idea.gradle"
+
+allprojects {
+    apply plugin: 'idea'
+
+    apply from: "$rootDir/config/build/repositories.gradle"
+}
+
+subprojects {
+    group = 'sheetflow.api'
+    version = "1.0.0-SNAPSHOT"
+
+    apply plugin: 'java'
+    apply plugin: 'io.spring.dependency-management'
+    apply plugin: 'groovy'
+    apply plugin: "io.freefair.lombok"
+    apply plugin: 'pmd'
+    apply plugin: "com.github.spotbugs"
+    apply from: "$rootDir/config/scripts/style.gradle"
+    apply from: "$rootDir/config/scripts/coverage.gradle"
+    apply from: "$rootDir/config/build/bom.gradle"
+
+    sourceCompatibility = JavaVersion.VERSION_12
+    targetCompatibility = JavaVersion.VERSION_12
+
+    pmd {
+        consoleOutput = false
+        incrementalAnalysis = true
+        ignoreFailures = true
+        rulePriority = 5
+        ruleSets = []
+        ruleSetFiles = files("$rootDir/config/pmd/rules.xml")
+        sourceSets = [sourceSets.main]
+        toolVersion = "$pmdVersion"
+    }
+
+    spotbugsTest.enabled = false
+    spotbugs {
+        reportLevel = "high"
+        excludeFilter = file("$rootDir/config/findbugs/findbugs-exclude-filter.xml")
+        omitVisitors = ["DefaultEncodingDetector", "UncallableMethodOfAnonymousClass"];
+    }
+
+    style {
+        excludePackages = [
+        ]
+        excludeClasses = [
+        ]
+    }
+
+    tasks.withType(JavaCompile) {
+        options.compilerArgs << "-Xlint:unchecked"
+        options.compilerArgs << "-Xlint:deprecation"
+    }
+}

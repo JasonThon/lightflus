@@ -1,0 +1,71 @@
+class CoverageExtension {
+    boolean enabled = true
+    List<String> excludePackages;
+    List<String> excludeClasses;
+    List<String> includePackages;
+    List<String> includeClasses;
+    String lineMini = "1.0";
+    String classMini = "1.0";
+}
+
+project.extensions.create('coverage', CoverageExtension)
+
+apply plugin: 'jacoco'
+
+jacoco.toolVersion = "0.8.2"
+
+task coverageCheck(dependsOn: test) {
+    doLast {
+        if (!coverage.enabled) {
+            return
+        }
+
+        ant.taskdef(name: 'jacocoReport',
+                classname: 'org.jacoco.ant.ReportTask',
+                classpath: configurations.jacocoAnt.asPath)
+
+        mkdir "$project.buildDir/jacoco"
+
+        ant.jacocoReport {
+            executiondata {
+                fileset(dir: "$buildDir/jacoco") {
+                    include name: 'test.exec'
+                }
+            }
+
+            structure(name: project.name) {
+                classfiles {
+                    fileset(dir: "$buildDir/classes/java/main") {
+                        coverage.excludePackages.each() {
+                            exclude name: "${it.replaceAll('\\.', '/') + '/**'}"
+                        }
+                        coverage.excludeClasses.each() {
+                            exclude name: "${it.replaceAll('\\.', '/') + '.class'}"
+                        }
+                        coverage.includePackages.each() {
+                            include name: "${it.replaceAll('\\.', '/') + '/**'}"
+                        }
+                        coverage.includeClasses.each() {
+                            include name: "${it.replaceAll('\\.', '/') + '.class'}"
+                        }
+                    }
+                }
+                sourcefiles {
+                    fileset dir: "src/main/java"
+                }
+            }
+
+            html(destdir: "$buildDir/reports/jacoco")
+
+            check(failOnViolation: true) {
+                rule(element: 'PACKAGE') {
+                    limit(counter: "LINE", value: "COVEREDRATIO", minimum: coverage.lineMini)
+                    limit(counter: "CLASS", value: "COVEREDRATIO", minimum: coverage.classMini)
+
+                }
+            }
+        }
+    }
+}
+
+check.dependsOn "coverageCheck"

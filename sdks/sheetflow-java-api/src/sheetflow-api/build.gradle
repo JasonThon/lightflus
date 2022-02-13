@@ -1,0 +1,6 @@
+dependencies {
+    compile(
+        project(":sheetflow-syntax"),
+       project(":sheetflow-common"),
+    )
+}

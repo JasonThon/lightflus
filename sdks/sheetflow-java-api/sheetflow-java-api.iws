@@ -5,7 +5,54 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="45e323b6-9e18-4e96-866d-bb175a7e9625" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../dataflow/src/cluster.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../dataflow/src/event.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../dataflow/src/graph/mod.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../dataflow/src/graph/worker.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../dataflow/src/runtime.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../dataflow/src/source.rs" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../tableflow-worker/src/api.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../.idea/sheetflow.iml" beforeDir="false" afterPath="$PROJECT_DIR$/../../.idea/sheetflow.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Cargo.lock" beforeDir="false" afterPath="$PROJECT_DIR$/../../Cargo.lock" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/event.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/http/mod.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/http/mod.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../core/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/mongo/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/rpc/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../core/src/view/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../dataflow/Cargo.toml" beforeDir="false" afterPath="$PROJECT_DIR$/../../dataflow/Cargo.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../dataflow/src/coord.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../dataflow/src/coord.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../dataflow/src/lib.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../dataflow/src/lib.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../dataflow/src/types.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../dataflow/src/types.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/build/bom.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/config/build/bom.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/config/publish/maven_publish.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/config/publish/maven_publish.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" beforeDir="false" afterPath="$PROJECT_DIR$/gradle/wrapper/gradle-wrapper.properties" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/settings.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/settings.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sheetflow-java-api.ipr" beforeDir="false" afterPath="$PROJECT_DIR$/sheetflow-java-api.ipr" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/sheetflow-java-api.iws" beforeDir="false" afterPath="$PROJECT_DIR$/sheetflow-java-api.iws" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-api/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-api/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-api/sheetflow-api.iml" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-api/sheetflow-api.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-api/src/main/java/sheetflow/api/AdjacentVec.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-api/src/main/java/sheetflow/api/AdjacentVec.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-api/src/main/java/sheetflow/api/FormulaGraph.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-api/src/main/java/sheetflow/api/FormulaGraph.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-api/src/test/java/sheetflow/api/ExprBuilderTest.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-api/src/test/java/sheetflow/api/ExprBuilderTest.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-common/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-common/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-common/sheetflow-common.iml" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-common/sheetflow-common.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/lang/Lists2.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/lang/Lists2.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/lang/Maps2.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/lang/Maps2.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/lang/Objects2.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/lang/Objects2.java" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-syntax/build.gradle" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-syntax/build.gradle" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/src/sheetflow-syntax/sheetflow-syntax.iml" beforeDir="false" afterPath="$PROJECT_DIR$/src/sheetflow-syntax/sheetflow-syntax.iml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../src/main.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../src/main.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/Cargo.toml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/api.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/core/domain.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/core/err.rs" beforeDir="false" afterPath="$PROJECT_DIR$/../../dataflow/src/err.rs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/core/mod.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/core/repo.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/core/svc.rs" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../table/src/lib.rs" beforeDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -59,6 +106,8 @@
     <option name="RECENT_TEMPLATES">
       <list>
         <option value="Enum" />
+        <option value="Interface" />
+        <option value="AnnotationType" />
         <option value="JUnit5 Test Class" />
         <option value="Class" />
       </list>
@@ -111,26 +160,28 @@
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrary" value="JUnit5" />
     <property name="com.intellij.testIntegration.createTest.CreateTestDialog.defaultLibrarySuperClass.JUnit5" value="" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/sheetflow-common" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/src" />
     <property name="node.js.detected.package.eslint" value="true" />
     <property name="node.js.detected.package.tslint" value="true" />
     <property name="node.js.selected.package.eslint" value="(autodetect)" />
     <property name="node.js.selected.package.tslint" value="(autodetect)" />
     <property name="nodejs_package_manager_path" value="npm" />
-    <property name="project.structure.last.edited" value="Project" />
+    <property name="project.structure.last.edited" value="Modules" />
     <property name="project.structure.proportion" value="0.0" />
     <property name="project.structure.side.proportion" value="0.0" />
     <property name="settings.editor.selected.configurable" value="preferences.keymap" />
   </component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
+      <recent name="sheetflow.common.codec" />
+      <recent name="sheetflow.common.web.rpc" />
+      <recent name="sheetflow.common.web.view" />
+      <recent name="sheetflow.common.exception" />
       <recent name="sheetflow.api.operators" />
-      <recent name="sheetflow.syntax.error" />
-      <recent name="sheetflow.common.lang" />
-      <recent name="sheetflow.api" />
-      <recent name="sheetflow.syntax" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="$PROJECT_DIR$/src" />
+      <recent name="$PROJECT_DIR$/src/sheetflow-common/src/main/java/sheetflow/common/ctx" />
       <recent name="$PROJECT_DIR$/src/sheetflow-common" />
       <recent name="$PROJECT_DIR$/src/sheetflow-syntax/src/main/resources" />
       <recent name="$PROJECT_DIR$/src/sheetflow-syntax" />
@@ -149,11 +200,13 @@
       <recent name="sheetflow.api" />
     </key>
     <key name="CreateTestDialog.RecentsKey">
+      <recent name="sheetflow.common.lang" />
+      <recent name="sheetflow.common.web.command" />
       <recent name="sheetflow.api.operators" />
       <recent name="sheetflow.syntax" />
     </key>
   </component>
-  <component name="RunManager" selected="JUnit.ExprBuilderTest.test_sum_add_num_const">
+  <component name="RunManager" selected="JUnit.ExprBuilderTest.test_serialize">
     <configuration default="true" type="Applet" factoryName="Applet">
       <module name="" />
       <option name="MAIN_CLASS_NAME" />
@@ -181,7 +234,29 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="ExprBuilderTest.test_build_single_sum" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+    <configuration name="DispatchCommandTest.testDeserialization" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="sheetflow-common" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="sheetflow.common.web.command.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="sheetflow.common.web.command" />
+      <option name="MAIN_CLASS_NAME" value="sheetflow.common.web.command.DispatchCommandTest" />
+      <option name="METHOD_NAME" value="testDeserialization" />
+      <option name="TEST_OBJECT" value="method" />
+      <option name="VM_PARAMETERS" />
+      <option name="WORKING_DIRECTORY" value="$MODULE_DIR$" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="moduleWithDependencies" />
+      </option>
+      <method v="2">
+        <option name="BuildArtifacts" enabled="false" />
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="ExprBuilderTest.test_serialize" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
       <module name="sheetflow-api" />
       <extension name="coverage">
         <pattern>
@@ -191,7 +266,7 @@
       </extension>
       <option name="PACKAGE_NAME" value="sheetflow.api" />
       <option name="MAIN_CLASS_NAME" value="sheetflow.api.ExprBuilderTest" />
-      <option name="METHOD_NAME" value="test_build_single_sum" />
+      <option name="METHOD_NAME" value="test_serialize" />
       <option name="TEST_OBJECT" value="method" />
       <option name="VM_PARAMETERS" />
       <option name="WORKING_DIRECTORY" value="$MODULE_DIR$" />
@@ -225,17 +300,39 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="FormulaOpTest.test_hashcode" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
-      <module name="sheetflow-api" />
+    <configuration name="Objects2Test.testFromProperties" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="sheetflow-common" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="sheetflow.api.operators.*" />
+          <option name="PATTERN" value="sheetflow.common.lang.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
-      <option name="PACKAGE_NAME" value="sheetflow.api.operators" />
-      <option name="MAIN_CLASS_NAME" value="sheetflow.api.operators.FormulaOpTest" />
-      <option name="METHOD_NAME" value="test_hashcode" />
+      <option name="PACKAGE_NAME" value="sheetflow.common.lang" />
+      <option name="MAIN_CLASS_NAME" value="sheetflow.common.lang.Objects2Test" />
+      <option name="METHOD_NAME" value="testFromProperties" />
+      <option name="TEST_OBJECT" value="method" />
+      <option name="VM_PARAMETERS" />
+      <option name="WORKING_DIRECTORY" value="$MODULE_DIR$" />
+      <option name="TEST_SEARCH_SCOPE">
+        <value defaultName="moduleWithDependencies" />
+      </option>
+      <method v="2">
+        <option name="BuildArtifacts" enabled="false" />
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="UniqueIdTest.testUuid" type="JUnit" factoryName="JUnit" temporary="true" nameIsGenerated="true">
+      <module name="sheetflow-common" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="sheetflow.common.lang.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <option name="PACKAGE_NAME" value="sheetflow.common.lang" />
+      <option name="MAIN_CLASS_NAME" value="sheetflow.common.lang.UniqueIdTest" />
+      <option name="METHOD_NAME" value="testUuid" />
       <option name="TEST_OBJECT" value="method" />
       <option name="VM_PARAMETERS" />
       <option name="WORKING_DIRECTORY" value="$MODULE_DIR$" />
@@ -272,9 +369,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="JUnit.ExprBuilderTest.test_serialize" />
+        <item itemvalue="JUnit.UniqueIdTest.testUuid" />
+        <item itemvalue="JUnit.DispatchCommandTest.testDeserialization" />
+        <item itemvalue="JUnit.Objects2Test.testFromProperties" />
         <item itemvalue="JUnit.ExprBuilderTest.test_sum_add_num_const" />
-        <item itemvalue="JUnit.ExprBuilderTest.test_build_single_sum" />
-        <item itemvalue="JUnit.FormulaOpTest.test_hashcode" />
       </list>
     </recent_temporary>
   </component>
@@ -303,6 +402,19 @@
       <workItem from="1644640346910" duration="551000" />
       <workItem from="1644640926253" duration="19912000" />
       <workItem from="1644718082263" duration="13990000" />
+      <workItem from="1644738026042" duration="2251000" />
+      <workItem from="1644740691590" duration="3279000" />
+      <workItem from="1644844596094" duration="10460000" />
+      <workItem from="1645103182840" duration="18000" />
+      <workItem from="1645103927144" duration="4345000" />
+      <workItem from="1645341973427" duration="14641000" />
+      <workItem from="1645417488985" duration="24000" />
+      <workItem from="1645454408055" duration="4619000" />
+      <workItem from="1645535472209" duration="110000" />
+      <workItem from="1645535843849" duration="3071000" />
+      <workItem from="1645544144758" duration="1161000" />
+      <workItem from="1645631783605" duration="12000" />
+      <workItem from="1646199795532" duration="2807000" />
     </task>
     <servers />
   </component>
@@ -320,6 +432,16 @@
           <url>file://$PROJECT_DIR$/src/sheetflow-api/src/test/java/sheetflow/api/ExprBuilderTest.java</url>
           <line>30</line>
           <option name="timeStamp" value="8" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/sheetflow-common/src/test/java/sheetflow/common/web/command/DispatchCommandTest.java</url>
+          <line>27</line>
+          <option name="timeStamp" value="9" />
+        </line-breakpoint>
+        <line-breakpoint enabled="true" type="java-line">
+          <url>file://$PROJECT_DIR$/src/sheetflow-api/src/main/java/sheetflow/api/FormulaGraph.java</url>
+          <line>64</line>
+          <option name="timeStamp" value="10" />
         </line-breakpoint>
       </breakpoints>
     </breakpoint-manager>

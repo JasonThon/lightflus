@@ -1,3 +1,5 @@
+apply from: "$rootDir/config/publish/maven_publish.gradle"
+
 dependencies {
     compile(
         "org.antlr:antlr4-runtime",

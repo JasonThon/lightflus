@@ -1,6 +1,11 @@
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct DataflowDesc<View> {
-    #[serde(rename(serialize = "objectId"))]
-    object_id: String,
-    view: View,
+use std::collections;
+
+#[derive(Debug, serde::Deserialize, serde::Serialize, Hash, Clone, Ord, PartialOrd, Eq, PartialEq)]
+pub struct JobID {
+    pub table_id: String,
+    pub header_id: String,
 }
+
+pub struct NodeException {}
+
+pub type RowData = collections::BTreeMap<u64, String>;

@@ -19,5 +19,6 @@ def category(name, modules) {
 category("src", [
 	"sheetflow-api",
 	"sheetflow-syntax",
-	"sheetflow-common"
+	"sheetflow-common",
+	"sheetflow-event"
 ])

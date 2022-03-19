@@ -1,11 +1,10 @@
 [package]
-name = "core"
+name = "data-client"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_json = "1.0.59"
-serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "0", features = ["full"] }
+protobuf = "2.0"
+grpcio = "0.10.0"

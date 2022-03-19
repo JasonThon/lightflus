@@ -19,9 +19,9 @@ class ExprBuilderTest {
         assertFalse(Lists2.isNullOrEmpty(testGraph.getMeta()));
         assertEquals(2, Lists2.size(testGraph.getMeta()));
 
-        List<AdjacentVec<FormulaOp>> filter = Lists2.filter(testGraph.getMeta(), vec -> vec.getCentral().getType().equals(OpType.Reference));
+        List<AdjacentVec<FormulaOp>> filter = Lists2.filter(testGraph.getMeta(), vec -> vec.getCenter().getType().equals(OpType.Reference));
         assertEquals(1, Lists2.size(filter));
-        Lists2.foreach(filter, vec -> Lists2.foreach(vec.getNeighbor(), op -> assertEquals(OpType.Sum, op.getType())));
+        Lists2.foreach(filter, vec -> Lists2.foreach(vec.getNeighbors(), op -> assertEquals(OpType.Sum, op.getType())));
     }
 
     @Test
@@ -29,5 +29,12 @@ class ExprBuilderTest {
         FormulaGraph graph = ExprBuilder.build("sum(AA2) + 1", FormulaGraph.class);
 
         assertNotNull(graph);
+    }
+
+    @Test
+    void test_serialize() {
+        FormulaGraph graph = ExprBuilder.build("sum(AA2) + 1", FormulaGraph.class);
+
+        System.out.println(graph);
     }
 }

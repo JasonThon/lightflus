@@ -1,12 +1,13 @@
 use std::borrow::Borrow;
 use std::collections::BTreeMap;
 
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Response {
     code: u32,
     message: String,
 }
 
-impl  Response {
+impl Response {
     pub fn code(&self) -> u32 {
         self.code.clone()
     }
@@ -22,7 +23,7 @@ impl  Response {
     pub fn ok() -> Response {
         Response {
             code: 200,
-            message: "success".to_string()
+            message: "success".to_string(),
         }
     }
 }

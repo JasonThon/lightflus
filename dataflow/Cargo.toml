@@ -2,14 +2,27 @@
 name = "dataflow"
 version = "0.1.0"
 edition = "2021"
+description = "dataflow lib"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-core = { path = "../core" }
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
+serde_json = "1.0.59"
+tokio = { version = "0", features = ["full"] }
+actix-web = "3"
+actix = "0.12"
+petgraph = "0.6.0"
+core = { path = "../core" }
+data-client = { path = "../data-client" }
+redis = "0.21.5"
 
 [features]
+worker = ["types", "graph", "errors", "events", "source", "runtime"]
+coord = ["runtime", "types", "errors", "events"]
 types = []
-coordinator = []
+graph = []
+errors = []
+events = []
+source = []
+runtime = ["types", "graph", "errors", "source"]

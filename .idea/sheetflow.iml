@@ -9,6 +9,8 @@
       <sourceFolder url="file://$MODULE_DIR$/dataflow/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/table/src" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/view/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/tableflow-worker/src" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/data-client/src" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/target" />
       <excludeFolder url="file://$MODULE_DIR$/bootstrap/target" />
     </content>

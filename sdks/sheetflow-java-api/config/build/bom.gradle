@@ -5,6 +5,8 @@ project.ext {
     jupiterVersion = "5.8.2"
     lang3Version = "3.12.0"
     jacksonVersion = "2.13.0"
+    springBootVersion = "2.2.0.RELEASE"
+    feignVersion = '11.0'
 }
 
 dependencyManagement {
@@ -14,11 +16,13 @@ dependencyManagement {
 
     dependencies {
         dependency "com.google.guava:guava:$guavaVersion"
-        dependency "ch.qos.logback:logback-classic:$logbackVersion"
         dependency "org.antlr:antlr4-runtime:$antlrVersion"
         dependency "org.junit.jupiter:junit-jupiter-api:$jupiterVersion" 
         dependency "org.apache.commons:commons-lang3:$lang3Version" 
         dependency "com.fasterxml.jackson.core:jackson-databind:$jacksonVersion"
+        dependency "org.springframework.boot:spring-boot-starter-web:$springBootVersion"
+        dependency "org.springframework.data:spring-data-commons:2.6.2"
+        dependency "io.github.openfeign:feign-core:$feignVersion"
     }
 }
 
@@ -27,10 +31,6 @@ project.dependencies {
             "com.google.guava:guava",
 	        "org.apache.commons:commons-lang3",
             "com.fasterxml.jackson.core:jackson-databind"
-    )
-
-    runtime(
-            "ch.qos.logback:logback-classic"
     )
 
     testCompile(

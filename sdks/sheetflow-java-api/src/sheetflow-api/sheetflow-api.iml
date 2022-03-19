@@ -38,6 +38,61 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-web/2.2.0.RELEASE/a63661766218b06e540e58f7f3d4cf64278af92c/spring-boot-starter-web-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-web/2.2.0.RELEASE/8c5cf2662df8db2d3d58947735d0aecd75b7d549/spring-boot-starter-web-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-json/2.2.0.RELEASE/72459189c5a602f1e651c8e2a4547889dc691139/spring-boot-starter-json-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-json/2.2.0.RELEASE/c7368357f5f89823408517886ab66873624672d9/spring-boot-starter-json-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jdk8/2.10.0/ac9b5e4ec02f243c580113c0c58564d90432afaa/jackson-datatype-jdk8-2.10.0.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jdk8/2.10.0/7e77a5a26a7a3e293faaf8d4391d8248406cbbe2/jackson-datatype-jdk8-2.10.0-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jsr310/2.10.0/946bcb4b3ba9facfb338b1d48c2606225205a70c/jackson-datatype-jsr310-2.10.0.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.datatype/jackson-datatype-jsr310/2.10.0/fa7bb655432311553c9717ef01d1b12989db4090/jackson-datatype-jsr310-2.10.0-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.module/jackson-module-parameter-names/2.10.0/d7ae5421ab27486429aeb878b7e3937544d9324a/jackson-module-parameter-names-2.10.0.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/com.fasterxml.jackson.module/jackson-module-parameter-names/2.10.0/a52ab29f26c0b5b10b18584971ab78811e0dae0e/jackson-module-parameter-names-2.10.0-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
           <root url="jar:///Users/songyi/.m2/repository/com/fasterxml/jackson/core/jackson-databind/2.13.0/jackson-databind-2.13.0.jar!/"/>
         </CLASSES>
         <JAVADOC/>
@@ -152,7 +207,294 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.data/spring-data-commons/2.6.2/b86982771adfa51fdffbad50bed8ade75ac0710e/spring-data-commons-2.6.2.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.data/spring-data-commons/2.6.2/8d49e5edd8f1aa5e59a404d702e0e1744de92a11/spring-data-commons-2.6.2-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/io.github.openfeign/feign-core/11.0/29fd8a94cae3f0450894b3875398d57222fce03c/feign-core-11.0.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/io.github.openfeign/feign-core/11.0/8df4ee67f6a3f315228d215c029f34291ec20d99/feign-core-11.0-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-validation/2.2.0.RELEASE/ab315d2930808b87908be42e19f64a1d5afbb012/spring-boot-starter-validation-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-validation/2.2.0.RELEASE/1af0503146c55d8468e027ecb3b878c93db0db84/spring-boot-starter-validation-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter/2.2.0.RELEASE/47b669895fc0e5bb8e5a54b7171029223f899cde/spring-boot-starter-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter/2.2.0.RELEASE/7d627a3f4c4681c7d1780079ff34e2551f1a7f5a/spring-boot-starter-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-tomcat/2.2.0.RELEASE/e305bc0fec134a639c10c9d48885db88951ea318/spring-boot-starter-tomcat-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-tomcat/2.2.0.RELEASE/306bf6a9a5f4f8e8ee0b34bac22a9683caa2bf49/spring-boot-starter-tomcat-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-webmvc/5.2.0.RELEASE/652abc943904d67504dc822197868cafaa5e56b5/spring-webmvc-5.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-webmvc/5.2.0.RELEASE/add389b42b4d1da98888ea19b9e0be6cf548a07b/spring-webmvc-5.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-web/5.2.0.RELEASE/d5b064196dc014519e751df549b4cc6a753fb191/spring-web-5.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-web/5.2.0.RELEASE/e49b6753442bc35a00ef655e500725881ea59aee/spring-web-5.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-autoconfigure/2.2.0.RELEASE/1b3304eec25bb9860bd091a31133e3fe139fcab6/spring-boot-autoconfigure-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-autoconfigure/2.2.0.RELEASE/5ec87772eba5f1fc1736579001e6c249e3f64e73/spring-boot-autoconfigure-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot/2.2.0.RELEASE/1fab3cd45761bf4ee500cfa3bbb2812648014ad0/spring-boot-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot/2.2.0.RELEASE/d7ac345285de4d93e2635967f3485189a412d1ba/spring-boot-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-context/5.2.0.RELEASE/a2638a8295f13ed8511c98a2379507677e1d16fa/spring-context-5.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-context/5.2.0.RELEASE/a45f89a4dee3bc46a513dc25a2f09137691f152f/spring-context-5.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-aop/5.2.0.RELEASE/7031d44f063ea68e49b881a985967e7f2c144f3b/spring-aop-5.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-aop/5.2.0.RELEASE/3392a85ed20efa81a7f9a95e1ae7c5e1e445589c/spring-aop-5.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-beans/5.3.16/15decec5cea7a91423272daaae6f5d050c23cf3b/spring-beans-5.3.16.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-beans/5.3.16/cf7d86d16ca94df1d5d752a2a43c86caea3e2460/spring-beans-5.3.16-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-expression/5.2.0.RELEASE/ac6a616451129e717979f18d2bff40528698a46e/spring-expression-5.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-expression/5.2.0.RELEASE/fbba200a2fca73f7275260db112956fc8fa178ba/spring-expression-5.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-core/5.3.16/db1b277cd548c725144580dda8703ce179fb3769/spring-core-5.3.16.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-core/5.3.16/747f564129dd9052613cc62b0f126a97ded5bdf2/spring-core-5.3.16-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-logging/2.2.0.RELEASE/d41e211e1d8705754635b698a7bf9ab9ff196a5f/spring-boot-starter-logging-2.2.0.RELEASE.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework.boot/spring-boot-starter-logging/2.2.0.RELEASE/deb582ae46d66017330e64136fb7469d546ba701/spring-boot-starter-logging-2.2.0.RELEASE-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
           <root url="jar:///Users/songyi/.m2/repository/ch/qos/logback/logback-classic/1.2.3/logback-classic-1.2.3.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/org/apache/logging/log4j/log4j-to-slf4j/2.12.1/log4j-to-slf4j-2.12.1.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.slf4j/jul-to-slf4j/1.7.28/c6f06c420ad62d3824b38a06dfdce9fb55ba81ef/jul-to-slf4j-1.7.28.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.slf4j/jul-to-slf4j/1.7.28/38e319ad85f5b34c10429493902c25c8859ab9b2/jul-to-slf4j-1.7.28-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.32/cdcff33940d9f2de763bc41ea05a0be5941176c3/slf4j-api-1.7.32.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.slf4j/slf4j-api/1.7.32/4381b152f738580aef4e436b2692a3db30609b26/slf4j-api-1.7.32-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/jakarta/annotation/jakarta.annotation-api/1.3.5/jakarta.annotation-api-1.3.5.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-websocket/9.0.27/8d2b93a8621a83d9283a46cae09d8f87bea877fa/tomcat-embed-websocket-9.0.27.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-websocket/9.0.27/8421312699b155ddd7b7f32f78d4b9dfc8b478f9/tomcat-embed-websocket-9.0.27-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-core/9.0.27/f1bb28625eb8e10ba05081ec840f49a2ea520d85/tomcat-embed-core-9.0.27.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-core/9.0.27/19aa5cabb190dc60ebd3e236300de4988be832ab/tomcat-embed-core-9.0.27-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-el/9.0.27/9123115b6d11187154d9f462c89c0b0fce171ade/tomcat-embed-el-9.0.27.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.apache.tomcat.embed/tomcat-embed-el/9.0.27/382c516308f27f0a31dc557cb933c570a863b363/tomcat-embed-el-9.0.27-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/jakarta.validation/jakarta.validation-api/2.0.1/5a864a58587cd76243b8ec55dd7115c9eac25c08/jakarta.validation-api-2.0.1.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/jakarta.validation/jakarta.validation-api/2.0.1/56f21cc15c2d307b5438ffef507ce42b740efeea/jakarta.validation-api-2.0.1-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/org/hibernate/validator/hibernate-validator/6.0.17.Final/hibernate-validator-6.0.17.Final.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jcl/5.3.16/18d422952e0ce534c2b0ac8b47176c2432fb7e78/spring-jcl-5.3.16.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES>
+          <root url="jar:///Users/songyi/.gradle/caches/modules-2/files-2.1/org.springframework/spring-jcl/5.3.16/1d8c11242be21be96686a7728e93795664f4ea84/spring-jcl-5.3.16-sources.jar!/"/>
+        </SOURCES>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/org/jboss/logging/jboss-logging/3.3.2.Final/jboss-logging-3.3.2.Final.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/com/fasterxml/classmate/1.3.4/classmate-1.3.4.jar!/"/>
         </CLASSES>
         <JAVADOC/>
         <SOURCES/>
@@ -170,7 +512,16 @@
     <orderEntry type="module-library">
       <library>
         <CLASSES>
-          <root url="jar:///Users/songyi/.m2/repository/org/slf4j/slf4j-api/1.7.25/slf4j-api-1.7.25.jar!/"/>
+          <root url="jar:///Users/songyi/.m2/repository/org/apache/logging/log4j/log4j-api/2.12.1/log4j-api-2.12.1.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="RUNTIME">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/org/yaml/snakeyaml/1.25/snakeyaml-1.25.jar!/"/>
         </CLASSES>
         <JAVADOC/>
         <SOURCES/>
@@ -207,6 +558,15 @@
       <library>
         <CLASSES>
           <root url="jar:///Users/songyi/.m2/repository/org/apiguardian/apiguardian-api/1.1.2/apiguardian-api-1.1.2.jar!/"/>
+        </CLASSES>
+        <JAVADOC/>
+        <SOURCES/>
+      </library>
+    </orderEntry>
+    <orderEntry type="module-library" scope="TEST">
+      <library>
+        <CLASSES>
+          <root url="jar:///Users/songyi/.m2/repository/org/yaml/snakeyaml/1.25/snakeyaml-1.25.jar!/"/>
         </CLASSES>
         <JAVADOC/>
         <SOURCES/>

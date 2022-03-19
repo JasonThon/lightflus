@@ -27,7 +27,7 @@ publishing {
         maven(MavenPublication) {
             groupId project.group
             artifactId project.name
-            version project.fullVersion
+            version project.version
             from components.java
 
             //配置上传源码
@@ -38,19 +38,6 @@ publishing {
     }
 
     repositories {
-
-        maven {
-            credentials {
-                username 'uuMJfd'
-                password project.getProperty("repoPassword")
-            }
-
-            if (project.hasProperty("released")) {
-                url = 'https://repo.rdc.aliyun.com/repository/124293-release-LeJrRe/'
-            } else {
-                url = 'https://repo.rdc.aliyun.com/repository/124293-snapshot-iwPsjw/'
-            }
-        }
-
+        mavenLocal()
     }
 }

@@ -9,16 +9,16 @@ pub mod event;
 pub mod err;
 #[cfg(feature = "coord")]
 pub mod coord;
-#[cfg(feature = "source")]
-pub mod source;
 #[cfg(feature = "runtime")]
 pub mod runtime;
 #[cfg(feature = "coord")]
 pub mod cluster;
 #[cfg(feature = "types")]
 pub mod types;
-#[cfg(feature = "graph")]
-pub mod graph;
+#[cfg(feature = "worker")]
+pub mod worker;
+#[cfg(feature = "conn")]
+mod conn;
 
 type TableResult = actix_web::Result<String>;
 

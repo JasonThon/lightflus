@@ -2,9 +2,6 @@ use std::fmt;
 
 use tokio::sync::mpsc;
 
-use crate::runtime;
-use crate::runtime::execution;
-
 #[derive(serde::Serialize, serde::Deserialize)]
 pub struct CoordinatorException {
     pub kind: ErrorKind,
@@ -14,8 +11,24 @@ pub struct CoordinatorException {
 #[derive(serde::Serialize, serde::Deserialize)]
 pub enum ErrorKind {}
 
-impl From<runtime::ExecutionException> for CoordinatorException {
-    fn from(err: runtime::ExecutionException) -> Self {
+impl From<ExecutionException> for CoordinatorException {
+    fn from(err: ExecutionException) -> Self {
+        todo!()
+    }
+}
+
+
+pub(crate) struct ConnectionError {}
+
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ExecutionException {
+    pub kind: ErrorKind,
+    pub msg: String,
+}
+
+impl From<actix::prelude::SendError<super::event::FormulaOpEvent>> for ExecutionException {
+    fn from(err: actix::prelude::SendError<super::event::FormulaOpEvent>) -> Self {
         todo!()
     }
 }

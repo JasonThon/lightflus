@@ -16,13 +16,13 @@ petgraph = "0.6.0"
 core = { path = "../core" }
 data-client = { path = "../data-client" }
 redis = "0.21.5"
+log = "0.4"
 
 [features]
-worker = ["types", "graph", "errors", "events", "source", "runtime"]
-coord = ["runtime", "types", "errors", "events"]
+worker = ["runtime"]
+coord = ["runtime"]
 types = []
-graph = []
 errors = []
-events = []
-source = []
-runtime = ["types", "graph", "errors", "source"]
+events = ["types"]
+conn = ["types", "errors"]
+runtime = ["types", "events", "errors", "conn"]

@@ -3,15 +3,6 @@ use std::sync::Arc;
 pub mod tableflow;
 pub mod tableflow_grpc;
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        let result = 2 + 2;
-        assert_eq!(result, 4);
-    }
-}
-
 pub struct DataEngineConfig {
     pub host: String,
     pub port: usize,

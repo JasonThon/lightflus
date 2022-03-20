@@ -4,11 +4,11 @@ use std::ops::Index;
 
 use core;
 
-use crate::source;
+use crate::types;
 
 pub struct ClusterConfig {
     workers: Vec<std::net::SocketAddr>,
-    sources: Vec<source::SourceDesc>,
+    sources: Vec<types::SourceDesc>,
 }
 
 impl ClusterConfig {

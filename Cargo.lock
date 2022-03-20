@@ -676,6 +676,7 @@ dependencies = [
  "actix-web",
  "core",
  "data-client",
+ "log",
  "petgraph",
  "redis",
  "serde",

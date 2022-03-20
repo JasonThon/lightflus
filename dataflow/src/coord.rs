@@ -3,11 +3,11 @@ use std::collections;
 
 use tokio::sync::mpsc;
 
-use crate::{cluster, runtime};
+use crate::{cluster, runtime, types};
 use crate::err;
 use crate::err::CoordinatorException;
-use crate::runtime::{execution, formula};
-use crate::types;
+use crate::runtime::execution;
+use crate::types::formula;
 
 pub struct Coordinator {
     cluster: cluster::ClusterConfig,
@@ -33,7 +33,7 @@ impl Coordinator {
         match map
             .insert(
                 job_id.clone(),
-                execution::ExecutionGraph::new(
+                runtime::Graph::new(
                     job_id.clone(),
                     graph.meta.to_vec(),
                     collections::BTreeMap::from_iter(graph.data.iter()

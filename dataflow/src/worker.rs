@@ -1,25 +1,21 @@
 use std::borrow::{Borrow, BorrowMut};
 use std::cell;
-use std::cell::{RefCell, RefMut};
 use std::collections;
 use std::sync;
-use std::sync::Arc;
+use actix_web::dev::Service;
 
 use tokio::io::AsyncReadExt;
-use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::error::{SendError, TryRecvError};
 
-use crate::runtime;
+use crate::{err, event, runtime, types};
 use crate::runtime::execution;
-use crate::runtime::formula;
-use crate::runtime::formula::FormulaOpEvent;
-use crate::types;
+use crate::types::formula;
+use crate::event::FormulaOpEvent;
 use crate::types::JobID;
 
 pub struct TaskWorker {
     job_pool: cell::RefCell<collections::HashMap<types::JobID, runtime::Graph>>,
-    event_in_tx_map: cell::RefCell<collections::HashMap<types::JobID, mpsc::UnboundedSender<formula::FormulaOpEvent>>>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -43,42 +39,54 @@ impl From<mpsc::error::TryRecvError> for TaskWorkerError {
     }
 }
 
+impl From<err::ExecutionException> for TaskWorkerError {
+    fn from(_: err::ExecutionException) -> Self {
+        todo!()
+    }
+}
+
 struct TaskWorkerBuilder {}
 
 impl TaskWorker {
     pub(crate) fn new() -> Self {
         TaskWorker {
             job_pool: Default::default(),
-            event_in_tx_map: Default::default(),
         }
     }
 
-    pub fn submit_event(&self, event: formula::FormulaOpEvent) -> Result<(), TaskWorkerError> {
-        RefMut::map(
-            self.event_in_tx_map.borrow_mut(),
-            |tx| {
-                if tx.contains_key(&event.job_id) {
-                    tx.get_mut(&event.job_id)
-                        .unwrap()
-                        .send(event);
+    pub fn submit_event(&self, event: event::FormulaOpEvent) -> Result<(), TaskWorkerError> {
+        let result = cell::RefCell::new(Ok(()));
+
+        cell::RefMut::map(
+            self.job_pool.borrow_mut(),
+            |pool| {
+                match pool.get_mut(&event.job_id) {
+                    Some(graph) => {
+                        result.replace(graph.try_recv(event));
+                    }
+                    _ => {}
                 }
 
-                tx
+                pool
             },
         );
 
-        Ok(())
+
+        result.take()
+            .map_err(|err| TaskWorkerError::from(err))
     }
 
-    pub fn build_new_graph(&self, job_id: types::JobID, mut ops: runtime::Graph) {
-        ops.build_dag();
+    pub fn build_new_graph(&self, job_id: types::JobID, ops: runtime::Graph) {
         cell::RefMut::map(
             self.job_pool.borrow_mut(),
             |map| {
-                ops.start();
-                map.insert(job_id, ops);
+                map.insert(job_id.clone(), ops);
+                map.get_mut(&job_id)
+                    .unwrap()
+                    .build_dag(job_id);
+
                 map
-            }
+            },
         );
     }
 }
@@ -99,6 +107,11 @@ pub struct TaskWorkerConfig {
     pub port: usize,
 }
 
+pub fn new_worker() -> TaskWorker {
+    TaskWorkerBuilder::new()
+        .build()
+}
+
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type")]
 pub enum GraphEvent {
@@ -106,10 +119,5 @@ pub enum GraphEvent {
         ops: runtime::Graph,
         job_id: types::JobID,
     },
-    NodeEventSubmit(runtime::formula::FormulaOpEvent),
-}
-
-pub fn new_worker() -> TaskWorker {
-    TaskWorkerBuilder::new()
-        .build()
+    NodeEventSubmit(FormulaOpEvent),
 }

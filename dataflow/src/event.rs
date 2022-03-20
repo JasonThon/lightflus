@@ -1,7 +1,6 @@
-use std::time::SystemTime;
+use std::collections::BTreeMap;
 
-use crate::err;
-use crate::runtime;
+use crate::types;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum TableAction {
@@ -13,7 +12,7 @@ pub enum TableAction {
     FormulaUpdate {
         table_id: String,
         header_id: String,
-        graph: runtime::formula::FormulaGraph,
+        graph: types::formula::FormulaGraph,
     },
 }
 
@@ -30,7 +29,7 @@ impl TableEvent {
 }
 
 impl Event<String, TableAction> for TableEvent {
-    fn event_time(&self) -> SystemTime {
+    fn event_time(&self) -> std::time::SystemTime {
         self.event_time.clone()
     }
 
@@ -48,4 +47,58 @@ pub trait Event<K, V> {
     fn event_time(&self) -> std::time::SystemTime;
     fn get_key(&self) -> K;
     fn get_value(&self) -> V;
+}
+
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ConnectorEvent {
+    pub event_type: ConnectorEventType,
+    pub table_id: String,
+    pub header_id: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub entries: Vec<types::Entry>,
+    pub timestamp: std::time::SystemTime,
+}
+
+impl Event<String, (ConnectorEventType, Vec<types::Entry>)> for ConnectorEvent {
+    fn event_time(&self) -> std::time::SystemTime {
+        self.timestamp.clone()
+    }
+
+    fn get_key(&self) -> String {
+        format!("{}/{}", &self.table_id, &self.header_id)
+    }
+
+    fn get_value(&self) -> (ConnectorEventType, Vec<types::Entry>) {
+        (self.event_type.clone(), self.entries.to_vec())
+    }
+}
+
+#[derive(Clone)]
+pub enum ConnectorEventType {
+    Tableflow,
+    Action(ActionType),
+}
+
+pub type ActionType = usize;
+
+pub const INSERT: usize = 0;
+pub const UPDATE: usize = 1;
+pub const DELETE: usize = 2;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, actix::Message)]
+pub struct FormulaOpEvent {
+    pub job_id: types::JobID,
+    pub from: u64,
+    pub to: u64,
+    #[serde(rename(serialize = "eventType"))]
+    pub event_type: FormulaOpEventType,
+    pub data: Vec<types::Entry>,
+    pub event_time: std::time::SystemTime,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum FormulaOpEventType {
+    Reference,
 }

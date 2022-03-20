@@ -46,6 +46,10 @@ pub mod lists {
 #[cfg(test)]
 mod test {
     use crate::local_ip;
+    use tokio::sync::mpsc;
+    use std::cell;
+    use std::ops::Deref;
+    use std::process::id;
 
     #[test]
     fn test_local_ip() {
@@ -64,5 +68,68 @@ mod test {
             assert_eq!(int.clone(), index);
             index = index + 1;
         })
+    }
+
+    #[test]
+    fn test_channel_clone() {
+        let (tx, mut rx) = mpsc::unbounded_channel::<usize>();
+
+        let tx_1 = tx.clone();
+        let tx_2 = tx.clone();
+
+        tx_1.send(1);
+        tx_2.send(2);
+        tx.send(3);
+
+        let result_1 = rx.try_recv();
+        assert!(result_1.is_ok());
+        let result_2 = rx.try_recv();
+        assert!(result_2.is_ok());
+        let result_3 = rx.try_recv();
+        assert!(result_3.is_ok());
+
+        assert_eq!(result_1.unwrap(), 1);
+        assert_eq!(result_2.unwrap(), 2);
+        assert_eq!(result_3.unwrap(), 3);
+    }
+
+    #[test]
+    fn test_ref_mut() {
+        let ref vec = vec![1, 2, 3, 4];
+
+        let ref_cell = cell::RefCell::new(vec.clone());
+        cell::RefMut::map(
+            ref_cell.borrow_mut(),
+            |v| {
+                v.push(5);
+                v
+            },
+        );
+
+        assert_eq!(ref_cell.take(), vec![1, 2, 3, 4, 5])
+    }
+
+    enum TestEnum {
+        Vector {
+            vec: Vec<u32>
+        }
+    }
+
+    impl TestEnum {
+        fn add_value(&mut self, value: u32) {
+            match self {
+                TestEnum::Vector {
+                    vec
+                } => vec.push(value)
+            }
+        }
+
+        fn get(&self, idx: usize) -> Option<u32> {
+            match self {
+                TestEnum::Vector {
+                    vec
+                } => Option::Some(vec[idx])
+            }
+        }
     }
 }

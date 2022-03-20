@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use actix_web::web;
 
-use dataflow::{graph, graph::worker, types};
+use dataflow::{event, graph, types, worker};
 use dataflow::graph::worker::TaskWorkerError;
-use dataflow::runtime::formula::FormulaOpEvent;
+use dataflow::event::FormulaOpEvent;
 
 type JoinHandlerMap = collections::HashMap<types::JobID, tokio::task::JoinHandle<()>>;
 
@@ -14,13 +14,13 @@ type JoinHandlerMap = collections::HashMap<types::JobID, tokio::task::JoinHandle
 pub async fn action_to_events(event: web::Json<graph::worker::GraphEvent>,
                               worker: web::Data<worker::TaskWorker>) -> Result<actix_web::HttpResponse, actix_web::Error> {
     match event.0 {
-        graph::worker::GraphEvent::ExecutionGraphSubmit {
+        worker::GraphEvent::ExecutionGraphSubmit {
             job_id, ops
         } => {
             worker.build_new_graph(job_id, ops);
             Ok(actix_web::HttpResponse::Ok().finish())
         },
-        graph::worker::GraphEvent::NodeEventSubmit(event) => {
+        worker::GraphEvent::NodeEventSubmit(event) => {
             match worker.submit_event(event) {
                 Ok(_) => actix_web::HttpResponse::Ok()
                     .body("ok")

@@ -1,0 +1,22 @@
+{
+  "mongo": {
+    "host": "localhost",
+    "port": 27017,
+    "database": "dataflow"
+  },
+  "port": 8080,
+  "cluster": [
+    {
+      "host": "SHA-MAC-JASON-SONG-0",
+      "port": 8090
+    }
+  ],
+  "sources": [
+    {
+      "type": "Redis",
+      "host": "localhost",
+      "port": 6379,
+      "db": 0
+    }
+  ]
+}

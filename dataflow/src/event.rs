@@ -1,22 +1,38 @@
-use std::collections::BTreeMap;
-
+use std::collections;
 use crate::types;
+use crate::types::JobID;
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub enum TableAction {
-    HeaderSubmit {
-        data: Vec<String>,
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+pub struct BinderEvent {
+    pub job_id: types::JobID,
+    pub binder_type: BinderEventType,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+pub enum BinderEventType {
+    Create {
         table_id: String,
         header_id: String,
+        id: u64,
+        addr: String,
     },
+    Stop,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub enum TableAction {
     FormulaUpdate {
         table_id: String,
         header_id: String,
         graph: types::formula::FormulaGraph,
     },
+    TableSubmission {
+        table_id: String,
+        data: collections::BTreeMap<String, Vec<u8>>,
+    },
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct TableEvent {
     action: TableAction,
     event_time: std::time::SystemTime,
@@ -25,6 +41,12 @@ pub struct TableEvent {
 impl TableEvent {
     pub fn action(&self) -> &TableAction {
         &self.action
+    }
+    pub fn new(action: TableAction) -> TableEvent {
+        TableEvent {
+            action,
+            event_time: std::time::SystemTime::now(),
+        }
     }
 }
 
@@ -59,15 +81,33 @@ pub struct ConnectorEvent {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub entries: Vec<types::Entry>,
     pub timestamp: std::time::SystemTime,
+    pub binders: Vec<types::Binder>,
 }
 
-impl Event<String, (ConnectorEventType, Vec<types::Entry>)> for ConnectorEvent {
+impl ConnectorEvent {
+    pub(crate) fn to_formula_op_event_type(&self) -> FormulaOpEventType {
+        match &self.event_type {
+            ConnectorEventType::Tableflow { .. } => FormulaOpEventType::Reference,
+            ConnectorEventType::Action(action_type) => {
+                match action_type.clone() {
+                    DELETE => FormulaOpEventType::Delete,
+                    UPDATE => FormulaOpEventType::Update,
+                    INSERT => FormulaOpEventType::Insert,
+                    _ => FormulaOpEventType::Invalid
+                }
+            }
+            ConnectorEventType::Close => FormulaOpEventType::Invalid
+        }
+    }
+}
+
+impl Event<JobID, (ConnectorEventType, Vec<types::Entry>)> for ConnectorEvent {
     fn event_time(&self) -> std::time::SystemTime {
         self.timestamp.clone()
     }
 
-    fn get_key(&self) -> String {
-        format!("{}/{}", &self.table_id, &self.header_id)
+    fn get_key(&self) -> JobID {
+        types::job_id(self.table_id.as_str(), self.table_id.as_str())
     }
 
     fn get_value(&self) -> (ConnectorEventType, Vec<types::Entry>) {
@@ -75,10 +115,27 @@ impl Event<String, (ConnectorEventType, Vec<types::Entry>)> for ConnectorEvent {
     }
 }
 
-#[derive(Clone)]
+#[derive(PartialEq, Clone, Default)]
+pub struct WrappedQueryResponse {
+    resp: data_client::tableflow::QueryResponse,
+    id: types::JobID,
+}
+
+pub fn new_wrapped_query_resp(resp: data_client::tableflow::QueryResponse, id: types::JobID) -> WrappedQueryResponse {
+    WrappedQueryResponse {
+        resp,
+        id,
+    }
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum ConnectorEventType {
-    Tableflow,
+    Tableflow {
+        page: u32,
+        limit: u32,
+    },
     Action(ActionType),
+    Close,
 }
 
 pub type ActionType = usize;
@@ -87,7 +144,8 @@ pub const INSERT: usize = 0;
 pub const UPDATE: usize = 1;
 pub const DELETE: usize = 2;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, actix::Message)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, actix::Message, Debug)]
+#[rtype(result = "()")]
 pub struct FormulaOpEvent {
     pub job_id: types::JobID,
     pub from: u64,
@@ -101,4 +159,35 @@ pub struct FormulaOpEvent {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum FormulaOpEventType {
     Reference,
+    TableflowTrigger {
+        page: u32,
+        limit: u32,
+    },
+    Delete,
+    Update,
+    Insert,
+    Stop,
+    Invalid,
 }
+
+impl From<&ConnectorEventType> for FormulaOpEventType {
+    fn from(_: &ConnectorEventType) -> Self {
+        todo!()
+    }
+}
+
+#[derive(serde::Serialize, serde::Deserialize)]
+#[serde(tag = "type")]
+pub enum GraphEvent {
+    ExecutionGraphSubmit {
+        ops: types::GraphModel,
+        job_id: types::JobID,
+    },
+    NodeEventSubmit(FormulaOpEvent),
+    StopGraph {
+        job_id: types::JobID,
+    },
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct Disconnect;

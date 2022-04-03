@@ -1,0 +1,12 @@
+[package]
+name = "dataflow-test"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dev-dependencies]
+dataflow = { path = "../dataflow", features = ["runtime", "conn"]}
+serde_json = "1.0.59"
+tokio = { version = "0", features = ["test-util"] }
+log = "0.4"

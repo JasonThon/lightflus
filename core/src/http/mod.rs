@@ -1,59 +1,48 @@
-use std::borrow::Borrow;
-use std::collections::BTreeMap;
+pub const SUCCESS: i32 = 200;
+pub const BAD_REQUEST: i32 = 400;
+pub const INTERNAL_SERVER_ERROR: i32 = 500;
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct Response {
-    code: u32,
-    message: String,
-}
-
-impl Response {
-    pub fn code(&self) -> u32 {
-        self.code.clone()
+pub fn to_io_error(err: grpcio::Error) -> std::io::Error {
+    match err {
+        grpcio::Error::Codec(err) => std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!("codec error: {}", err.as_ref()),
+        ),
+        grpcio::Error::CallFailure(_) => std::io::Error::new(
+            std::io::ErrorKind::NotConnected,
+            "internal call failed",
+        ),
+        grpcio::Error::RpcFailure(_) => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::RpcFinished(_) => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::RemoteStopped => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::ShutdownFailed => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::BindFail(_, _) => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::QueueShutdown => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::GoogleAuthenticationFailed => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
+        grpcio::Error::InvalidMetadata(_) => std::io::Error::new(
+            std::io::ErrorKind::ConnectionRefused,
+            "",
+        ),
     }
-    pub fn message(&self) -> String {
-        self.message.clone()
-    }
-
-    pub fn to_string(&self) -> String {
-        serde_json::to_string(self)
-            .expect("")
-    }
-
-    pub fn ok() -> Response {
-        Response {
-            code: 200,
-            message: "success".to_string(),
-        }
-    }
-}
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub enum Protocol {
-    HTTP,
-    HTTPS,
-}
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub enum Method {
-    Get {
-        params: BTreeMap<String, String>
-    },
-    Post {
-        payload: BTreeMap<String, String>
-    },
-    Delete,
-    Patch {
-        payload: BTreeMap<String, String>
-    },
-}
-
-
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
-pub struct HttpDesc {
-    url: String,
-    protocol: Protocol,
-    path: String,
-    method: Method,
-    header: BTreeMap<String, String>,
 }

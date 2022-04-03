@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package dataflow;
+import "common/probe.proto";
+
+option go_package = "proto";
+
+service TaskWorkerApi {
+  rpc SubmitAction(ActionSubmitRequest) returns (ActionSubmitResponse){}
+  rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
+}
+
+message ActionSubmitRequest {
+  bytes value = 1;
+}
+
+message ActionSubmitResponse {
+  int32 code = 1;
+  string message = 2;
+}

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package coordinator;
+import "common/probe.proto";
+
+option go_package = "proto";
+
+service CoordinatorApi {
+  rpc HandleEvent(EventRequest) returns (EventResponse) {}
+  rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
+}
+
+message EventRequest{
+  bytes data = 1;
+}
+
+message EventResponse {
+  int32 code = 1;
+  string msg = 2;
+}

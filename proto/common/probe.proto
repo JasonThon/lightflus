@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package common;
+option go_package = "proto";
+
+message ProbeRequest {
+  enum NodeType {
+    Coordinator = 0;
+    TaskWorker = 1;
+    Connector = 2;
+  }
+  enum ProbeType {
+    Liveness = 0;
+    Readiness = 1;
+  }
+  NodeType nodeType = 1;
+  ProbeType probeType = 2;
+}
+
+message ProbeResponse {
+  float memory = 1;
+  float cpu = 2;
+  bool available = 3;
+}

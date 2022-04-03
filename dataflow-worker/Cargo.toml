@@ -1,5 +1,5 @@
 [package]
-name = "tableflow-worker"
+name = "dataflow-worker"
 version = "0.1.0"
 edition = "2021"
 
@@ -9,5 +9,9 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.59"
 tokio = { version = "0", features = ["full"] }
-actix-web = "3"
 dataflow = { path = "../dataflow", features = ["worker"]}
+dataflow-api = {path = "../dataflow-api", features = ["worker"]}
+log = "0.4"
+
+grpcio = "0.10.0"
+protobuf = "2.0"

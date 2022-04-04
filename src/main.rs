@@ -1,5 +1,7 @@
 use std::sync;
+
 use tokio::sync::mpsc;
+
 use dataflow::{coord, event};
 use dataflow_api::dataflow_coordinator_grpc;
 

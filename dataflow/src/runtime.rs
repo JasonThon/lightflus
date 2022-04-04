@@ -3,6 +3,7 @@ use crate::types;
 pub mod execution {
     use actix::Actor;
     use serde::ser::SerializeStruct;
+
     use crate::{err, event, types};
     use crate::types::formula;
 
@@ -26,7 +27,7 @@ pub mod execution {
         }
 
         pub fn build_dag(&mut self, job_id: types::JobID) {
-            self.addrmap = build_graph(job_id, &self.meta, &self.nodes);
+            self.addrmap = build_addr_map(job_id, &self.meta, &self.nodes);
         }
 
         pub fn try_recv(&self, event: event::FormulaOpEvent) -> Result<(), err::ExecutionException> {
@@ -103,9 +104,7 @@ pub mod execution {
     impl actix::Handler<event::FormulaOpEvent> for Node {
         type Result = ();
 
-        fn handle(&mut self, msg: event::FormulaOpEvent, ctx: &mut Self::Context) -> Self::Result {
-            todo!()
-        }
+        fn handle(&mut self, msg: event::FormulaOpEvent, ctx: &mut Self::Context) -> Self::Result {}
     }
 
     fn to_node(op: &types::Operator,
@@ -127,9 +126,9 @@ pub mod execution {
         }
     }
 
-    pub(crate) fn build_graph(job_id: types::JobID,
-                              meta: &types::AdjacentList,
-                              nodes: &types::NodeSet) -> types::AddrMap {
+    pub fn build_addr_map(job_id: types::JobID,
+                          meta: &types::AdjacentList,
+                          nodes: &types::NodeSet) -> types::AddrMap {
         let ref local_hostname = core::hostname().expect("");
 
         let traversed = types::traverse_from_bottom(meta);
@@ -185,13 +184,6 @@ pub fn to_execution_graph(model: types::GraphModel) -> Graph {
         model.meta,
         model.nodes,
     )
-}
-
-
-pub mod formula {
-    use crate::types::formula::FormulaOp;
-
-    impl FormulaOp {}
 }
 
 pub fn from_str(value: &str) -> Result<Graph, serde_json::Error> {

@@ -1,12 +1,12 @@
-use std::sync;
 use std::fs;
+use std::sync;
 
 use dataflow::worker;
 use dataflow_api::dataflow_worker_grpc;
 
 mod api;
 
-#[tokio::main]
+#[actix::main]
 async fn main() {
     let result = fs::File::open("dataflow-worker/etc/worker.json");
     if result.is_err() {
@@ -35,9 +35,18 @@ async fn main() {
     }
 
     let mut unwraped_server = grpc_server.unwrap();
+
     unwraped_server.start();
 
-    print!("Press CTRL-C to stop...");
-    let _ = tokio::signal::ctrl_c().await;
+    let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    signal_hook::flag::register(signal_hook::consts::SIGINT, std::sync::Arc::clone(&flag));
+    loop {
+        if flag.load(std::sync::atomic::Ordering::Relaxed) {
+            break;
+        }
+    }
+
     let _ = unwraped_server.shutdown().await;
+    actix::System::current().stop();
 }

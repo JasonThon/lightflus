@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod runtime_test {
     use std::collections;
+
     use dataflow::{runtime, types};
 
     fn default_graph() -> runtime::Graph {
@@ -51,11 +52,122 @@ mod runtime_test {
         assert_eq!(graph.job_id, target_graph.job_id);
         assert_eq!(graph.meta, target_graph.meta);
     }
+
+
+    #[actix::test]
+    async fn test_addr_map() {
+        let addr_map = runtime::execution::build_addr_map(
+            types::job_id("tableId", "headerId"),
+            &vec![
+                types::AdjacentVec {
+                    neighbors: vec![1, 2, 3],
+                    center: 0,
+                },
+                types::AdjacentVec {
+                    neighbors: vec![4, 5],
+                    center: 1,
+                },
+                types::AdjacentVec {
+                    neighbors: vec![5, 6],
+                    center: 2,
+                },
+                types::AdjacentVec {
+                    neighbors: vec![7],
+                    center: 3,
+                },
+                types::AdjacentVec {
+                    neighbors: vec![8],
+                    center: 6,
+                },
+                types::AdjacentVec {
+                    neighbors: vec![6],
+                    center: 7,
+                },
+            ],
+            &types::NodeSet::from(
+                [
+                    (0, types::Operator {
+                        addr: "localhost".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 0,
+                    }),
+                    (1, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 1,
+                    }),
+                    (2, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 2,
+                    }),
+                    (3, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 3,
+                    }),
+                    (4, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 4,
+                    }),
+                    (5, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 5,
+                    }),
+                    (6, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 6,
+                    }),
+                    (7, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 6,
+                    }),
+                    (8, types::Operator {
+                        addr: "".to_string(),
+                        value: types::formula::FormulaOp::Add,
+                        id: 8,
+                    }),
+                ]
+            ),
+        );
+
+        for id in 0..8 {
+            assert!(addr_map.contains_key(&(id as u64)));
+        }
+    }
 }
 
 #[cfg(test)]
 mod types_test {
     use dataflow::{event, types};
+
+    fn default_empty_graph() -> types::GraphModel {
+        types::GraphModel {
+            job_id: types::job_id("tableId", "headerId"),
+            meta: vec![],
+            nodes: Default::default(),
+        }
+    }
+
+    #[test]
+    fn test_serialize_empty_graph() {
+        let ref model = default_empty_graph();
+        let result = serde_json::to_string(model);
+        assert!(result.is_ok());
+
+        let value = result.unwrap();
+        let deserialize_model = serde_json::from_str::<types::GraphModel>(value.as_str());
+        assert!(deserialize_model.is_ok());
+
+        let ref deser_model = deserialize_model.unwrap();
+        assert_eq!(&deser_model.job_id, &model.job_id);
+        assert!((&deser_model.nodes).is_empty());
+        assert!((&deser_model.meta).is_empty());
+    }
 
     #[test]
     fn test_traverse_from_bottom() {
@@ -127,7 +239,9 @@ mod types_test {
 #[cfg(test)]
 mod conn_test {
     use std::time;
+
     use tokio::sync::mpsc;
+
     use dataflow::{event, types};
 
     #[tokio::test]

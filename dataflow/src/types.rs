@@ -1,4 +1,5 @@
 use std::collections;
+
 use crate::{err, types};
 use crate::event;
 
@@ -52,7 +53,7 @@ pub mod formula {
         pub data: collections::BTreeMap<u64, FormulaOp>,
     }
 
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
     #[serde(tag = "type")]
     pub enum FormulaOp {
         Reference {
@@ -134,14 +135,14 @@ pub fn traverse_from_bottom(meta: &Vec<AdjacentVec>) -> Vec<AdjacentVec> {
     results
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 pub struct Operator {
     pub addr: String,
     pub value: formula::FormulaOp,
     pub id: u64,
 }
 
-pub(crate) type NodeSet = collections::BTreeMap<u64, Operator>;
+pub type NodeSet = collections::BTreeMap<u64, Operator>;
 
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]

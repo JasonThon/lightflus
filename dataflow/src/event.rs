@@ -1,4 +1,5 @@
 use std::collections;
+
 use crate::types;
 use crate::types::JobID;
 
@@ -87,7 +88,11 @@ pub struct ConnectorEvent {
 impl ConnectorEvent {
     pub(crate) fn to_formula_op_event_type(&self) -> FormulaOpEventType {
         match &self.event_type {
-            ConnectorEventType::Tableflow { .. } => FormulaOpEventType::Reference,
+            ConnectorEventType::Tableflow { page, limit } =>
+                FormulaOpEventType::TableflowTrigger {
+                    page: page.clone(),
+                    limit: limit.clone(),
+                },
             ConnectorEventType::Action(action_type) => {
                 match action_type.clone() {
                     DELETE => FormulaOpEventType::Delete,
@@ -158,7 +163,6 @@ pub struct FormulaOpEvent {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub enum FormulaOpEventType {
-    Reference,
     TableflowTrigger {
         page: u32,
         limit: u32,

@@ -135,4 +135,10 @@ public class Lists2 {
 
         return map;
     }
+
+    public static <K> void removeIf(final Collection<K> list, final Predicate<K> predicate) {
+        if (!isNullOrEmpty(list)) {
+            list.removeIf(predicate);
+        }
+    }
 }

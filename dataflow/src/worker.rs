@@ -9,6 +9,40 @@ pub struct TaskWorker {
 
 struct TaskWorkerBuilder {}
 
+impl actix::Actor for TaskWorker {
+    type Context = actix::Context<Self>;
+}
+
+impl actix::Handler<event::GraphEvent> for TaskWorker {
+    type Result = ();
+
+    fn handle(&mut self, event: event::GraphEvent, ctx: &mut Self::Context) -> Self::Result {
+        match event {
+            event::GraphEvent::ExecutionGraphSubmit {
+                job_id, ops
+            } => self.build_new_graph(job_id, runtime::to_execution_graph(ops)),
+
+            event::GraphEvent::NodeEventSubmit(ope) => {
+                match self.submit_event(ope) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        log::error!("submit event failed: {:?}", err);
+                    }
+                }
+            }
+            event::GraphEvent::StopGraph { job_id } => {
+                log::debug!("start stopping job {:?}", &job_id);
+                match self.stop_job(job_id) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        log::error!("stop job failed: {:?}", err);
+                    }
+                }
+            }
+        }
+    }
+}
+
 impl TaskWorker {
     pub(crate) fn new() -> Self {
         TaskWorker {

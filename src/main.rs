@@ -1,8 +1,9 @@
-use std::sync;
+use std::{collections, sync};
 
 use tokio::sync::mpsc;
 
-use dataflow::{coord, event};
+use dataflow::{cluster, coord, event};
+use dataflow::err::CommonException;
 use dataflow_api::dataflow_coordinator_grpc;
 
 const DATAFLOW_DB: &str = "dataflow";
@@ -40,7 +41,6 @@ async fn main() {
 
         senders.push(tx);
         disconnect_signals.push(disconnect_tx);
-
         rt.spawn(dataflow::conn::Connector::new(source, rx, disconnect_rx).start());
     });
 
@@ -53,7 +53,41 @@ async fn main() {
         senders,
     );
 
-    let server = api::CoordinatorApiImpl::new(coordinator, &config.cluster);
+    let mut clusters = cluster::Cluster::new(&config.cluster);
+    clusters.probe_state();
+
+    let init_result = coordinator.init();
+    match init_result {
+        Err(err) => panic!("initialize failed: {:?}", err),
+        Ok(models) => {
+            rt.spawn(async move {
+                let mut undispatched_queue = collections::VecDeque::new();
+
+                for model in &models {
+                    match model.dispatch() {
+                        Err(err) => {
+                            log::error!("dispatch model {:?} failed: {:?}", model, err);
+                            undispatched_queue.push_back(model);
+                        }
+                        _ => {}
+                    }
+                }
+
+                while !undispatched_queue.is_empty() {
+                    let model = undispatched_queue.pop_front().unwrap();
+                    match model.dispatch() {
+                        Err(err) => {
+                            log::error!("dispatch model {:?} failed: {:?}", model, err);
+                            undispatched_queue.push_back(model);
+                        }
+                        _ => {}
+                    }
+                }
+            });
+        }
+    }
+
+    let server = api::CoordinatorApiImpl::new(coordinator, clusters);
     let service = dataflow_coordinator_grpc::create_coordinator_api(server);
     let mut grpc_server = grpcio::ServerBuilder::new(
         sync::Arc::new(grpcio::Environment::new(10)))
@@ -62,7 +96,7 @@ async fn main() {
         .build()
         .expect("grpc server create failed");
     grpc_server.start();
-
+    println!("service start at port: {}", &config.port);
 
     let _ = tokio::signal::ctrl_c().await;
 

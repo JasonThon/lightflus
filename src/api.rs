@@ -3,6 +3,8 @@ use dataflow_api::dataflow_coordinator;
 use dataflow::{cluster, coord, event};
 use dataflow::err::Error;
 use std::sync;
+use dataflow::cluster::Cluster;
+use dataflow::coord::Coordinator;
 
 const SUCCESS_MSG: &str = "success";
 
@@ -13,10 +15,10 @@ pub(crate) struct CoordinatorApiImpl {
 }
 
 impl CoordinatorApiImpl {
-    pub(crate) fn new(coordinator: coord::Coordinator, nodes: &Vec<cluster::NodeConfig>) -> CoordinatorApiImpl {
+    pub(crate) fn new(coordinator: coord::Coordinator, cluster: Cluster) -> CoordinatorApiImpl {
         CoordinatorApiImpl {
             coordinator: sync::Arc::new(coordinator),
-            cluster: sync::Arc::new(sync::RwLock::new(cluster::Cluster::new(nodes))),
+            cluster: sync::Arc::new(sync::RwLock::new(cluster)),
         }
     }
 }

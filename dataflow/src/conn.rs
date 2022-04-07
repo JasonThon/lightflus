@@ -4,6 +4,7 @@ use crate::{err, event, types};
 use crate::event::Event;
 
 const DEFAULT_EVENT_TIME_DURATION: time::Duration = time::Duration::from_millis(1);
+const DATAFLOW_EVENT_PATTERN: &str = "dataflow*";
 
 pub enum ConnectorType {
     Tableflow {
@@ -74,7 +75,7 @@ impl Connector {
                 id,
                 addr
             } => match &mut self.connector_type {
-                ConnectorType::Redis { conn } => {
+                ConnectorType::Redis { .. } => {
                     let b = types::Binder {
                         job_id: e.job_id.clone(),
                         binder_type: types::BinderType::Redis,
@@ -83,8 +84,6 @@ impl Connector {
                         id: id.clone(),
                         addr: addr.clone(),
                     };
-                    let _ = conn.as_pubsub()
-                        .subscribe(b.get_topic());
 
                     self.binders.push(b)
                 }
@@ -119,21 +118,6 @@ impl Connector {
         }
     }
 
-    pub async fn fetch(&mut self) -> Option<event::ConnectorEvent> {
-        match &mut self.connector_type {
-            ConnectorType::Redis { conn } => {
-                match conn.as_pubsub().get_message() {
-                    Ok(msg) => None,
-                    Err(err) => {
-                        log::error!("fail to get message: {:?}", err);
-                        None
-                    }
-                }
-            }
-            _ => None
-        }
-    }
-
     pub async fn start(mut self) {
         let ref mut connector = self;
         let mut ticker = tokio::time::interval(
@@ -142,30 +126,49 @@ impl Connector {
                 .unwrap_or(DEFAULT_EVENT_TIME_DURATION)
         );
 
-        let (tx, mut rx) = mpsc::unbounded_channel();
+        let (tx, mut rx) = mpsc::unbounded_channel::<event::ConnectorEvent>();
 
         loop {
-            match connector.fetch().await {
-                None => {}
-                Some(event) => {
-                    let _ = tx.send(event)
+            tokio::select! {
+                Some(_) = connector.disconnect_rx.recv() => break,
+                Some(events) = connector.event_rx.recv() => core::lists::for_each(&events, |e| connector.handle_event(e)),
+                _ = ticker.tick(), if connector.is_tableflow() => {},
+                Some(event) = rx.recv() => send_to_worker(&connector.binders, event),
+                Some(event) = async {
+                    match &mut connector.connector_type {
+                        ConnectorType::Redis { conn } => {
+                            println!("event fetched");
+                            let mut pub_sub = conn.as_pubsub();
+                            pub_sub.psubscribe(DATAFLOW_EVENT_PATTERN);
+                            match pub_sub.get_message() {
+                                Ok(msg) => match serde_json::from_slice::<event::ConnectorEvent>(msg.get_payload_bytes()) {
+                                    Ok(event) => Some(event),
+                                    Err(err) => {
+                                        log::error!("invalid event payload: {:?}", err);
+                                        None
+                                    }
+                                },
+                                Err(err) => {
+                                    log::error!("fail to get message: {:?}", err);
+                                    None
+                                }
+                            }
+                        },
+                        _ => None
+                    }
+                } => {
+                   let _ = tx.send(event)
                         .map_err(|err| {
                             log::error!("send event failed: {}", &err);
                             err
                         });
                 }
             }
-
-            tokio::select! {
-                Some(_) = connector.disconnect_rx.recv() => break,
-                Some(events) = connector.event_rx.recv() => core::lists::for_each(&events, |e| connector.handle_event(e)),
-                _ = ticker.tick(), if connector.is_tableflow() => {},
-                Some(event) = rx.recv() => send_to_worker(event)
-            }
         }
 
         connector.disconnect_rx.close();
         connector.event_rx.close();
+        rx.close();
     }
 
     fn is_tableflow(&self) -> bool {
@@ -176,9 +179,9 @@ impl Connector {
     }
 }
 
-fn send_to_worker(event: event::ConnectorEvent) {
+fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
     let ref clients = core::lists::map(
-        &event.binders,
+        binders,
         |binder| dataflow_api::worker::new_dataflow_worker_client(
             dataflow_api::worker::DataflowWorkerConfig {
                 host: None,
@@ -193,31 +196,35 @@ fn send_to_worker(event: event::ConnectorEvent) {
 
     core::lists::index_for_each(clients, |idx, cli| {
         let ref mut request = dataflow_api::dataflow_worker::ActionSubmitRequest::new();
-        let b = &event.binders[idx];
-        let ref graph_event = event::GraphEvent::NodeEventSubmit(
-            event::FormulaOpEvent {
-                job_id: event.get_key(),
-                from: 0,
-                to: b.id.clone(),
-                event_type: event_type.clone(),
-                data: event.entries.to_vec(),
-                event_time: event_time.clone(),
-            }
-        );
+        let b = &binders[idx];
+        let target_key = event.get_key();
 
-        let _ = serde_json::to_string(graph_event)
-            .map_err(|err| err::CommonException::from(err))
-            .and_then(|value| {
-                request.set_value(value.as_bytes().to_vec());
-                cli.submit_action(request)
-                    .map(|resp| {
-                        log::debug!("send action event success")
-                    })
-                    .map_err(|err| err::CommonException::from(err))
-            })
-            .map_err(|err| {
-                log::error!("serialize failed: {:?}", err);
-                err
-            });
+        if target_key == types::job_id(b.table_id.as_str(), b.header_id.as_str()) {
+            let ref graph_event = event::GraphEvent::NodeEventSubmit(
+                event::FormulaOpEvent {
+                    job_id: b.job_id.clone(),
+                    from: 0,
+                    to: b.id.clone(),
+                    event_type: event_type.clone(),
+                    data: event.entries.to_vec(),
+                    event_time: event_time.clone(),
+                }
+            );
+
+            let _ = serde_json::to_string(graph_event)
+                .map_err(|err| err::CommonException::from(err))
+                .and_then(|value| {
+                    request.set_value(value.as_bytes().to_vec());
+                    cli.submit_action(request)
+                        .map(|resp| {
+                            log::debug!("send action event success")
+                        })
+                        .map_err(|err| err::CommonException::from(err))
+                })
+                .map_err(|err| {
+                    log::error!("serialize failed: {:?}", err);
+                    err
+                });
+        }
     })
 }

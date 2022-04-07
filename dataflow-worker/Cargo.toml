@@ -13,6 +13,7 @@ dataflow = { path = "../dataflow", features = ["worker"]}
 dataflow-api = {path = "../dataflow-api", features = ["worker"]}
 log = "0.4"
 signal-hook = "0.3.13"
+futures-executor = "0.3"
 
 grpcio = "0.10.0"
 protobuf = "2.0"

@@ -9,7 +9,7 @@ description = "dataflow lib"
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0.59"
-tokio = { version = "0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 redis = "0.21.5"
 actix = "0.12"
 core = { path = "../core" }
@@ -17,11 +17,18 @@ data-client = { path = "../data-client" }
 log = "0.4.16"
 grpcio = "0.10.0"
 dataflow-api = { path = "../dataflow-api", features = ["worker"] }
+chrono = "0.4"
 
 [dependencies.mongodb]
 version = "2.1.0"
 default-features = false
 features = ["sync"]
+
+[dependencies.futures-util]
+version = "0.3.15"
+optional = true
+default-features = false
+
 
 [features]
 worker = ["runtime"]

@@ -50,16 +50,15 @@ pub mod formula {
         #[serde(default)]
         pub meta: Vec<super::AdjacentVec>,
         #[serde(default)]
-        pub data: collections::BTreeMap<u64, FormulaOp>,
+        pub data: collections::BTreeMap<String, FormulaOp>,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
     #[serde(tag = "type")]
     pub enum FormulaOp {
+        #[serde(rename_all = "camelCase")]
         Reference {
-            #[serde(rename(serialize = "tableId"))]
             table_id: String,
-            #[serde(rename(serialize = "headerId"))]
             header_id: String,
         },
         Add,
@@ -135,16 +134,16 @@ pub fn traverse_from_bottom(meta: &Vec<AdjacentVec>) -> Vec<AdjacentVec> {
     results
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
 pub struct Operator {
     pub addr: String,
     pub value: formula::FormulaOp,
     pub id: u64,
 }
 
-pub type NodeSet = collections::BTreeMap<u64, Operator>;
+pub type NodeSet = collections::BTreeMap<String, Operator>;
 
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct GraphModel {
     pub job_id: JobID,
@@ -157,7 +156,7 @@ pub struct GraphModel {
 }
 
 impl GraphModel {
-    pub(crate) fn dispatch(&self) -> Result<(), err::CommonException> {
+    pub fn dispatch(&self) -> Result<(), err::CommonException> {
         let mut group = collections::HashMap::<String, Vec<&Operator>>::new();
 
         for (_, operator) in &self.nodes {
@@ -183,7 +182,7 @@ impl GraphModel {
             );
 
             let ref graph_event = event::GraphEvent::ExecutionGraphSubmit {
-                ops: types::GraphModel::from(ops),
+                ops: types::GraphModel::from((&self.job_id, ops, &self.meta)),
                 job_id: self.job_id.clone(),
             };
 
@@ -217,9 +216,19 @@ impl GraphModel {
     }
 }
 
-impl From<Vec<&Operator>> for GraphModel {
-    fn from(ops: Vec<&Operator>) -> Self {
-        todo!()
+impl From<(&JobID, Vec<&Operator>, &AdjacentList)> for GraphModel {
+    fn from(input: (&JobID, Vec<&Operator>, &AdjacentList)) -> Self {
+        Self {
+            job_id: input.0.clone(),
+            meta: input.2.clone(),
+            nodes: types::NodeSet::from_iter(
+                input.1
+                    .iter()
+                    .map(
+                        |op| (op.id.to_string(), (*op).clone())
+                    )
+            ),
+        }
     }
 }
 
@@ -243,6 +252,6 @@ pub struct Binder {
 
 impl Binder {
     pub(crate) fn get_topic(&self) -> String {
-        format!("{}:{}", &self.table_id, &self.header_id)
+        format!("{}/{}", &self.table_id, &self.header_id)
     }
 }

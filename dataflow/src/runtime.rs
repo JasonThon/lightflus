@@ -1,12 +1,13 @@
 use crate::types;
 
 pub mod execution {
-    use actix::Actor;
+    use actix::{Actor, AsyncContext};
     use serde::ser::SerializeStruct;
 
     use crate::{err, event, types};
     use crate::types::formula;
 
+    #[derive(Debug)]
     pub struct ExecutionGraph {
         pub job_id: types::JobID,
         pub meta: types::AdjacentList,
@@ -104,7 +105,9 @@ pub mod execution {
     impl actix::Handler<event::FormulaOpEvent> for Node {
         type Result = ();
 
-        fn handle(&mut self, msg: event::FormulaOpEvent, ctx: &mut Self::Context) -> Self::Result {}
+        fn handle(&mut self, msg: event::FormulaOpEvent, ctx: &mut Self::Context) -> Self::Result {
+            println!("msg coming");
+        }
     }
 
     fn to_node(op: &types::Operator,
@@ -142,7 +145,7 @@ pub mod execution {
                         Some(addr) => (*addr).clone(),
                         None => {
                             let operator = nodes
-                                .get(neighbor_id)
+                                .get(&neighbor_id.to_string())
                                 .unwrap();
 
                             addrmap.insert(
@@ -162,7 +165,7 @@ pub mod execution {
 
             addrmap.insert(
                 adj.center.clone(),
-                to_node(nodes.get(&adj.center)
+                to_node(nodes.get(&adj.center.to_string())
                             .unwrap(),
                         job_id.clone(),
                         local_hostname,

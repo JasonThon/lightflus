@@ -43,7 +43,7 @@ pub fn local_ip() -> Option<String> {
 pub mod lists {
     use std::collections;
 
-    pub fn contains<V, P: FnMut(&V) -> bool>(list: &Vec<V>, mut predicate: P) -> bool {
+    pub fn any_match<V, P: FnMut(&V) -> bool>(list: &Vec<V>, mut predicate: P) -> bool {
         for elem in list {
             if predicate(elem) {
                 return true;

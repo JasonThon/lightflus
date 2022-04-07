@@ -2,7 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use core;
 use dataflow_api::probe;
-use crate::{event, types};
+use crate::{err, event, types};
 use crate::cluster::NodeStatus::{Pending, Running, Unreachable};
 
 #[derive(Clone, Eq, PartialEq)]
@@ -38,7 +38,10 @@ impl Node {
                     self.status = Pending
                 }
             }
-            Err(_) => self.status = Unreachable
+            Err(err) => {
+                log::error!("{}", err);
+                self.status = Unreachable
+            }
         }
     }
 
@@ -79,7 +82,7 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn partition_key<T: core::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> String {
+    pub fn partition_key<T: core::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<String, err::CommonException> {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
         let workers = core::lists::filter_map(
@@ -88,7 +91,15 @@ impl Cluster {
             |node| node.addr.clone(),
         );
 
-        workers[hasher.finish() as usize % workers.len()].clone()
+        if workers.is_empty() {
+            return Err(err::CommonException::new(err::ErrorKind::NoAvailableWorker, "no available worker"));
+        }
+
+        Ok(workers[hasher.finish() as usize % workers.len()].clone())
+    }
+
+    pub fn is_available(&self) -> bool {
+        core::lists::any_match(&self.workers, |worker| worker.is_available())
     }
 
     pub fn new(addrs: &Vec<NodeConfig>) -> Self {

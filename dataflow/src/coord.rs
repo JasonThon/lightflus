@@ -26,6 +26,17 @@ impl JobRepo {
         }
     }
 
+    pub fn find_all(&self) -> Result<Vec<types::GraphModel>, err::CommonException> {
+        match self {
+            JobRepo::Mongo(mongo) => mongo.find(None, None)
+                .map_err(|err| err::CommonException::from(err))
+                .map(|cursor|
+                    cursor.filter_map(|result| result.ok())
+                        .collect()
+                )
+        }
+    }
+
     pub fn create(&self, graph: &types::GraphModel) -> Result<(), err::CommonException> {
         match self {
             JobRepo::Mongo(mongo) => match mongo.insert_one(
@@ -69,21 +80,39 @@ impl Coordinator {
         }
     }
 
+    pub fn init(&self) -> Result<Vec<types::GraphModel>, err::CommonException> {
+        self.job_repo.find_all()
+            .map(|models| {
+                core::lists::for_each(
+                    &models,
+                    |model| send_to_conns(
+                        model,
+                        BindAction::CREATE,
+                        &self.senders,
+                    ),
+                );
+                models
+            })
+    }
+
     pub fn submit_job(&self,
                       table_id: &String,
                       header_id: &String,
                       graph: &formula::FormulaGraph,
                       cluster: sync::RwLockReadGuard<cluster::Cluster>) -> Result<(), err::CommonException> {
         let ref job_id = types::job_id(table_id.as_str(), header_id.as_str());
+        if !cluster.is_available() {
+            return Err(err::CommonException::new(err::ErrorKind::NoAvailableWorker, "no available worker"));
+        }
         let ref execution_graph = types::GraphModel::new(
             job_id.clone(),
             graph.meta.to_vec(),
-            collections::BTreeMap::from_iter(graph.data.iter()
+            types::NodeSet::from_iter(graph.data.iter()
                 .map(|(id, value)|
                     (id.clone(), types::Operator {
-                        addr: cluster.partition_key(value),
+                        addr: cluster.partition_key(value).unwrap(),
                         value: value.clone(),
-                        id: id.clone(),
+                        id: id.parse::<u64>().unwrap(),
                     })
                 )
             ));
@@ -153,9 +182,11 @@ fn send_to_conns(graph: &types::GraphModel,
         }
     }
 
-    core::lists::for_each(senders, |sender| {
-        let _ = sender.send(binder_events.clone());
-    })
+    if !binder_events.is_empty() {
+        core::lists::for_each(senders, |sender| {
+            let _ = sender.send(binder_events.clone());
+        })
+    }
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]

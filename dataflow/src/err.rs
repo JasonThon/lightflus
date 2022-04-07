@@ -36,6 +36,7 @@ pub struct CommonException {
 
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
+    NoAvailableWorker,
     ActorSendError,
     NodesRemoveFailed,
     InvalidJobGraph,
@@ -51,11 +52,15 @@ pub enum ErrorKind {
     NotFound,
     Unknown,
     MongoError(mongodb::error::ErrorKind),
+    GrpcError,
 }
 
 impl From<grpcio::Error> for CommonException {
-    fn from(_: grpcio::Error) -> Self {
-        todo!()
+    fn from(err: grpcio::Error) -> Self {
+        Self {
+            kind: ErrorKind::GrpcError,
+            message: format!("{:?}", err),
+        }
     }
 }
 
@@ -275,7 +280,7 @@ impl From<mpsc::error::TryRecvError> for TaskWorkerError {
     fn from(err: mpsc::error::TryRecvError) -> Self {
         match err {
             mpsc::error::TryRecvError::Empty => TaskWorkerError::ChannelEmpty,
-            mpsc::error::TryRecvError::Closed => TaskWorkerError::ChannelDisconnected
+            mpsc::error::TryRecvError::Disconnected => TaskWorkerError::ChannelDisconnected
         }
     }
 }

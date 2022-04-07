@@ -8,7 +8,7 @@ use dataflow_api::dataflow_worker_grpc;
 
 #[derive(Clone)]
 pub(crate) struct TaskWorkerApiImpl {
-    worker: sync::Arc<sync::Mutex<worker::TaskWorker>>,
+    worker: sync::Arc<actix::Addr<worker::TaskWorker>>,
 }
 
 unsafe impl Send for TaskWorkerApiImpl {}
@@ -16,9 +16,9 @@ unsafe impl Send for TaskWorkerApiImpl {}
 unsafe impl Sync for TaskWorkerApiImpl {}
 
 impl TaskWorkerApiImpl {
-    pub(crate) fn new(worker: worker::TaskWorker) -> TaskWorkerApiImpl {
+    pub(crate) fn new(worker: actix::Addr<worker::TaskWorker>) -> TaskWorkerApiImpl {
         TaskWorkerApiImpl {
-            worker: sync::Arc::new(sync::Mutex::new(worker)),
+            worker: sync::Arc::new(worker),
         }
     }
 }
@@ -29,58 +29,15 @@ impl dataflow_worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
                      _req: dataflow_worker::ActionSubmitRequest,
                      sink: ::grpcio::UnarySink<dataflow_worker::ActionSubmitResponse>) {
         let result = serde_json::from_slice::<event::GraphEvent>(_req.get_value());
+
         match result {
-            Ok(event) => match event {
-                event::GraphEvent::ExecutionGraphSubmit {
-                    job_id, ops
-                } => {
-                    let mut w = self.worker.lock().unwrap();
-                    (*w).build_new_graph(job_id, runtime::to_execution_graph(ops));
-                    drop(w);
-
-                    let mut response = dataflow_worker::ActionSubmitResponse::new();
-                    response.set_code(200);
-                    response.set_message("build graph success".to_string());
-                    sink.success(response);
-                }
-                event::GraphEvent::NodeEventSubmit(ope) => {
-                    let mut w = self.worker.lock().unwrap();
-                    match (*w).submit_event(ope) {
-                        Ok(_) => {
-                            drop(w);
-
-                            let mut response = dataflow_worker::ActionSubmitResponse::new();
-                            response.set_code(200);
-                            response.set_message("event submit successfully".to_string());
-                            sink.success(response);
-                        }
-                        Err(err) => {
-                            drop(w);
-                            log::error!("submit event failed: {:?}", err);
-                            sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::INTERNAL));
-                        }
-                    }
-                }
-                event::GraphEvent::StopGraph { job_id } => {
-                    log::debug!("start stopping job {:?}", &job_id);
-                    let mut w = self.worker.lock().unwrap();
-                    match (*w).stop_job(job_id) {
-                        Ok(_) => {
-                            drop(w);
-
-                            let mut response = dataflow_worker::ActionSubmitResponse::new();
-                            response.set_code(200);
-                            response.set_message("stop job successful".to_string());
-                            sink.success(response);
-                        }
-                        Err(err) => {
-                            drop(w);
-                            log::error!("stop job failed: {:?}", err);
-                            sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::INTERNAL));
-                        }
-                    }
-                }
-            },
+            Ok(event) => {
+                self.worker.do_send(event);
+                let mut response = dataflow_worker::ActionSubmitResponse::new();
+                response.set_code(200);
+                response.set_message("success".to_string());
+                sink.success(response);
+            }
             Err(err) => {
                 log::error!("submit event failed: {:?}", err);
                 sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::INTERNAL));

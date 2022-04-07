@@ -14,12 +14,13 @@ members = [
 ]
 
 [dependencies]
-tokio = { version = "0", features = ["full"] }
+tokio = { version = "1", features = ["full"] }
 core = { path = "core" }
 dataflow = { path = "dataflow", features = ["coord", "conn"] }
 serde_json = "1.0.59"
 dataflow-api = { path = "dataflow-api", features = ["coordinator"] }
 log = "0.4"
+futures-executor = "0.3"
 
 grpcio = "0.10.0"
 protobuf = "2.0"

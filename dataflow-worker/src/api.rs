@@ -1,7 +1,6 @@
 use std::sync;
-use log::log;
 
-use dataflow::{event, runtime, types, worker};
+use dataflow::{event, worker};
 use dataflow::err::Error;
 use dataflow_api::{dataflow_worker, probe};
 use dataflow_api::dataflow_worker_grpc;

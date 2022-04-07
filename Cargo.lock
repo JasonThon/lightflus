@@ -556,7 +556,6 @@ dependencies = [
  "core",
  "data-client",
  "dataflow-api",
- "futures-util",
  "grpcio",
  "log",
  "mongodb",

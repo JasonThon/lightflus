@@ -24,12 +24,6 @@ version = "2.1.0"
 default-features = false
 features = ["sync"]
 
-[dependencies.futures-util]
-version = "0.3.15"
-optional = true
-default-features = false
-
-
 [features]
 worker = ["runtime"]
 coord = ["runtime"]

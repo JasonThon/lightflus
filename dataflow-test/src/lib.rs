@@ -178,25 +178,6 @@ mod runtime_test {
 }
 
 #[cfg(test)]
-mod worker_test {
-    use actix::Actor;
-    use dataflow::event;
-    use dataflow::worker;
-
-    #[test]
-    fn test_worker_handler() {
-        let runner = actix::System::new();
-        runner.block_on(async {
-            let worker = worker::new_worker();
-            let addr = worker.start();
-            addr.recipient().do_send(event::GraphEvent::StopGraph { job_id: Default::default() });
-        });
-
-        runner.run();
-    }
-}
-
-#[cfg(test)]
 mod types_test {
     use dataflow::{event, types};
 
@@ -224,7 +205,7 @@ mod types_test {
 
         let json = serde_json::from_str::<event::GraphEvent>(string.as_str());
         if json.is_err() {
-            panic!("{}",json.unwrap_err());
+            panic!("{}", json.unwrap_err());
         }
 
         assert!(json.is_ok());

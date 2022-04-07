@@ -207,27 +207,6 @@ impl Error for CommonException {
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct ConnectionError {
-    kind: ErrorKind,
-    msg: String,
-}
-
-impl From<grpcio::Error> for ConnectionError {
-    fn from(err: grpcio::Error) -> Self {
-        todo!()
-    }
-}
-
-impl ConnectionError {
-    pub fn illegal_connection_type() -> ConnectionError {
-        ConnectionError {
-            kind: ErrorKind::IllegalConnectionType,
-            msg: "illegal connection type".to_string(),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
 pub struct ExecutionException {
     pub kind: ErrorKind,
@@ -268,12 +247,7 @@ impl ExecutionException {
 pub enum TaskWorkerError {
     ChannelDisconnected,
     ChannelEmpty,
-}
-
-impl From<mpsc::error::SendError<types::JobID>> for TaskWorkerError {
-    fn from(err: mpsc::error::SendError<types::JobID>) -> Self {
-        todo!()
-    }
+    ExecutionError(String),
 }
 
 impl From<mpsc::error::TryRecvError> for TaskWorkerError {
@@ -286,7 +260,7 @@ impl From<mpsc::error::TryRecvError> for TaskWorkerError {
 }
 
 impl From<ExecutionException> for TaskWorkerError {
-    fn from(_: ExecutionException) -> Self {
-        todo!()
+    fn from(err: ExecutionException) -> Self {
+        Self::ExecutionError(err.to_string())
     }
 }

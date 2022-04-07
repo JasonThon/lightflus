@@ -20,7 +20,7 @@ pub struct MongoConfig {
     pub database: String,
 }
 
-impl core::fmt::Display for MongoConfig {
+impl std::fmt::Display for MongoConfig {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.write_str(self.uri().as_str())
     }

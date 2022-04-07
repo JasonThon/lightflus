@@ -17,9 +17,9 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build Coordinator
-      run: cargo build --verbose Cargo.toml
+      run: cargo build
     - name: Build Worker
-      run: cargo build --verbose dataflow-worker/Cargo.toml
+      run: cargo build --manifest-path dataflow-worker/Cargo.toml
     - name: Run core tests
       run: cargo test --manifest-path core/Cargo.toml
     - name: Run dataflow tests

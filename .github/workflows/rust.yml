@@ -1,0 +1,26 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Build Coordinator
+      run: cargo build --verbose Cargo.toml
+    - name: Build Worker
+      run: cargo build --verbose dataflow-worker/Cargo.toml
+    - name: Run core tests
+      run: cargo test --manifest-path core/Cargo.toml
+    - name: Run dataflow tests
+      run: cargo test --manifest-path dataflow-test/Cargo.toml

@@ -1,1 +1,1 @@
-docker_build('coordinator-image', 'coordinator', dockerfile='Dockerfile')
+docker_build('coordinator-image', 'coordinator', dockerfile='Dockerfile-coordinator')

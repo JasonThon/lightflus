@@ -17,7 +17,7 @@ fn main() {
 
     let env_setup = common::sysenv::serde_env::from_reader(file);
     if env_setup.is_err() {
-        panic!("{}", format!("config file read failed: {:?}", reader.unwrap_err()))
+        panic!("{}", format!("config file read failed: {:?}", env_setup.unwrap_err()))
     }
 
     let value = env_setup.unwrap();

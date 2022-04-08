@@ -1,4 +1,4 @@
-name: Docker Image CI
+name: CI
 
 on:
   push:
@@ -14,6 +14,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Check Coordinator
+        run: cargo check
+      - name: Check Worker
+        run: cargo check --manifest-path dataflow-worker/Cargo.toml
+      - name: Run common lib tests
+        run: cargo test --manifest-path common/Cargo.toml
+      - name: Run dataflow tests
+        run: cargo test --manifest-path dataflow-test/Cargo.toml
       - name: Build coordinator image
         run: docker build . --file Dockerfile-coordinator --tag dataflow-coordinator:$(date +%s)
       - name: Build worker image

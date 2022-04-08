@@ -1,12 +1,4 @@
-FROM rust:1.59-alpine as builder
-
-WORKDIR /opt/tableflow/dataflow/worker
-RUN apk update --no-cache
-RUN apk add --no-cache musl-dev && apk add --no-cache openssl
-COPY . .
-RUN cargo install --path dataflow-worker/
-
 FROM alpine:3.14
 WORKDIR /dataflow
-COPY --from=builder /usr/local/cargo/bin/dataflow-worker /dataflow/worker
+COPY target/release/dataflow-worker /dataflow/worker
 CMD ["./worker"]

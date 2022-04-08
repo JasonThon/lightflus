@@ -15,11 +15,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Check Coordinator
-        run: cargo check
+        run: cargo install --path .
       - name: Check Worker
-        run: cargo check --manifest-path dataflow-worker/Cargo.toml
+        run: cargo install --path dataflow-worker/
       - name: Run common lib tests
-        run: cargo test --manifest-path common/Cargo.toml
+        run: cargo install --manifest-path common/Cargo.toml
       - name: Run dataflow tests
         run: cargo test --manifest-path dataflow-test/Cargo.toml
       - name: Build coordinator image

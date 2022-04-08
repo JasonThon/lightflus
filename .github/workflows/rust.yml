@@ -21,6 +21,6 @@ jobs:
     - name: Build Worker
       run: cargo build --manifest-path dataflow-worker/Cargo.toml
     - name: Run core tests
-      run: cargo test --manifest-path core/Cargo.toml
+      run: cargo test --manifest-path common/Cargo.toml
     - name: Run dataflow tests
       run: cargo test --manifest-path dataflow-test/Cargo.toml

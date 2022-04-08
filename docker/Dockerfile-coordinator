@@ -1,0 +1,12 @@
+FROM rust:1.59-alpine as builder
+
+WORKDIR /opt/tableflow/dataflow/worker
+RUN apk update --no-cache
+COPY ../ .
+RUN cargo install --path .
+
+FROM alpine:3.14
+WORKDIR /dataflow
+COPY --from=builder /usr/local/cargo/bin/tableflow-rs /dataflow/coordinator
+COPY --from=builder /opt/tableflow/etc /dataflow/etc
+CMD ["./coordinator"]

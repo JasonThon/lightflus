@@ -1,8 +1,9 @@
 use std::net;
 
 pub mod http;
-pub mod graph;
+pub mod sysenv;
 pub mod mongo;
+pub mod lists;
 
 pub trait KeyedValue<K, V> {
     fn key(&self) -> K;
@@ -38,95 +39,6 @@ pub fn local_ip() -> Option<String> {
     socket.local_addr()
         .ok()
         .map(|addr| addr.ip().to_string())
-}
-
-pub mod lists {
-    use std::collections;
-
-    pub fn any_match<V, P: FnMut(&V) -> bool>(list: &Vec<V>, mut predicate: P) -> bool {
-        for elem in list {
-            if predicate(elem) {
-                return true;
-            }
-        }
-
-        false
-    }
-
-    pub fn for_each<V, F: FnMut(&V)>(list: &Vec<V>, mut f: F) {
-        for elem in list {
-            f(elem)
-        }
-    }
-
-    pub fn for_each_mut<V, F: FnMut(&mut V)>(list: &mut Vec<V>, mut f: F) {
-        for elem in list {
-            f(elem)
-        }
-    }
-
-    pub fn index_for_each<V, F: FnMut(usize, &V)>(list: &Vec<V>, mut f: F) {
-        let mut index = 0 as usize;
-
-        for elem in list {
-            f(index.clone(), elem);
-            index = index + 1;
-        }
-    }
-
-    pub fn map<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut f: F) -> Vec<T> {
-        let mut result = vec![];
-
-        for elem in list {
-            result.push(f(elem))
-        }
-
-        result
-    }
-
-    pub fn group_hashmap<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> collections::HashMap<T, &N>
-        where T: std::hash::Hash + std::cmp::Eq {
-        let mut result = collections::HashMap::new();
-
-        for elem in list {
-            result.insert(key_extractor(elem), elem);
-        }
-
-        result
-    }
-
-    pub fn filter_map<N, T, F: FnMut(&N) -> T, Filter: FnMut(&N) -> bool>(
-        list: &Vec<N>,
-        mut filter: Filter,
-        mut mapper: F) -> Vec<T> {
-        let mut result = vec![];
-
-        for elem in list {
-            if filter(elem) {
-                result.push(mapper(elem))
-            }
-        }
-
-        result
-    }
-
-    pub fn remove_if<N, Filter: FnMut(&N) -> bool>(
-        list: &mut Vec<N>,
-        mut filter: Filter) {
-        let mut index_vec = vec![];
-        let mut offset = 0;
-
-        for idx in 0..list.len() {
-            if filter(&list[idx]) {
-                index_vec.push(idx - offset);
-                offset = offset + 1;
-            }
-        }
-
-        for idx in &index_vec {
-            list.remove(idx.clone() as usize);
-        }
-    }
 }
 
 #[cfg(test)]
@@ -275,5 +187,38 @@ mod test {
         super::lists::remove_if(vec, |value| value.eq(&1));
 
         assert_eq!(vec, &mut vec![2, 2, 3, 4, 5, 6]);
+    }
+
+    #[test]
+    fn test_serde_env() {
+        let origin = "{\"name\":\"${your.name}\"}";
+        std::env::set_var("your.name", "jason");
+        let target = super::sysenv::serde_env::from_str(origin);
+        let result = serde_json::from_str::<Name>(target.as_str());
+        assert!(result.is_ok());
+        let name = result.unwrap();
+        assert_eq!(&name.name, &"jason".to_string())
+    }
+
+    #[test]
+    fn test_regex() {
+        let reg = regex::Regex::new("\\$\\{[^}]+\\}").unwrap();
+        let option = reg.captures("\"name=\"${your.name}\"}");
+        assert!(option.is_some());
+        assert_eq!(option.as_ref().unwrap().len(), 1);
+        assert_eq!(&option.as_ref().unwrap()[0], "${your.name}");
+    }
+
+    #[test]
+    fn test_env_var_get() {
+        std::env::set_var("your.name", "jason");
+        let result = std::env::var("your.name".to_string());
+        assert!(result.is_ok());
+        assert_eq!(result.as_ref().unwrap(), &"jason".to_string())
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize)]
+    struct Name {
+        name: String,
     }
 }

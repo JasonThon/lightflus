@@ -1,6 +1,6 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
-use core;
+use common;
 use dataflow_api::probe;
 use crate::{err, event, types};
 use crate::cluster::NodeStatus::{Pending, Running, Unreachable};
@@ -60,7 +60,7 @@ impl Node {
 
                 match client.submit_action(req) {
                     Ok(_) => Ok(()),
-                    Err(err) => Err(core::http::to_io_error(err))
+                    Err(err) => Err(common::http::to_io_error(err))
                 }
             }
             Err(err) => Err(
@@ -82,10 +82,10 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn partition_key<T: core::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<String, err::CommonException> {
+    pub fn partition_key<T: common::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<String, err::CommonException> {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
-        let workers = core::lists::filter_map(
+        let workers = common::lists::filter_map(
             &self.workers,
             |worker| worker.is_available(),
             |node| node.addr.clone(),
@@ -99,12 +99,12 @@ impl Cluster {
     }
 
     pub fn is_available(&self) -> bool {
-        core::lists::any_match(&self.workers, |worker| worker.is_available())
+        common::lists::any_match(&self.workers, |worker| worker.is_available())
     }
 
     pub fn new(addrs: &Vec<NodeConfig>) -> Self {
         Cluster {
-            workers: core::lists::map(
+            workers: common::lists::map(
                 addrs,
                 |addr| addr.to_node(),
             ),
@@ -125,7 +125,7 @@ impl Cluster {
     }
 
     pub fn probe_state(&mut self) {
-        core::lists::for_each_mut(&mut self.workers, |node| {
+        common::lists::for_each_mut(&mut self.workers, |node| {
             node.probe_state()
         })
     }

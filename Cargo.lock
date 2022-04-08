@@ -430,23 +430,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "common"
+version = "0.1.0"
+dependencies = [
+ "grpcio",
+ "mongodb",
+ "regex",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "concurrent-queue"
 version = "1.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30ed07550be01594c6026cff2a1d7fe9c8f683caa798e12b68694ac9e88286a3"
 dependencies = [
  "cache-padded",
-]
-
-[[package]]
-name = "core"
-version = "0.1.0"
-dependencies = [
- "grpcio",
- "mongodb",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -553,7 +554,7 @@ version = "0.1.0"
 dependencies = [
  "actix",
  "chrono",
- "core",
+ "common",
  "data-client",
  "dataflow-api",
  "grpcio",
@@ -589,6 +590,7 @@ name = "dataflow-worker"
 version = "0.1.0"
 dependencies = [
  "actix",
+ "common",
  "dataflow",
  "dataflow-api",
  "futures-executor",
@@ -1728,7 +1730,7 @@ dependencies = [
 name = "tableflow-rs"
 version = "0.1.0"
 dependencies = [
- "core",
+ "common",
  "dataflow",
  "dataflow-api",
  "env_logger",

@@ -132,13 +132,13 @@ pub mod execution {
     pub fn build_addr_map(job_id: types::JobID,
                           meta: &types::AdjacentList,
                           nodes: &types::NodeSet) -> types::AddrMap {
-        let ref local_hostname = core::hostname().expect("");
+        let ref local_hostname = common::hostname().expect("");
 
         let traversed = types::traverse_from_bottom(meta);
         let mut addrmap = types::AddrMap::new();
 
         for ref adj in traversed {
-            let recipients = core::lists::map(
+            let recipients = common::lists::map(
                 &adj.neighbors,
                 |neighbor_id| {
                     match addrmap.get(neighbor_id) {

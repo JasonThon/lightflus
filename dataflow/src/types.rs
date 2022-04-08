@@ -66,7 +66,7 @@ pub mod formula {
 
     const REFERENCE_OP: &'static str = "Reference";
 
-    impl core::KeyedValue<String, FormulaOp> for FormulaOp {
+    impl common::KeyedValue<String, FormulaOp> for FormulaOp {
         fn key(&self) -> String {
             match self {
                 FormulaOp::Reference { .. } => REFERENCE_OP.to_string(),
@@ -110,9 +110,9 @@ pub type AddrMap = collections::HashMap<u64, actix::Recipient<event::FormulaOpEv
 pub fn traverse_from_bottom(meta: &Vec<AdjacentVec>) -> Vec<AdjacentVec> {
     let mut results = vec![];
 
-    let mut grouped = core::lists::group_hashmap(meta, |adj| adj.center.clone());
+    let mut grouped = common::lists::group_hashmap(meta, |adj| adj.center.clone());
 
-    core::lists::for_each(meta, |adj| {
+    common::lists::for_each(meta, |adj| {
         let mut flag = false;
         for id in &adj.neighbors {
             if grouped.contains_key(id) {

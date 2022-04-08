@@ -44,7 +44,7 @@ impl JobRepo {
                 None,
             ) {
                 Err(err) => {
-                    if core::mongo::is_dup_err(&err) {
+                    if common::mongo::is_dup_err(&err) {
                         return match mongo.replace_one(
                             doc! {
                             "jobId.headerId": graph.job_id.header_id.as_str(),
@@ -83,7 +83,7 @@ impl Coordinator {
     pub fn init(&self) -> Result<Vec<types::GraphModel>, err::CommonException> {
         self.job_repo.find_all()
             .map(|models| {
-                core::lists::for_each(
+                common::lists::for_each(
                     &models,
                     |model| send_to_conns(
                         model,
@@ -183,7 +183,7 @@ fn send_to_conns(graph: &types::GraphModel,
     }
 
     if !binder_events.is_empty() {
-        core::lists::for_each(senders, |sender| {
+        common::lists::for_each(senders, |sender| {
             let _ = sender.send(binder_events.clone());
         })
     }
@@ -191,7 +191,7 @@ fn send_to_conns(graph: &types::GraphModel,
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct CoordinatorConfig {
-    pub mongo: core::mongo::MongoConfig,
+    pub mongo: common::mongo::MongoConfig,
     pub port: usize,
     pub cluster: Vec<cluster::NodeConfig>,
     pub sources: Vec<types::SourceDesc>,

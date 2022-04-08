@@ -45,7 +45,7 @@ impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
                         Ok(cluster) =>
                             match self.coordinator.submit_job(table_id, header_id, graph, cluster) {
                                 Ok(_) => {
-                                    response.set_code(core::http::SUCCESS);
+                                    response.set_code(common::http::SUCCESS);
                                     response.set_msg(SUCCESS_MSG.to_string());
                                     sink.success(response);
                                 }
@@ -63,7 +63,7 @@ impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
             },
             Err(err) => {
                 log::error!("bad body: {:?}", &err);
-                response.set_code(core::http::BAD_REQUEST);
+                response.set_code(common::http::BAD_REQUEST);
                 response.set_msg(format!("request parse failed: {:?}", err));
                 sink.success(response);
             }

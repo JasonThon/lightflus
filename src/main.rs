@@ -19,7 +19,13 @@ async fn main() {
         panic!("{}", format!("fail to read config file: {:?}", file_result.unwrap_err()))
     }
     let file = file_result.unwrap();
-    let reader = serde_json::from_reader::<std::fs::File, dataflow::coord::CoordinatorConfig>(file);
+    let env_setup = common::sysenv::serde_env::from_reader(file);
+    if env_setup.is_err() {
+        panic!("{}", format!("fail to read config file: {:?}", env_setup.unwrap_err()))
+    }
+    let value = env_setup.unwrap();
+
+    let reader = serde_json::from_str::<dataflow::coord::CoordinatorConfig>(value.as_str());
     if reader.is_err() {
         panic!("{}", format!("fail to parser config file: {:?}", reader.unwrap_err()))
     }
@@ -35,7 +41,7 @@ async fn main() {
     let mut disconnect_signals = vec![];
     let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
 
-    core::lists::for_each(&config.sources, |source| {
+    common::lists::for_each(&config.sources, |source| {
         let (tx, rx) = mpsc::unbounded_channel();
         let (disconnect_tx, disconnect_rx) = mpsc::channel(1);
 
@@ -92,7 +98,7 @@ async fn main() {
     let mut grpc_server = grpcio::ServerBuilder::new(
         sync::Arc::new(grpcio::Environment::new(10)))
         .register_service(service)
-        .bind("localhost", config.port as u16)
+        .bind("0.0.0.0", config.port as u16)
         .build()
         .expect("grpc server create failed");
     grpc_server.start();
@@ -101,7 +107,7 @@ async fn main() {
     let _ = tokio::signal::ctrl_c().await;
 
     // close connector gracefully
-    core::lists::for_each_mut(&mut disconnect_signals, |signal| {
+    common::lists::for_each_mut(&mut disconnect_signals, |signal| {
         let _ = signal.try_send(event::Disconnect);
     });
 

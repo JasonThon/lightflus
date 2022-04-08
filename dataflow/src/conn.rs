@@ -101,7 +101,7 @@ impl Connector {
             event::BinderEventType::Stop => {
                 match &mut self.connector_type {
                     ConnectorType::Redis { conn } => {
-                        let topics = core::lists::filter_map(
+                        let topics = common::lists::filter_map(
                             &self.binders,
                             |binder| binder.job_id.eq(&e.job_id),
                             |binder| binder.get_topic(),
@@ -113,7 +113,7 @@ impl Connector {
                     _ => {}
                 }
 
-                core::lists::remove_if(&mut self.binders, |binder| binder.job_id.eq(&e.job_id));
+                common::lists::remove_if(&mut self.binders, |binder| binder.job_id.eq(&e.job_id));
             }
         }
     }
@@ -131,7 +131,7 @@ impl Connector {
         loop {
             tokio::select! {
                 Some(_) = connector.disconnect_rx.recv() => break,
-                Some(events) = connector.event_rx.recv() => core::lists::for_each(&events, |e| connector.handle_event(e)),
+                Some(events) = connector.event_rx.recv() => common::lists::for_each(&events, |e| connector.handle_event(e)),
                 _ = ticker.tick(), if connector.is_tableflow() => {},
                 Some(event) = rx.recv() => send_to_worker(&connector.binders, event),
                 Some(event) = async {
@@ -180,7 +180,7 @@ impl Connector {
 }
 
 fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
-    let ref clients = core::lists::map(
+    let ref clients = common::lists::map(
         binders,
         |binder| dataflow_api::worker::new_dataflow_worker_client(
             dataflow_api::worker::DataflowWorkerConfig {
@@ -194,7 +194,7 @@ fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
     let event_type = event::FormulaOpEventType::from(&event.event_type);
     let event_time = time::SystemTime::now();
 
-    core::lists::index_for_each(clients, |idx, cli| {
+    common::lists::index_for_each(clients, |idx, cli| {
         let ref mut request = dataflow_api::dataflow_worker::ActionSubmitRequest::new();
         let b = &binders[idx];
         let target_key = event.get_key();

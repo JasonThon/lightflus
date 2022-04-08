@@ -14,9 +14,17 @@ fn main() {
     }
 
     let file = result.unwrap();
-    let reader = serde_json::from_reader::<fs::File, dataflow::worker::TaskWorkerConfig>(file);
-    if reader.is_err() {
+
+    let env_setup = common::sysenv::serde_env::from_reader(file);
+    if env_setup.is_err() {
         panic!("{}", format!("config file read failed: {:?}", reader.unwrap_err()))
+    }
+
+    let value = env_setup.unwrap();
+    let reader = serde_json::from_str::<dataflow::worker::TaskWorkerConfig>(value.as_str());
+
+    if reader.is_err() {
+        panic!("{}", format!("config file parse failed: {:?}", reader.unwrap_err()))
     }
 
     let ref mut config = reader.unwrap();
@@ -31,7 +39,7 @@ fn main() {
     let grpc_server = grpcio::ServerBuilder::new(
         sync::Arc::new(grpcio::Environment::new(10)))
         .register_service(service)
-        .bind("localhost", config.port as u16)
+        .bind("0.0.0.0", config.port as u16)
         .build();
 
     if grpc_server.is_err() {

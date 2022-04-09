@@ -14,6 +14,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Run common lib tests
         run: cargo test --manifest-path common/Cargo.toml
       - name: Run dataflow tests
         run: cargo test --manifest-path dataflow-test/Cargo.toml
@@ -21,7 +22,6 @@ jobs:
         run: cargo install --path .
       - name: Install Worker
         run: cargo install --path dataflow-worker/
-      - name: Run common lib tests
       - name: Build coordinator image
         run: docker build . --file Dockerfile-coordinator --tag dataflow-coordinator:$(date +%s)
       - name: Build worker image

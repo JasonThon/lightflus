@@ -1,8 +1,0 @@
-apply from: "$rootDir/config/publish/maven_publish.gradle"
-
-dependencies {
-    compile(
-       project(":sheetflow-syntax"),
-       project(":sheetflow-common"),
-    )
-}

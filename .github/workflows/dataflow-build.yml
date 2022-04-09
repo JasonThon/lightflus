@@ -14,9 +14,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Check Coordinator
+      - name: Install Coordinator
         run: cargo install --path .
-      - name: Check Worker
+      - name: Install Worker
         run: cargo install --path dataflow-worker/
       - name: Run common lib tests
         run: cargo test --manifest-path common/Cargo.toml

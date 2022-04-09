@@ -1,9 +1,0 @@
-apply from: "$rootDir/config/publish/maven_publish.gradle"
-
-dependencies {
-    compile(
-        "org.springframework.boot:spring-boot-starter-web",
-        "org.springframework.data:spring-data-commons",
-        "io.github.openfeign:feign-core"
-    )
-}

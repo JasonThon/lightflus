@@ -14,19 +14,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Run common lib tests
-        run: cargo test --manifest-path common/Cargo.toml
-      - name: Run dataflow tests
-        run: cargo test --manifest-path dataflow-test/Cargo.toml
       - name: Install Coordinator
         run: cargo install --path .
       - name: Install Worker
         run: cargo install --path dataflow-worker/
+      - name: Run common lib tests
+        run: cargo test --manifest-path common/Cargo.toml
+      - name: Run dataflow tests
+        run: cargo test --manifest-path dataflow-test/Cargo.toml
       - name: Build coordinator image
-        run: docker build . --file docker/coordinator/Dockerfile --tag dataflow-coordinator:$(date +%s)
+        run: docker build . --file Dockerfile-coordinator --tag dataflow-coordinator:$(date +%s)
       - name: Build worker image
-        run: docker build . --file docker/worker/Dockerfile --tag dataflow-worker:$(date +%s)
-      - name: Publish worker docker image
-        run: docker push markmakemate/dataflow-worker:$(date +%s)
-      - name: Publish coordinator docker image
-        run: docker push markmakemate/dataflow-coordinator:$(date +%s)
+        run: docker build . --file Dockerfile-worker --tag dataflow-worker:$(date +%s)

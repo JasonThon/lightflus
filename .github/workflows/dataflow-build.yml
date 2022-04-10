@@ -10,7 +10,7 @@ on:
 
 jobs:
 
-  test and build:
+  test_and_build:
 
     runs-on: ubuntu-latest
 
@@ -25,11 +25,11 @@ jobs:
       - name: Check worker
         run: cargo build --manifest-path dataflow-worker/Cargo.toml
 
-  build docker image:
+  build_docker_image:
 
     if: ${{ github.event_name == 'release' }}
 
-    needs: [test and build, tag commit]
+    needs: [test_and_build]
 
     runs-on: ubuntu-latest
 

@@ -1,4 +1,4 @@
-name: tablflow CI
+name: tablflow-rs build
 
 on:
   push:
@@ -19,7 +19,7 @@ jobs:
       - name: Run common lib tests
         run: cargo test --manifest-path common/Cargo.toml
       - name: Run dataflow tests
-        run: cargo test --manifest-path dataflow-test/Cargo.toml
+        run: cargo test --manifest-path dataflow/Cargo.toml
       - name: Check coordinator
         run: cargo build
       - name: Check worker

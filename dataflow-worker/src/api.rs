@@ -45,7 +45,7 @@ impl dataflow_worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
     }
 
     fn probe(&mut self,
-             ctx: grpcio::RpcContext,
+             _ctx: grpcio::RpcContext,
              _req: probe::ProbeRequest,
              sink: grpcio::UnarySink<probe::ProbeResponse>) {
         let mut response = probe::ProbeResponse::new();

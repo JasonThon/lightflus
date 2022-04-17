@@ -3,7 +3,6 @@ use std::hash::{Hash, Hasher};
 use common;
 use dataflow_api::probe;
 use crate::{err, event, types};
-use crate::cluster::NodeStatus::{Pending, Running, Unreachable};
 
 #[derive(Clone, Eq, PartialEq)]
 enum NodeStatus {
@@ -33,14 +32,14 @@ impl Node {
         match client.probe(request) {
             Ok(resp) => {
                 if resp.available {
-                    self.status = Running
+                    self.status = NodeStatus::Running
                 } else {
-                    self.status = Pending
+                    self.status = NodeStatus::Pending
                 }
             }
             Err(err) => {
                 log::error!("{}", err);
-                self.status = Unreachable
+                self.status = NodeStatus::Unreachable
             }
         }
     }

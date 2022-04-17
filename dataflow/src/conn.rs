@@ -163,6 +163,7 @@ impl Connector {
                             err
                         });
                 }
+                else => continue
             }
         }
 
@@ -191,7 +192,7 @@ fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
         ),
     );
 
-    let event_type = event::FormulaOpEventType::from(&event.event_type);
+    let event_type = types::DataSourceEventType::from(&event.event_type);
     let event_time = time::SystemTime::now();
 
     common::lists::index_for_each(clients, |idx, cli| {
@@ -200,10 +201,9 @@ fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
         let target_key = event.get_key();
 
         if target_key == types::job_id(b.table_id.as_str(), b.header_id.as_str()) {
-            let ref graph_event = event::GraphEvent::NodeEventSubmit(
-                event::FormulaOpEvent {
+            let ref graph_event = event::GraphEvent::DataSourceEventSubmit(
+                event::DataSourceEvent {
                     job_id: b.job_id.clone(),
-                    from: 0,
                     to: b.id.clone(),
                     event_type: event_type.clone(),
                     data: event.entries.to_vec(),

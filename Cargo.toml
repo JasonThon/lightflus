@@ -8,7 +8,6 @@ members = [
     "dataflow",
     "dataflow-worker",
     "data-client",
-    "dataflow-test",
     "dataflow-api",
     "common"
 ]

@@ -22,8 +22,8 @@ impl actix::Handler<event::GraphEvent> for TaskWorker {
                 job_id, ops
             } => self.build_new_graph(job_id, runtime::to_execution_graph(ops)),
 
-            event::GraphEvent::NodeEventSubmit(ope) => {
-                match self.submit_event(ope) {
+            event::GraphEvent::DataSourceEventSubmit(ope) => {
+                match self.submit_datasource_event(ope) {
                     Ok(_) => {}
                     Err(err) => {
                         log::error!("submit event failed: {:?}", err);
@@ -32,13 +32,14 @@ impl actix::Handler<event::GraphEvent> for TaskWorker {
             }
             event::GraphEvent::StopGraph { job_id } => {
                 log::debug!("start stopping job {:?}", &job_id);
-                match self.stop_job(job_id) {
-                    Ok(_) => {}
+                match self.stop_job(&job_id) {
+                    Ok(_) => log::debug!("stop job success"),
                     Err(err) => {
-                        log::error!("stop job failed: {:?}", err);
+                        log::error!("stop job {:?} failed: {:?}",job_id , err);
                     }
                 }
             }
+            event::GraphEvent::FormulaOpEventSubmit(_) => {}
         }
     }
 }
@@ -50,7 +51,7 @@ impl TaskWorker {
         }
     }
 
-    pub fn submit_event(&mut self, event: event::FormulaOpEvent) -> Result<(), err::ExecutionException> {
+    pub fn submit_datasource_event(&mut self, event: event::DataSourceEvent) -> Result<(), err::ExecutionException> {
         let ref job_id = event.job_id.clone();
         match self.job_pool
             .get(job_id) {
@@ -75,11 +76,11 @@ impl TaskWorker {
             .build_dag(job_id);
     }
 
-    pub fn stop_job(&mut self, job_id: types::JobID) -> Result<(), err::TaskWorkerError> {
-        match self.job_pool.get(&job_id) {
+    pub fn stop_job(&mut self, job_id: &types::JobID) -> Result<(), err::TaskWorkerError> {
+        match self.job_pool.get(job_id) {
             Some(graph) => graph.stop()
                 .map(|_| {
-                    self.job_pool.remove(&job_id);
+                    self.job_pool.remove(job_id);
                 })
                 .map_err(|err| err.into()),
             None => Ok(())

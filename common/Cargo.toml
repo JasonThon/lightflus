@@ -16,3 +16,7 @@ regex = "1"
 version = "2.1.0"
 default-features = false
 features = ["sync"]
+
+[dev-dependencies]
+common = { path = "../common" }
+tokio = { version = "1", features = ["test-util"] }

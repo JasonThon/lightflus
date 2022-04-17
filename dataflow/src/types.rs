@@ -37,6 +37,7 @@ pub struct AdjacentVec {
 
 pub mod formula {
     use std::collections;
+    use crate::types::ValueType;
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
     pub struct InitState {
@@ -60,6 +61,7 @@ pub mod formula {
         Reference {
             table_id: String,
             header_id: String,
+            value_type: ValueType,
         },
         Add,
     }
@@ -76,6 +78,15 @@ pub mod formula {
 
         fn value(&self) -> FormulaOp {
             self.clone()
+        }
+    }
+
+    impl FormulaOp {
+        pub fn is_reference(&self) -> bool {
+            match &self {
+                FormulaOp::Reference { .. } => true,
+                _ => false
+            }
         }
     }
 }
@@ -105,12 +116,10 @@ pub fn job_id(table_id: &str, header_id: &str) -> JobID {
     }
 }
 
-pub type AddrMap = collections::HashMap<u64, actix::Recipient<event::FormulaOpEvent>>;
-
 pub fn traverse_from_bottom(meta: &Vec<AdjacentVec>) -> Vec<AdjacentVec> {
     let mut results = vec![];
 
-    let mut grouped = common::lists::group_hashmap(meta, |adj| adj.center.clone());
+    let mut grouped = common::lists::map_self(meta, |adj| adj.center.clone());
 
     common::lists::for_each(meta, |adj| {
         let mut flag = false;
@@ -194,8 +203,8 @@ impl GraphModel {
                     client.submit_action(request)
                         .map_err(|err| err::CommonException::from(err))
                 })
-                .map(|resp| {
-                    log::info!("submit success")
+                .map(|_| {
+                    log::debug!("submit success")
                 });
 
             if result.is_err() {
@@ -255,3 +264,169 @@ impl Binder {
         format!("{}/{}", &self.table_id, &self.header_id)
     }
 }
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub enum DataSourceEventType {
+    TableflowTrigger {
+        page: u32,
+        limit: u32,
+    },
+    Delete,
+    Update {
+        old_value: Vec<u8>
+    },
+    Insert,
+    Stop,
+    Invalid,
+}
+
+impl From<&ConnectorEventType> for DataSourceEventType {
+    fn from(t: &ConnectorEventType) -> Self {
+        match t {
+            ConnectorEventType::Action(action) => {
+                match action {
+                    ActionType::INSERT => Self::Insert,
+                    ActionType::UPDATE {
+                        old_value
+                    } => Self::Update {
+                        old_value: old_value.clone()
+                    },
+                    ActionType::DELETE => Self::Delete,
+                    _ => Self::Invalid
+                }
+            }
+            ConnectorEventType::Close => Self::Stop
+        }
+    }
+}
+
+#[derive(Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, Debug)]
+pub enum ActionType {
+    INSERT,
+    UPDATE {
+        old_value: Vec<u8>
+    },
+    DELETE,
+    INVALID,
+}
+
+impl From<DataSourceEventType> for ActionType {
+    fn from(event_type: DataSourceEventType) -> Self {
+        match event_type {
+            DataSourceEventType::TableflowTrigger { .. } => Self::INSERT,
+            DataSourceEventType::Delete => Self::DELETE,
+            DataSourceEventType::Update {
+                old_value
+            } => Self::UPDATE { old_value },
+            DataSourceEventType::Insert => Self::INSERT,
+            DataSourceEventType::Stop => Self::INVALID,
+            DataSourceEventType::Invalid => Self::INVALID
+        }
+    }
+}
+
+impl ActionType {
+    pub fn is_value_update(&self) -> bool {
+        match self {
+            ActionType::INSERT => true,
+            ActionType::UPDATE { .. } => true,
+            _ => false,
+        }
+    }
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
+#[serde(tag = "type", content = "action")]
+pub enum ConnectorEventType {
+    Action(ActionType),
+    Close,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq)]
+pub enum ValueType {
+    String,
+    UnsignedInt,
+    Double,
+    Float,
+    UnsignedLong,
+    UnsignedLongLong,
+    Int,
+    Long,
+    LongLong,
+}
+
+impl From<TypedValue> for ValueType {
+    fn from(typed: TypedValue) -> Self {
+        match typed {
+            TypedValue::String(_) => Self::String,
+            TypedValue::UnsignedInt(_) => Self::UnsignedInt,
+            TypedValue::Double(_) => Self::Double,
+            TypedValue::Float(_) => Self::Float,
+            TypedValue::UnsignedLong(_) => Self::UnsignedLong,
+            TypedValue::UnsignedLongLong(_) => Self::UnsignedLongLong,
+            TypedValue::Int(_) => Self::Int,
+            TypedValue::Long(_) => Self::Long,
+            TypedValue::LongLong(_) => Self::LongLong
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum TypedValue {
+    String(String),
+    UnsignedInt(u32),
+    Double(f64),
+    Float(f32),
+    UnsignedLong(u64),
+    UnsignedLongLong(u128),
+    Int(i32),
+    Long(i64),
+    LongLong(i128),
+}
+
+impl TypedValue {
+    pub fn get_data(&self) -> Vec<u8> {
+        match self {
+            TypedValue::String(value) => value.as_bytes().to_vec(),
+            TypedValue::UnsignedInt(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::Double(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::Float(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::UnsignedLong(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::UnsignedLongLong(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::Int(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::Long(value) => value.clone().to_be_bytes().to_vec(),
+            TypedValue::LongLong(value) => value.clone().to_be_bytes().to_vec()
+        }
+    }
+
+    pub fn get_type(&self) -> ValueType {
+        match self {
+            TypedValue::String(_) => ValueType::String,
+            TypedValue::UnsignedInt(_) => ValueType::UnsignedInt,
+            TypedValue::Double(_) => ValueType::Double,
+            TypedValue::Float(_) => ValueType::Float,
+            TypedValue::UnsignedLong(_) => ValueType::UnsignedLong,
+            TypedValue::UnsignedLongLong(_) => ValueType::UnsignedLongLong,
+            TypedValue::Int(_) => ValueType::Int,
+            TypedValue::Long(_) => ValueType::Long,
+            TypedValue::LongLong(_) => ValueType::LongLong
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct ActionValue {
+    pub action: ActionType,
+    pub value: TypedValue,
+    pub from: u64,
+    pub row_idx: u64,
+}
+
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq)]
+pub struct ValueState {
+    pub from: u64,
+    pub value: Vec<u8>,
+    pub value_type: ValueType,
+}
+
+pub type RowIdx = u64;

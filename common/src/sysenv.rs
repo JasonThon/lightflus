@@ -1,6 +1,12 @@
+pub fn get_env(k: &str) -> Option<String> {
+    use std::env;
+    match env::var(k.to_string()) {
+        Ok(var) => Some(var),
+        Err(_) => None
+    }
+}
+
 pub mod serde_env {
-    use std::env::VarError;
-    use std::{io, ops};
     use std::io::Read;
     use serde::de::Error;
 

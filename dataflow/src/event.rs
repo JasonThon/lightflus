@@ -1,5 +1,4 @@
-use std::collections;
-
+use std::{collections, marker};
 use crate::types;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -22,18 +21,16 @@ pub enum BinderEventType {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "type")]
 pub enum TableAction {
+    #[serde(rename_all = "camelCase")]
     FormulaUpdate {
         table_id: String,
         header_id: String,
         graph: types::formula::FormulaGraph,
     },
-    TableSubmission {
-        table_id: String,
-        data: collections::BTreeMap<String, Vec<u8>>,
-    },
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct TableEvent {
     action: TableAction,
     event_time: String,
@@ -51,15 +48,18 @@ impl TableEvent {
     }
 }
 
-impl Event<String, TableAction> for TableEvent {
+impl Event<types::JobID, TableAction> for TableEvent {
     fn event_time(&self) -> chrono::DateTime<chrono::Utc> {
         self.event_time
             .parse::<chrono::DateTime<chrono::Utc>>()
             .unwrap()
     }
 
-    fn get_key(&self) -> String {
-        todo!()
+    fn get_key(&self) -> types::JobID {
+        match &self.action {
+            TableAction::FormulaUpdate { table_id, header_id, .. } =>
+                types::job_id(table_id.as_str(), header_id.as_str())
+        }
     }
 
     fn get_value(&self) -> TableAction {
@@ -78,7 +78,7 @@ pub trait Event<K, V> {
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ConnectorEvent {
-    pub event_type: ConnectorEventType,
+    pub event_type: types::ConnectorEventType,
     pub table_id: String,
     pub header_id: String,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -87,7 +87,7 @@ pub struct ConnectorEvent {
     pub timestamp: String,
 }
 
-impl Event<types::JobID, (ConnectorEventType, Vec<types::Entry>)> for ConnectorEvent {
+impl Event<types::JobID, (types::ConnectorEventType, Vec<types::Entry>)> for ConnectorEvent {
     fn event_time(&self) -> chrono::DateTime<chrono::Utc> {
         self.timestamp
             .as_str()
@@ -99,7 +99,7 @@ impl Event<types::JobID, (ConnectorEventType, Vec<types::Entry>)> for ConnectorE
         types::job_id(self.table_id.as_str(), self.header_id.as_str())
     }
 
-    fn get_value(&self) -> (ConnectorEventType, Vec<types::Entry>) {
+    fn get_value(&self) -> (types::ConnectorEventType, Vec<types::Entry>) {
         (self.event_type.clone(), self.entries.to_vec())
     }
 }
@@ -117,73 +117,81 @@ pub fn new_wrapped_query_resp(resp: data_client::tableflow::QueryResponse, id: t
     }
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
-#[serde(tag = "type", content = "action")]
-pub enum ConnectorEventType {
-    Action(ActionType),
-    Close,
-}
-
-pub type ActionType = usize;
-
-pub const INSERT: usize = 0;
-pub const UPDATE: usize = 1;
-pub const DELETE: usize = 2;
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, actix::Message, Debug)]
 #[rtype(result = "()")]
-pub struct FormulaOpEvent {
+pub struct DataSourceEvent {
+    #[serde(rename(serialize = "jobId", deserialize = "jobId"))]
     pub job_id: types::JobID,
-    pub from: u64,
     pub to: u64,
     #[serde(rename(serialize = "eventType", deserialize = "eventType"))]
-    pub event_type: FormulaOpEventType,
+    pub event_type: types::DataSourceEventType,
     pub data: Vec<types::Entry>,
+    #[serde(rename(serialize = "eventTime", deserialize = "eventTime"))]
     pub event_time: std::time::SystemTime,
-}
-
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-pub enum FormulaOpEventType {
-    TableflowTrigger {
-        page: u32,
-        limit: u32,
-    },
-    Delete,
-    Update,
-    Insert,
-    Stop,
-    Invalid,
-}
-
-impl From<&ConnectorEventType> for FormulaOpEventType {
-    fn from(t: &ConnectorEventType) -> Self {
-        match t {
-            ConnectorEventType::Action(action) => {
-                match action {
-                    &INSERT => Self::Insert,
-                    &UPDATE => Self::Update,
-                    &DELETE => Self::Delete,
-                    _ => Self::Invalid
-                }
-            }
-            ConnectorEventType::Close => Self::Stop
-        }
-    }
 }
 
 #[derive(serde::Serialize, serde::Deserialize, actix::Message, Debug)]
 #[rtype(result = "()")]
 #[serde(tag = "type")]
 pub enum GraphEvent {
+    #[serde(rename_all = "camelCase")]
     ExecutionGraphSubmit {
         ops: types::GraphModel,
         job_id: types::JobID,
     },
-    NodeEventSubmit(FormulaOpEvent),
+    DataSourceEventSubmit(DataSourceEvent),
+    #[serde(rename_all = "camelCase")]
     StopGraph {
         job_id: types::JobID,
     },
+    FormulaOpEventSubmit(Vec<FormulaOpEvent>),
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Disconnect;
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FormulaOpEvent {
+    pub row_idx: u64,
+    pub job_id: types::JobID,
+    pub data: Vec<u8>,
+    pub from: u64,
+    pub action: types::ActionType,
+    pub event_time: std::time::SystemTime,
+    pub data_type: types::ValueType,
+}
+
+impl Event<u64, types::ActionValue> for FormulaOpEvent {
+    fn event_time(&self) -> chrono::DateTime<chrono::Utc> {
+        chrono::DateTime::from(self.event_time.clone())
+    }
+
+    fn get_key(&self) -> u64 {
+        self.row_idx.clone()
+    }
+
+    fn get_value(&self) -> types::ActionValue {
+        todo!()
+    }
+}
+
+pub struct EventSet<T: Event<K, V>, K, V> {
+    pub events: Vec<T>,
+    phantom_key: marker::PhantomData<K>,
+    phantom_value: marker::PhantomData<V>,
+}
+
+impl<T: Event<K, V>, K, V> EventSet<T, K, V> {
+    pub fn new(events: Vec<T>) -> EventSet<T, K, V> {
+        EventSet {
+            events,
+            phantom_key: Default::default(),
+            phantom_value: Default::default(),
+        }
+    }
+}
+
+impl actix::Message for EventSet<FormulaOpEvent, u64, types::ActionValue> {
+    type Result = ();
+}

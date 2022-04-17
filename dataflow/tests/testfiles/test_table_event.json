@@ -1,0 +1,87 @@
+{
+  "eventTime": "2022-04-17T14:41:40.108Z",
+  "action": {
+    "type": "FormulaUpdate",
+    "tableId": "tableId",
+    "headerId": "headerId",
+    "graph": {
+      "meta": [
+        {
+          "center": 0,
+          "neighbors": [
+            1,
+            2
+          ]
+        },
+        {
+          "center": 1,
+          "neighbors": [
+            3,
+            4
+          ]
+        },
+        {
+          "center": 2,
+          "neighbors": [
+            3,
+            5
+          ]
+        },
+        {
+          "center": 3,
+          "neighbors": [
+            6,
+            7
+          ]
+        },
+        {
+          "center": 4,
+          "neighbors": []
+        },
+        {
+          "center": 5,
+          "neighbors": [
+            6
+          ]
+        },
+        {
+          "center": 6,
+          "neighbors": []
+        },
+        {
+          "center": 7,
+          "neighbors": []
+        }
+      ],
+      "data": {
+        "0": {
+          "type": "Reference",
+          "tableId": "tableId",
+          "headerId": "headerId",
+          "valueType": "Int"
+        },
+        "1": {
+          "type": "Add"
+        },
+        "2": {
+          "type": "Add"
+        },
+        "3": {
+          "type": "Add"
+        },
+        "4": {
+          "type": "Add"
+        },
+        "5": {
+          "type": "Add"
+        },
+        "6": {
+          "type": "Add"
+        },
+        "7": {
+          "type": "Add"
+        }
+      }
+    }
+  }
+}

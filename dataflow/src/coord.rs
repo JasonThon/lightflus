@@ -162,7 +162,7 @@ fn send_to_conns(graph: &types::GraphModel,
     let mut binder_events = vec![];
     for (_, operator) in &graph.nodes {
         match &operator.value {
-            formula::FormulaOp::Reference { table_id, header_id } => {
+            formula::FormulaOp::Reference { table_id, header_id, .. } => {
                 let binder_type = match binder_action {
                     BindAction::CREATE => event::BinderEventType::Create {
                         table_id: table_id.clone(),

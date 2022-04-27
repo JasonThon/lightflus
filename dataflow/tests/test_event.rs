@@ -160,6 +160,6 @@ fn test_deserialize_graph_event() {
         }
         GraphEvent::DataSourceEventSubmit(_) => panic!("wrong type"),
         GraphEvent::StopGraph { .. } => panic!("wrong type"),
-        GraphEvent::FormulaOpEventSubmit(_) => panic!("wrong type"),
+        GraphEvent::FormulaOpEventSubmit { .. } => panic!("wrong type"),
     }
 }

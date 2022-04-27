@@ -16,6 +16,4 @@ pub mod worker;
 pub mod conn;
 #[cfg(feature = "datastream")]
 pub mod stream;
-#[cfg(feature = "datastream")]
-pub mod state;
 pub mod constants;

@@ -53,6 +53,7 @@ pub enum ErrorKind {
     Unknown,
     MongoError(mongodb::error::ErrorKind),
     GrpcError,
+    InvalidJson,
 }
 
 impl From<grpcio::Error> for CommonException {
@@ -179,8 +180,9 @@ impl From<std::io::Error> for CommonException {
 }
 
 impl From<serde_json::Error> for CommonException {
-    fn from(_: serde_json::Error) -> Self {
-        todo!()
+    fn from(err: serde_json::Error) -> Self {
+        log::error!("invalid json: {}", err);
+        Self::new(ErrorKind::InvalidJson, "invalid json")
     }
 }
 
@@ -263,4 +265,10 @@ impl From<ExecutionException> for TaskWorkerError {
     fn from(err: ExecutionException) -> Self {
         Self::ExecutionError(err.to_string())
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct PipelineError {
+    pub kind: ErrorKind,
+    pub msg: String,
 }

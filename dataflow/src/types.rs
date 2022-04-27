@@ -1,4 +1,4 @@
-use std::collections;
+use std::{collections, string};
 
 use crate::{err, types};
 use crate::event;
@@ -64,6 +64,8 @@ pub mod formula {
             value_type: ValueType,
         },
         Add,
+        Sum,
+        Sumif
     }
 
     const REFERENCE_OP: &'static str = "Reference";
@@ -371,7 +373,7 @@ impl From<TypedValue> for ValueType {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum TypedValue {
     String(String),
     UnsignedInt(u32),
@@ -419,14 +421,53 @@ pub struct ActionValue {
     pub action: ActionType,
     pub value: TypedValue,
     pub from: u64,
-    pub row_idx: u64,
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ValueState {
-    pub from: u64,
-    pub value: Vec<u8>,
-    pub value_type: ValueType,
+    values: collections::BTreeMap<u64, TypedValue>,
+}
+
+impl ValueState {
+    pub fn new(values: collections::BTreeMap<u64, TypedValue>) -> ValueState {
+        ValueState {
+            values
+        }
+    }
+}
+
+impl FromBytes for ValueState {
+    fn from_bytes(data: Vec<u8>) -> Option<Self> {
+        match serde_json::from_slice::<ValueState>(data.as_slice()) {
+            Ok(value) => Some(value),
+            Err(err) => {
+                log::error!("deserialize failed {}", err);
+                None
+            }
+        }
+    }
+
+    fn to_string(&self) -> String {
+        match serde_json::to_string(self) {
+            Ok(result) => result,
+            Err(_) => Default::default()
+        }
+    }
+}
+
+impl ValueState {
+    pub fn remove(&mut self, from: &u64) -> Option<TypedValue> {
+        self.values.remove(from)
+    }
+
+    pub fn update(&mut self, from: &u64, value: &TypedValue) -> Option<TypedValue> {
+        self.values.insert(from.clone(), value.clone())
+    }
 }
 
 pub type RowIdx = u64;
+
+pub trait FromBytes: Sized {
+    fn from_bytes(data: Vec<u8>) -> Option<Self>;
+    fn to_string(&self) -> String;
+}

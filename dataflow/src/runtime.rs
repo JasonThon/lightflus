@@ -1,5 +1,6 @@
 use std::collections;
-use crate::{event, types};
+use tokio::sync::mpsc;
+use crate::{err, event, types};
 
 pub mod execution {
     use std::time;
@@ -7,11 +8,11 @@ pub mod execution {
     use serde::ser::SerializeStruct;
     use tokio::sync::mpsc;
 
-    use crate::{err, event, runtime, state, types};
+    use crate::{err, event, runtime, types};
     use crate::constants;
     use crate::types::formula;
     use crate::stream as datastream;
-    use crate::stream::pipeline;
+    use crate::stream::{pipeline, state, trigger, window};
 
     #[derive(Debug)]
     pub struct ExecutionGraph {
@@ -71,6 +72,20 @@ pub mod execution {
 
             Ok(())
         }
+
+        pub fn try_send_formula_op_events(&mut self, to: u64, events: Vec<event::FormulaOpEvent>) -> Result<(), err::ExecutionException> {
+            match self.addrmap.get_mut(&to) {
+                Some(addr) => match addr.try_send(event::EventSet::new(events)) {
+                    Ok(_) => Ok(()),
+                    Err(err) =>
+                        Err(err::ExecutionException {
+                            kind: err::ErrorKind::SendGraphEventFailed,
+                            msg: err.to_string(),
+                        })
+                },
+                None => Ok(())
+            }
+        }
     }
 
     impl serde::Serialize for super::Graph {
@@ -117,6 +132,18 @@ pub mod execution {
             self.id.clone()
         }
 
+        fn window_type(&self) -> window::WindowType {
+            window::WindowType::Session {
+                timeout: time::Duration::from_millis(100)
+            }
+        }
+
+        fn trigger_type(&self) -> trigger::TriggerType {
+            trigger::TriggerType::Watermark {
+                firetime: time::Duration::from_millis(100)
+            }
+        }
+
         fn init_datastream(&mut self, recipients: Vec<actix::Addr<Node>>, operator: types::formula::FormulaOp) {
             let (data_stream_tx, data_stream_rx) = datastream::stream_pipe();
             let (close_tx, close_rx) = mpsc::channel(1);
@@ -127,10 +154,8 @@ pub mod execution {
                 self.id(),
             );
             let data_stream = datastream::DataStream::new(
-                datastream::window::WindowType::Session {
-                    timeout: time::Duration::from_millis(100)
-                },
-                datastream::trigger::TriggerType::Watermark,
+                self.window_type(),
+                self.trigger_type(),
                 data_stream_rx,
                 close_rx,
                 event_pipeline,
@@ -206,7 +231,7 @@ pub mod execution {
                     types::formula::FormulaOp::Reference {
                         table_id,
                         header_id,
-                        value_type
+                        value_type,
                     } => while let Some(tx) = &self.datastream_tx {
                         let client = data_client::new_data_engine_client(
                             data_client::DataEngineConfig {
@@ -279,7 +304,11 @@ pub mod execution {
                     }
                 },
                 NodeType::Mirror(addr) => {
-                    let ref event_submit = event::GraphEvent::FormulaOpEventSubmit(msg.events);
+                    let ref event_submit = event::GraphEvent::FormulaOpEventSubmit {
+                        job_id: self.job_id.clone(),
+                        events: msg.events,
+                        to: self.id,
+                    };
                     super::send_to_worker(addr, event_submit)
                 }
             }

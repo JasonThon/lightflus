@@ -1,4 +1,5 @@
 use std::{collections, marker};
+use bytes::Buf;
 use crate::types;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -63,7 +64,7 @@ impl Event<types::JobID, TableAction> for TableEvent {
     }
 
     fn get_value(&self) -> TableAction {
-        todo!()
+        self.action.clone()
     }
 }
 
@@ -144,7 +145,11 @@ pub enum GraphEvent {
     StopGraph {
         job_id: types::JobID,
     },
-    FormulaOpEventSubmit(Vec<FormulaOpEvent>),
+    FormulaOpEventSubmit {
+        job_id: types::JobID,
+        events: Vec<FormulaOpEvent>,
+        to: u64,
+    },
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -164,15 +169,34 @@ pub struct FormulaOpEvent {
 
 impl Event<u64, types::ActionValue> for FormulaOpEvent {
     fn event_time(&self) -> chrono::DateTime<chrono::Utc> {
-        chrono::DateTime::from(self.event_time.clone())
+        chrono::DateTime::from(self.event_time)
     }
 
     fn get_key(&self) -> u64 {
-        self.row_idx.clone()
+        self.row_idx
     }
 
     fn get_value(&self) -> types::ActionValue {
-        todo!()
+        let value = match &self.data_type {
+            types::ValueType::String => match std::str::from_utf8(self.data.as_slice()) {
+                Err(_) => types::TypedValue::String(Default::default()),
+                Ok(str) => types::TypedValue::String(str.to_string())
+            },
+            types::ValueType::UnsignedInt => types::TypedValue::UnsignedInt(self.data.as_slice().get_u32()),
+            types::ValueType::Double => types::TypedValue::Double(self.data.as_slice().get_f64()),
+            types::ValueType::Float => types::TypedValue::Float(self.data.as_slice().get_f32()),
+            types::ValueType::UnsignedLong => types::TypedValue::UnsignedLong(self.data.as_slice().get_u64()),
+            types::ValueType::UnsignedLongLong => types::TypedValue::UnsignedLongLong(self.data.as_slice().get_u128()),
+            types::ValueType::Int => types::TypedValue::Int(self.data.as_slice().get_i32()),
+            types::ValueType::Long => types::TypedValue::Long(self.data.as_slice().get_i64()),
+            types::ValueType::LongLong => types::TypedValue::LongLong(self.data.as_slice().get_i128())
+        };
+
+        types::ActionValue {
+            action: self.action.clone(),
+            value,
+            from: self.from,
+        }
     }
 }
 

@@ -39,7 +39,17 @@ impl actix::Handler<event::GraphEvent> for TaskWorker {
                     }
                 }
             }
-            event::GraphEvent::FormulaOpEventSubmit(_) => {}
+            event::GraphEvent::FormulaOpEventSubmit {
+                job_id, events, to
+            } => {
+                log::debug!("formula op events submitted. job id: {:?}, events: {:?}", &job_id, &events);
+                match self.submit_formula_op_events(job_id, to, events) {
+                    Ok(_) => log::debug!("formula op events submit success"),
+                    Err(err) => {
+                        log::error!("formula op events failed: {:?}", err);
+                    }
+                }
+            }
         }
     }
 }
@@ -82,6 +92,17 @@ impl TaskWorker {
                 .map(|_| {
                     self.job_pool.remove(job_id);
                 })
+                .map_err(|err| err.into()),
+            None => Ok(())
+        }
+    }
+
+    pub fn submit_formula_op_events(&mut self,
+                                    job_id: types::JobID,
+                                    to: u64,
+                                    events: Vec<event::FormulaOpEvent>) -> Result<(), err::TaskWorkerError> {
+        match self.job_pool.get_mut(&job_id) {
+            Some(graph) => graph.try_send_formula_op_events(to, events)
                 .map_err(|err| err.into()),
             None => Ok(())
         }

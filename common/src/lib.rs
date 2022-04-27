@@ -40,3 +40,4 @@ pub fn local_ip() -> Option<String> {
         .ok()
         .map(|addr| addr.ip().to_string())
 }
+

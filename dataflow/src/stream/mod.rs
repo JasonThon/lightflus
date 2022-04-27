@@ -2,12 +2,14 @@ use std::{collections, marker};
 use std::hash::Hash;
 use rayon::prelude::*;
 use tokio::sync::mpsc;
-use crate::event;
-use crate::state::StateManager;
+use crate::{event, types};
+use state::StateManager;
 
 pub mod window;
 pub mod trigger;
 pub mod pipeline;
+#[cfg(feature = "datastream")]
+pub mod state;
 
 pub fn stream_pipe<T>() -> (StreamPipeSender<T>, StreamPipeReceiver<T>) {
     mpsc::unbounded_channel::<T>()
@@ -26,7 +28,8 @@ pub struct DataStream<
     StateValue>
     where T: Sink<Output>,
           Input: event::Event<InputKey, InputValue>,
-          P: pipeline::Pipeline<InputKey, InputValue, Output, StateValue> {
+          P: pipeline::Pipeline<InputKey, InputValue, Output, StateValue>,
+          StateValue: Clone {
     window: Option<window::WindowType>,
     trigger: Option<trigger::TriggerType>,
     input: marker::PhantomData<Input>,
@@ -53,7 +56,8 @@ DataStream<Input,
     StateValue>
     where T: Sink<Output>,
           Input: event::Event<InputKey, InputValue>,
-          P: pipeline::Pipeline<InputKey, InputValue, Output, StateValue> {
+          P: pipeline::Pipeline<InputKey, InputValue, Output, StateValue>,
+          StateValue: Clone {
     pub fn new(
         window_type: window::WindowType,
         trigger: trigger::TriggerType,
@@ -93,7 +97,7 @@ DataStream<Input,
             None => window::default_assigner()
         };
 
-        let ref mut contexts = collections::HashMap::new();
+        let ref context = pipeline::Context::<StateValue>::new();
 
         loop {
             tokio::select! {
@@ -104,26 +108,21 @@ DataStream<Input,
                     assigner.merge(windows);
                 }
                 true = trigger.trigger() => {
-                    let ref mut group = common::lists::group_deque_hashmap(windows, |win| {
-                       if !contexts.contains_key(&win.key) {
-                            let _ = contexts.insert(
-                                win.key.clone(),
-                                pipeline::Context::<StateValue>::new()
-                            );
-                        }
+                    if windows.is_empty() {
+                        continue
+                    }
 
-                        win.key.clone()
-                    });
-
-                    contexts.into_par_iter()
-                        .for_each(|(key, ctx)| {
-                        match group.get(key) {
-                            Some(windows) => for win in windows {
-                                stream.sink.sink(stream.pipeline.apply(win, ctx));
+                    let ref mut group = common::lists::group_deque_hashmap(windows, |win| win.key.clone());
+                    group.into_par_iter()
+                        .for_each(|(key, windows)| {
+                        for win in windows {
+                            match stream.pipeline.apply(win, context) {
+                                Ok(output) => stream.sink.sink(output),
+                                Err(err) => {}
                             }
-                            None => {}
                         }
                     });
+                    trigger.refresh()
                 }
                 else => continue
             }

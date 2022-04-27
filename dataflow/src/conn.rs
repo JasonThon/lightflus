@@ -211,10 +211,10 @@ fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
                 }
             );
 
-            let _ = serde_json::to_string(graph_event)
+            let _ = serde_json::to_vec(graph_event)
                 .map_err(|err| err::CommonException::from(err))
                 .and_then(|value| {
-                    request.set_value(value.as_bytes().to_vec());
+                    request.set_value(value);
                     cli.submit_action(request)
                         .map(|resp| {
                             log::debug!("send action event success")

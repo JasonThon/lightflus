@@ -3,8 +3,6 @@ use dataflow_api::dataflow_coordinator;
 use dataflow::{cluster, coord, event};
 use dataflow::err::Error;
 use std::sync;
-use dataflow::cluster::Cluster;
-use dataflow::coord::Coordinator;
 
 const SUCCESS_MSG: &str = "success";
 
@@ -15,7 +13,7 @@ pub(crate) struct CoordinatorApiImpl {
 }
 
 impl CoordinatorApiImpl {
-    pub(crate) fn new(coordinator: coord::Coordinator, cluster: Cluster) -> CoordinatorApiImpl {
+    pub(crate) fn new(coordinator: coord::Coordinator, cluster: cluster::Cluster) -> CoordinatorApiImpl {
         CoordinatorApiImpl {
             coordinator: sync::Arc::new(coordinator),
             cluster: sync::Arc::new(sync::RwLock::new(cluster)),
@@ -29,10 +27,10 @@ unsafe impl Sync for CoordinatorApiImpl {}
 
 impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
     fn handle_event(&mut self,
-                    ctx: grpcio::RpcContext,
-                    _req: dataflow_coordinator::EventRequest,
+                    _ctx: grpcio::RpcContext,
+                    req: dataflow_coordinator::EventRequest,
                     sink: grpcio::UnarySink<dataflow_coordinator::EventResponse>) {
-        let result = serde_json::from_slice::<event::TableEvent>(_req.get_data());
+        let result = serde_json::from_slice::<event::TableEvent>(req.get_data());
         let mut response = dataflow_coordinator::EventResponse::default();
         match result {
             Ok(e) => match e.action() {
@@ -63,18 +61,16 @@ impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
             },
             Err(err) => {
                 log::error!("bad body: {:?}", &err);
-                response.set_code(common::http::BAD_REQUEST);
-                response.set_msg(format!("request parse failed: {:?}", err));
-                sink.success(response);
+                sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::INVALID_ARGUMENT));
             }
         }
     }
 
     fn probe(&mut self,
-             ctx: grpcio::RpcContext,
-             _req: probe::ProbeRequest,
+             _ctx: grpcio::RpcContext,
+             req: probe::ProbeRequest,
              sink: grpcio::UnarySink<probe::ProbeResponse>) {
-        match _req.probeType {
+        match req.probeType {
             probe::ProbeRequest_ProbeType::Readiness => {
                 match self.cluster.try_write() {
                     Ok(mut cluster) => {

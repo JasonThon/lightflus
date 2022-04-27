@@ -19,6 +19,8 @@ grpcio = "0.10.0"
 dataflow-api = { path = "../dataflow-api", features = ["worker"] }
 chrono = "0.4"
 rayon = "1.5"
+bytes = "1.1.0"
+rocksdb = "0.18.0"
 
 [dependencies.mongodb]
 version = "2.1.0"

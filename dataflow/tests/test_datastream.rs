@@ -1,7 +1,9 @@
 use std::ops::Add;
 use std::time;
+
 use chrono::{DateTime, Utc};
 use tokio::sync::mpsc;
+
 use dataflow::{event, stream as datastream, types};
 use dataflow::stream::pipeline::Context;
 use dataflow::stream::window::KeyedWindow;
@@ -33,7 +35,7 @@ struct MockPipeline {}
 impl datastream::pipeline::Pipeline<String, String, String, String> for MockPipeline {
     type Context = ();
 
-    fn apply(&self, input: &KeyedWindow<String, String>, _ctx: &Context<String>) -> datastream::pipeline::Result<String> {
+    fn apply(&self, input: &KeyedWindow<String, String>, _ctx: &Context<String, String>) -> datastream::pipeline::Result<String> {
         let mut result = String::new();
         for value in &input.values {
             result = result + ";" + value.as_str();

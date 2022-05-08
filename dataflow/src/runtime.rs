@@ -1,18 +1,22 @@
 use std::collections;
+
 use tokio::sync::mpsc;
+
 use crate::{err, event, types};
 
 pub mod execution {
+    use std::ops::Deref;
     use std::time;
+
     use actix::Actor;
     use serde::ser::SerializeStruct;
     use tokio::sync::mpsc;
 
     use crate::{err, event, runtime, types};
     use crate::constants;
-    use crate::types::formula;
     use crate::stream as datastream;
     use crate::stream::{pipeline, state, trigger, window};
+    use crate::types::formula;
 
     #[derive(Debug)]
     pub struct ExecutionGraph {
@@ -60,6 +64,7 @@ pub mod execution {
                     to: id.clone(),
                     event_type: types::DataSourceEventType::Stop,
                     data: vec![],
+                    old_data: vec![],
                     event_time: std::time::SystemTime::now(),
                 }) {
                     Err(err) => {
@@ -264,6 +269,13 @@ pub mod execution {
                                 row_idx: entry.row_idx.clone(),
                                 job_id: self.job_id.clone(),
                                 data: entry.value.to_vec(),
+                                old_data: common::lists::filter_map(
+                                    &msg.old_data,
+                                    |old| old.row_idx == entry.row_idx,
+                                    |old| old.value.clone())
+                                    .first()
+                                    .unwrap_or(&vec![])
+                                    .clone(),
                                 from: self.id(),
                                 action: msg.event_type
                                     .clone()

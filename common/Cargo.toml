@@ -11,6 +11,7 @@ serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 grpcio = "0.10.0"
 regex = "1"
+rdkafka = { version = "0.25", default-features = false }
 
 [dependencies.mongodb]
 version = "2.1.0"

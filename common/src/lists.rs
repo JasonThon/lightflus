@@ -1,6 +1,13 @@
 use std::collections;
 use std::collections::VecDeque;
 
+use serde_json::json;
+
+pub fn to_string<V: ToString>(data: &Vec<V>) -> String {
+    let vec = map(data, |elem| elem.to_string());
+    json!(vec.as_slice()).to_string()
+}
+
 pub fn any_match<V, P: FnMut(&V) -> bool>(list: &Vec<V>, mut predicate: P) -> bool {
     for elem in list {
         if predicate(elem) {

@@ -1,18 +1,23 @@
+use std::ops::Deref;
 use std::time;
+use rdkafka::consumer::Consumer;
+
+use rdkafka::Message;
 use tokio::sync::mpsc;
+
 use crate::{err, event, types};
 use crate::event::Event;
 
 const DEFAULT_EVENT_TIME_DURATION: time::Duration = time::Duration::from_millis(1);
-const DATAFLOW_EVENT_PATTERN: &str = "dataflow*";
+const DATAFLOW_KAFKA_GROUP: &str = "dataflow";
 
 pub enum ConnectorType {
     Tableflow {
         limit: u32,
         uri: String,
     },
-    Redis {
-        conn: redis::Connection,
+    Kafka {
+        consumer: rdkafka::consumer::StreamConsumer
     },
 }
 
@@ -40,29 +45,20 @@ impl Connector {
                     disconnect_rx,
                     event_time_duration: event_time.map(|secs| time::Duration::from_secs(secs)),
                 },
-            types::SourceDesc::Redis {
-                host, port,
-                username, password,
-                db
-            } => Connector {
-                binders: vec![],
-                connector_type: ConnectorType::Redis {
-                    conn: redis::Client::open(
-                        redis::ConnectionInfo {
-                            addr: redis::ConnectionAddr::Tcp(host.clone(), port.clone()),
-                            redis: redis::RedisConnectionInfo {
-                                db: db.clone() as i64,
-                                username: username.clone(),
-                                password: password.clone(),
-                            },
-                        })
-                        .expect("invalid redis connector source describe")
-                        .get_connection()
-                        .expect("invalid connect redis"),
-                },
-                event_rx,
-                disconnect_rx,
-                event_time_duration: None,
+            types::SourceDesc::Kafka { brokers, topic } => {
+                let consumer = common::kafka::new_kafka_consumer(
+                    brokers,
+                    vec![topic.as_str()],
+                    DATAFLOW_KAFKA_GROUP,
+                );
+
+                Connector {
+                    binders: vec![],
+                    connector_type: ConnectorType::Kafka { consumer },
+                    event_rx,
+                    disconnect_rx,
+                    event_time_duration: None,
+                }
             }
         }
     }
@@ -74,45 +70,15 @@ impl Connector {
                 header_id,
                 id,
                 addr
-            } => match &mut self.connector_type {
-                ConnectorType::Redis { .. } => {
-                    let b = types::Binder {
-                        job_id: e.job_id.clone(),
-                        binder_type: types::BinderType::Redis,
-                        table_id: table_id.clone(),
-                        header_id: header_id.to_string(),
-                        id: id.clone(),
-                        addr: addr.clone(),
-                    };
-
-                    self.binders.push(b)
-                }
-                ConnectorType::Tableflow { .. } => self.binders.push(
-                    types::Binder {
-                        job_id: e.job_id.clone(),
-                        binder_type: types::BinderType::Tableflow { page: 0 },
-                        table_id: table_id.clone(),
-                        header_id: header_id.to_string(),
-                        id: id.clone(),
-                        addr: addr.clone(),
-                    }
-                )
-            },
+            } => self.binders.push(
+                types::Binder {
+                    job_id: e.job_id.clone(),
+                    table_id: table_id.clone(),
+                    header_id: header_id.to_string(),
+                    id: id.clone(),
+                    addr: addr.clone(),
+                }),
             event::BinderEventType::Stop => {
-                match &mut self.connector_type {
-                    ConnectorType::Redis { conn } => {
-                        let topics = common::lists::filter_map(
-                            &self.binders,
-                            |binder| binder.job_id.eq(&e.job_id),
-                            |binder| binder.get_topic(),
-                        );
-
-                        let _ = conn.as_pubsub()
-                            .unsubscribe(topics);
-                    }
-                    _ => {}
-                }
-
                 common::lists::remove_if(&mut self.binders, |binder| binder.job_id.eq(&e.job_id));
             }
         }
@@ -136,24 +102,27 @@ impl Connector {
                 Some(event) = rx.recv() => send_to_worker(&connector.binders, event),
                 Some(event) = async {
                     match &mut connector.connector_type {
-                        ConnectorType::Redis { conn } => {
-                            println!("event fetched");
-                            let mut pub_sub = conn.as_pubsub();
-                            pub_sub.psubscribe(DATAFLOW_EVENT_PATTERN);
-                            match pub_sub.get_message() {
-                                Ok(msg) => match serde_json::from_slice::<event::ConnectorEvent>(msg.get_payload_bytes()) {
-                                    Ok(event) => Some(event),
-                                    Err(err) => {
-                                        log::error!("invalid event payload: {:?}", err);
-                                        None
-                                    }
-                                },
+                        ConnectorType::Kafka { consumer } => {
+                            match consumer.recv().await {
                                 Err(err) => {
-                                    log::error!("fail to get message: {:?}", err);
+                                    log::error!("fail to fetch message: {:?}", err)
                                     None
+                                },
+                                Ok(msg) => {
+                                    msg.payload_view::<[u8]>()
+                                    .map(|result| result
+                                        .ok()
+                                        .map(|data| match serde_json::from_slice::<event::ConnectorEvent>(data) {
+                                            Ok(event) => Some(event),
+                                            Err(err) {
+                                                log::error!("invalid event payload: {:?}", err);
+                                                None
+                                            }
+                                        })
+                                    )
                                 }
                             }
-                        },
+                        }
                         _ => None
                     }
                 } => {
@@ -207,6 +176,7 @@ fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
                     to: b.id.clone(),
                     event_type: event_type.clone(),
                     data: event.entries.to_vec(),
+                    old_data: event.old_values.to_vec(),
                     event_time: event_time.clone(),
                 }
             );

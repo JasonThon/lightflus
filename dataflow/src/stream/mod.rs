@@ -97,7 +97,7 @@ DataStream<Input,
             None => window::default_assigner()
         };
 
-        let ref context = pipeline::Context::<StateValue>::new();
+        let ref context = pipeline::Context::<InputKey, StateValue>::new();
 
         loop {
             tokio::select! {

@@ -1,5 +1,7 @@
 use std::{collections, marker};
+
 use bytes::Buf;
+
 use crate::types;
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -85,6 +87,7 @@ pub struct ConnectorEvent {
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
     pub entries: Vec<types::Entry>,
+    pub old_values: Vec<types::Entry>,
     pub timestamp: String,
 }
 
@@ -127,6 +130,8 @@ pub struct DataSourceEvent {
     #[serde(rename(serialize = "eventType", deserialize = "eventType"))]
     pub event_type: types::DataSourceEventType,
     pub data: Vec<types::Entry>,
+    #[serde(rename(serialize = "oldData", deserialize = "oldData"))]
+    pub old_data: Vec<types::Entry>,
     #[serde(rename(serialize = "eventTime", deserialize = "eventTime"))]
     pub event_time: std::time::SystemTime,
 }
@@ -161,6 +166,7 @@ pub struct FormulaOpEvent {
     pub row_idx: u64,
     pub job_id: types::JobID,
     pub data: Vec<u8>,
+    pub old_data: Vec<u8>,
     pub from: u64,
     pub action: types::ActionType,
     pub event_time: std::time::SystemTime,

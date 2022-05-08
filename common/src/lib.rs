@@ -1,9 +1,12 @@
+extern crate core;
+
 use std::net;
 
 pub mod http;
 pub mod sysenv;
 pub mod mongo;
 pub mod lists;
+pub mod kafka;
 
 pub trait KeyedValue<K, V> {
     fn key(&self) -> K;

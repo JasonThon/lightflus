@@ -1,9 +1,8 @@
 use dataflow::{event, types};
 use dataflow::event::{Event, GraphEvent};
+use utils::*;
 
 mod utils;
-
-use utils::*;
 
 #[test]
 fn test_event_serialize() {
@@ -12,6 +11,7 @@ fn test_event_serialize() {
         to: 0,
         event_type: types::DataSourceEventType::Insert,
         data: vec![types::Entry { row_idx: 0, value: vec![1, 2, 3] }],
+        old_data: vec![],
         event_time: std::time::SystemTime::now(),
     });
     let result = serde_json::to_string(&submit);
@@ -33,6 +33,7 @@ fn test_connect_event_serialize() {
         table_id: "tableId".to_string(),
         header_id: "headerId".to_string(),
         entries: vec![],
+        old_values: vec![],
         timestamp: "2022-04-06 11:52:50".to_string(),
     };
 

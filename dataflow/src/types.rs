@@ -37,6 +37,7 @@ pub struct AdjacentVec {
 
 pub mod formula {
     use std::collections;
+
     use crate::types::ValueType;
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -65,7 +66,7 @@ pub mod formula {
         },
         Add,
         Sum,
-        Sumif
+        Sumif,
     }
 
     const REFERENCE_OP: &'static str = "Reference";
@@ -96,18 +97,15 @@ pub mod formula {
 #[derive(Debug, serde::Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum SourceDesc {
-    Redis {
-        host: String,
-        port: u16,
-        username: Option<String>,
-        password: Option<String>,
-        db: usize,
-    },
     Tableflow {
         host: String,
         port: usize,
         limit: u32,
         event_time: Option<u64>,
+    },
+    Kafka {
+        brokers: Vec<String>,
+        topic: String,
     },
 }
 
@@ -254,7 +252,6 @@ pub enum BinderType {
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct Binder {
     pub job_id: JobID,
-    pub binder_type: BinderType,
     pub table_id: String,
     pub header_id: String,
     pub id: u64,
@@ -274,9 +271,7 @@ pub enum DataSourceEventType {
         limit: u32,
     },
     Delete,
-    Update {
-        old_value: Vec<u8>
-    },
+    Update,
     Insert,
     Stop,
     Invalid,
@@ -288,11 +283,7 @@ impl From<&ConnectorEventType> for DataSourceEventType {
             ConnectorEventType::Action(action) => {
                 match action {
                     ActionType::INSERT => Self::Insert,
-                    ActionType::UPDATE {
-                        old_value
-                    } => Self::Update {
-                        old_value: old_value.clone()
-                    },
+                    ActionType::UPDATE => Self::Update,
                     ActionType::DELETE => Self::Delete,
                     _ => Self::Invalid
                 }
@@ -305,9 +296,7 @@ impl From<&ConnectorEventType> for DataSourceEventType {
 #[derive(Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum ActionType {
     INSERT,
-    UPDATE {
-        old_value: Vec<u8>
-    },
+    UPDATE,
     DELETE,
     INVALID,
 }
@@ -317,9 +306,7 @@ impl From<DataSourceEventType> for ActionType {
         match event_type {
             DataSourceEventType::TableflowTrigger { .. } => Self::INSERT,
             DataSourceEventType::Delete => Self::DELETE,
-            DataSourceEventType::Update {
-                old_value
-            } => Self::UPDATE { old_value },
+            DataSourceEventType::Update => Self::UPDATE,
             DataSourceEventType::Insert => Self::INSERT,
             DataSourceEventType::Stop => Self::INVALID,
             DataSourceEventType::Invalid => Self::INVALID
@@ -425,13 +412,15 @@ pub struct ActionValue {
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub struct ValueState {
-    values: collections::BTreeMap<u64, TypedValue>,
+    values: collections::BTreeMap<NodeIdx, TypedValue>,
+    pub value: Option<TypedValue>,
 }
 
 impl ValueState {
-    pub fn new(values: collections::BTreeMap<u64, TypedValue>) -> ValueState {
+    pub fn new() -> ValueState {
         ValueState {
-            values
+            values: Default::default(),
+            value: None,
         }
     }
 }
@@ -466,6 +455,7 @@ impl ValueState {
 }
 
 pub type RowIdx = u64;
+pub type NodeIdx = u64;
 
 pub trait FromBytes: Sized {
     fn from_bytes(data: Vec<u8>) -> Option<Self>;

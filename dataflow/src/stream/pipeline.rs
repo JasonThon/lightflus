@@ -60,9 +60,8 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                         )
                         .unwrap_or(vec![]),
                     from: self.node_id.clone(),
-                    action: types::ActionType::INSERT,
+                    action: types::ActionType::UPDATE,
                     event_time: std::time::SystemTime::now(),
-                    data_type: typed_value.get_type(),
                 }
             ])
     }

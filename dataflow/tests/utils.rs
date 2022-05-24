@@ -5,7 +5,7 @@ pub fn default_graph() -> runtime::Graph {
     runtime::Graph::new(
         types::job_id("tableId", "headerId"),
         default_adj_vec(),
-        default_nodeset(),
+        default_node_set(),
     )
 }
 
@@ -38,7 +38,7 @@ pub fn default_adj_vec() -> Vec<types::AdjacentVec> {
 pub fn default_formula_graph() -> types::formula::FormulaGraph {
     let mut values = vec![];
 
-    for (id, operator) in default_nodeset().iter() {
+    for (id, operator) in default_node_set().iter() {
         values.push((id.clone(), operator.value.clone()))
     }
 
@@ -48,7 +48,7 @@ pub fn default_formula_graph() -> types::formula::FormulaGraph {
     }
 }
 
-pub fn default_nodeset() -> types::NodeSet {
+pub fn default_node_set() -> types::NodeSet {
     types::NodeSet::from(
         [
             ("0".to_string(), types::Operator {
@@ -56,48 +56,47 @@ pub fn default_nodeset() -> types::NodeSet {
                 value: types::formula::FormulaOp::Reference {
                     table_id: "tableId_1".to_string(),
                     header_id: "headerId_1".to_string(),
-                    value_type: types::ValueType::String,
                 },
                 id: 0,
             }),
             ("1".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 1,
             }),
             ("2".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 2,
             }),
             ("3".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 3,
             }),
             ("4".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 4,
             }),
             ("5".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 5,
             }),
             ("6".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 6,
             }),
             ("7".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 6,
             }),
             ("8".to_string(), types::Operator {
                 addr: "".to_string(),
-                value: types::formula::FormulaOp::Add,
+                value: types::formula::FormulaOp::Sum,
                 id: 8,
             }),
         ]

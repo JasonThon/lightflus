@@ -25,7 +25,7 @@ pub enum BinderEventType {
 #[serde(tag = "type")]
 pub enum TableAction {
     #[serde(rename_all = "camelCase")]
-    FormulaUpdate {
+    FormulaSubmit {
         table_id: String,
         header_id: String,
         graph: types::formula::FormulaGraph,
@@ -60,7 +60,7 @@ impl Event<types::JobID, TableAction> for TableEvent {
 
     fn get_key(&self) -> types::JobID {
         match &self.action {
-            TableAction::FormulaUpdate { table_id, header_id, .. } =>
+            TableAction::FormulaSubmit { table_id, header_id, .. } =>
                 types::job_id(table_id.as_str(), header_id.as_str())
         }
     }
@@ -147,7 +147,7 @@ pub enum GraphEvent {
     },
     DataSourceEventSubmit(DataSourceEvent),
     #[serde(rename_all = "camelCase")]
-    StopGraph {
+    TerminateGraph {
         job_id: types::JobID,
     },
     FormulaOpEventSubmit {
@@ -170,7 +170,6 @@ pub struct FormulaOpEvent {
     pub from: u64,
     pub action: types::ActionType,
     pub event_time: std::time::SystemTime,
-    pub data_type: types::ValueType,
 }
 
 impl Event<u64, types::ActionValue> for FormulaOpEvent {
@@ -183,24 +182,9 @@ impl Event<u64, types::ActionValue> for FormulaOpEvent {
     }
 
     fn get_value(&self) -> types::ActionValue {
-        let value = match &self.data_type {
-            types::ValueType::String => match std::str::from_utf8(self.data.as_slice()) {
-                Err(_) => types::TypedValue::String(Default::default()),
-                Ok(str) => types::TypedValue::String(str.to_string())
-            },
-            types::ValueType::UnsignedInt => types::TypedValue::UnsignedInt(self.data.as_slice().get_u32()),
-            types::ValueType::Double => types::TypedValue::Double(self.data.as_slice().get_f64()),
-            types::ValueType::Float => types::TypedValue::Float(self.data.as_slice().get_f32()),
-            types::ValueType::UnsignedLong => types::TypedValue::UnsignedLong(self.data.as_slice().get_u64()),
-            types::ValueType::UnsignedLongLong => types::TypedValue::UnsignedLongLong(self.data.as_slice().get_u128()),
-            types::ValueType::Int => types::TypedValue::Int(self.data.as_slice().get_i32()),
-            types::ValueType::Long => types::TypedValue::Long(self.data.as_slice().get_i64()),
-            types::ValueType::LongLong => types::TypedValue::LongLong(self.data.as_slice().get_i128())
-        };
-
         types::ActionValue {
             action: self.action.clone(),
-            value,
+            value: types::TypedValue::from(&self.data),
             from: self.from,
         }
     }

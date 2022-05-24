@@ -56,7 +56,7 @@ fn test_connect_event_serialize() {
 #[test]
 fn test_serialize_table_event() {
     let ref graph_event = event::TableEvent::new(
-        event::TableAction::FormulaUpdate {
+        event::TableAction::FormulaSubmit {
             table_id: "tableId".to_string(),
             header_id: "headerId".to_string(),
             graph: default_formula_graph(),
@@ -133,34 +133,33 @@ fn test_deserialize_graph_event() {
                     value: types::formula::FormulaOp::Reference {
                         table_id: "tableId-1".to_string(),
                         header_id: "headerId-1".to_string(),
-                        value_type: types::ValueType::String,
                     },
                     id: 0,
                 }),
                 (1.to_string(), types::Operator {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Add,
+                    value: types::formula::FormulaOp::Sum,
                     id: 1,
                 }),
                 (2.to_string(), types::Operator {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Add,
+                    value: types::formula::FormulaOp::Sum,
                     id: 2,
                 }),
                 (3.to_string(), types::Operator {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Add,
+                    value: types::formula::FormulaOp::Sum,
                     id: 3,
                 }),
                 (4.to_string(), types::Operator {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Add,
+                    value: types::formula::FormulaOp::Sum,
                     id: 4,
                 })
             ]))
         }
         GraphEvent::DataSourceEventSubmit(_) => panic!("wrong type"),
-        GraphEvent::StopGraph { .. } => panic!("wrong type"),
+        GraphEvent::TerminateGraph { .. } => panic!("wrong type"),
         GraphEvent::FormulaOpEventSubmit { .. } => panic!("wrong type"),
     }
 }

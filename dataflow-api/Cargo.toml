@@ -13,4 +13,5 @@ serde = { version = "1.0", features = ["derive"] }
 [features]
 worker = []
 coordinator = []
-all = ["worker", "coordinator"]
+conn = []
+all = ["worker", "coordinator", "conn"]

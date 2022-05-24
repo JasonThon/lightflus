@@ -1,9 +1,10 @@
 use std::{collections, sync};
+
 use mongodb::bson::doc;
 use tokio::sync::mpsc;
 
 use crate::{cluster, err, event, types};
-use crate::types::formula;
+use crate::types::{formula, GraphModel};
 
 pub const COORD_JOB_GRAPH_COLLECTION: &str = "coord.job.graph";
 
@@ -68,15 +69,15 @@ impl JobRepo {
 
 pub struct Coordinator {
     job_repo: JobRepo,
-    senders: Vec<mpsc::UnboundedSender<Vec<event::BinderEvent>>>,
+    connector_proxy: String,
 }
 
 impl Coordinator {
     pub fn new(job_repo: JobRepo,
-               senders: Vec<mpsc::UnboundedSender<Vec<event::BinderEvent>>>) -> Self {
+               connector_proxy: String) -> Self {
         Coordinator {
             job_repo,
-            senders,
+            connector_proxy,
         }
     }
 
@@ -85,10 +86,10 @@ impl Coordinator {
             .map(|models| {
                 common::lists::for_each(
                     &models,
-                    |model| send_to_conns(
+                    |model| send_to_connector(
                         model,
                         BindAction::CREATE,
-                        &self.senders,
+                        &self.connector_proxy,
                     ),
                 );
                 models
@@ -126,7 +127,7 @@ impl Coordinator {
                     Some(graph) => {
                         match cluster
                             .stop_job(job_id)
-                            .map(|_| send_to_conns(&graph, BindAction::STOP, &self.senders))
+                            .map(|_| send_to_connector(&graph, BindAction::STOP, &self.connector_proxy))
                             .map_err(|err| err.into()) {
                             Err(err) => return Err(err),
                             Ok(_) => {}
@@ -143,10 +144,10 @@ impl Coordinator {
 
         self.job_repo.create(execution_graph)
             .and_then(|_| execution_graph.dispatch())
-            .map(|_| send_to_conns(
+            .map(|_| send_to_connector(
                 execution_graph,
                 BindAction::CREATE,
-                &self.senders)
+                &self.connector_proxy)
             )
     }
 }
@@ -156,9 +157,9 @@ enum BindAction {
     STOP,
 }
 
-fn send_to_conns(graph: &types::GraphModel,
-                 binder_action: BindAction,
-                 senders: &Vec<mpsc::UnboundedSender<Vec<event::BinderEvent>>>) {
+fn send_to_connector(graph: &types::GraphModel,
+                     binder_action: BindAction,
+                     connector_proxy: &String) {
     let mut binder_events = vec![];
     for (_, operator) in &graph.nodes {
         match &operator.value {
@@ -182,10 +183,17 @@ fn send_to_conns(graph: &types::GraphModel,
         }
     }
 
-    if !binder_events.is_empty() {
-        common::lists::for_each(senders, |sender| {
-            let _ = sender.send(binder_events.clone());
-        })
+    match serde_json::to_vec(&binder_events) {
+        Ok(data) => {
+            let ref mut request = dataflow_api::probe::EventRequest::new();
+            request.set_data(data);
+            match dataflow_api::connector::new_connector_client(connector_proxy)
+                .handle_event(request) {
+                Err(err) => log::error!("failed to update binder {}", err),
+                _ => {}
+            }
+        }
+        Err(err) => log::error!("fail to serialize events {}", err)
     }
 }
 
@@ -194,5 +202,5 @@ pub struct CoordinatorConfig {
     pub mongo: common::mongo::MongoConfig,
     pub port: usize,
     pub cluster: Vec<cluster::NodeConfig>,
-    pub sources: Vec<types::SourceDesc>,
+    pub conn_proxy: String,
 }

@@ -34,7 +34,7 @@ impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
         let mut response = dataflow_coordinator::EventResponse::default();
         match result {
             Ok(e) => match e.action() {
-                event::TableAction::FormulaUpdate {
+                event::TableAction::FormulaSubmit {
                     table_id,
                     header_id,
                     graph

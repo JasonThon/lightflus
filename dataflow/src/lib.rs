@@ -1,3 +1,5 @@
+extern crate core;
+
 #[cfg(feature = "events")]
 pub mod event;
 #[cfg(feature = "errors")]

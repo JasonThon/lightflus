@@ -30,7 +30,7 @@ impl actix::Handler<event::GraphEvent> for TaskWorker {
                     }
                 }
             }
-            event::GraphEvent::StopGraph { job_id } => {
+            event::GraphEvent::TerminateGraph { job_id } => {
                 log::debug!("start stopping job {:?}", &job_id);
                 match self.stop_job(&job_id) {
                     Ok(_) => log::debug!("stop job success"),

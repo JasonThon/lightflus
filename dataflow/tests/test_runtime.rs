@@ -64,7 +64,7 @@ async fn test_addr_map() {
                 center: 7,
             },
         ],
-        &default_nodeset(),
+        &default_node_set(),
     );
 
     for id in 0..8 {

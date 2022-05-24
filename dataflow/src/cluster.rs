@@ -113,7 +113,7 @@ impl Cluster {
     pub(crate) fn stop_job(&self, job_id: &types::JobID) -> std::io::Result<()> {
         for worker in &self.workers {
             if worker.is_available() {
-                match worker.send(event::GraphEvent::StopGraph { job_id: job_id.clone() }) {
+                match worker.send(event::GraphEvent::TerminateGraph { job_id: job_id.clone() }) {
                     Err(err) => return Err(err),
                     Ok(_) => continue
                 }

@@ -22,3 +22,12 @@ message ProbeResponse {
   float cpu = 2;
   bool available = 3;
 }
+
+message EventRequest {
+  bytes data = 1;
+}
+
+message EventResponse {
+  int32 code = 1;
+  string msg = 2;
+}

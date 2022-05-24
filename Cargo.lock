@@ -611,6 +611,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "dataflow-connector"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "dataflow",
+ "dataflow-api",
+ "grpcio",
+ "log",
+ "protobuf",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "dataflow-worker"
 version = "0.1.0"
 dependencies = [

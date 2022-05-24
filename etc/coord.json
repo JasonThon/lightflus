@@ -4,19 +4,12 @@
     "port": 27017,
     "database": "dataflow"
   },
-  "port": 8080,
+  "port": 8091,
   "cluster": [
     {
-      "host": "SHA-MAC-JASON-SONG-0.local",
+      "host": "localhost",
       "port": 8090
     }
   ],
-  "sources": [
-    {
-      "type": "Redis",
-      "host": "localhost",
-      "port": 6379,
-      "db": 1
-    }
-  ]
+  "conn_proxy": "localhost:10899"
 }

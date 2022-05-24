@@ -1,9 +1,17 @@
 use std::{collections, string};
 
+use bytes::Buf;
+
 use crate::{err, types};
 use crate::event;
 
 pub type AdjacentList = Vec<AdjacentVec>;
+
+pub(crate) const STRING: u8 = 1;
+pub(crate) const INT: u8 = 2;
+pub(crate) const LONG: u8 = 3;
+pub(crate) const FLOAT: u8 = 4;
+pub(crate) const DOUBLE: u8 = 5;
 
 #[derive(Debug, serde::Deserialize, serde::Serialize, Hash, Clone, Ord, PartialOrd, Eq, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
@@ -31,6 +39,7 @@ impl From<&data_client::tableflow::Entry> for Entry {
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq)]
 pub struct AdjacentVec {
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
     pub neighbors: Vec<u64>,
     pub center: u64,
 }
@@ -56,17 +65,71 @@ pub mod formula {
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
+    pub struct ValueOp {
+        values: Vec<u8>,
+    }
+
+    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
     #[serde(tag = "type")]
     pub enum FormulaOp {
         #[serde(rename_all = "camelCase")]
         Reference {
             table_id: String,
             header_id: String,
-            value_type: ValueType,
         },
-        Add,
+        Add {
+            values: Vec<ValueOp>
+        },
         Sum,
         Sumif,
+        Countif,
+        Count,
+        Avg,
+        Group,
+        Groupif,
+        Max,
+        Maxif,
+        Min,
+        Minif,
+        Xlookup,
+        SumifWindow,
+        SumWindow,
+        CountifWindow,
+        CountWindow,
+        MinifWindow,
+        MinWindow,
+        AvgWindow,
+        MaxifWindow,
+        MaxWindow,
+        Sub {
+            values: Vec<ValueOp>
+        },
+        Mul {
+            values: Vec<ValueOp>
+        },
+        Div {
+            values: Vec<ValueOp>
+        },
+        Eq {
+            values: Vec<ValueOp>
+        },
+        Neq {
+            values: Vec<ValueOp>
+        },
+        Lt {
+            values: Vec<ValueOp>
+        },
+        Gt {
+            values: Vec<ValueOp>
+        },
+        Lte {
+            values: Vec<ValueOp>
+        },
+        Gte {
+            values: Vec<ValueOp>
+        },
+        And,
+        Or,
     }
 
     const REFERENCE_OP: &'static str = "Reference";
@@ -342,6 +405,7 @@ pub enum ValueType {
     Int,
     Long,
     LongLong,
+    Invalid,
 }
 
 impl From<TypedValue> for ValueType {
@@ -355,7 +419,8 @@ impl From<TypedValue> for ValueType {
             TypedValue::UnsignedLongLong(_) => Self::UnsignedLongLong,
             TypedValue::Int(_) => Self::Int,
             TypedValue::Long(_) => Self::Long,
-            TypedValue::LongLong(_) => Self::LongLong
+            TypedValue::LongLong(_) => Self::LongLong,
+            _ => Self::Invalid
         }
     }
 }
@@ -371,6 +436,7 @@ pub enum TypedValue {
     Int(i32),
     Long(i64),
     LongLong(i128),
+    Invalid,
 }
 
 impl TypedValue {
@@ -384,7 +450,24 @@ impl TypedValue {
             TypedValue::UnsignedLongLong(value) => value.clone().to_be_bytes().to_vec(),
             TypedValue::Int(value) => value.clone().to_be_bytes().to_vec(),
             TypedValue::Long(value) => value.clone().to_be_bytes().to_vec(),
-            TypedValue::LongLong(value) => value.clone().to_be_bytes().to_vec()
+            TypedValue::LongLong(value) => value.clone().to_be_bytes().to_vec(),
+            _ => vec![]
+        }
+    }
+
+    pub fn from(data: &Vec<u8>) -> TypedValue {
+        let data_type = data[0];
+
+        match data_type {
+            STRING => match String::from_utf8(data[1..data.len()].to_vec()) {
+                Ok(val) => TypedValue::String(val),
+                Err(_) => TypedValue::Invalid
+            },
+            INT => TypedValue::Int(data[1..data.len()].to_vec().as_slice().get_i32()),
+            FLOAT => TypedValue::Float(data[1..data.len()].to_vec().as_slice().get_f32()),
+            LONG => TypedValue::Long(data[1..data.len()].to_vec().as_slice().get_i64()),
+            DOUBLE => TypedValue::Double(data[1..data.len()].to_vec().as_slice().get_f64()),
+            _ => TypedValue::Invalid
         }
     }
 
@@ -398,7 +481,8 @@ impl TypedValue {
             TypedValue::UnsignedLongLong(_) => ValueType::UnsignedLongLong,
             TypedValue::Int(_) => ValueType::Int,
             TypedValue::Long(_) => ValueType::Long,
-            TypedValue::LongLong(_) => ValueType::LongLong
+            TypedValue::LongLong(_) => ValueType::LongLong,
+            _ => ValueType::Invalid
         }
     }
 }

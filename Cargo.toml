@@ -9,7 +9,8 @@ members = [
     "dataflow-worker",
     "data-client",
     "dataflow-api",
-    "common"
+    "common",
+    "dataflow-connector"
 ]
 
 [dependencies]

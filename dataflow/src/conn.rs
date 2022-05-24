@@ -1,7 +1,7 @@
 use std::ops::Deref;
 use std::time;
-use rdkafka::consumer::Consumer;
 
+use rdkafka::consumer::Consumer;
 use rdkafka::Message;
 use tokio::sync::mpsc;
 
@@ -10,6 +10,11 @@ use crate::event::Event;
 
 const DEFAULT_EVENT_TIME_DURATION: time::Duration = time::Duration::from_millis(1);
 const DATAFLOW_KAFKA_GROUP: &str = "dataflow";
+
+#[derive(Debug, serde::Deserialize, Clone)]
+pub struct ConnectionConfig {
+    pub sources: Vec<types::SourceDesc>
+}
 
 pub enum ConnectorType {
     Tableflow {
@@ -105,7 +110,7 @@ impl Connector {
                         ConnectorType::Kafka { consumer } => {
                             match consumer.recv().await {
                                 Err(err) => {
-                                    log::error!("fail to fetch message: {:?}", err)
+                                    log::error!("fail to fetch message: {:?}", err);
                                     None
                                 },
                                 Ok(msg) => {
@@ -114,7 +119,7 @@ impl Connector {
                                         .ok()
                                         .map(|data| match serde_json::from_slice::<event::ConnectorEvent>(data) {
                                             Ok(event) => Some(event),
-                                            Err(err) {
+                                            Err(err) => {
                                                 log::error!("invalid event payload: {:?}", err);
                                                 None
                                             }
@@ -126,11 +131,17 @@ impl Connector {
                         _ => None
                     }
                 } => {
-                   let _ = tx.send(event)
-                        .map_err(|err| {
-                            log::error!("send event failed: {}", &err);
-                            err
-                        });
+                    let _ = match event {
+                        Some(option) => match option {
+                            Some(e) => tx.send(e)
+                            .map_err(|err| {
+                                log::error!("send event failed: {}", &err);
+                                err
+                            }),
+                            None => Ok(())
+                        },
+                        None => Ok(())
+                    };
                 }
                 else => continue
             }

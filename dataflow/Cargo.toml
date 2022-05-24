@@ -15,7 +15,7 @@ common = { path = "../common" }
 data-client = { path = "../data-client" }
 log = "0.4.16"
 grpcio = "0.10.0"
-dataflow-api = { path = "../dataflow-api", features = ["worker"] }
+dataflow-api = { path = "../dataflow-api", features = ["worker", "conn"] }
 chrono = "0.4"
 rayon = "1.5"
 bytes = "1.1.0"

@@ -236,7 +236,6 @@ pub mod execution {
                     types::formula::FormulaOp::Reference {
                         table_id,
                         header_id,
-                        value_type,
                     } => while let Some(tx) = &self.datastream_tx {
                         let client = data_client::new_data_engine_client(
                             data_client::DataEngineConfig {
@@ -281,7 +280,6 @@ pub mod execution {
                                     .clone()
                                     .into(),
                                 event_time: msg.event_time.clone(),
-                                data_type: value_type.clone(),
                             })
                         ) {
                             Ok(_) => log::debug!("event sent successfully"),

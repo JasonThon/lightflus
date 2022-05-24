@@ -36,19 +36,7 @@ async fn main() {
         panic!("{}", format!("fail to connect mongo: {:?}", result.unwrap_err()))
     }
 
-
-    let mut senders = vec![];
-    let mut disconnect_signals = vec![];
     let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
-
-    common::lists::for_each(&config.sources, |source| {
-        let (tx, rx) = mpsc::unbounded_channel();
-        let (disconnect_tx, disconnect_rx) = mpsc::channel(1);
-
-        senders.push(tx);
-        disconnect_signals.push(disconnect_tx);
-        rt.spawn(dataflow::conn::Connector::new(source, rx, disconnect_rx).start());
-    });
 
     let client = result.unwrap();
     let coordinator = coord::Coordinator::new(
@@ -56,7 +44,7 @@ async fn main() {
             client.database(DATAFLOW_DB)
                 .collection(coord::COORD_JOB_GRAPH_COLLECTION)
         ),
-        senders,
+        config.conn_proxy,
     );
 
     let mut clusters = cluster::Cluster::new(&config.cluster);
@@ -105,11 +93,6 @@ async fn main() {
     println!("service start at port: {}", &config.port);
 
     let _ = tokio::signal::ctrl_c().await;
-
-    // close connector gracefully
-    common::lists::for_each_mut(&mut disconnect_signals, |signal| {
-        let _ = signal.try_send(event::Disconnect);
-    });
 
     rt.shutdown_background();
 

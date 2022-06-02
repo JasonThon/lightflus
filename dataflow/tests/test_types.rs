@@ -76,10 +76,6 @@ fn test_job_id_eq() {
 
 #[test]
 fn test_typed_value() {
-    let long_long = types::TypedValue::LongLong(1 << 120);
-    assert_eq!(long_long.get_data().as_slice().get_i128(), 1 << 120);
-    assert_eq!(long_long.get_type(), types::ValueType::LongLong);
-
     let int = types::TypedValue::Int(1 << 30);
     assert_eq!(int.get_data().as_slice().get_i32(), 1 << 30);
     assert_eq!(int.get_type(), types::ValueType::Int);
@@ -87,18 +83,6 @@ fn test_typed_value() {
     let double = types::TypedValue::Double(1.6546);
     assert_eq!(double.get_data().as_slice().get_f64(), 1.6546);
     assert_eq!(double.get_type(), types::ValueType::Double);
-
-    let unsigned_long_long = types::TypedValue::UnsignedLongLong(1 << 120);
-    assert_eq!(unsigned_long_long.get_type(), types::ValueType::UnsignedLongLong);
-    assert_eq!(unsigned_long_long.get_data().as_slice().get_u128(), 1 << 120);
-
-    let unsigned_long = types::TypedValue::UnsignedLong(1 << 60);
-    assert_eq!(unsigned_long.get_type(), types::ValueType::UnsignedLong);
-    assert_eq!(unsigned_long.get_data().as_slice().get_u64(), 1 << 60);
-
-    let unsigned_int = types::TypedValue::UnsignedInt(1 << 30);
-    assert_eq!(unsigned_int.get_type(), types::ValueType::UnsignedInt);
-    assert_eq!(unsigned_int.get_data().as_slice().get_u32(), 1 << 30);
 
     let long = types::TypedValue::Long(1 << 60);
     assert_eq!(long.get_type(), types::ValueType::Long);

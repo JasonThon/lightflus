@@ -1,6 +1,6 @@
 {
   "mongo": {
-    "host": "localhost",
+    "host": "${mongo.host}",
     "port": 27017,
     "database": "dataflow"
   },
@@ -11,5 +11,5 @@
       "port": 8090
     }
   ],
-  "conn_proxy": "localhost:10899"
+  "conn_proxy": "${connector.proxy}"
 }

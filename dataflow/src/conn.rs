@@ -13,12 +13,12 @@ const DATAFLOW_KAFKA_GROUP: &str = "dataflow";
 
 #[derive(Debug, serde::Deserialize, Clone)]
 pub struct ConnectionConfig {
-    pub sources: Vec<types::SourceDesc>
+    pub sources: Vec<types::SourceDesc>,
+    pub port: u16,
 }
 
 pub enum ConnectorType {
     Tableflow {
-        limit: u32,
         uri: String,
     },
     Kafka {
@@ -39,11 +39,10 @@ impl Connector {
                event_rx: mpsc::UnboundedReceiver<Vec<event::BinderEvent>>,
                disconnect_rx: mpsc::Receiver<event::Disconnect>) -> Connector {
         match desc {
-            types::SourceDesc::Tableflow { host, port, limit, event_time } =>
+            types::SourceDesc::Tableflow { host, port, event_time } =>
                 Connector {
                     binders: vec![],
                     connector_type: ConnectorType::Tableflow {
-                        limit: limit.clone(),
                         uri: format!("{}:{}", host, port),
                     },
                     event_rx,

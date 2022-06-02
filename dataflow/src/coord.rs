@@ -114,6 +114,7 @@ impl Coordinator {
                         addr: cluster.partition_key(value).unwrap(),
                         value: value.clone(),
                         id: id.parse::<u64>().unwrap(),
+                        upstream: graph.find_upstreams(id.parse::<u64>().unwrap())
                     })
                 )
             ));
@@ -171,7 +172,7 @@ fn send_to_connector(graph: &types::GraphModel,
                         id: operator.id,
                         addr: operator.addr.clone(),
                     },
-                    BindAction::STOP => event::BinderEventType::Stop {},
+                    BindAction::STOP => event::BinderEventType::Stop,
                 };
 
                 binder_events.push(event::BinderEvent {

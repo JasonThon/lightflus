@@ -4,7 +4,7 @@
     {
       "type": "Kafka",
       "brokers": [
-        "localhost:9092"
+        "${kafka.brokers}"
       ],
       "topic": "dataflow-event"
     }

@@ -1,3 +1,5 @@
+use std::sync;
+
 use tokio::sync::mpsc;
 
 use dataflow;
@@ -38,10 +40,23 @@ async fn main() {
         rt.spawn(dataflow::conn::Connector::new(source, rx, disconnect_rx).start());
     });
 
+    let server = api::ConnectorApiImpl::new(senders);
+    let api = dataflow_api::dataflow_connector_grpc::create_connector_api(server);
+    let mut grpc_server = grpcio::ServerBuilder::new(
+        sync::Arc::new(grpcio::Environment::new(10)))
+        .register_service(api)
+        .bind("0.0.0.0", config.port)
+        .build()
+        .expect("grpc server create failed");
+    grpc_server.start();
+    println!("service start at port: {}", &config.port);
+
     let _ = tokio::signal::ctrl_c().await;
 
     // close connector gracefully
     common::lists::for_each_mut(&mut disconnect_signals, |signal| {
         let _ = signal.try_send(event::Disconnect);
     });
+
+    let _ = grpc_server.shutdown().await;
 }

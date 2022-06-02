@@ -8,6 +8,7 @@ pub fn get_env(k: &str) -> Option<String> {
 
 pub mod serde_env {
     use std::io::Read;
+
     use serde::de::Error;
 
     pub fn from_reader<R: std::io::Read>(reader: R) -> serde_json::Result<String> {
@@ -25,21 +26,22 @@ pub mod serde_env {
     fn replace_by_env(value: &str) -> String {
         let ref mut buf = value.to_string();
         let reg = regex::Regex::new("\\$\\{[^}]+\\}").unwrap();
-        match reg.captures(value) {
-            Some(captures) => captures
+        reg.captures_iter(value)
+            .for_each(|captures| captures
                 .iter()
                 .for_each(|matched| match matched {
                     Some(m) => match std::env::var(m
                         .as_str()[2..(m.end() - m.start() - 1)]
                         .to_string()) {
-                        Ok(var) => buf.replace_range(m.range(), var.as_str()),
+                        Ok(var) => {
+                            let result = buf.replace(m.as_str(), var.as_str());
+                            buf.clear();
+                            buf.insert_str(0, result.as_str())
+                        }
                         Err(_) => {}
                     },
                     _ => {}
-                }),
-            None => {}
-        }
-
+                }));
         buf.clone()
     }
 }

@@ -9,7 +9,6 @@ async fn test_disconnect() {
     let ref desc = types::SourceDesc::Tableflow {
         host: "localhost".to_string(),
         port: 0,
-        limit: 10,
         event_time: None,
     };
 

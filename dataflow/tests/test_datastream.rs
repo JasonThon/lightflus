@@ -43,6 +43,10 @@ impl datastream::pipeline::Pipeline<String, String, String, String> for MockPipe
 
         Ok(result)
     }
+
+    fn create_context(&self) -> Context<String, String> {
+        todo!()
+    }
 }
 
 struct MockSink {

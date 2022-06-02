@@ -127,7 +127,7 @@ pub mod execution {
         pub id: u64,
         pub node_type: NodeType,
         pub job_id: types::JobID,
-        closed: bool,
+        pub upstreams: Vec<types::NodeIdx>,
         datastream_close_tx: Option<mpsc::Sender<datastream::Close>>,
         datastream_tx: Option<datastream::StreamPipeSender<Vec<event::FormulaOpEvent>>>,
     }
@@ -152,11 +152,13 @@ pub mod execution {
         fn init_datastream(&mut self, recipients: Vec<actix::Addr<Node>>, operator: types::formula::FormulaOp) {
             let (data_stream_tx, data_stream_rx) = datastream::stream_pipe();
             let (close_tx, close_rx) = mpsc::channel(1);
+            self.upstreams.sort();
 
             let event_pipeline = pipeline::FormulaOpEventPipeline::new(
                 operator,
                 self.job_id.clone(),
                 self.id(),
+                self.upstreams.clone()
             );
             let data_stream = datastream::DataStream::new(
                 self.window_type(),
@@ -185,7 +187,7 @@ pub mod execution {
                 id: 0,
                 node_type: NodeType::Mirror(Default::default()),
                 job_id: Default::default(),
-                closed: false,
+                upstreams: vec![],
                 datastream_close_tx: None,
                 datastream_tx: None,
             }
@@ -213,22 +215,18 @@ pub mod execution {
                     None => {}
                     Some(tx) => {
                         let _ = tx.send(datastream::Close);
-                        self.closed = true;
+                        match &self.node_type {
+                            NodeType::Local { recipients, .. } => common::lists::for_each(
+                                recipients,
+                                |addr| addr.do_send(msg.clone()),
+                            ),
+                            _ => {}
+                        }
+
+                        return;
                     }
                 },
                 _ => {}
-            }
-
-            if self.closed {
-                match &self.node_type {
-                    NodeType::Local { recipients, .. } => common::lists::for_each(
-                        recipients,
-                        |addr| addr.do_send(msg.clone()),
-                    ),
-                    _ => {}
-                }
-
-                return;
             }
 
             match &self.node_type {
@@ -337,7 +335,7 @@ pub mod execution {
                     recipients,
                 },
                 job_id,
-                closed: false,
+                upstreams: op.upstream.to_vec(),
                 datastream_close_tx: None,
                 datastream_tx: None,
             };
@@ -347,7 +345,7 @@ pub mod execution {
             id: op.id.clone(),
             node_type: NodeType::Mirror(op.addr.clone()),
             job_id,
-            closed: false,
+            upstreams: op.upstream.clone(),
             datastream_close_tx: None,
             datastream_tx: None,
         }

@@ -74,6 +74,24 @@ pub fn map_self<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) ->
 pub fn group_hashmap<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> collections::HashMap<T, Vec<&N>>
     where T: std::hash::Hash + std::cmp::Eq {
     let mut result = collections::HashMap::new();
+    list.iter().for_each(|elem| {
+        let key = key_extractor(elem);
+
+        if !result.contains_key(&key) {
+            result.insert(key, vec![elem]);
+        } else {
+            result.get_mut(&key)
+                .unwrap_or(&mut vec![])
+                .push(elem);
+        }
+    });
+
+    result
+}
+
+pub fn group_btree_map<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> collections::BTreeMap<T, Vec<&N>>
+    where T: std::hash::Hash + std::cmp::Eq + Ord {
+    let mut result = collections::BTreeMap::new();
     for elem in list {
         let key = key_extractor(elem);
 
@@ -94,16 +112,16 @@ pub fn group_hashmap<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: 
 /// use std::collections;
 ///
 /// let ref mut deque = collections::VecDeque::from([1,2,2,3,4,5]);
-/// let map = common::lists::group_deque_hashmap(deque, |elem| elem.clone());
+/// let map = common::lists::group_deque_btree_map(deque, |elem| elem.clone());
 ///
-/// assert_eq!(map, collections::HashMap::from_iter([
+/// assert_eq!(map, collections::BTreeMap::from_iter([
 ///     (1,vec![1]), (2,vec![2,2]), (3,vec![3]), (4,vec![4]), (5, vec![5])
 /// ]));
 /// assert!(deque.is_empty())
 /// ```
-pub fn group_deque_hashmap<N, T, F: FnMut(&N) -> T>(deque: &mut VecDeque<N>, mut key_extractor: F) -> collections::HashMap<T, Vec<N>>
-    where T: std::hash::Hash + std::cmp::Eq {
-    let mut result = collections::HashMap::new();
+pub fn group_deque_btree_map<N, T, F: FnMut(&N) -> T>(deque: &mut VecDeque<N>, mut key_extractor: F) -> collections::BTreeMap<T, Vec<N>>
+    where T: std::hash::Hash + std::cmp::PartialEq + Ord {
+    let mut result = collections::BTreeMap::new();
 
     while let Some(elem) = deque.pop_front() {
         let key = key_extractor(&elem);

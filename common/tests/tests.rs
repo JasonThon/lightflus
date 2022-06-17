@@ -5,7 +5,7 @@ use std::process::id;
 use tokio::sync::mpsc;
 
 use common::{hostname, local_ip};
-use common::lists::group_hashmap;
+use common::lists::{group_deque_btree_map, group_btree_map};
 
 #[test]
 fn test_local_ip() {
@@ -149,7 +149,7 @@ fn test_group_hashmap() {
             name: "name2".to_string(),
         },
     ];
-    let map = common::lists::group_hashmap(list, |elem| elem.id.clone());
+    let map = common::lists::group_btree_map(list, |elem| elem.id.clone());
     assert!(map.contains_key(&0));
     assert!(map.contains_key(&1));
     assert!(map.contains_key(&2));
@@ -184,7 +184,6 @@ fn test_group_hashmap() {
 #[test]
 fn test_group_deque_hashmap() {
     use collections::{VecDeque, HashMap};
-    use common::lists::group_deque_hashmap;
 
     #[derive(Clone, Eq, PartialEq, Debug)]
     struct Test {
@@ -223,7 +222,7 @@ fn test_group_deque_hashmap() {
         },
     ]);
 
-    let map = group_deque_hashmap(deque, |elem| elem.id.clone());
+    let map = group_deque_btree_map(deque, |elem| elem.id.clone());
 
     assert_eq!(map, HashMap::from([
         (0, vec![

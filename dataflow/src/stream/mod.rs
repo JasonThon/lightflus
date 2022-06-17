@@ -23,7 +23,7 @@ pub struct DataStream<
     Output,
     T,
     P,
-    InputKey: Clone + Send + Sync + Eq + PartialEq + Hash,
+    InputKey: Clone + Send + Sync + Eq + Hash + Ord,
     InputValue: Clone,
     StateValue>
     where T: Sink<Output>,
@@ -44,7 +44,7 @@ pub struct DataStream<
 }
 
 impl<Input, Output, T, P,
-    InputKey: Clone + Send + Sync + Eq + PartialEq + Hash,
+    InputKey: Clone + Send + Sync + Eq + Hash + Ord,
     InputValue: Clone,
     StateValue>
 DataStream<Input,
@@ -112,7 +112,7 @@ DataStream<Input,
                         continue
                     }
 
-                    let ref mut group = common::lists::group_deque_hashmap(windows, |win| win.key.clone());
+                    let ref mut group = common::lists::group_deque_btree_map(windows, |win| win.key.clone());
                     group.into_par_iter()
                         .for_each(|(key, windows)| {
                         for win in windows {

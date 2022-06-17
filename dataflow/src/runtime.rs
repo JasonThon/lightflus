@@ -16,7 +16,7 @@ pub mod execution {
     use crate::constants;
     use crate::stream as datastream;
     use crate::stream::{pipeline, state, trigger, window};
-    use crate::types::formula;
+    use crate::types::{ActionType, formula};
 
     #[derive(Debug)]
     pub struct ExecutionGraph {
@@ -103,11 +103,62 @@ pub mod execution {
         }
     }
 
-    struct ActixSink(Vec<actix::Addr<Node>>);
+    struct ActixSink(types::JobID, Vec<actix::Addr<Node>>);
 
     impl datastream::Sink<Vec<event::FormulaOpEvent>> for ActixSink {
         fn sink(&self, output: Vec<event::FormulaOpEvent>) {
-            common::lists::for_each(&self.0, |addr| {
+            if self.1.is_empty() {
+                let client = data_client::new_data_engine_client(data_client::DataEngineConfig {
+                    host: None,
+                    port: None,
+                    uri: common::sysenv::get_env(constants::TABLEFLOW_URI_ENV_KEY),
+                });
+                let group = common::lists::group_hashmap(&output, |e| e.action.clone());
+                group.iter().for_each(|(action, events)| {
+                    match action {
+                        ActionType::INSERT => {
+                            let ref mut request = data_client::tableflow::InsertRequest::new();
+                            let entries = common::lists::map(events, |e| types::Entry {
+                                row_idx: e.row_idx,
+                                value: e.data.clone(),
+                            }.into());
+                            request.set_headerId(self.0.header_id.clone());
+                            request.set_tableId(self.0.table_id.clone());
+                            request.set_entries(protobuf::RepeatedField::from(entries));
+                            match client.insert(request) {
+                                Err(err) => log::error!("insert {:?} failed. Details: {}", request, err),
+                                _ => {}
+                            }
+                        }
+                        ActionType::UPDATE => {
+                            let ref mut request = data_client::tableflow::UpdateRequest::new();
+                            let entries = common::lists::map(events, |e| types::Entry {
+                                row_idx: e.row_idx,
+                                value: e.data.clone(),
+                            }.into());
+                            request.set_headerId(self.0.header_id.clone());
+                            request.set_tableId(self.0.table_id.clone());
+                            request.set_entries(protobuf::RepeatedField::from(entries));
+                            match client.update(request) {
+                                Err(err) => log::error!("update failed. Details: {}", err),
+                                _ => {}
+                            }
+                        }
+                        ActionType::DELETE => {
+                            let ref mut request = data_client::tableflow::DeleteRequest::new();
+                            request.set_headerId(self.0.header_id.clone());
+                            request.set_tableId(self.0.table_id.clone());
+                            match client.delete(request) {
+                                Err(err) => log::error!("delete failed. Details: {}", err),
+                                _ => {}
+                            }
+                        }
+                        _ => {}
+                    }
+                });
+            }
+
+            common::lists::for_each(&self.1, |addr| {
                 addr.do_send(event::EventSet::new(output.clone()))
             })
         }
@@ -158,7 +209,7 @@ pub mod execution {
                 operator,
                 self.job_id.clone(),
                 self.id(),
-                self.upstreams.clone()
+                self.upstreams.clone(),
             );
             let data_stream = datastream::DataStream::new(
                 self.window_type(),
@@ -166,7 +217,7 @@ pub mod execution {
                 data_stream_rx,
                 close_rx,
                 event_pipeline,
-                ActixSink(recipients),
+                ActixSink(self.job_id.clone(), recipients),
             );
 
             let _ = self.datastream_tx.insert(data_stream_tx);

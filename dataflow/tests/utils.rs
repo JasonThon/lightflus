@@ -58,46 +58,55 @@ pub fn default_node_set() -> types::NodeSet {
                     header_id: "headerId_1".to_string(),
                 },
                 id: 0,
+                upstream: vec![]
             }),
             ("1".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 1,
+                upstream: vec![]
             }),
             ("2".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 2,
+                upstream: vec![]
             }),
             ("3".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 3,
+                upstream: vec![]
             }),
             ("4".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 4,
+                upstream: vec![]
             }),
             ("5".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 5,
+                upstream: vec![]
             }),
             ("6".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 6,
+                upstream: vec![]
             }),
             ("7".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 6,
+                upstream: vec![]
             }),
             ("8".to_string(), types::Operator {
                 addr: "".to_string(),
                 value: types::formula::FormulaOp::Sum,
                 id: 8,
+                upstream: vec![]
             }),
         ]
     )

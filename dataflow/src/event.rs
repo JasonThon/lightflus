@@ -160,7 +160,7 @@ pub enum GraphEvent {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Disconnect;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct FormulaOpEvent {
     pub row_idx: u64,

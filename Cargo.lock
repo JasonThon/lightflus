@@ -593,6 +593,7 @@ dependencies = [
  "grpcio",
  "log",
  "mongodb",
+ "protobuf",
  "rayon",
  "rdkafka",
  "rocksdb",

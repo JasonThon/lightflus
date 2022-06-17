@@ -39,6 +39,15 @@ impl From<&data_client::tableflow::Entry> for Entry {
     }
 }
 
+impl Into<data_client::tableflow::Entry> for Entry {
+    fn into(self) -> data_client::tableflow::Entry {
+        let mut entry = data_client::tableflow::Entry::new();
+        entry.set_value(self.value.clone());
+        entry.set_rowIdx(self.row_idx);
+        entry
+    }
+}
+
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone, Eq, PartialEq)]
 pub struct AdjacentVec {
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -377,7 +386,7 @@ impl From<&ConnectorEventType> for DataSourceEventType {
     }
 }
 
-#[derive(Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, Debug, Hash)]
 pub enum ActionType {
     INSERT,
     UPDATE,
@@ -464,6 +473,8 @@ pub enum TypedValue {
     Boolean(bool),
     Invalid,
 }
+
+impl Eq for TypedValue {}
 
 // TODO refactor by macro in future
 impl PartialEq for TypedValue {
@@ -577,7 +588,37 @@ impl ops::Sub for TypedValue {
     type Output = TypedValue;
 
     fn sub(self, rhs: Self) -> Self::Output {
-        todo!()
+        match self {
+            TypedValue::Double(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double(value - other),
+                TypedValue::Float(other) => TypedValue::Double(value - (other as f64)),
+                TypedValue::Int(other) => TypedValue::Double(value - (other as f64)),
+                TypedValue::Long(other) => TypedValue::Double(value - (other as f64)),
+                _ => TypedValue::Invalid
+            }
+            TypedValue::Float(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
+                TypedValue::Float(other) => TypedValue::Float(value - other),
+                TypedValue::Int(other) => TypedValue::Float(value - (other as f32)),
+                TypedValue::Long(other) => TypedValue::Double((value as f64) - (other as f64)),
+                _ => TypedValue::Invalid
+            }
+            TypedValue::Int(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
+                TypedValue::Float(other) => TypedValue::Float((value as f32) - other),
+                TypedValue::Int(other) => TypedValue::Int(value - other),
+                TypedValue::Long(other) => TypedValue::Long((value as i64) - other),
+                _ => TypedValue::Invalid
+            }
+            TypedValue::Long(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
+                TypedValue::Float(other) => TypedValue::Double((value as f64) - (other as f64)),
+                TypedValue::Int(other) => TypedValue::Long(value - (other as i64)),
+                TypedValue::Long(other) => TypedValue::Long(value - other),
+                _ => TypedValue::Invalid
+            }
+            _ => TypedValue::Invalid
+        }
     }
 }
 
@@ -663,7 +704,44 @@ impl ops::Add for TypedValue {
     type Output = TypedValue;
 
     fn add(self, rhs: Self) -> Self::Output {
-        todo!()
+        match self {
+            TypedValue::String(value) => {
+                match rhs {
+                    TypedValue::String(other) =>
+                        TypedValue::String(value.add(other.as_str())),
+                    _ => TypedValue::Invalid
+                }
+            }
+            TypedValue::Double(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double(value.add(other)),
+                TypedValue::Float(other) => TypedValue::Double(value.add(other as f64)),
+                TypedValue::Int(other) => TypedValue::Double(value.add(other as f64)),
+                TypedValue::Long(other) => TypedValue::Double(value.add(other as f64)),
+                _ => TypedValue::Invalid
+            },
+            TypedValue::Float(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double((value as f64).add(other)),
+                TypedValue::Float(other) => TypedValue::Float(value.add(other)),
+                TypedValue::Int(other) => TypedValue::Float(value.add(other as f32)),
+                TypedValue::Long(other) => TypedValue::Double((value as f64).add(other as f64)),
+                _ => TypedValue::Invalid
+            },
+            TypedValue::Int(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double((value as f64).add(other)),
+                TypedValue::Float(other) => TypedValue::Float((value as f32).add(other)),
+                TypedValue::Int(other) => TypedValue::Int(value.add(other)),
+                TypedValue::Long(other) => TypedValue::Long((value as i64).add(other)),
+                _ => TypedValue::Invalid
+            }
+            TypedValue::Long(value) => match rhs {
+                TypedValue::Double(other) => TypedValue::Double((value as f64).add(other)),
+                TypedValue::Float(other) => TypedValue::Double((value as f64).add(other as f64)),
+                TypedValue::Int(other) => TypedValue::Long((value).add(other as i64)),
+                TypedValue::Long(other) => TypedValue::Long(value.add(other)),
+                _ => TypedValue::Invalid
+            }
+            _ => TypedValue::Invalid
+        }
     }
 }
 
@@ -782,13 +860,13 @@ pub struct ActionValue {
     pub from: NodeIdx,
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 pub struct ValueState {
     pub value: TypedValue,
     pub node_idx: NodeIdx,
 }
 
-#[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
+#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 pub struct FormulaState {
     pub value: Vec<u8>,
     pub node_states: Vec<ValueState>,

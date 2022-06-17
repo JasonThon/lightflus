@@ -16,7 +16,7 @@ pub enum WindowType {
     },
 }
 
-pub struct KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {
+pub struct KeyedWindow<K, V> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     pub values: Vec<V>,
     pub key: K,
     pub start: time::SystemTime,
@@ -24,7 +24,7 @@ pub struct KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {
     pub timestamp: time::SystemTime,
 }
 
-impl<K, V> Clone for KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {
+impl<K, V> Clone for KeyedWindow<K, V> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     fn clone(&self) -> Self {
         Self {
             values: self.values.clone(),
@@ -37,7 +37,7 @@ impl<K, V> Clone for KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clon
 }
 
 
-impl<K, V> KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {
+impl<K, V> KeyedWindow<K, V> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     pub(crate) fn merge(&mut self, other: &KeyedWindow<K, V>, window_type: &WindowType) {
         self.values.extend(other.values.to_vec());
         match window_type {
@@ -55,20 +55,20 @@ impl<K, V> KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {
     }
 }
 
-unsafe impl<K, V> Send for KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {}
+unsafe impl<K, V> Send for KeyedWindow<K, V> where K: hash::Hash + Clone + Eq + Ord, V: Clone {}
 
-unsafe impl<K, V> Sync for KeyedWindow<K, V> where K: hash::Hash + Clone + Eq, V: Clone {}
+unsafe impl<K, V> Sync for KeyedWindow<K, V> where K: hash::Hash + Clone + Ord, V: Clone {}
 
 pub type KeyedWindowSet<K, V> = collections::HashMap<K, Vec<KeyedWindow<K, V>>>;
 
-pub struct KeyedWindowAssigner<K, V, E: event::Event<K, V>> where K: hash::Hash + Clone + Eq, V: Clone {
+pub struct KeyedWindowAssigner<K, V, E: event::Event<K, V>> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     window_type: WindowType,
     phantom_key: marker::PhantomData<K>,
     phantom_val: marker::PhantomData<V>,
     phantom_event: marker::PhantomData<E>,
 }
 
-impl<K, V, E: event::Event<K, V>> KeyedWindowAssigner<K, V, E> where K: hash::Hash + Clone + Eq, V: Clone {
+impl<K, V, E: event::Event<K, V>> KeyedWindowAssigner<K, V, E> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     pub fn assign(&self, datum: &E) -> Vec<KeyedWindow<K, V>> {
         let timestamp = time::SystemTime::from(datum.event_time());
         match &self.window_type {
@@ -183,7 +183,7 @@ impl<K, V, E: event::Event<K, V>> KeyedWindowAssigner<K, V, E> where K: hash::Ha
 }
 
 pub fn window_assigner<K, V, E: event::Event<K, V>>(window_type: &WindowType) -> KeyedWindowAssigner<K, V, E>
-    where K: hash::Hash + Clone + Eq, V: Clone {
+    where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     KeyedWindowAssigner {
         window_type: window_type.clone(),
         phantom_key: Default::default(),
@@ -193,7 +193,7 @@ pub fn window_assigner<K, V, E: event::Event<K, V>>(window_type: &WindowType) ->
 }
 
 pub fn default_assigner<K, V, E: event::Event<K, V>>() -> KeyedWindowAssigner<K, V, E>
-    where K: hash::Hash + Clone + Eq, V: Clone {
+    where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     KeyedWindowAssigner {
         window_type: WindowType::Fixed { size: time::Duration::from_millis(100) },
         phantom_key: Default::default(),

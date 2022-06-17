@@ -21,6 +21,7 @@ rayon = "1.5"
 bytes = "1.1.0"
 rocksdb = "0.18.0"
 rdkafka = { version = "0.25", default-features = false }
+protobuf = "2.0"
 
 [dependencies.mongodb]
 version = "2.1.0"

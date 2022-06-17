@@ -1,4 +1,5 @@
 use std::{collections, hash, marker};
+use rdkafka::admin::ConfigSource::Default;
 use crate::{err, event, types};
 use crate::stream::{state, window};
 use crate::stream::state::StateManager;
@@ -8,7 +9,7 @@ use crate::types::formula::FormulaOp;
 pub type Result<T> = std::result::Result<T, err::PipelineError>;
 
 pub trait Pipeline<InputKey, InputValue, Output, State>: Sync + Send
-    where InputKey: hash::Hash + Clone + Eq, InputValue: Clone, State: Clone {
+    where InputKey: hash::Hash + Clone + Eq + Ord, InputValue: Clone, State: Clone {
     type Context;
 
     fn apply(&self, input: &window::KeyedWindow<InputKey, InputValue>, ctx: &Context<InputKey, State>) -> Result<Output>;
@@ -36,7 +37,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
         let mut changed_row_idx = row_idx.clone();
 
         let option = ctx.get_state(row_idx);
-        let group = common::lists::group_hashmap(&input.values, |value| value.from.clone());
+        let group = common::lists::group_btree_map(&input.values, |value| value.from.clone());
         let ref mut node_values = group.iter()
             .map(|(from, actions)| {
                 let last_value = *actions.last().unwrap();
@@ -45,7 +46,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
             })
             .collect::<collections::HashMap<types::NodeIdx, types::ActionValue>>();
         option.iter()
-            .for_each(|v| (*v).node_states
+            .for_each(|v| v.node_states
                 .iter()
                 .for_each(|s|
                     if !node_values.contains_key(&s.node_idx) {
@@ -60,9 +61,9 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
         let mut final_value = types::TypedValue::Invalid;
 
         match &self.op {
-            FormulaOp::Reference { table_id, header_id } => return Ok(vec![event::FormulaOpEvent {
+            FormulaOp::Reference { .. } => return Ok(vec![event::FormulaOpEvent {
                 row_idx: *row_idx,
-                job_id: types::job_id(table_id.as_str(), header_id.as_str()),
+                job_id: self.job_id.clone(),
                 data: node_values.get(&self.node_id)
                     .map(|v| (*v).value.get_data())
                     .unwrap_or_else(|| vec![]),
@@ -74,27 +75,13 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 event_time: input.timestamp,
             }]),
             FormulaOp::Add { values } => {
-                option.iter().for_each(|v| (*v).node_states.iter()
-                    .for_each(|v| {
-                        let val_opt = node_values.get(&v.node_idx);
-                        if val_opt.is_none() {
-                            node_values.insert(v.node_idx, types::ActionValue {
-                                action: types::ActionType::INSERT,
-                                value: v.value.clone(),
-                                from: v.node_idx,
-                            });
-                        }
-                    }));
-
-                node_values.iter().for_each(|(_, val)| {
-                    final_value += val.value.clone();
-                });
-
-                for op in values {
-                    final_value += types::TypedValue::from(&op.value)
-                }
-
-                changed_row_idx = *row_idx;
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Add,
+                );
             }
             FormulaOp::Sum => {
                 final_value = sum_func(&self.upstreams[0], node_values, ctx);
@@ -159,86 +146,108 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 changed_row_idx = 0;
             }
             FormulaOp::Xlookup => {}
-            FormulaOp::Sub { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Sub,
-            ),
-            FormulaOp::Mul { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Mul,
-            ),
-            FormulaOp::Div { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Div,
-            ),
-            FormulaOp::Eq { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Eq,
-            ),
-            FormulaOp::Neq { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Neq,
-            ),
-            FormulaOp::Lt { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Lt,
-            ),
-            FormulaOp::Gt { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Gt,
-            ),
-            FormulaOp::Lte { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Lte,
-            ),
-            FormulaOp::Gte { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Gte,
-            ),
-            FormulaOp::And { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::And,
-            ),
-            FormulaOp::Or { values } => final_value = dual_func(
-                values,
-                node_values,
-                self.upstreams.get(0),
-                self.upstreams.get(1),
-                DualOp::Or,
-            )
+            FormulaOp::Sub { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Sub,
+                );
+            }
+            FormulaOp::Mul { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Mul,
+                );
+            }
+            FormulaOp::Div { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Div,
+                );
+            }
+            FormulaOp::Eq { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Eq,
+                );
+            }
+            FormulaOp::Neq { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Neq,
+                );
+            }
+            FormulaOp::Lt { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Lt,
+                );
+            }
+            FormulaOp::Gt { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Gt,
+                );
+            }
+            FormulaOp::Lte { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Lte,
+                );
+            }
+            FormulaOp::Gte { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Gte,
+                );
+            }
+            FormulaOp::And { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::And,
+                );
+            }
+            FormulaOp::Or { values } => {
+                final_value = dual_func(
+                    values,
+                    node_values,
+                    self.upstreams.get(0),
+                    self.upstreams.get(1),
+                    DualOp::Or,
+                );
+            }
         }
 
-        ctx.update(changed_row_idx, types::FormulaState {
+        let _ = ctx.update(changed_row_idx, types::FormulaState {
             value: final_value.get_data(),
             node_states: node_values.values()
                 .map(|v| types::ValueState {
@@ -253,10 +262,12 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
             job_id: self.job_id.clone(),
             data: final_value.get_data(),
             old_data: option
+                .as_ref()
                 .map(|v| v.value.clone())
                 .unwrap_or_else(|| vec![]),
             from: self.node_id,
             action: option
+                .as_ref()
                 .map(|_| types::ActionType::UPDATE)
                 .unwrap_or(types::ActionType::INSERT),
             event_time: std::time::SystemTime::now(),
@@ -283,39 +294,36 @@ impl FormulaOpEventPipeline {
     }
 }
 
-pub struct Context<Key, State> where State: Clone, Key: Clone + hash::Hash {
+pub struct Context<Key, State> where State: Clone, Key: Clone + hash::Hash + Eq + Ord {
     phantom: marker::PhantomData<State>,
     phantom_key: marker::PhantomData<Key>,
-    job_id: types::JobID
+    job_id: types::JobID,
+    values: common::collections::ConcurrentCache<Key, State>,
 }
 
-impl<Key, State> Context<Key, State> where State: Clone, Key: Clone + hash::Hash {
+impl<Key, State> Context<Key, State> where State: Clone, Key: Clone + hash::Hash + Eq + Ord {
     pub fn new(job_id: types::JobID) -> Context<Key, State> {
+        use std::default::Default;
         Context {
             phantom: Default::default(),
             phantom_key: Default::default(),
-            job_id
+            job_id,
+            values: Default::default(),
         }
     }
 
-    pub fn get_state(&self, key: &Key) -> Option<&State> {
-        todo!()
+    pub fn get_state(&self, key: &Key) -> Option<State> {
+        self.values.get(key)
     }
 
-    pub fn update(&self, key: Key, state: State) {
-        todo!()
-    }
-}
-
-unsafe impl<Key, State> Send for Context<Key, State> where State: Clone, Key: Clone + hash::Hash {}
-
-unsafe impl<Key, State> Sync for Context<Key, State> where State: Clone, Key: Clone + hash::Hash {}
-
-impl<Key, State> Drop for Context<Key, State> where State: Clone, Key: Clone + hash::Hash {
-    fn drop(&mut self) {
-        log::debug!("clearing context....");
+    pub fn update(&self, key: Key, state: State) -> Option<State> {
+        self.values.put(key, state)
     }
 }
+
+unsafe impl<Key, State> Send for Context<Key, State> where State: Clone, Key: Clone + hash::Hash + Eq + Ord {}
+
+unsafe impl<Key, State> Sync for Context<Key, State> where State: Clone, Key: Clone + hash::Hash + Eq + Ord {}
 
 fn sum_func(ref_node: &types::NodeIdx,
             node_values: &collections::HashMap<types::NodeIdx, types::ActionValue>,
@@ -330,16 +338,6 @@ fn sum_func(ref_node: &types::NodeIdx,
             .map(|s| types::TypedValue::from(&s.value) + diff.clone())
             .unwrap_or_else(|| diff.clone()))
         .unwrap_or_else(|| types::TypedValue::Int(0));
-
-    ctx.update(0, types::FormulaState {
-        value: sum_value.get_data(),
-        node_states: node_values.iter()
-            .map(|(from, sv)| types::ValueState {
-                value: sv.value.clone(),
-                node_idx: *from,
-            })
-            .collect(),
-    });
 
     sum_value
 }

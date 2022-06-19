@@ -1,0 +1,81 @@
+{
+  "type": "ExecutionGraphSubmit",
+  "jobId": {
+    "tableId": "tableId",
+    "headerId": "headerId"
+  },
+  "ops": {
+    "jobId": {
+      "tableId": "tableId-1",
+      "headerId": "headerId-1"
+    },
+    "meta": [
+      {
+        "center": 0,
+        "neighbors": [
+          1,
+          2
+        ]
+      },
+      {
+        "center": 1,
+        "neighbors": [
+          3,
+          4
+        ]
+      },
+      {
+        "center": 2,
+        "neighbors": []
+      },
+      {
+        "center": 3,
+        "neighbors": []
+      },
+      {
+        "center": 4,
+        "neighbors": []
+      }
+    ],
+    "nodes": {
+      "0": {
+        "addr": "localhost",
+        "value": {
+          "type": "Reference",
+          "tableId": "tableId-1",
+          "headerId": "headerId-1",
+          "valueType": "String"
+        },
+        "id": 0
+      },
+      "1": {
+        "addr": "localhost",
+        "value": {
+          "type": "Sum"
+        },
+        "id": 1
+      },
+      "2": {
+        "addr": "localhost",
+        "value": {
+          "type": "Sum"
+        },
+        "id": 2
+      },
+      "3": {
+        "addr": "localhost",
+        "value": {
+          "type": "Sum"
+        },
+        "id": 3
+      },
+      "4": {
+        "addr": "localhost",
+        "value": {
+          "type": "Sum"
+        },
+        "id": 4
+      }
+    }
+  }
+}

@@ -437,8 +437,14 @@ dependencies = [
 name = "common"
 version = "0.1.0"
 dependencies = [
+ "actix",
+ "bytes",
+ "chrono",
  "common",
+ "data-client",
+ "dataflow-api",
  "grpcio",
+ "log",
  "mongodb",
  "rdkafka",
  "regex",
@@ -454,6 +460,39 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30ed07550be01594c6026cff2a1d7fe9c8f683caa798e12b68694ac9e88286a3"
 dependencies = [
  "cache-padded",
+]
+
+[[package]]
+name = "connector"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "dataflow-api",
+ "grpcio",
+ "log",
+ "protobuf",
+ "rdkafka",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
+name = "coordinator"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "connector",
+ "dataflow-api",
+ "env_logger",
+ "futures-executor",
+ "grpcio",
+ "log",
+ "mongodb",
+ "protobuf",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
@@ -580,67 +619,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ee2393c4a91429dffb4bedf19f4d6abf27d8a732c8ce4980305d782e5426d57"
 
 [[package]]
-name = "dataflow"
-version = "0.1.0"
-dependencies = [
- "actix",
- "bytes",
- "chrono",
- "common",
- "data-client",
- "dataflow",
- "dataflow-api",
- "grpcio",
- "log",
- "mongodb",
- "protobuf",
- "rayon",
- "rdkafka",
- "rocksdb",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "dataflow-api"
 version = "0.1.0"
 dependencies = [
  "grpcio",
  "protobuf",
  "serde",
-]
-
-[[package]]
-name = "dataflow-connector"
-version = "0.1.0"
-dependencies = [
- "common",
- "dataflow",
- "dataflow-api",
- "grpcio",
- "log",
- "protobuf",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "dataflow-worker"
-version = "0.1.0"
-dependencies = [
- "actix",
- "common",
- "dataflow",
- "dataflow-api",
- "futures-executor",
- "grpcio",
- "log",
- "protobuf",
- "serde",
- "serde_json",
- "signal-hook",
 ]
 
 [[package]]
@@ -1829,6 +1813,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
 
 [[package]]
+name = "stream"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "common",
+ "log",
+ "rayon",
+ "rocksdb",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "stringprep"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1865,23 +1862,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "unicode-xid",
-]
-
-[[package]]
-name = "tableflow-rs"
-version = "0.1.0"
-dependencies = [
- "common",
- "dataflow",
- "dataflow-api",
- "env_logger",
- "futures-executor",
- "grpcio",
- "log",
- "mongodb",
- "protobuf",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -2351,6 +2331,25 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b2986deb581c4fe11b621998a5e53361efe6b48a151178d0cd9eeffa4dc6acc9"
 dependencies = [
  "winapi",
+]
+
+[[package]]
+name = "worker"
+version = "0.1.0"
+dependencies = [
+ "actix",
+ "common",
+ "data-client",
+ "dataflow-api",
+ "futures-executor",
+ "grpcio",
+ "log",
+ "protobuf",
+ "serde",
+ "serde_json",
+ "signal-hook",
+ "stream",
+ "tokio",
 ]
 
 [[package]]

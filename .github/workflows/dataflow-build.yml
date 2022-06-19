@@ -1,4 +1,4 @@
-name: tablflow-rs build
+name: tablflow-runtime build
 
 on:
   push:
@@ -17,28 +17,32 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Run common lib tests
-        run: cargo test --manifest-path common/Cargo.toml
+        run: cargo test --manifest-path src/common/Cargo.toml
       - name: Run dataflow tests
-        run: cargo test --manifest-path dataflow/Cargo.toml
-      - name: Check coordinator
-        run: cargo build
-      - name: Check worker
-        run: cargo build --manifest-path dataflow-worker/Cargo.toml
+        run: cargo test --manifest-path src/stream/Cargo.toml
+      - name: Run connector tests
+        run: cargo test --manifest-path src/connector/Cargo.toml
+      - name: Check Coordinator
+        run: cargo build --manifest-path src/coordinator/Cargo.toml
+      - name: Check Worker
+        run: cargo build --manifest-path src/worker/Cargo.toml
+      - name: Check Connector
+        run: cargo build --manifest-path src/connector/Cargo.toml
 
   build_docker_image:
 
     if: ${{ github.event_name == 'release' }}
 
-    needs: [test_and_build]
+    needs: [ test_and_build ]
 
     runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v3
       - name: Install Coordinator
-        run: cargo install --path .
+        run: cargo install --path src/coordinator/
       - name: Install Worker
-        run: cargo install --path dataflow-worker/
+        run: cargo install --path src/worker/
       - name: Build coordinator image
         run: docker build . --file docker/coordinator/Dockerfile --tag markmakemate/dataflow-coordinator:${{ github.event.release.tag_name }}
       - name: Build worker image

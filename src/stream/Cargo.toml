@@ -1,0 +1,19 @@
+[package]
+name = "stream"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rayon = "1.5"
+common = { path = "../common" }
+chrono = "0.4"
+tokio = { version = "1", features = ["rt", "sync"] }
+log = "0.4"
+rocksdb = "0.18.0"
+
+[dev-dependencies]
+serde_json = "1.0.59"
+tokio = { version = "1", features = ["test-util"] }
+chrono = "0.4"

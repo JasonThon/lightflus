@@ -1,0 +1,29 @@
+[package]
+name = "common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+serde_json = "1.0.59"
+serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["sync"] }
+grpcio = "0.10.0"
+regex = "1"
+bytes = "1.1.0"
+data-client = { path = "../data-client" }
+dataflow-api = { path = "../dataflow-api", features = ["worker"] }
+actix = "0.12"
+chrono = "0.4"
+rdkafka = { version = "0.25", default-features = false }
+log = "0.4"
+
+[dependencies.mongodb]
+version = "2.1.0"
+default-features = false
+features = ["sync"]
+
+[dev-dependencies]
+common = { path = "../common" }
+tokio = { version = "1", features = ["test-util"] }

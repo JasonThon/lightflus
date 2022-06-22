@@ -16,4 +16,4 @@ rocksdb = "0.18.0"
 [dev-dependencies]
 serde_json = "1.0.59"
 tokio = { version = "1", features = ["test-util"] }
-chrono = "0.4"
+stream = { path = "../stream" }

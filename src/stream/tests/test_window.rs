@@ -73,8 +73,6 @@ fn test_sliding_window_assign() {
 
 #[test]
 fn test_session_window_assign() {
-    use dataflow::stream;
-
     let timeout = time::Duration::from_secs(3);
     let ref session = stream::window::WindowType::Session { timeout: timeout.clone() };
     let ref start = time::SystemTime::now();
@@ -96,7 +94,6 @@ fn test_session_window_assign() {
 
 #[test]
 fn test_fixed_window_merge() {
-    use dataflow::stream;
     use std::collections::VecDeque;
 
     let ref fixed = stream::window::WindowType::Fixed { size: time::Duration::from_secs(2) };
@@ -121,7 +118,7 @@ fn test_fixed_window_merge() {
     assigner.merge(all_windows);
 
     for win in all_windows {
-        assert_eq!(win.values.len(), 2);
+        assert_eq!(win.clone().values.len(), 2);
     }
 }
 

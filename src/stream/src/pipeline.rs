@@ -54,7 +54,6 @@ pub struct FormulaOpEventPipeline {
     op: formula::FormulaOp,
     node_id: types::NodeIdx,
     upstreams: Vec<types::NodeIdx>,
-    state: state::RocksStateManager<String, types::ValueState>,
 }
 
 unsafe impl Send for FormulaOpEventPipeline {}
@@ -321,7 +320,6 @@ impl FormulaOpEventPipeline {
             op,
             node_id,
             upstreams,
-            state: state::RocksStateManager::new(job_id),
         }
     }
 }

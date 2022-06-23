@@ -462,6 +462,7 @@ impl From<ValueType> for DataTypeSymbol {
     }
 }
 
+// TODO fix float calculated with double precision loss problem
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum TypedValue {
     String(String),
@@ -596,10 +597,10 @@ impl ops::Sub for TypedValue {
                 _ => TypedValue::Invalid
             }
             TypedValue::Float(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
+                TypedValue::Double(other) => TypedValue::Double(value as f64 - other),
                 TypedValue::Float(other) => TypedValue::Float(value - other),
                 TypedValue::Int(other) => TypedValue::Float(value - (other as f32)),
-                TypedValue::Long(other) => TypedValue::Double((value as f64) - (other as f64)),
+                TypedValue::Long(other) => TypedValue::Float(value - (other as f32)),
                 _ => TypedValue::Invalid
             }
             TypedValue::Int(value) => match rhs {
@@ -611,7 +612,7 @@ impl ops::Sub for TypedValue {
             }
             TypedValue::Long(value) => match rhs {
                 TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
-                TypedValue::Float(other) => TypedValue::Double((value as f64) - (other as f64)),
+                TypedValue::Float(other) => TypedValue::Float(value as f32 - other),
                 TypedValue::Int(other) => TypedValue::Long(value - (other as i64)),
                 TypedValue::Long(other) => TypedValue::Long(value - other),
                 _ => TypedValue::Invalid
@@ -626,7 +627,45 @@ impl ops::Div for TypedValue {
     type Output = TypedValue;
 
     fn div(self, rhs: Self) -> Self::Output {
-        todo!()
+        match self {
+            TypedValue::Double(value) => {
+                match rhs {
+                    TypedValue::Double(other) => TypedValue::Double(value / other),
+                    TypedValue::Float(other) => TypedValue::Double(value / (other as f64)),
+                    TypedValue::Int(other) => TypedValue::Double(value / (other as f64)),
+                    TypedValue::Long(other) => TypedValue::Double(value / (other as f64)),
+                    _ => TypedValue::Invalid,
+                }
+            }
+            TypedValue::Float(value) => {
+                match rhs {
+                    TypedValue::Double(other) => TypedValue::Double(value as f64 / other),
+                    TypedValue::Float(other) => TypedValue::Float(value / other),
+                    TypedValue::Int(other) => TypedValue::Float(value / (other as f32)),
+                    TypedValue::Long(other) => TypedValue::Float(value / (other as f32)),
+                    _ => TypedValue::Invalid,
+                }
+            }
+            TypedValue::Int(value) => {
+                match rhs {
+                    TypedValue::Double(other) => TypedValue::Double((value as f64) / other),
+                    TypedValue::Float(other) => TypedValue::Float((value as f32) / other),
+                    TypedValue::Int(other) => TypedValue::Double((value as f64) / (other as f64)),
+                    TypedValue::Long(other) => TypedValue::Double(((value as f64) / (other as f64))),
+                    _ => TypedValue::Invalid,
+                }
+            }
+            TypedValue::Long(value) => {
+                match rhs {
+                    TypedValue::Double(other) => TypedValue::Double((value as f64) / other),
+                    TypedValue::Float(other) => TypedValue::Float((value as f32) / other),
+                    TypedValue::Int(other) => TypedValue::Float((value as f32) / (other as f32)),
+                    TypedValue::Long(other) => TypedValue::Float((value as f32) / (other as f32)),
+                    _ => TypedValue::Invalid,
+                }
+            }
+            _ => TypedValue::Invalid
+        }
     }
 }
 
@@ -660,19 +699,19 @@ impl ops::Mul for TypedValue {
             TypedValue::Double(value) => {
                 match rhs {
                     TypedValue::Double(other) => TypedValue::Double(other * value),
-                    TypedValue::Float(other) => TypedValue::Double((other as f64 * value) as f64),
+                    TypedValue::Float(other) => TypedValue::Float(other * value as f32),
                     TypedValue::Int(other) => TypedValue::Double(other as f64 * value),
                     TypedValue::Long(other) => TypedValue::Double(other as f64 * value),
-                    _ => self.clone(),
+                    _ => TypedValue::Invalid,
                 }
             }
             TypedValue::Float(value) => {
                 match rhs {
-                    TypedValue::Double(other) => TypedValue::Double(other * value as f64),
+                    TypedValue::Double(other) => TypedValue::Double(other * (value as f64)),
                     TypedValue::Float(other) => TypedValue::Float(other * value),
                     TypedValue::Int(other) => TypedValue::Float(other as f32 * value),
-                    TypedValue::Long(other) => TypedValue::Double(other as f64 * value as f64),
-                    _ => self.clone(),
+                    TypedValue::Long(other) => TypedValue::Float(other as f32 * value),
+                    _ => TypedValue::Invalid,
                 }
             }
             TypedValue::Int(value) => {
@@ -681,16 +720,16 @@ impl ops::Mul for TypedValue {
                     TypedValue::Float(other) => TypedValue::Float(other * value as f32),
                     TypedValue::Int(other) => TypedValue::Int(other * value),
                     TypedValue::Long(other) => TypedValue::Long(other * value as i64),
-                    _ => self.clone(),
+                    _ => TypedValue::Invalid,
                 }
             }
             TypedValue::Long(value) => {
                 match rhs {
                     TypedValue::Double(other) => TypedValue::Double(other * value as f64),
-                    TypedValue::Float(other) => TypedValue::Double(other as f64 * value as f64),
+                    TypedValue::Float(other) => TypedValue::Float(other * value as f32),
                     TypedValue::Int(other) => TypedValue::Long(other as i64 * value),
                     TypedValue::Long(other) => TypedValue::Long(other * value),
-                    _ => self.clone(),
+                    _ => TypedValue::Invalid,
                 }
             }
             _ => TypedValue::Invalid
@@ -719,10 +758,10 @@ impl ops::Add for TypedValue {
                 _ => TypedValue::Invalid
             },
             TypedValue::Float(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64).add(other)),
-                TypedValue::Float(other) => TypedValue::Float(value.add(other)),
-                TypedValue::Int(other) => TypedValue::Float(value.add(other as f32)),
-                TypedValue::Long(other) => TypedValue::Double((value as f64).add(other as f64)),
+                TypedValue::Double(other) => TypedValue::Double(value as f64 + other),
+                TypedValue::Float(other) => TypedValue::Float(value + other),
+                TypedValue::Int(other) => TypedValue::Float(value + other as f32),
+                TypedValue::Long(other) => TypedValue::Float(value + other as f32),
                 _ => TypedValue::Invalid
             },
             TypedValue::Int(value) => match rhs {
@@ -733,10 +772,10 @@ impl ops::Add for TypedValue {
                 _ => TypedValue::Invalid
             }
             TypedValue::Long(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64).add(other)),
-                TypedValue::Float(other) => TypedValue::Double((value as f64).add(other as f64)),
-                TypedValue::Int(other) => TypedValue::Long((value).add(other as i64)),
-                TypedValue::Long(other) => TypedValue::Long(value.add(other)),
+                TypedValue::Double(other) => TypedValue::Double((value as f64) + other),
+                TypedValue::Float(other) => TypedValue::Float((value as f32) + other as f32),
+                TypedValue::Int(other) => TypedValue::Long(value + other as i64),
+                TypedValue::Long(other) => TypedValue::Long(value + other),
                 _ => TypedValue::Invalid
             }
             _ => TypedValue::Invalid

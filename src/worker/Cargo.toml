@@ -14,7 +14,7 @@ protobuf = "2.0"
 grpcio = "0.10.0"
 serde_json = "1.0.59"
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1", features = ["full"] }
+tokio = { version = "1", features = ["rt", "sync"] }
 log = "0.4"
 signal-hook = "0.3.13"
 futures-executor = "0.3"

@@ -10,7 +10,7 @@ pub mod runtime;
 mod constants;
 
 fn main() {
-    let result = fs::File::open("dataflow-worker/etc/worker.json");
+    let result = fs::File::open("src/worker/etc/worker.json");
     if result.is_err() {
         panic!("{}", format!("config file open failed: {:?}", result.unwrap_err()))
     }

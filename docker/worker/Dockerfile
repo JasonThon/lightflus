@@ -1,4 +1,4 @@
 FROM alpine:3.14
 WORKDIR /dataflow
-COPY target/release/dataflow-worker /dataflow/worker
+COPY target/release/worker /dataflow/worker
 CMD ["./worker"]

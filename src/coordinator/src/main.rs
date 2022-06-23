@@ -15,7 +15,7 @@ pub mod cluster;
 async fn main() {
     log::set_max_level(log::LevelFilter::Info);
     env_logger::init();
-    let file_result = std::fs::File::open("../../../etc/coord.json");
+    let file_result = std::fs::File::open("src/coordinator/etc/coord.json");
     if file_result.is_err() {
         panic!("{}", format!("fail to read config file: {:?}", file_result.unwrap_err()))
     }

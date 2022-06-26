@@ -43,10 +43,14 @@ jobs:
         run: cargo install --path src/coordinator/
       - name: Install Worker
         run: cargo install --path src/worker/
+      - name: Install Worker
+        run: cargo install --path src/connector/
       - name: Build coordinator image
         run: docker build . --file docker/coordinator/Dockerfile --tag markmakemate/tableflow/runtime/coordinator:${{ github.event.release.tag_name }}
       - name: Build worker image
         run: docker build . --file docker/worker/Dockerfile --tag markmakemate/tableflow/runtime/worker:${{ github.event.release.tag_name }}
+      - name: Build connector image
+        run: docker build . --file docker/connector/Dockerfile --tag markmakemate/tableflow/runtime/connector:${{ github.event.release.tag_name }}
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
@@ -56,3 +60,5 @@ jobs:
         run: docker push markmakemate/tableflow/runtime/worker:${{ github.event.release.tag_name }}
       - name: Publish coordinator docker image
         run: docker push markmakemate/tableflow/runtime/coordinator:${{ github.event.release.tag_name }}
+      - name: Publish coordinator docker image
+        run: docker push markmakemate/tableflow/runtime/connector:${{ github.event.release.tag_name }}

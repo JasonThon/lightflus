@@ -1,0 +1,12 @@
+{
+  "port": 10899,
+  "sources": [
+    {
+      "type": "Kafka",
+      "brokers": [
+        "${KAFKA_BROKERS}"
+      ],
+      "topic": "dataflow-event"
+    }
+  ]
+}

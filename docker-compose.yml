@@ -48,7 +48,7 @@ services:
       MONGO_HOST: mongo
       MONGO_USERNAME: root
       MONGO_PASSWORD: f8-O0IuOq#O9T52r
-      CLUSTER_1: tableflow-worker
+      WORKER_NODE_1: tableflow-worker
       CONNECTOR_PROXY: tableflow-connector:10899
       KAFKA_BROKERS: kafka:9002
     depends_on:

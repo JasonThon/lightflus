@@ -6,7 +6,7 @@ mod utils;
 
 #[test]
 fn test_event_serialize() {
-    let submit = event::GraphEvent::DataSourceEventSubmit(event::DataSourceEvent {
+    let submit = GraphEvent::DataSourceEventSubmit(event::DataSourceEvent {
         job_id: types::job_id("tableId", "headerId"),
         to: 0,
         event_type: types::DataSourceEventType::Insert,
@@ -18,7 +18,7 @@ fn test_event_serialize() {
     assert!(result.is_ok());
     let string = result.unwrap();
 
-    let json = serde_json::from_str::<event::GraphEvent>(string.as_str());
+    let json = serde_json::from_str::<GraphEvent>(string.as_str());
     if json.is_err() {
         panic!("{}", json.unwrap_err());
     }

@@ -1,17 +1,17 @@
 use std::ops::Add;
-use stream::pipeline::Pipeline;
+use stream::pipeline::Executor;
 use common::types::job_id;
 use std::time;
-use common::event::FormulaOpEvent;
+use common::event::DataEvent;
 
 #[test]
 fn test_apply_reference_insert() {
-    use stream::pipeline::FormulaOpEventPipeline;
+    use stream::pipeline::OperatorEventPipeline;
     use stream::window::KeyedWindow;
-    use common::types::{formula::FormulaOp, ActionValue, ActionType, TypedValue};
+    use common::types::{stream::OperatorType, ActionValue, DataEventType, TypedValue};
 
-    let p = FormulaOpEventPipeline::new(
-        FormulaOp::Reference { table_id: "tableId".to_string(), header_id: "headerId".to_string() },
+    let p = OperatorEventPipeline::new(
+        OperatorType::Reference { table_id: "tableId".to_string(), header_id: "headerId".to_string() },
         job_id("tableId-1", "headerId-1"),
         0,
         vec![],
@@ -25,7 +25,7 @@ fn test_apply_reference_insert() {
         timestamp: start.add(time::Duration::from_millis(200)),
         values: vec![
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 0,
             }
@@ -34,13 +34,13 @@ fn test_apply_reference_insert() {
     let result = p.apply(win, context);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), vec![
-        FormulaOpEvent {
+        DataEvent {
             row_idx: 0,
             job_id: job_id("tableId-1", "headerId-1"),
             data: TypedValue::Int(10).get_data(),
             old_data: vec![],
             from: 0,
-            action: ActionType::INSERT,
+            event_type: DataEventType::INSERT,
             event_time: start.add(time::Duration::from_millis(200)),
         }
     ]);
@@ -49,12 +49,12 @@ fn test_apply_reference_insert() {
 
 #[test]
 fn test_add_without_values_no_delayed_event_arrival() {
-    use stream::pipeline::FormulaOpEventPipeline;
+    use stream::pipeline::OperatorEventPipeline;
     use stream::window::KeyedWindow;
-    use common::types::{formula::FormulaOp, ActionValue, ActionType, TypedValue, FormulaState, ValueState};
+    use common::types::{stream::OperatorType, ActionValue, DataEventType, TypedValue, FormulaState, ValueState};
 
-    let p = FormulaOpEventPipeline::new(
-        FormulaOp::Add { values: vec![] },
+    let p = OperatorEventPipeline::new(
+        OperatorType::Add { values: vec![] },
         job_id("tableId-1", "headerId-1"),
         3,
         vec![1, 2],
@@ -69,12 +69,12 @@ fn test_add_without_values_no_delayed_event_arrival() {
         timestamp: start.add(time::Duration::from_millis(200)),
         values: vec![
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 1,
             },
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 2,
             },
@@ -85,13 +85,13 @@ fn test_add_without_values_no_delayed_event_arrival() {
     let events = result.unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events, vec![
-        FormulaOpEvent {
+        DataEvent {
             row_idx: 0,
             job_id: job_id("tableId-1", "headerId-1"),
             data: TypedValue::Int(20).get_data(),
             old_data: vec![],
             from: 3,
-            action: ActionType::INSERT,
+            event_type: DataEventType::INSERT,
             event_time: events[0].event_time,
         }
     ]);
@@ -116,12 +116,12 @@ fn test_add_without_values_no_delayed_event_arrival() {
 
 #[test]
 fn test_add_without_values_delayed_insert_event_arrival() {
-    use stream::pipeline::FormulaOpEventPipeline;
+    use stream::pipeline::OperatorEventPipeline;
     use stream::window::KeyedWindow;
-    use common::types::{formula::FormulaOp, ActionValue, ActionType, TypedValue, FormulaState, ValueState};
+    use common::types::{stream::OperatorType, ActionValue, DataEventType, TypedValue, FormulaState, ValueState};
 
-    let p = FormulaOpEventPipeline::new(
-        FormulaOp::Add { values: vec![] },
+    let p = OperatorEventPipeline::new(
+        OperatorType::Add { values: vec![] },
         job_id("tableId-1", "headerId-1"),
         3,
         vec![1, 2],
@@ -136,7 +136,7 @@ fn test_add_without_values_delayed_insert_event_arrival() {
         timestamp: start.add(time::Duration::from_millis(200)),
         values: vec![
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 1,
             },
@@ -147,13 +147,13 @@ fn test_add_without_values_delayed_insert_event_arrival() {
     let events = result.unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events, vec![
-        FormulaOpEvent {
+        DataEvent {
             row_idx: 0,
             job_id: job_id("tableId-1", "headerId-1"),
             data: TypedValue::Int(10).get_data(),
             old_data: vec![],
             from: 3,
-            action: ActionType::INSERT,
+            event_type: DataEventType::INSERT,
             event_time: events[0].event_time,
         }
     ]);
@@ -178,7 +178,7 @@ fn test_add_without_values_delayed_insert_event_arrival() {
         timestamp: start.add(time::Duration::from_millis(400)),
         values: vec![
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 2,
             },
@@ -190,13 +190,13 @@ fn test_add_without_values_delayed_insert_event_arrival() {
     let events = result_1.unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events, vec![
-        FormulaOpEvent {
+        DataEvent {
             row_idx: 0,
             job_id: job_id("tableId-1", "headerId-1"),
             data: TypedValue::Int(20).get_data(),
             old_data: TypedValue::Int(10).get_data(),
             from: 3,
-            action: ActionType::UPDATE,
+            event_type: DataEventType::UPDATE,
             event_time: events[0].event_time,
         }
     ]);
@@ -222,12 +222,12 @@ fn test_add_without_values_delayed_insert_event_arrival() {
 
 #[test]
 fn test_sub_without_values_no_delayed_insert_event_arrival() {
-    use stream::pipeline::FormulaOpEventPipeline;
+    use stream::pipeline::OperatorEventPipeline;
     use stream::window::KeyedWindow;
-    use common::types::{formula::FormulaOp, ActionValue, ActionType, TypedValue, FormulaState, ValueState};
+    use common::types::{stream::OperatorType, ActionValue, DataEventType, TypedValue, FormulaState, ValueState};
 
-    let p = FormulaOpEventPipeline::new(
-        FormulaOp::Sub { values: vec![] },
+    let p = OperatorEventPipeline::new(
+        OperatorType::Sub { values: vec![] },
         job_id("tableId-1", "headerId-1"),
         3,
         vec![1, 2],
@@ -242,12 +242,12 @@ fn test_sub_without_values_no_delayed_insert_event_arrival() {
         timestamp: start.add(time::Duration::from_millis(200)),
         values: vec![
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(20),
                 from: 1,
             },
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 2,
             },
@@ -258,13 +258,13 @@ fn test_sub_without_values_no_delayed_insert_event_arrival() {
     let events = result.unwrap();
     assert_eq!(events.len(), 1);
     assert_eq!(events, vec![
-        FormulaOpEvent {
+        DataEvent {
             row_idx: 0,
             job_id: job_id("tableId-1", "headerId-1"),
             data: TypedValue::Int(10).get_data(),
             old_data: vec![],
             from: 3,
-            action: ActionType::INSERT,
+            event_type: DataEventType::INSERT,
             event_time: events[0].event_time,
         }
     ]);
@@ -289,12 +289,12 @@ fn test_sub_without_values_no_delayed_insert_event_arrival() {
 
 #[test]
 fn test_mul_without_values_no_delayed_insert_event_arrival() {
-    use stream::pipeline::FormulaOpEventPipeline;
+    use stream::pipeline::OperatorEventPipeline;
     use stream::window::KeyedWindow;
-    use common::types::{formula::FormulaOp, ActionValue, ActionType, TypedValue, FormulaState, ValueState};
+    use common::types::{stream::OperatorType, ActionValue, DataEventType, TypedValue, FormulaState, ValueState};
 
-    let p = FormulaOpEventPipeline::new(
-        FormulaOp::Mul { values: vec![] },
+    let p = OperatorEventPipeline::new(
+        OperatorType::Mul { values: vec![] },
         job_id("tableId-1", "headerId-1"),
         3,
         vec![1, 2],
@@ -309,12 +309,12 @@ fn test_mul_without_values_no_delayed_insert_event_arrival() {
         timestamp: start.add(time::Duration::from_millis(200)),
         values: vec![
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(20),
                 from: 1,
             },
             ActionValue {
-                action: ActionType::INSERT,
+                action: DataEventType::INSERT,
                 value: TypedValue::Int(10),
                 from: 2,
             },

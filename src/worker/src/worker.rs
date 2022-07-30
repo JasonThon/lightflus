@@ -2,111 +2,44 @@ use std::collections;
 
 use common::{types, event, err};
 use common::err::Error;
-use crate::runtime;
+use crate::actor;
+use proto::worker::worker;
+use proto::common::common as proto_common;
+use proto::common::stream as proto_stream;
 
 pub struct TaskWorker {
-    job_pool: collections::HashMap<types::JobID, runtime::Graph>,
+    job_pool: common::collections::ConcurrentCache<proto_common::JobId, actor::Graph>,
+    cache: super::cache::DataflowCache,
 }
 
 struct TaskWorkerBuilder {}
-
-impl actix::Actor for TaskWorker {
-    type Context = actix::Context<Self>;
-}
-
-impl actix::Handler<event::GraphEvent> for TaskWorker {
-    type Result = ();
-
-    fn handle(&mut self, event: event::GraphEvent, ctx: &mut Self::Context) -> Self::Result {
-        match event {
-            event::GraphEvent::ExecutionGraphSubmit {
-                job_id, ops
-            } => self.build_new_graph(job_id, runtime::to_execution_graph(ops)),
-
-            event::GraphEvent::DataSourceEventSubmit(ope) => {
-                match self.submit_datasource_event(ope) {
-                    Ok(_) => {}
-                    Err(err) => {
-                        log::error!("submit event failed: {:?}", err);
-                    }
-                }
-            }
-            event::GraphEvent::TerminateGraph { job_id } => {
-                log::debug!("start stopping job {:?}", &job_id);
-                match self.stop_job(&job_id) {
-                    Ok(_) => log::debug!("stop job success"),
-                    Err(err) => {
-                        log::error!("stop job {:?} failed: {:?}",job_id , err);
-                    }
-                }
-            }
-            event::GraphEvent::FormulaOpEventSubmit {
-                job_id, events, to
-            } => {
-                log::debug!("formula op events submitted. job id: {:?}, events: {:?}", &job_id, &events);
-                match self.submit_formula_op_events(job_id, to, events) {
-                    Ok(_) => log::debug!("formula op events submit success"),
-                    Err(err) => {
-                        log::error!("formula op events failed: {:?}", err);
-                    }
-                }
-            }
-        }
-    }
-}
 
 impl TaskWorker {
     pub(crate) fn new() -> Self {
         TaskWorker {
             job_pool: Default::default(),
+            cache: super::cache::DataflowCache::new(),
         }
     }
 
-    pub fn submit_datasource_event(&mut self, event: event::DataSourceEvent) -> Result<(), err::ExecutionException> {
-        let ref job_id = event.job_id.clone();
-        match self.job_pool
-            .get(job_id) {
-            Some(graph) => graph.try_recv(event)
-                .map_err(|err| {
-                    log::error!(
-                        "Error when submit event. JobId {:?}, time: {:?}. error detail {}",
-                        job_id,
-                        std::time::SystemTime::now(),
-                        err.to_string()
-                    );
-                    err
-                }),
-            None => Ok(())
-        }
-    }
-
-    pub fn build_new_graph(&mut self, job_id: types::JobID, ops: runtime::Graph) {
-        self.job_pool.insert(job_id.clone(), ops);
-        self.job_pool.get_mut(&job_id)
-            .unwrap()
-            .build_dag(job_id);
-    }
-
-    pub fn stop_job(&mut self, job_id: &types::JobID) -> Result<(), err::TaskWorkerError> {
-        match self.job_pool.get(job_id) {
+    pub fn stop_dataflow(&self, job_id: proto_common::JobId) -> Result<(), err::TaskWorkerError> {
+        match self.job_pool.get(&job_id) {
             Some(graph) => graph.stop()
                 .map(|_| {
-                    self.job_pool.remove(job_id);
+                    self.job_pool.remove(&job_id);
                 })
                 .map_err(|err| err.into()),
             None => Ok(())
         }
     }
 
-    pub fn submit_formula_op_events(&mut self,
-                                    job_id: types::JobID,
-                                    to: u64,
-                                    events: Vec<event::FormulaOpEvent>) -> Result<(), err::TaskWorkerError> {
-        match self.job_pool.get_mut(&job_id) {
-            Some(graph) => graph.try_send_formula_op_events(to, events)
-                .map_err(|err| err.into()),
-            None => Ok(())
-        }
+    pub fn create_dataflow(&self, job_id: proto_common::JobId, dataflow: proto_stream::Dataflow) -> Result<(), err::TaskWorkerError> {
+        Ok(())
+    }
+
+    pub fn dispatch_events(&self, events: Vec<proto::common::event::DataEvent>)
+                           -> Result<collections::HashMap<String, worker::DispatchDataEventStatusEnum>, err::TaskWorkerError> {
+        Ok(collections::HashMap::new())
     }
 }
 

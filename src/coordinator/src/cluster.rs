@@ -3,6 +3,7 @@ use std::hash::{Hash, Hasher};
 use common;
 use dataflow_api::probe;
 use common::{err, event, types};
+use dataflow_api::worker;
 
 #[derive(Clone, Eq, PartialEq)]
 enum NodeStatus {
@@ -19,7 +20,7 @@ struct Node {
 
 impl Node {
     pub(crate) fn probe_state(&mut self) {
-        let client = dataflow_api::worker::new_dataflow_worker_client(dataflow_api::worker::DataflowWorkerConfig {
+        let client = worker::cli::new_dataflow_worker_client(dataflow_api::worker::DataflowWorkerConfig {
             host: None,
             port: None,
             uri: Some(self.addr.clone()),
@@ -45,30 +46,7 @@ impl Node {
     }
 
     fn send(&self, event: event::GraphEvent) -> std::io::Result<()> {
-        let client = dataflow_api::worker::new_dataflow_worker_client(
-            dataflow_api::worker::DataflowWorkerConfig {
-                host: None,
-                port: None,
-                uri: Some(self.addr.clone()),
-            }
-        );
-        match serde_json::to_string(&event) {
-            Ok(data) => {
-                let ref mut req = dataflow_api::dataflow_worker::ActionSubmitRequest::new();
-                req.set_value(data.as_bytes().to_vec());
 
-                match client.submit_action(req) {
-                    Ok(_) => Ok(()),
-                    Err(err) => Err(common::http::to_io_error(err))
-                }
-            }
-            Err(err) => Err(
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    format!("serialize event failed: {:?}", err),
-                )
-            )
-        }
     }
 
     fn is_available(&self) -> bool {
@@ -81,7 +59,7 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn partition_key<T: common::types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<String, err::CommonException> {
+    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<String, err::CommonException> {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
         let workers = common::lists::filter_map(
@@ -110,10 +88,18 @@ impl Cluster {
         }
     }
 
-    pub(crate) fn stop_job(&self, job_id: &types::JobID) -> std::io::Result<()> {
+    pub(crate) fn stop_job(&self, job_id: &types::JobID) -> Result<(), grpcio::Error> {
         for worker in &self.workers {
             if worker.is_available() {
-                match worker.send(event::GraphEvent::TerminateGraph { job_id: job_id.clone() }) {
+                let cli = worker::cli::new_dataflow_worker_client(worker::cli::DataflowWorkerConfig {
+                    host: None,
+                    port: None,
+                    uri: Some(worker.addr.clone())
+                });
+                let mut req  = worker::worker::StopStreamGraphRequest::default();
+                req.job_id = ::protobuf::MessageField::some(job_id.into());
+
+                match cli.stop_stream_graph(&req) {
                     Err(err) => return Err(err),
                     Ok(_) => continue
                 }

@@ -39,11 +39,12 @@ services:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: f8-O0IuOq#O9T52r
   tableflow-coordinator:
+    image: tableflow/runtime/coordinator:latest
     build:
       context: .
       dockerfile: docker/coordinator/Dockerfile
     ports:
-      - "8091:8091"
+      - "18091:18091"
     environment:
       MONGO_HOST: mongo
       MONGO_USERNAME: root
@@ -55,19 +56,12 @@ services:
       - tableflow-connector
       - tableflow-worker
   tableflow-worker:
+    image: tableflow/runtime/worker:latest
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
     ports:
-      - "8090:8090"
-  tableflow-connector:
-    build:
-      context: .
-      dockerfile: docker/connector/Dockerfile
-    environment:
-      KAFKA_BROKERS: kafka:9092
-    ports:
-      - "10899:10899"
+      - "18090:18090"
   tableflow-qe:
     image: tableflow-qe:latest
     ports:

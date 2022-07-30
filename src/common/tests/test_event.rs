@@ -1,3 +1,4 @@
+use std::intrinsics::ctlz;
 use common::{event, types};
 use common::event::{Event, GraphEvent};
 use utils::*;
@@ -6,7 +7,7 @@ mod utils;
 
 #[test]
 fn test_event_serialize() {
-    let submit = GraphEvent::DataSourceEventSubmit(event::DataSourceEvent {
+    let submit = GraphEvent::DataSource(event::DataSourceEvent {
         job_id: types::job_id("tableId", "headerId"),
         to: 0,
         event_type: types::DataSourceEventType::Insert,
@@ -29,7 +30,7 @@ fn test_event_serialize() {
 #[test]
 fn test_connect_event_serialize() {
     let ref connector_event = event::ConnectorEvent {
-        event_type: types::ConnectorEventType::Action(types::ActionType::INSERT),
+        event_type: types::ConnectorEventType::Action(types::DataEventType::INSERT),
         table_id: "tableId".to_string(),
         header_id: "headerId".to_string(),
         entries: vec![],
@@ -56,7 +57,7 @@ fn test_connect_event_serialize() {
 #[test]
 fn test_serialize_table_event() {
     let ref graph_event = event::TableEvent::new(
-        event::TableAction::FormulaSubmit {
+        event::TableAction::JobSubmit {
             table_id: "tableId".to_string(),
             header_id: "headerId".to_string(),
             graph: default_formula_graph(),
@@ -108,8 +109,8 @@ fn test_deserialize_graph_event() {
 
     let graph_event = result.unwrap();
     match graph_event {
-        GraphEvent::ExecutionGraphSubmit { ops, job_id } => {
-            assert_eq!(job_id, types::job_id("tableId", "headerId"));
+        GraphEvent::GraphSubmit { ctx: ops } => {
+            assert_eq!(ops.job_id.clone(), types::job_id("tableId", "headerId"));
             assert_eq!(ops.job_id, types::job_id("tableId-1", "headerId-1"));
             assert_eq!(ops.meta, vec![
                 types::AdjacentVec {
@@ -134,43 +135,43 @@ fn test_deserialize_graph_event() {
                 },
             ]);
             assert_eq!(ops.nodes, types::NodeSet::from([
-                (0.to_string(), types::Operator {
+                (0.to_string(), types::OperatorInfo {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Reference {
+                    value: types::stream::OperatorType::Reference {
                         table_id: "tableId-1".to_string(),
                         header_id: "headerId-1".to_string(),
                     },
                     id: 0,
                     upstream: vec![],
                 }),
-                (1.to_string(), types::Operator {
+                (1.to_string(), types::OperatorInfo {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Sum,
+                    value: types::stream::OperatorType::Sum,
                     id: 1,
                     upstream: vec![],
                 }),
-                (2.to_string(), types::Operator {
+                (2.to_string(), types::OperatorInfo {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Sum,
+                    value: types::stream::OperatorType::Sum,
                     id: 2,
                     upstream: vec![],
                 }),
-                (3.to_string(), types::Operator {
+                (3.to_string(), types::OperatorInfo {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Sum,
+                    value: types::stream::OperatorType::Sum,
                     id: 3,
                     upstream: vec![],
                 }),
-                (4.to_string(), types::Operator {
+                (4.to_string(), types::OperatorInfo {
                     addr: "localhost".to_string(),
-                    value: types::formula::FormulaOp::Sum,
+                    value: types::stream::OperatorType::Sum,
                     id: 4,
                     upstream: vec![],
                 })
             ]))
         }
-        GraphEvent::DataSourceEventSubmit(_) => panic!("wrong type"),
-        GraphEvent::TerminateGraph { .. } => panic!("wrong type"),
-        GraphEvent::FormulaOpEventSubmit { .. } => panic!("wrong type"),
+        GraphEvent::DataSource(_) => panic!("wrong type"),
+        GraphEvent::Terminate { .. } => panic!("wrong type"),
+        GraphEvent::DataEvent { .. } => panic!("wrong type"),
     }
 }

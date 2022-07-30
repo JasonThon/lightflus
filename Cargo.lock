@@ -441,11 +441,11 @@ dependencies = [
  "bytes",
  "chrono",
  "common",
- "data-client",
- "dataflow-api",
  "grpcio",
  "log",
  "mongodb",
+ "proto",
+ "protobuf 3.1.0",
  "rdkafka",
  "regex",
  "serde",
@@ -467,10 +467,10 @@ name = "connector"
 version = "0.1.0"
 dependencies = [
  "common",
- "dataflow-api",
  "grpcio",
  "log",
- "protobuf",
+ "proto",
+ "protobuf 2.27.1",
  "rdkafka",
  "serde",
  "serde_json",
@@ -483,13 +483,13 @@ version = "0.1.0"
 dependencies = [
  "common",
  "connector",
- "dataflow-api",
  "env_logger",
  "futures-executor",
  "grpcio",
  "log",
  "mongodb",
- "protobuf",
+ "proto",
+ "protobuf 3.1.0",
  "serde",
  "serde_json",
  "tokio",
@@ -609,7 +609,7 @@ name = "data-client"
 version = "0.1.0"
 dependencies = [
  "grpcio",
- "protobuf",
+ "protobuf 2.27.1",
 ]
 
 [[package]]
@@ -617,15 +617,6 @@ name = "data-encoding"
 version = "2.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ee2393c4a91429dffb4bedf19f4d6abf27d8a732c8ce4980305d782e5426d57"
-
-[[package]]
-name = "dataflow-api"
-version = "0.1.0"
-dependencies = [
- "grpcio",
- "protobuf",
- "serde",
-]
 
 [[package]]
 name = "derivative"
@@ -854,9 +845,9 @@ dependencies = [
 
 [[package]]
 name = "grpcio"
-version = "0.10.0"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c6b007f9db2cf73dae2664bc723b4dd21c67d7a97024e07cca7b9d4171c395c0"
+checksum = "f9bcdd3694fa08158334501af37bdf5b4f00b1865b602d917e3cd74ecf80cd0a"
 dependencies = [
  "futures-executor",
  "futures-util",
@@ -864,14 +855,14 @@ dependencies = [
  "libc",
  "log",
  "parking_lot",
- "protobuf",
+ "protobuf 2.27.1",
 ]
 
 [[package]]
 name = "grpcio-sys"
-version = "0.10.0+1.44.0"
+version = "0.10.3+1.44.0-patched"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "842c75c8037bee3058ce0998b4e3d7c8d2554f2c26135aa9297fe64fab3079d3"
+checksum = "f23adc509a3c4dea990e0ab8d2add4a65389ee69c288b7851d75dd1df7a6d6c6"
 dependencies = [
  "bindgen",
  "boringssl-src",
@@ -1431,10 +1422,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "proto"
+version = "0.1.0"
+dependencies = [
+ "grpcio",
+ "protobuf 3.1.0",
+ "serde",
+]
+
+[[package]]
 name = "protobuf"
 version = "2.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf7e6d18738ecd0902d30d1ad232c9125985a3422929b16c65517b38adc14f96"
+
+[[package]]
+name = "protobuf"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ee4a7d8b91800c8f167a6268d1a1026607368e1adc84e98fe044aeb905302f7"
+dependencies = [
+ "once_cell",
+ "protobuf-support",
+ "thiserror",
+]
+
+[[package]]
+name = "protobuf-support"
+version = "3.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8ca157fe12fc7ee2e315f2f735e27df41b3d97cdd70ea112824dac1ffb08ee1c"
+dependencies = [
+ "thiserror",
+]
 
 [[package]]
 name = "quick-error"
@@ -1507,9 +1527,9 @@ dependencies = [
 
 [[package]]
 name = "rdkafka"
-version = "0.25.0"
+version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a8acd8f5c5482fdf89e8878227bafa442d8c4409f6287391c85549ca83626c27"
+checksum = "af78bc431a82ef178c4ad6db537eb9cc25715a8591d27acc30455ee7227a76f4"
 dependencies = [
  "futures",
  "libc",
@@ -1523,9 +1543,9 @@ dependencies = [
 
 [[package]]
 name = "rdkafka-sys"
-version = "3.0.0+1.6.0"
+version = "4.2.0+1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca35e95c88e08cdc643b25744e38ccee7c93c7e90d1ac6850fe74cbaa40803c3"
+checksum = "9e542c6863b04ce0fa0c5719bc6b7b348cf8dd21af1bb03c9db5f9805b2a6473"
 dependencies = [
  "libc",
  "num_enum",
@@ -2341,11 +2361,11 @@ dependencies = [
  "actix",
  "common",
  "data-client",
- "dataflow-api",
  "futures-executor",
  "grpcio",
  "log",
- "protobuf",
+ "proto",
+ "protobuf 3.1.0",
  "serde",
  "serde_json",
  "signal-hook",

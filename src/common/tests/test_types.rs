@@ -15,7 +15,7 @@ fn test_serialize_empty_graph() {
     assert!(result.is_ok());
 
     let value = result.unwrap();
-    let deserialize_model = serde_json::from_str::<types::GraphModel>(value.as_str());
+    let deserialize_model = serde_json::from_str::<types::DataflowContext>(value.as_str());
     assert!(deserialize_model.is_ok());
 
     let ref deser_model = deserialize_model.unwrap();

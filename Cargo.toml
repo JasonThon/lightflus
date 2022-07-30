@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "src/data-client",
-    "src/dataflow-api",
+    "src/proto",
     "src/stream",
     "src/connector",
     "src/common",

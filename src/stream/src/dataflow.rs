@@ -5,12 +5,12 @@ use tokio::sync::mpsc;
 use common::{event, types};
 use crate::{state::StateManager, window, trigger, pipeline};
 
-pub fn stream_pipe<T>() -> (StreamPipeSender<T>, StreamPipeReceiver<T>) {
+pub fn new_event_pipe<T>() -> (EventSender<T>, EventReceiver<T>) {
     mpsc::unbounded_channel::<T>()
 }
 
-pub type StreamPipeReceiver<Input> = mpsc::UnboundedReceiver<Input>;
-pub type StreamPipeSender<Input> = mpsc::UnboundedSender<Input>;
+pub type EventReceiver<Input> = mpsc::UnboundedReceiver<Input>;
+pub type EventSender<Input> = mpsc::UnboundedSender<Input>;
 
 pub struct DataStream<
     Input,
@@ -22,7 +22,7 @@ pub struct DataStream<
     StateValue>
     where T: Sink<Output>,
           Input: event::Event<InputKey, InputValue>,
-          P: pipeline::Pipeline<InputKey, InputValue, Output, StateValue>,
+          P: pipeline::Executor<InputKey, InputValue, Output, StateValue>,
           StateValue: Clone {
     window: Option<window::WindowType>,
     trigger: Option<trigger::TriggerType>,
@@ -31,7 +31,7 @@ pub struct DataStream<
     input_key: marker::PhantomData<InputKey>,
     input_value: marker::PhantomData<InputValue>,
     state_value: marker::PhantomData<StateValue>,
-    rx: StreamPipeReceiver<Vec<Input>>,
+    rx: EventReceiver<Vec<Input>>,
     disconnect: mpsc::Receiver<Close>,
     pipeline: P,
     sink: T,
@@ -50,12 +50,12 @@ DataStream<Input,
     StateValue>
     where T: Sink<Output>,
           Input: event::Event<InputKey, InputValue>,
-          P: pipeline::Pipeline<InputKey, InputValue, Output, StateValue>,
+          P: pipeline::Executor<InputKey, InputValue, Output, StateValue>,
           StateValue: Clone {
     pub fn new(
         window_type: window::WindowType,
         trigger: trigger::TriggerType,
-        rx: StreamPipeReceiver<Vec<Input>>,
+        rx: EventReceiver<Vec<Input>>,
         disconnect: mpsc::Receiver<Close>,
         pipeline: P,
         sink: T) ->
@@ -131,4 +131,12 @@ pub struct Close;
 
 pub trait Sink<Output>: Send + Sync {
     fn sink(&self, output: Output);
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
+pub struct StreamConfig {
+    // trigger type
+    pub trigger_type: trigger::TriggerType,
+    // window
+    pub window_type: window::WindowType,
 }

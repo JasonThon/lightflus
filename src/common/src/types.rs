@@ -3,6 +3,8 @@ use std::cmp::Ordering;
 use crate::{err, event, lists};
 
 use bytes::Buf;
+use proto::common::common::JobId;
+use proto::common::stream as proto_stream;
 
 pub type AdjacentList = Vec<AdjacentVec>;
 pub type DataTypeSymbol = u8;
@@ -19,6 +21,15 @@ pub(crate) const BOOLEAN: DataTypeSymbol = 6;
 pub struct JobID {
     pub table_id: String,
     pub header_id: String,
+}
+
+impl From<JobId> for JobID {
+    fn from(id: JobId) -> Self {
+        Self {
+            table_id: id.table_id,
+            header_id: id.header_id,
+        }
+    }
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -54,27 +65,20 @@ pub struct AdjacentVec {
     pub center: u64,
 }
 
-pub mod formula {
+pub mod stream {
     use std::collections;
 
     use super::ValueType;
 
-    #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-    pub struct InitState {
-        pub(crate) page: u64,
-        pub(crate) limit: u64,
-        pub(crate) done: bool,
-    }
-
     #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-    pub struct FormulaGraph {
+    pub struct StreamGraph {
         #[serde(default)]
-        pub meta: Vec<super::AdjacentVec>,
+        pub meta: super::AdjacentList,
         #[serde(default)]
-        pub data: collections::BTreeMap<String, FormulaOp>,
+        pub data: collections::BTreeMap<String, OperatorType>,
     }
 
-    impl FormulaGraph {
+    impl StreamGraph {
         pub fn find_upstreams(&self, node_id: super::NodeIdx) -> Vec<super::NodeIdx> {
             let mut results = vec![];
             self.meta.iter().for_each(|adj| {
@@ -87,14 +91,14 @@ pub mod formula {
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
-    pub struct ValueOp {
+    pub struct ConstOp {
         pub value: Vec<u8>,
         pub node_id: super::NodeIdx,
     }
 
     #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
     #[serde(tag = "type")]
-    pub enum FormulaOp {
+    pub enum OperatorType {
         #[serde(rename_all = "camelCase")]
         Reference {
             table_id: String,
@@ -102,7 +106,7 @@ pub mod formula {
         },
         Add {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Sum,
         Sumif,
@@ -115,70 +119,61 @@ pub mod formula {
         Maxif,
         Min,
         Minif,
-        Xlookup,
         Sub {
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Mul {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Div {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Eq {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Neq {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Lt {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Gt {
             #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Lte {
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
         Gte {
             #[serde(default)]
-            values: Vec<ValueOp>
-        },
-        And {
-            #[serde(default)]
-            values: Vec<ValueOp>
-        },
-        Or {
-            #[serde(default)]
-            values: Vec<ValueOp>
+            values: Vec<ConstOp>
         },
     }
 
     const REFERENCE_OP: &'static str = "Reference";
 
-    impl super::KeyedValue<String, FormulaOp> for FormulaOp {
+    impl super::KeyedValue<String, OperatorType> for OperatorType {
         fn key(&self) -> String {
             match self {
-                FormulaOp::Reference { .. } => REFERENCE_OP.to_string(),
+                OperatorType::Reference { .. } => REFERENCE_OP.to_string(),
                 _ => "".to_string()
             }
         }
 
-        fn value(&self) -> FormulaOp {
+        fn value(&self) -> OperatorType {
             self.clone()
         }
     }
 
-    impl FormulaOp {
+    impl OperatorType {
         pub fn is_reference(&self) -> bool {
             match &self {
-                FormulaOp::Reference { .. } => true,
+                OperatorType::Reference { .. } => true,
                 _ => false
             }
         }
@@ -234,37 +229,40 @@ pub fn traverse_from_bottom(meta: &Vec<AdjacentVec>) -> Vec<AdjacentVec> {
 }
 
 #[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
-pub struct Operator {
+pub struct OperatorInfo {
     pub addr: String,
-    pub value: formula::FormulaOp,
+    pub value: stream::OperatorType,
     pub id: u64,
     #[serde(default)]
     pub upstream: Vec<NodeIdx>,
 }
 
-pub type NodeSet = collections::BTreeMap<String, Operator>;
+pub type NodeSet = collections::BTreeMap<NodeIdx, proto_stream::OperatorInfo>;
 
 #[derive(serde::Serialize, serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct GraphModel {
-    pub job_id: JobID,
+pub struct DataflowContext {
+    pub job_id: JobId,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     #[serde(default)]
-    pub meta: AdjacentList,
+    pub meta: proto_stream::DataflowMeta,
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     #[serde(default)]
     pub nodes: NodeSet,
 }
 
-impl GraphModel {
+impl DataflowContext {
     pub fn dispatch(&self) -> Result<(), err::CommonException> {
-        let mut group = collections::HashMap::<String, Vec<&Operator>>::new();
+        let mut group = collections::HashMap::<String, Vec<&OperatorInfo>>::new();
 
         for (_, operator) in &self.nodes {
             match group.get(&operator.addr) {
                 Some(ops) => {
                     let mut new_operators = vec![operator];
-                    new_operators.extend(ops);
+                    for x in ops {
+                        new_operators.push(*x);
+                    }
+
                     group.insert(operator.addr.clone(), new_operators);
                 }
                 None => {
@@ -282,9 +280,8 @@ impl GraphModel {
                 }
             );
 
-            let ref graph_event = event::GraphEvent::ExecutionGraphSubmit {
-                ops: GraphModel::from((&self.job_id, ops, &self.meta)),
-                job_id: self.job_id.clone(),
+            let ref graph_event = event::GraphEvent::GraphSubmit {
+                ctx: (&self.job_id, ops, &self.meta).into(),
             };
 
             let ref mut request = dataflow_api::dataflow_worker::ActionSubmitRequest::default();
@@ -308,8 +305,8 @@ impl GraphModel {
 
     pub fn new(job_id: JobID,
                meta: AdjacentList,
-               nodes: NodeSet) -> GraphModel {
-        GraphModel {
+               nodes: NodeSet) -> DataflowContext {
+        DataflowContext {
             job_id,
             meta,
             nodes,
@@ -317,8 +314,8 @@ impl GraphModel {
     }
 }
 
-impl From<(&JobID, Vec<&Operator>, &AdjacentList)> for GraphModel {
-    fn from(input: (&JobID, Vec<&Operator>, &AdjacentList)) -> Self {
+impl From<(&JobID, Vec<&OperatorInfo>, &AdjacentList)> for DataflowContext {
+    fn from(input: (&JobID, Vec<&OperatorInfo>, &AdjacentList)) -> Self {
         Self {
             job_id: input.0.clone(),
             meta: input.2.clone(),
@@ -374,9 +371,9 @@ impl From<&ConnectorEventType> for DataSourceEventType {
         match t {
             ConnectorEventType::Action(action) => {
                 match action {
-                    ActionType::INSERT => Self::Insert,
-                    ActionType::UPDATE => Self::Update,
-                    ActionType::DELETE => Self::Delete,
+                    DataEventType::INSERT => Self::Insert,
+                    DataEventType::UPDATE => Self::Update,
+                    DataEventType::DELETE => Self::Delete,
                     _ => Self::Invalid
                 }
             }
@@ -386,31 +383,32 @@ impl From<&ConnectorEventType> for DataSourceEventType {
 }
 
 #[derive(Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, Debug, Hash)]
-pub enum ActionType {
+pub enum DataEventType {
     INSERT,
     UPDATE,
     DELETE,
     INVALID,
+    STOP,
 }
 
-impl From<DataSourceEventType> for ActionType {
+impl From<DataSourceEventType> for DataEventType {
     fn from(event_type: DataSourceEventType) -> Self {
         match event_type {
             DataSourceEventType::TableflowTrigger { .. } => Self::INSERT,
             DataSourceEventType::Delete => Self::DELETE,
             DataSourceEventType::Update => Self::UPDATE,
             DataSourceEventType::Insert => Self::INSERT,
-            DataSourceEventType::Stop => Self::INVALID,
+            DataSourceEventType::Stop => Self::STOP,
             DataSourceEventType::Invalid => Self::INVALID
         }
     }
 }
 
-impl ActionType {
+impl DataEventType {
     pub fn is_value_update(&self) -> bool {
         match self {
-            ActionType::INSERT => true,
-            ActionType::UPDATE { .. } => true,
+            DataEventType::INSERT => true,
+            DataEventType::UPDATE { .. } => true,
             _ => false,
         }
     }
@@ -419,7 +417,7 @@ impl ActionType {
 #[derive(Clone, serde::Serialize, serde::Deserialize, Eq, PartialEq, Debug)]
 #[serde(tag = "type", content = "action")]
 pub enum ConnectorEventType {
-    Action(ActionType),
+    Action(DataEventType),
     Close,
 }
 
@@ -893,7 +891,7 @@ impl TypedValue {
 
 #[derive(Clone)]
 pub struct ActionValue {
-    pub action: ActionType,
+    pub action: DataEventType,
     pub value: TypedValue,
     pub from: NodeIdx,
 }

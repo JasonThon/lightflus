@@ -1,5 +1,6 @@
 use std::{collections, hash, sync};
 use std::hash::Hasher;
+use crate::types::JobID;
 
 const DEFAULT_CAPACITY: u32 = 75;
 
@@ -30,6 +31,13 @@ impl<K, V> ConcurrentCache<K, V> where K: Clone + hash::Hash + PartialEq + Ord, 
             Ok(mut guard) => guard.insert(key, value),
             Err(_) => None
         }
+    }
+    pub fn remove(&self, key: &K) {
+        todo!()
+    }
+
+    pub fn get_mut(&self, key: &K) -> Option<&mut V> {
+        todo!()
     }
 }
 

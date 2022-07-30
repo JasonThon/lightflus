@@ -1,8 +1,8 @@
 extern crate core;
 
-use std::net;
+use std::net::UdpSocket;
 
-pub mod http;
+pub mod net;
 pub mod sysenv;
 pub mod mongo;
 pub mod lists;
@@ -28,7 +28,7 @@ pub fn hostname() -> Option<String> {
 }
 
 pub fn local_ip() -> Option<String> {
-    let socket = match net::UdpSocket::bind("0.0.0.0:0") {
+    let socket = match UdpSocket::bind("0.0.0.0:0") {
         Ok(s) => s,
         Err(_) => return None
     };

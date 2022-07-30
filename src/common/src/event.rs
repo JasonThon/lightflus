@@ -25,10 +25,10 @@ pub enum BinderEventType {
 #[serde(tag = "type")]
 pub enum TableAction {
     #[serde(rename_all = "camelCase")]
-    FormulaSubmit {
+    JobSubmit {
         table_id: String,
         header_id: String,
-        graph: types::formula::FormulaGraph,
+        graph: types::stream::StreamGraph,
     },
 }
 
@@ -60,7 +60,7 @@ impl Event<types::JobID, TableAction> for TableEvent {
 
     fn get_key(&self) -> types::JobID {
         match &self.action {
-            TableAction::FormulaSubmit { table_id, header_id, .. } =>
+            TableAction::JobSubmit { table_id, header_id, .. } =>
                 types::job_id(table_id.as_str(), header_id.as_str())
         }
     }
@@ -141,18 +141,17 @@ pub struct DataSourceEvent {
 #[serde(tag = "type")]
 pub enum GraphEvent {
     #[serde(rename_all = "camelCase")]
-    ExecutionGraphSubmit {
-        ops: types::GraphModel,
-        job_id: types::JobID,
+    GraphSubmit {
+        ctx: types::DataflowContext,
     },
-    DataSourceEventSubmit(DataSourceEvent),
+    DataSource(DataSourceEvent),
     #[serde(rename_all = "camelCase")]
-    TerminateGraph {
+    Terminate {
         job_id: types::JobID,
     },
-    FormulaOpEventSubmit {
+    DataEvent {
         job_id: types::JobID,
-        events: Vec<FormulaOpEvent>,
+        events: Vec<DataEvent>,
         to: u64,
     },
 }
@@ -160,19 +159,20 @@ pub enum GraphEvent {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct Disconnect;
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, Eq, PartialEq)]
-#[serde(rename_all = "camelCase")]
-pub struct FormulaOpEvent {
+#[derive(Clone, Debug, Eq, PartialEq, actix::Message)]
+#[rtype(result = "()")]
+pub struct DataEvent {
     pub row_idx: u64,
     pub job_id: types::JobID,
+    pub to: types::NodeIdx,
     pub data: Vec<u8>,
     pub old_data: Vec<u8>,
     pub from: u64,
-    pub action: types::ActionType,
+    pub event_type: types::DataEventType,
     pub event_time: std::time::SystemTime,
 }
 
-impl Event<u64, types::ActionValue> for FormulaOpEvent {
+impl Event<u64, types::ActionValue> for DataEvent {
     fn event_time(&self) -> chrono::DateTime<chrono::Utc> {
         chrono::DateTime::from(self.event_time)
     }
@@ -183,7 +183,7 @@ impl Event<u64, types::ActionValue> for FormulaOpEvent {
 
     fn get_value(&self) -> types::ActionValue {
         types::ActionValue {
-            action: self.action.clone(),
+            action: self.event_type.clone(),
             value: types::TypedValue::from(&self.data),
             from: self.from,
         }
@@ -206,6 +206,6 @@ impl<T: Event<K, V>, K, V> EventSet<T, K, V> {
     }
 }
 
-impl actix::Message for EventSet<FormulaOpEvent, u64, types::ActionValue> {
+impl actix::Message for EventSet<DataEvent, u64, types::ActionValue> {
     type Result = ();
 }

@@ -4,20 +4,20 @@ use mongodb::bson::doc;
 use tokio::sync::mpsc;
 
 use crate::cluster;
-use common::{err, event, types, types::formula};
+use common::{err, event, types, types::stream};
 
 pub const COORD_JOB_GRAPH_COLLECTION: &str = "coord.job.graph";
 
-pub enum JobRepo {
-    Mongo(mongodb::sync::Collection<types::GraphModel>),
+pub enum JobStorage {
+    Mongo(mongodb::sync::Collection<types::DataflowContext>),
 }
 
-impl JobRepo {
+impl JobStorage {
     pub fn find_one(&self,
                     table_id: &str,
-                    header_id: &str) -> Result<Option<types::GraphModel>, err::CommonException> {
+                    header_id: &str) -> Result<Option<types::DataflowContext>, err::CommonException> {
         match self {
-            JobRepo::Mongo(mongo) => mongo.find_one(
+            JobStorage::Mongo(mongo) => mongo.find_one(
                 doc! {
                         "jobId.headerId": header_id,
                         "jobId.tableId": table_id
@@ -27,9 +27,9 @@ impl JobRepo {
         }
     }
 
-    pub fn find_all(&self) -> Result<Vec<types::GraphModel>, err::CommonException> {
+    pub fn find_all(&self) -> Result<Vec<types::DataflowContext>, err::CommonException> {
         match self {
-            JobRepo::Mongo(mongo) => mongo.find(None, None)
+            JobStorage::Mongo(mongo) => mongo.find(None, None)
                 .map_err(|err| err::CommonException::from(err))
                 .map(|cursor|
                     cursor.filter_map(|result| result.ok())
@@ -38,9 +38,9 @@ impl JobRepo {
         }
     }
 
-    pub fn create(&self, graph: &types::GraphModel) -> Result<(), err::CommonException> {
+    pub fn create(&self, graph: &types::DataflowContext) -> Result<(), err::CommonException> {
         match self {
-            JobRepo::Mongo(mongo) => match mongo.insert_one(
+            JobStorage::Mongo(mongo) => match mongo.insert_one(
                 graph,
                 None,
             ) {
@@ -68,27 +68,27 @@ impl JobRepo {
 }
 
 pub struct Coordinator {
-    job_repo: JobRepo,
+    job_storage: JobStorage,
     connector_proxy: String,
 }
 
 impl Coordinator {
-    pub fn new(job_repo: JobRepo,
+    pub fn new(job_storage: JobStorage,
                connector_proxy: String) -> Self {
         Coordinator {
-            job_repo,
+            job_storage,
             connector_proxy,
         }
     }
 
-    pub fn init(&self) -> Result<Vec<types::GraphModel>, err::CommonException> {
-        self.job_repo.find_all()
+    pub fn init(&self) -> Result<Vec<types::DataflowContext>, err::CommonException> {
+        self.job_storage.find_all()
             .map(|models| {
                 common::lists::for_each(
                     &models,
                     |model| send_to_connector(
                         model,
-                        BindAction::CREATE,
+                        BindAction::Create,
                         &self.connector_proxy,
                     ),
                 );
@@ -99,27 +99,27 @@ impl Coordinator {
     pub fn submit_job(&self,
                       table_id: &String,
                       header_id: &String,
-                      graph: &formula::FormulaGraph,
+                      graph: &stream::StreamGraph,
                       cluster: sync::RwLockReadGuard<cluster::Cluster>) -> Result<(), err::CommonException> {
         let ref job_id = types::job_id(table_id.as_str(), header_id.as_str());
         if !cluster.is_available() {
             return Err(err::CommonException::new(err::ErrorKind::NoAvailableWorker, "no available worker"));
         }
-        let ref execution_graph = types::GraphModel::new(
+        let ref context = types::DataflowContext::new(
             job_id.clone(),
             graph.meta.to_vec(),
             types::NodeSet::from_iter(graph.data.iter()
                 .map(|(id, value)|
-                    (id.clone(), types::Operator {
+                    (id.clone(), types::OperatorInfo {
                         addr: cluster.partition_key(value).unwrap(),
                         value: value.clone(),
                         id: id.parse::<u64>().unwrap(),
-                        upstream: graph.find_upstreams(id.parse::<u64>().unwrap())
+                        upstream: graph.find_upstreams(id.parse::<u64>().unwrap()),
                     })
                 )
             ));
 
-        match self.job_repo.find_one(
+        match self.job_storage.find_one(
             job_id.table_id.as_str(),
             job_id.header_id.as_str(),
         ) {
@@ -128,7 +128,7 @@ impl Coordinator {
                     Some(graph) => {
                         match cluster
                             .stop_job(job_id)
-                            .map(|_| send_to_connector(&graph, BindAction::STOP, &self.connector_proxy))
+                            .map(|_| send_to_connector(&graph, BindAction::Stop, &self.connector_proxy))
                             .map_err(|err| err.into()) {
                             Err(err) => return Err(err),
                             Ok(_) => {}
@@ -143,36 +143,36 @@ impl Coordinator {
         }
 
 
-        self.job_repo.create(execution_graph)
-            .and_then(|_| execution_graph.dispatch())
+        self.job_storage.create(context)
+            .and_then(|_| context.dispatch())
             .map(|_| send_to_connector(
-                execution_graph,
-                BindAction::CREATE,
+                context,
+                BindAction::Create,
                 &self.connector_proxy)
             )
     }
 }
 
 enum BindAction {
-    CREATE,
-    STOP,
+    Create,
+    Stop,
 }
 
-fn send_to_connector(graph: &types::GraphModel,
+fn send_to_connector(graph: &types::DataflowContext,
                      binder_action: BindAction,
                      connector_proxy: &String) {
     let mut binder_events = vec![];
     for (_, operator) in &graph.nodes {
         match &operator.value {
-            formula::FormulaOp::Reference { table_id, header_id, .. } => {
+            stream::OperatorType::Reference { table_id, header_id, .. } => {
                 let binder_type = match binder_action {
-                    BindAction::CREATE => event::BinderEventType::Create {
+                    BindAction::Create => event::BinderEventType::Create {
                         table_id: table_id.clone(),
                         header_id: header_id.clone(),
                         id: operator.id,
                         addr: operator.addr.clone(),
                     },
-                    BindAction::STOP => event::BinderEventType::Stop,
+                    BindAction::Stop => event::BinderEventType::Stop,
                 };
 
                 binder_events.push(event::BinderEvent {

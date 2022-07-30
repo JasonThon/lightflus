@@ -31,7 +31,7 @@ impl event::Event<String, String> for MockEvent {
 
 struct MockPipeline {}
 
-impl pipeline::Pipeline<String, String, String, String> for MockPipeline {
+impl pipeline::Executor<String, String, String, String> for MockPipeline {
     type Context = ();
 
     fn apply(&self, input: &KeyedWindow<String, String>, _ctx: &Context<String, String>) -> pipeline::Result<String> {
@@ -65,8 +65,8 @@ unsafe impl Send for MockSink {}
 
 unsafe impl Sync for MockSink {}
 
-fn new_datastream(sink_tx: mpsc::UnboundedSender<String>) -> (MockDataStream, dataflow::StreamPipeSender<Vec<MockEvent>>, mpsc::Sender<dataflow::Close>) {
-    let (sender, recv) = dataflow::stream_pipe::<Vec<MockEvent>>();
+fn new_datastream(sink_tx: mpsc::UnboundedSender<String>) -> (MockDataStream, dataflow::EventSender<Vec<MockEvent>>, mpsc::Sender<dataflow::Close>) {
+    let (sender, recv) = dataflow::new_event_pipe::<Vec<MockEvent>>();
     let (close_tx, close_rx) = mpsc::channel(1);
     let pipeline = MockPipeline {};
     let sink = MockSink {

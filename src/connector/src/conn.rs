@@ -180,7 +180,7 @@ fn send_to_worker(binders: &Vec<types::Binder>, event: event::ConnectorEvent) {
         let target_key = event.get_key();
 
         if target_key == types::job_id(b.table_id.as_str(), b.header_id.as_str()) {
-            let ref graph_event = event::GraphEvent::DataSourceEventSubmit(
+            let ref graph_event = event::GraphEvent::DataSource(
                 event::DataSourceEvent {
                     job_id: b.job_id.clone(),
                     to: b.id.clone(),

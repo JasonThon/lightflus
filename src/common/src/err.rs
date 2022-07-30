@@ -243,6 +243,8 @@ impl ExecutionException {
             msg: format!("graph event sent failed to id {:?}", job_id),
         }
     }
+
+    pub fn fail_recv_event()
 }
 
 #[derive(Debug, Clone)]

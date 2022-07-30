@@ -6,8 +6,10 @@ use dataflow_api::dataflow_worker_grpc;
 
 mod api;
 pub mod worker;
-pub mod runtime;
+pub mod actor;
 mod constants;
+mod sink;
+mod cache;
 
 fn main() {
     let result = fs::File::open("src/worker/etc/worker.json");
@@ -32,9 +34,8 @@ fn main() {
     let ref mut config = reader.unwrap();
     let runner = actix::System::new();
     let task_worker = worker::new_worker();
-    let addr = runner.block_on(async { task_worker.start() });
 
-    let server = api::TaskWorkerApiImpl::new(addr);
+    let server = api::TaskWorkerApiImpl::new(task_worker);
     let service = dataflow_worker_grpc::create_task_worker_api(server);
     println!("start service at port {}", &config.port);
 

@@ -1,12 +1,11 @@
 use std::sync;
-use crate::dataflow_worker_grpc;
 
-pub fn new_dataflow_worker_client(config: DataflowWorkerConfig) -> dataflow_worker_grpc::TaskWorkerApiClient {
+pub fn new_dataflow_worker_client(config: DataflowWorkerConfig) -> super::worker_grpc::TaskWorkerApiClient {
     let env = sync::Arc::new(grpcio::EnvBuilder::new().build());
     let channel = grpcio::ChannelBuilder::new(env)
         .connect(config.to_uri().as_str());
 
-    dataflow_worker_grpc::TaskWorkerApiClient::new(channel)
+    super::worker_grpc::TaskWorkerApiClient::new(channel)
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]

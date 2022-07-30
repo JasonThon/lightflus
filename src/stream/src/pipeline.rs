@@ -2,12 +2,12 @@ use std::{collections, hash, marker};
 use common::{err, event, types};
 use crate::{state, window};
 use crate::state::StateManager;
-use common::types::{formula, FromBytes};
-use common::types::formula::FormulaOp;
+use common::types::{stream, FromBytes};
+use common::types::stream::OperatorType;
 
 pub type Result<T> = std::result::Result<T, err::PipelineError>;
 
-pub trait Pipeline<InputKey, InputValue, Output, State>: Sync + Send
+pub trait Executor<InputKey, InputValue, Output, State>: Sync + Send
     where InputKey: hash::Hash + Clone + Eq + Ord, InputValue: Clone, State: Clone {
     type Context;
 
@@ -49,21 +49,21 @@ unsafe impl<Key, State> Send for Context<Key, State> where State: Clone, Key: Cl
 unsafe impl<Key, State> Sync for Context<Key, State> where State: Clone, Key: Clone + hash::Hash + Eq + Ord {}
 
 
-pub struct FormulaOpEventPipeline {
+pub struct OperatorEventPipeline {
     job_id: types::JobID,
-    op: formula::FormulaOp,
+    op: OperatorType,
     node_id: types::NodeIdx,
     upstreams: Vec<types::NodeIdx>,
 }
 
-unsafe impl Send for FormulaOpEventPipeline {}
+unsafe impl Send for OperatorEventPipeline {}
 
-unsafe impl Sync for FormulaOpEventPipeline {}
+unsafe impl Sync for OperatorEventPipeline {}
 
-impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, types::FormulaState> for FormulaOpEventPipeline {
+impl Executor<types::RowIdx, types::ActionValue, Vec<event::DataEvent>, types::FormulaState> for OperatorEventPipeline {
     type Context = Context<types::RowIdx, types::FormulaState>;
 
-    fn apply(&self, input: &window::KeyedWindow<u64, types::ActionValue>, ctx: &Self::Context) -> Result<Vec<event::FormulaOpEvent>> {
+    fn apply(&self, input: &window::KeyedWindow<u64, types::ActionValue>, ctx: &Self::Context) -> Result<Vec<event::DataEvent>> {
         let ref row_idx = input.key;
         let mut changed_row_idx = row_idx.clone();
 
@@ -82,7 +82,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 .for_each(|s|
                     if !node_values.contains_key(&s.node_idx) {
                         node_values.insert(s.node_idx, types::ActionValue {
-                            action: types::ActionType::INSERT,
+                            action: types::DataEventType::INSERT,
                             value: s.value.clone(),
                             from: s.node_idx,
                         });
@@ -92,7 +92,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
         let mut final_value = types::TypedValue::Invalid;
 
         match &self.op {
-            FormulaOp::Reference { .. } => return Ok(vec![event::FormulaOpEvent {
+            OperatorType::Reference { .. } => return Ok(vec![event::DataEvent {
                 row_idx: *row_idx,
                 job_id: self.job_id.clone(),
                 data: node_values.get(&self.node_id)
@@ -100,12 +100,12 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     .unwrap_or_else(|| vec![]),
                 old_data: vec![],
                 from: self.node_id,
-                action: node_values.get(&self.node_id)
+                event_type: node_values.get(&self.node_id)
                     .map(|v| (*v).action.clone())
-                    .unwrap_or_else(|| types::ActionType::INVALID),
+                    .unwrap_or_else(|| types::DataEventType::INVALID),
                 event_time: input.timestamp,
             }]),
-            FormulaOp::Add { values } => {
+            OperatorType::Add { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -114,11 +114,11 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Add,
                 );
             }
-            FormulaOp::Sum => {
+            OperatorType::Sum => {
                 final_value = sum_func(&self.upstreams[0], node_values, ctx);
                 changed_row_idx = 0;
             }
-            FormulaOp::Sumif => {
+            OperatorType::Sumif => {
                 final_value = condition_func(
                     &self.upstreams[0],
                     &self.upstreams[1],
@@ -128,7 +128,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 );
                 changed_row_idx = 0;
             }
-            FormulaOp::Countif => {
+            OperatorType::Countif => {
                 final_value = condition_func(
                     &self.upstreams[0],
                     &self.upstreams[1],
@@ -138,21 +138,21 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 );
                 changed_row_idx = 0;
             }
-            FormulaOp::Count => {
+            OperatorType::Count => {
                 final_value = count_func(&self.upstreams[0], node_values, ctx);
                 changed_row_idx = 0;
             }
-            FormulaOp::Avg => {
+            OperatorType::Avg => {
                 final_value = avg_func(&self.upstreams[0], node_values, ctx);
                 changed_row_idx = 0;
             }
-            FormulaOp::Group => {}
-            FormulaOp::Groupif => {}
-            FormulaOp::Max => {
+            OperatorType::Group => {}
+            OperatorType::Groupif => {}
+            OperatorType::Max => {
                 final_value = max_func(&self.upstreams[0], node_values, ctx);
                 changed_row_idx = 0;
             }
-            FormulaOp::Maxif => {
+            OperatorType::Maxif => {
                 final_value = condition_func(
                     &self.upstreams[0],
                     &self.upstreams[1],
@@ -162,11 +162,11 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 );
                 changed_row_idx = 0;
             }
-            FormulaOp::Min => {
+            OperatorType::Min => {
                 final_value = min_func(&self.upstreams[0], node_values, ctx);
                 changed_row_idx = 0;
             }
-            FormulaOp::Minif => {
+            OperatorType::Minif => {
                 final_value = condition_func(
                     &self.upstreams[0],
                     &self.upstreams[1],
@@ -176,8 +176,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 );
                 changed_row_idx = 0;
             }
-            FormulaOp::Xlookup => {}
-            FormulaOp::Sub { values } => {
+            OperatorType::Sub { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -186,7 +185,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Sub,
                 );
             }
-            FormulaOp::Mul { values } => {
+            OperatorType::Mul { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -195,7 +194,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Mul,
                 );
             }
-            FormulaOp::Div { values } => {
+            OperatorType::Div { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -204,7 +203,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Div,
                 );
             }
-            FormulaOp::Eq { values } => {
+            OperatorType::Eq { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -213,7 +212,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Eq,
                 );
             }
-            FormulaOp::Neq { values } => {
+            OperatorType::Neq { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -222,7 +221,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Neq,
                 );
             }
-            FormulaOp::Lt { values } => {
+            OperatorType::Lt { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -231,7 +230,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Lt,
                 );
             }
-            FormulaOp::Gt { values } => {
+            OperatorType::Gt { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -240,7 +239,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Gt,
                 );
             }
-            FormulaOp::Lte { values } => {
+            OperatorType::Lte { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
@@ -249,31 +248,13 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                     DualOp::Lte,
                 );
             }
-            FormulaOp::Gte { values } => {
+            OperatorType::Gte { values } => {
                 final_value = dual_func(
                     values,
                     node_values,
                     self.upstreams.get(0),
                     self.upstreams.get(1),
                     DualOp::Gte,
-                );
-            }
-            FormulaOp::And { values } => {
-                final_value = dual_func(
-                    values,
-                    node_values,
-                    self.upstreams.get(0),
-                    self.upstreams.get(1),
-                    DualOp::And,
-                );
-            }
-            FormulaOp::Or { values } => {
-                final_value = dual_func(
-                    values,
-                    node_values,
-                    self.upstreams.get(0),
-                    self.upstreams.get(1),
-                    DualOp::Or,
                 );
             }
         }
@@ -288,7 +269,7 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 .collect(),
         });
 
-        Ok(vec![event::FormulaOpEvent {
+        Ok(vec![event::DataEvent {
             row_idx: changed_row_idx,
             job_id: self.job_id.clone(),
             data: final_value.get_data(),
@@ -297,10 +278,10 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
                 .map(|v| v.value.clone())
                 .unwrap_or_else(|| vec![]),
             from: self.node_id,
-            action: option
+            event_type: option
                 .as_ref()
-                .map(|_| types::ActionType::UPDATE)
-                .unwrap_or(types::ActionType::INSERT),
+                .map(|_| types::DataEventType::UPDATE)
+                .unwrap_or(types::DataEventType::INSERT),
             event_time: std::time::SystemTime::now(),
         }])
     }
@@ -310,12 +291,12 @@ impl Pipeline<types::RowIdx, types::ActionValue, Vec<event::FormulaOpEvent>, typ
     }
 }
 
-impl FormulaOpEventPipeline {
-    pub fn new(op: formula::FormulaOp,
+impl OperatorEventPipeline {
+    pub fn new(op: stream::OperatorType,
                job_id: types::JobID,
                node_id: types::NodeIdx,
-               upstreams: Vec<types::NodeIdx>) -> FormulaOpEventPipeline {
-        FormulaOpEventPipeline {
+               upstreams: Vec<types::NodeIdx>) -> OperatorEventPipeline {
+        OperatorEventPipeline {
             job_id: job_id.clone(),
             op,
             node_id,
@@ -395,7 +376,7 @@ fn condition_func<F: Fn(&types::NodeIdx,
     if condition { f(ref_node, node_values, ctx) } else { types::TypedValue::Invalid }
 }
 
-fn dual_func(values: &Vec<types::formula::ValueOp>,
+fn dual_func(values: &Vec<types::stream::ConstOp>,
              node_values: &collections::HashMap<types::NodeIdx, types::ActionValue>,
              left: Option<&types::NodeIdx>,
              right: Option<&types::NodeIdx>,

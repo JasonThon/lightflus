@@ -1,9 +1,11 @@
-use dataflow_api::{dataflow_coordinator_grpc, probe};
-use dataflow_api::dataflow_coordinator;
+use common::proto::probe;
+use dataflow_api::coordinator::coordinator_grpc;
 use common::event;
 use crate::{cluster, coord};
 use common::err::Error;
 use std::sync;
+use grpcio::{RpcContext, UnarySink};
+use dataflow_api::coordinator::coordinator;
 
 const SUCCESS_MSG: &str = "success";
 
@@ -26,53 +28,13 @@ unsafe impl Send for CoordinatorApiImpl {}
 
 unsafe impl Sync for CoordinatorApiImpl {}
 
-impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
-    fn handle_event(&mut self,
-                    _ctx: grpcio::RpcContext,
-                    req: dataflow_coordinator::EventRequest,
-                    sink: grpcio::UnarySink<dataflow_coordinator::EventResponse>) {
-        let result = serde_json::from_slice::<event::TableEvent>(req.get_data());
-        let mut response = dataflow_coordinator::EventResponse::default();
-        match result {
-            Ok(e) => match e.action() {
-                event::TableAction::FormulaSubmit {
-                    table_id,
-                    header_id,
-                    graph
-                } => {
-                    match self.cluster.try_read() {
-                        Ok(cluster) =>
-                            match self.coordinator.submit_job(table_id, header_id, graph, cluster) {
-                                Ok(_) => {
-                                    response.set_code(common::http::SUCCESS);
-                                    response.set_msg(SUCCESS_MSG.to_string());
-                                    sink.success(response);
-                                }
-                                Err(err) => {
-                                    log::error!("fail to handle event: {:?}", err);
-                                    sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::INTERNAL));
-                                }
-                            },
-                        Err(_) => {
-                            sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::UNAVAILABLE));
-                        }
-                    }
-                }
-                _ => {}
-            },
-            Err(err) => {
-                log::error!("bad body: {:?}", &err);
-                sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::INVALID_ARGUMENT));
-            }
-        }
-    }
-
+impl coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
     fn probe(&mut self,
-             _ctx: grpcio::RpcContext,
+             _ctx: RpcContext,
              req: probe::ProbeRequest,
-             sink: grpcio::UnarySink<probe::ProbeResponse>) {
-        match req.probeType {
-            probe::ProbeRequest_ProbeType::Readiness => {
+             sink: UnarySink<probe::ProbeResponse>) {
+        match req.probeType.unwrap() {
+            probe::probe_request::ProbeType::Readiness => {
                 match self.cluster.try_write() {
                     Ok(mut cluster) => {
                         sink.success(probe::ProbeResponse::default());
@@ -83,9 +45,28 @@ impl dataflow_coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
                     }
                 }
             }
-            probe::ProbeRequest_ProbeType::Liveness => {
+            probe::probe_request::ProbeType::Liveness => {
                 sink.success(probe::ProbeResponse::default());
             }
         }
+    }
+
+    fn create_stream_graph(&mut self,
+                           _ctx: RpcContext,
+                           _req: common::proto::stream::StreamGraph,
+                           sink: UnarySink<coordinator::CreateStreamGraphResponse>) {
+
+    }
+
+    fn terminate_stream_graph(&mut self, ctx: RpcContext,
+                              _req: coordinator::TerminateStreamGraphRequest,
+                              sink: UnarySink<coordinator::TerminateStreamGraphResponse>) {
+        todo!()
+    }
+
+    fn get_stream_graph(&mut self, ctx: RpcContext,
+                        _req: coordinator::GetStreamGraphRequest,
+                        sink: UnarySink<coordinator::GetStreamGraphResponse>) {
+        todo!()
     }
 }

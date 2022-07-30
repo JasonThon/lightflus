@@ -2,7 +2,7 @@ use std::{collections, sync};
 
 use tokio::sync::mpsc;
 
-use dataflow_api::dataflow_coordinator_grpc;
+use dataflow_api::coordinator::coordinator_grpc;
 use common::{event, err::CommonException};
 
 const DATAFLOW_DB: &str = "dataflow";
@@ -41,7 +41,7 @@ async fn main() {
 
     let client = result.unwrap();
     let coordinator = coord::Coordinator::new(
-        coord::JobRepo::Mongo(
+        coord::JobStorage::Mongo(
             client.database(DATAFLOW_DB)
                 .collection(coord::COORD_JOB_GRAPH_COLLECTION)
         ),
@@ -83,7 +83,7 @@ async fn main() {
     }
 
     let server = api::CoordinatorApiImpl::new(coordinator, clusters);
-    let service = dataflow_coordinator_grpc::create_coordinator_api(server);
+    let service = coordinator_grpc::create_coordinator_api(server);
     let mut grpc_server = grpcio::ServerBuilder::new(
         sync::Arc::new(grpcio::Environment::new(10)))
         .register_service(service)

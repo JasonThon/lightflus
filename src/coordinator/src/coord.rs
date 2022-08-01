@@ -5,17 +5,18 @@ use tokio::sync::mpsc;
 
 use crate::cluster;
 use common::{err, event, types, types::stream};
+use stream::dataflow;
 
 pub const COORD_JOB_GRAPH_COLLECTION: &str = "coord.job.graph";
 
 pub enum JobStorage {
-    Mongo(mongodb::sync::Collection<types::DataflowContext>),
+    Mongo(mongodb::sync::Collection<dataflow::DataflowContext>),
 }
 
 impl JobStorage {
     pub fn find_one(&self,
                     table_id: &str,
-                    header_id: &str) -> Result<Option<types::DataflowContext>, err::CommonException> {
+                    header_id: &str) -> Result<Option<dataflow::DataflowContext>, err::CommonException> {
         match self {
             JobStorage::Mongo(mongo) => mongo.find_one(
                 doc! {
@@ -27,7 +28,7 @@ impl JobStorage {
         }
     }
 
-    pub fn find_all(&self) -> Result<Vec<types::DataflowContext>, err::CommonException> {
+    pub fn find_all(&self) -> Result<Vec<dataflow::DataflowContext>, err::CommonException> {
         match self {
             JobStorage::Mongo(mongo) => mongo.find(None, None)
                 .map_err(|err| err::CommonException::from(err))
@@ -38,7 +39,7 @@ impl JobStorage {
         }
     }
 
-    pub fn create(&self, graph: &types::DataflowContext) -> Result<(), err::CommonException> {
+    pub fn create(&self, graph: &dataflow::DataflowContext) -> Result<(), err::CommonException> {
         match self {
             JobStorage::Mongo(mongo) => match mongo.insert_one(
                 graph,
@@ -81,7 +82,7 @@ impl Coordinator {
         }
     }
 
-    pub fn init(&self) -> Result<Vec<types::DataflowContext>, err::CommonException> {
+    pub fn init(&self) -> Result<Vec<dataflow::DataflowContext>, err::CommonException> {
         self.job_storage.find_all()
             .map(|models| {
                 common::lists::for_each(
@@ -105,7 +106,7 @@ impl Coordinator {
         if !cluster.is_available() {
             return Err(err::CommonException::new(err::ErrorKind::NoAvailableWorker, "no available worker"));
         }
-        let ref context = types::DataflowContext::new(
+        let ref context = dataflow::DataflowContext::new(
             job_id.clone(),
             graph.meta.to_vec(),
             types::NodeSet::from_iter(graph.data.iter()
@@ -158,7 +159,7 @@ enum BindAction {
     Stop,
 }
 
-fn send_to_connector(graph: &types::DataflowContext,
+fn send_to_connector(graph: &dataflow::DataflowContext,
                      binder_action: BindAction,
                      connector_proxy: &String) {
     let mut binder_events = vec![];

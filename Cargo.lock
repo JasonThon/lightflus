@@ -1839,6 +1839,7 @@ dependencies = [
  "chrono",
  "common",
  "log",
+ "proto",
  "rayon",
  "rocksdb",
  "serde_json",

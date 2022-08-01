@@ -239,97 +239,6 @@ pub struct OperatorInfo {
 
 pub type NodeSet = collections::BTreeMap<NodeIdx, proto_stream::OperatorInfo>;
 
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct DataflowContext {
-    pub job_id: JobId,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    #[serde(default)]
-    pub meta: proto_stream::DataflowMeta,
-    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-    #[serde(default)]
-    pub nodes: NodeSet,
-}
-
-impl DataflowContext {
-    pub fn dispatch(&self) -> Result<(), err::CommonException> {
-        let mut group = collections::HashMap::<String, Vec<&OperatorInfo>>::new();
-
-        for (_, operator) in &self.nodes {
-            match group.get(&operator.addr) {
-                Some(ops) => {
-                    let mut new_operators = vec![operator];
-                    for x in ops {
-                        new_operators.push(*x);
-                    }
-
-                    group.insert(operator.addr.clone(), new_operators);
-                }
-                None => {
-                    group.insert(operator.addr.clone(), vec![operator]);
-                }
-            }
-        }
-
-        for (addr, ops) in group {
-            let client = dataflow_api::worker::new_dataflow_worker_client(
-                dataflow_api::worker::DataflowWorkerConfig {
-                    host: None,
-                    port: None,
-                    uri: Some(addr),
-                }
-            );
-
-            let ref graph_event = event::GraphEvent::GraphSubmit {
-                ctx: (&self.job_id, ops, &self.meta).into(),
-            };
-
-            let ref mut request = dataflow_api::dataflow_worker::ActionSubmitRequest::default();
-            let result = serde_json::to_vec(graph_event)
-                .map_err(|err| err::CommonException::from(err))
-                .and_then(|value| {
-                    request.set_value(value);
-                    client.submit_action(request)
-                        .map_err(|err| err::CommonException::from(err))
-                })
-                .map(|_| {
-                    log::debug!("submit success")
-                });
-
-            if result.is_err() {
-                return result;
-            }
-        }
-        Ok(())
-    }
-
-    pub fn new(job_id: JobID,
-               meta: AdjacentList,
-               nodes: NodeSet) -> DataflowContext {
-        DataflowContext {
-            job_id,
-            meta,
-            nodes,
-        }
-    }
-}
-
-impl From<(&JobID, Vec<&OperatorInfo>, &AdjacentList)> for DataflowContext {
-    fn from(input: (&JobID, Vec<&OperatorInfo>, &AdjacentList)) -> Self {
-        Self {
-            job_id: input.0.clone(),
-            meta: input.2.clone(),
-            nodes: NodeSet::from_iter(
-                input.1
-                    .iter()
-                    .map(
-                        |op| (op.id.to_string(), (*op).clone())
-                    )
-            ),
-        }
-    }
-}
-
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub enum BinderType {
     Tableflow {
@@ -938,7 +847,10 @@ impl ValueState {
 }
 
 pub type RowIdx = u64;
-pub type NodeIdx = u64;
+pub type NodeIdx = u32;
+pub type SinkId = i32;
+pub type SourceId = i32;
+pub type ExecutorId = i32;
 
 pub trait FromBytes: Sized {
     fn from_bytes(data: Vec<u8>) -> Option<Self>;

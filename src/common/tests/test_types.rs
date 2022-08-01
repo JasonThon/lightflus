@@ -9,22 +9,6 @@ mod utils;
 use utils::*;
 
 #[test]
-fn test_serialize_empty_graph() {
-    let ref model = default_empty_graph();
-    let result = serde_json::to_string(model);
-    assert!(result.is_ok());
-
-    let value = result.unwrap();
-    let deserialize_model = serde_json::from_str::<types::DataflowContext>(value.as_str());
-    assert!(deserialize_model.is_ok());
-
-    let ref deser_model = deserialize_model.unwrap();
-    assert_eq!(&deser_model.job_id, &model.job_id);
-    assert!((&deser_model.nodes).is_empty());
-    assert!((&deser_model.meta).is_empty());
-}
-
-#[test]
 fn test_traverse_from_bottom() {
     let ref meta = vec![
         types::AdjacentVec {

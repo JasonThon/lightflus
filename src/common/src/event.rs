@@ -1,6 +1,7 @@
 use std::{collections, marker};
 
 use bytes::Buf;
+use stream::dataflow;
 
 use crate::types;
 
@@ -142,7 +143,7 @@ pub struct DataSourceEvent {
 pub enum GraphEvent {
     #[serde(rename_all = "camelCase")]
     GraphSubmit {
-        ctx: types::DataflowContext,
+        ctx: dataflow::DataflowContext,
     },
     DataSource(DataSourceEvent),
     #[serde(rename_all = "camelCase")]

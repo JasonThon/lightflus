@@ -10,6 +10,7 @@ rayon = "1.5"
 common = { path = "../common" }
 chrono = "0.4"
 tokio = { version = "1", features = ["rt", "sync"] }
+proto = { path = "../proto" }
 log = "0.4"
 rocksdb = "0.18.0"
 

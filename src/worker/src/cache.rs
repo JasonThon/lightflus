@@ -2,7 +2,7 @@ use common::types;
 use crate::actor;
 
 pub struct DataflowCache {
-    cache: common::collections::ConcurrentCache<types::JobID, actor::Graph>,
+    cache: common::collections::ConcurrentCache<types::JobID, actor::LocalExecutorManager>,
 }
 
 impl DataflowCache {

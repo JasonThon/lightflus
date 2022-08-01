@@ -8,7 +8,7 @@ use proto::common::common as proto_common;
 use proto::common::stream as proto_stream;
 
 pub struct TaskWorker {
-    job_pool: common::collections::ConcurrentCache<proto_common::JobId, actor::Graph>,
+    job_pool: common::collections::ConcurrentCache<proto_common::JobId, actor::LocalExecutorManager>,
     cache: super::cache::DataflowCache,
 }
 
@@ -24,7 +24,7 @@ impl TaskWorker {
 
     pub fn stop_dataflow(&self, job_id: proto_common::JobId) -> Result<(), err::TaskWorkerError> {
         match self.job_pool.get(&job_id) {
-            Some(graph) => graph.stop()
+            Some(manager) => manager.stop()
                 .map(|_| {
                     self.job_pool.remove(&job_id);
                 })

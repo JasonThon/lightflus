@@ -1,9 +1,15 @@
-use std::{collections, marker};
+use std::{collections, marker, sync};
+use std::collections::BTreeMap;
 use std::hash::Hash;
 use rayon::prelude::*;
 use tokio::sync::mpsc;
-use common::{event, types};
-use crate::{state::StateManager, window, trigger, pipeline};
+use common::{err, event, types};
+use common::err::ExecutionException;
+use common::types::{AdjacentList, ExecutorId, JobID, NodeIdx, NodeSet, OperatorInfo};
+use proto::common::common::JobId;
+use proto::common::stream;
+use proto::common::stream::DataflowMeta;
+use crate::{pipeline, state::StateManager, trigger, window};
 
 pub fn new_event_pipe<T>() -> (EventSender<T>, EventReceiver<T>) {
     mpsc::unbounded_channel::<T>()
@@ -129,10 +135,6 @@ DataStream<Input,
 
 pub struct Close;
 
-pub trait Sink<Output>: Send + Sync {
-    fn sink(&self, output: Output);
-}
-
 #[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
 pub struct StreamConfig {
     // trigger type
@@ -140,3 +142,118 @@ pub struct StreamConfig {
     // window
     pub window_type: window::WindowType,
 }
+
+#[derive(serde::Serialize, serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DataflowContext {
+    pub job_id: JobId,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    #[serde(default)]
+    pub meta: Vec<DataflowMeta>,
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    #[serde(default)]
+    pub nodes: BTreeMap<types::ExecutorId, OperatorInfo>,
+    pub config: StreamConfig,
+}
+
+impl DataflowContext {
+    pub fn dispatch(&self) -> Result<(), err::CommonException> {
+        let mut group = collections::HashMap::<String, Vec<&OperatorInfo>>::new();
+
+        for (_, operator) in &self.nodes {
+            match group.get(&operator.addr) {
+                Some(ops) => {
+                    let mut new_operators = vec![operator];
+                    for x in ops {
+                        new_operators.push(*x);
+                    }
+
+                    group.insert(operator.addr.clone(), new_operators);
+                }
+                None => {
+                    group.insert(operator.addr.clone(), vec![operator]);
+                }
+            }
+        }
+
+        for (addr, ops) in group {
+            let client = dataflow_api::worker::new_dataflow_worker_client(
+                dataflow_api::worker::DataflowWorkerConfig {
+                    host: None,
+                    port: None,
+                    uri: Some(addr),
+                }
+            );
+
+            let ref graph_event = event::GraphEvent::GraphSubmit {
+                ctx: (&self.job_id, ops, &self.meta).into(),
+            };
+
+            let ref mut request = dataflow_api::dataflow_worker::ActionSubmitRequest::default();
+            let result = serde_json::to_vec(graph_event)
+                .map_err(|err| err::CommonException::from(err))
+                .and_then(|value| {
+                    request.set_value(value);
+                    client.submit_action(request)
+                        .map_err(|err| err::CommonException::from(err))
+                })
+                .map(|_| {
+                    log::debug!("submit success")
+                });
+
+            if result.is_err() {
+                return result;
+            }
+        }
+        Ok(())
+    }
+
+    pub fn new(job_id: JobId,
+               meta: Vec<DataflowMeta>,
+               nodes: BTreeMap<ExecutorId, OperatorInfo>,
+               config: StreamConfig) -> DataflowContext {
+        DataflowContext {
+            job_id,
+            meta,
+            nodes,
+            config,
+        }
+    }
+
+    pub fn create_executors(&self) -> Vec<dyn Executor> {
+        todo!()
+    }
+}
+
+type SourceManagerRef = sync::Arc<SourceManager>;
+
+pub trait Executor {}
+
+pub struct LocalExecutor {
+    pub executor_id: types::ExecutorId,
+
+    source: sync::Arc<SourceManager>,
+    sink: SinkManger,
+}
+
+impl LocalExecutor {
+    pub fn with_source_and_sink(executor_id: types::ExecutorId,
+                                sink: SinkManger,
+                                source: SourceManager) -> Self <S, K> {
+        Self {
+            executor_id,
+            source: sync::Arc::new(source),
+            sink,
+        }
+    }
+}
+
+impl Executor for LocalExecutor {}
+
+pub struct SourceManager {}
+
+pub trait Source {}
+
+pub struct SinkManger {}
+
+pub trait Sink {}

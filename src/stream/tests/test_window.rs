@@ -11,7 +11,7 @@ struct MockEvent {
     event_time: chrono::DateTime<chrono::Utc>,
 }
 
-impl event::Event<String, String> for MockEvent {
+impl event::KeyedEvent<String, String> for MockEvent {
     fn event_time(&self) -> chrono::DateTime<chrono::Utc> {
         self.event_time.clone()
     }

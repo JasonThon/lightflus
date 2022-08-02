@@ -5,6 +5,7 @@ use crate::{err, event, lists};
 use bytes::Buf;
 use proto::common::common::JobId;
 use proto::common::stream as proto_stream;
+use crate::event::LocalEvent;
 
 pub type AdjacentList = Vec<AdjacentVec>;
 pub type DataTypeSymbol = u8;

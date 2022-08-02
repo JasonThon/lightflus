@@ -3,6 +3,7 @@ use std::io;
 use tokio::sync::mpsc;
 use crate::types;
 use grpcio;
+use proto::common::common::JobId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct ApiError {
@@ -237,7 +238,7 @@ impl ExecutionException {
         }
     }
 
-    pub fn fail_send_event_to_job_graph(job_id: &types::JobID) -> ExecutionException {
+    pub fn fail_send_event_to_job_graph(job_id: &JobId) -> ExecutionException {
         ExecutionException {
             kind: ErrorKind::SendGraphEventFailed,
             msg: format!("graph event sent failed to id {:?}", job_id),

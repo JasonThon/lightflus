@@ -1,9 +1,9 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use common;
-use dataflow_api::probe;
 use common::{err, event, types};
-use dataflow_api::worker;
+use proto::common::probe;
+use proto::worker;
 
 #[derive(Clone, Eq, PartialEq)]
 enum NodeStatus {
@@ -20,15 +20,15 @@ struct Node {
 
 impl Node {
     pub(crate) fn probe_state(&mut self) {
-        let client = worker::cli::new_dataflow_worker_client(dataflow_api::worker::DataflowWorkerConfig {
+        let client = worker::cli::new_dataflow_worker_client(worker::cli::DataflowWorkerConfig {
             host: None,
             port: None,
             uri: Some(self.addr.clone()),
         });
 
         let ref mut request = probe::ProbeRequest::new();
-        request.set_nodeType(probe::ProbeRequest_NodeType::Coordinator);
-        request.set_probeType(probe::ProbeRequest_ProbeType::Liveness);
+        request.set_nodeType(probe::probe_request::NodeType::Coordinator);
+        request.set_probeType(probe::probe_request::ProbeType::Liveness);
 
         match client.probe(request) {
             Ok(resp) => {
@@ -43,10 +43,6 @@ impl Node {
                 self.status = NodeStatus::Unreachable
             }
         }
-    }
-
-    fn send(&self, event: event::GraphEvent) -> std::io::Result<()> {
-
     }
 
     fn is_available(&self) -> bool {
@@ -94,9 +90,9 @@ impl Cluster {
                 let cli = worker::cli::new_dataflow_worker_client(worker::cli::DataflowWorkerConfig {
                     host: None,
                     port: None,
-                    uri: Some(worker.addr.clone())
+                    uri: Some(worker.addr.clone()),
                 });
-                let mut req  = worker::worker::StopStreamGraphRequest::default();
+                let mut req = worker::worker::StopStreamGraphRequest::default();
                 req.job_id = ::protobuf::MessageField::some(job_id.into());
 
                 match cli.stop_stream_graph(&req) {

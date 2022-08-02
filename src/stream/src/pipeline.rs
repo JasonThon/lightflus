@@ -60,10 +60,10 @@ unsafe impl Send for OperatorEventPipeline {}
 
 unsafe impl Sync for OperatorEventPipeline {}
 
-impl Executor<types::RowIdx, types::ActionValue, Vec<event::DataEvent>, types::FormulaState> for OperatorEventPipeline {
+impl Executor<types::RowIdx, types::ActionValue, Vec<event::LocalEvent>, types::FormulaState> for OperatorEventPipeline {
     type Context = Context<types::RowIdx, types::FormulaState>;
 
-    fn apply(&self, input: &window::KeyedWindow<u64, types::ActionValue>, ctx: &Self::Context) -> Result<Vec<event::DataEvent>> {
+    fn apply(&self, input: &window::KeyedWindow<u64, types::ActionValue>, ctx: &Self::Context) -> Result<Vec<event::LocalEvent>> {
         let ref row_idx = input.key;
         let mut changed_row_idx = row_idx.clone();
 
@@ -92,7 +92,7 @@ impl Executor<types::RowIdx, types::ActionValue, Vec<event::DataEvent>, types::F
         let mut final_value = types::TypedValue::Invalid;
 
         match &self.op {
-            OperatorType::Reference { .. } => return Ok(vec![event::DataEvent {
+            OperatorType::Reference { .. } => return Ok(vec![event::LocalEvent {
                 row_idx: *row_idx,
                 job_id: self.job_id.clone(),
                 data: node_values.get(&self.node_id)
@@ -269,7 +269,7 @@ impl Executor<types::RowIdx, types::ActionValue, Vec<event::DataEvent>, types::F
                 .collect(),
         });
 
-        Ok(vec![event::DataEvent {
+        Ok(vec![event::LocalEvent {
             row_idx: changed_row_idx,
             job_id: self.job_id.clone(),
             data: final_value.get_data(),

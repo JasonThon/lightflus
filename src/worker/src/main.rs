@@ -3,13 +3,12 @@ use std::sync;
 use actix::Actor;
 
 use dataflow_api::dataflow_worker_grpc;
+use proto::worker::worker_grpc;
 
 mod api;
 pub mod worker;
 pub mod actor;
 mod constants;
-mod sink;
-mod cache;
 
 fn main() {
     let result = fs::File::open("src/worker/etc/worker.json");
@@ -36,7 +35,7 @@ fn main() {
     let task_worker = worker::new_worker();
 
     let server = api::TaskWorkerApiImpl::new(task_worker);
-    let service = dataflow_worker_grpc::create_task_worker_api(server);
+    let service = worker_grpc::create_task_worker_api(server);
     println!("start service at port {}", &config.port);
 
     let grpc_server = grpcio::ServerBuilder::new(

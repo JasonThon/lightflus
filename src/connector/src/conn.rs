@@ -6,7 +6,7 @@ use rdkafka::Message;
 use tokio::sync::mpsc;
 
 use common::{err, event, types};
-use common::event::Event;
+use common::event::KeyedEvent;
 
 const DEFAULT_EVENT_TIME_DURATION: time::Duration = time::Duration::from_millis(1);
 const DATAFLOW_KAFKA_GROUP: &str = "dataflow";

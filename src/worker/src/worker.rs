@@ -1,15 +1,17 @@
-use std::collections;
+use std::{collections, sync};
 
 use common::{types, event, err};
-use common::err::Error;
+use common::err::{Error, TaskWorkerError};
 use crate::actor;
 use proto::worker::worker;
 use proto::common::common as proto_common;
 use proto::common::stream as proto_stream;
+use crate::actor::LocalExecutorManager;
+
+type DataflowCacheRef = sync::RwLock<Vec<actor::LocalExecutorManager>>;
 
 pub struct TaskWorker {
-    job_pool: common::collections::ConcurrentCache<proto_common::JobId, actor::LocalExecutorManager>,
-    cache: super::cache::DataflowCache,
+    cache: DataflowCacheRef,
 }
 
 struct TaskWorkerBuilder {}
@@ -17,19 +19,23 @@ struct TaskWorkerBuilder {}
 impl TaskWorker {
     pub(crate) fn new() -> Self {
         TaskWorker {
-            job_pool: Default::default(),
-            cache: super::cache::DataflowCache::new(),
+            cache: Default::default(),
         }
     }
 
     pub fn stop_dataflow(&self, job_id: proto_common::JobId) -> Result<(), err::TaskWorkerError> {
-        match self.job_pool.get(&job_id) {
-            Some(manager) => manager.stop()
-                .map(|_| {
-                    self.job_pool.remove(&job_id);
-                })
-                .map_err(|err| err.into()),
-            None => Ok(())
+        match self.cache.try_read()
+            .map(|managers| managers
+                .iter()
+                .filter(|m| (*m).job_id == job_id)
+                .next()
+                .map(|m| m.stop())
+                .map(|r| r.map_err(|err| err::TaskWorkerError::from(err)))
+                .unwrap_or_else(|| Ok(()))
+            )
+            .map_err(|err| err::TaskWorkerError::ExecutionError(err.to_string())) {
+            Ok(r) => r,
+            Err(err) => Err(err)
         }
     }
 

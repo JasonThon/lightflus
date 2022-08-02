@@ -61,14 +61,14 @@ unsafe impl<K, V> Sync for KeyedWindow<K, V> where K: hash::Hash + Clone + Ord, 
 
 pub type KeyedWindowSet<K, V> = collections::HashMap<K, Vec<KeyedWindow<K, V>>>;
 
-pub struct KeyedWindowAssigner<K, V, E: event::Event<K, V>> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
+pub struct KeyedWindowAssigner<K, V, E: event::KeyedEvent<K, V>> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     window_type: WindowType,
     phantom_key: marker::PhantomData<K>,
     phantom_val: marker::PhantomData<V>,
     phantom_event: marker::PhantomData<E>,
 }
 
-impl<K, V, E: event::Event<K, V>> KeyedWindowAssigner<K, V, E> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
+impl<K, V, E: event::KeyedEvent<K, V>> KeyedWindowAssigner<K, V, E> where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     pub fn assign(&self, datum: &E) -> Vec<KeyedWindow<K, V>> {
         let timestamp = time::SystemTime::from(datum.event_time());
         match &self.window_type {
@@ -182,7 +182,7 @@ impl<K, V, E: event::Event<K, V>> KeyedWindowAssigner<K, V, E> where K: hash::Ha
     }
 }
 
-pub fn window_assigner<K, V, E: event::Event<K, V>>(window_type: &WindowType) -> KeyedWindowAssigner<K, V, E>
+pub fn window_assigner<K, V, E: event::KeyedEvent<K, V>>(window_type: &WindowType) -> KeyedWindowAssigner<K, V, E>
     where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     KeyedWindowAssigner {
         window_type: window_type.clone(),
@@ -192,7 +192,7 @@ pub fn window_assigner<K, V, E: event::Event<K, V>>(window_type: &WindowType) ->
     }
 }
 
-pub fn default_assigner<K, V, E: event::Event<K, V>>() -> KeyedWindowAssigner<K, V, E>
+pub fn default_assigner<K, V, E: event::KeyedEvent<K, V>>() -> KeyedWindowAssigner<K, V, E>
     where K: hash::Hash + Clone + Eq + Ord, V: Clone {
     KeyedWindowAssigner {
         window_type: WindowType::Fixed { size: time::Duration::from_millis(100) },

@@ -3,8 +3,10 @@ use std::collections::BTreeMap;
 use std::hash::Hash;
 use rayon::prelude::*;
 use tokio::sync::mpsc;
+use tokio::task::JoinHandle;
 use common::{err, event, types};
 use common::err::ExecutionException;
+use common::event::LocalEvent;
 use common::types::{AdjacentList, ExecutorId, JobID, NodeIdx, NodeSet, OperatorInfo};
 use proto::common::common::JobId;
 use proto::common::stream;
@@ -27,7 +29,7 @@ pub struct DataStream<
     InputValue: Clone,
     StateValue>
     where T: Sink<Output>,
-          Input: event::Event<InputKey, InputValue>,
+          Input: event::KeyedEvent<InputKey, InputValue>,
           P: pipeline::Executor<InputKey, InputValue, Output, StateValue>,
           StateValue: Clone {
     window: Option<window::WindowType>,
@@ -55,7 +57,7 @@ DataStream<Input,
     InputValue,
     StateValue>
     where T: Sink<Output>,
-          Input: event::Event<InputKey, InputValue>,
+          Input: event::KeyedEvent<InputKey, InputValue>,
           P: pipeline::Executor<InputKey, InputValue, Output, StateValue>,
           StateValue: Clone {
     pub fn new(
@@ -158,53 +160,6 @@ pub struct DataflowContext {
 
 impl DataflowContext {
     pub fn dispatch(&self) -> Result<(), err::CommonException> {
-        let mut group = collections::HashMap::<String, Vec<&OperatorInfo>>::new();
-
-        for (_, operator) in &self.nodes {
-            match group.get(&operator.addr) {
-                Some(ops) => {
-                    let mut new_operators = vec![operator];
-                    for x in ops {
-                        new_operators.push(*x);
-                    }
-
-                    group.insert(operator.addr.clone(), new_operators);
-                }
-                None => {
-                    group.insert(operator.addr.clone(), vec![operator]);
-                }
-            }
-        }
-
-        for (addr, ops) in group {
-            let client = dataflow_api::worker::new_dataflow_worker_client(
-                dataflow_api::worker::DataflowWorkerConfig {
-                    host: None,
-                    port: None,
-                    uri: Some(addr),
-                }
-            );
-
-            let ref graph_event = event::GraphEvent::GraphSubmit {
-                ctx: (&self.job_id, ops, &self.meta).into(),
-            };
-
-            let ref mut request = dataflow_api::dataflow_worker::ActionSubmitRequest::default();
-            let result = serde_json::to_vec(graph_event)
-                .map_err(|err| err::CommonException::from(err))
-                .and_then(|value| {
-                    request.set_value(value);
-                    client.submit_action(request)
-                        .map_err(|err| err::CommonException::from(err))
-                })
-                .map(|_| {
-                    log::debug!("submit success")
-                });
-
-            if result.is_err() {
-                return result;
-            }
-        }
         Ok(())
     }
 
@@ -220,14 +175,17 @@ impl DataflowContext {
         }
     }
 
-    pub fn create_executors(&self) -> Vec<dyn Executor> {
+    pub fn create_executors(&self) -> Vec<Box<dyn Executor>> {
         todo!()
     }
 }
 
 type SourceManagerRef = sync::Arc<SourceManager>;
 
-pub trait Executor {}
+pub trait Executor {
+    fn run(&self) -> JoinHandle<()>;
+    fn as_sinkable(&self) -> Box<dyn Sink>;
+}
 
 pub struct LocalExecutor {
     pub executor_id: types::ExecutorId,
@@ -248,7 +206,15 @@ impl LocalExecutor {
     }
 }
 
-impl Executor for LocalExecutor {}
+impl Executor for LocalExecutor {
+    fn run(&self) -> JoinHandle<()> {
+        todo!()
+    }
+
+    fn as_sinkable(&self) -> Box<dyn Sink> {
+        todo!()
+    }
+}
 
 pub struct SourceManager {}
 
@@ -256,4 +222,23 @@ pub trait Source {}
 
 pub struct SinkManger {}
 
-pub trait Sink {}
+pub trait Sink {
+    fn sink_id(&self) -> types::SinkId;
+    fn sink(&self, msg: dyn SinkableMessage) -> Result<(), SinkException>;
+}
+
+pub trait SinkableMessage {
+
+}
+
+pub enum SinkableMessageImpl {
+    LocalMessage(LocalEvent),
+}
+
+impl SinkableMessage for SinkableMessageImpl {
+
+}
+
+pub struct SinkException {
+
+}

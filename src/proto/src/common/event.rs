@@ -32,7 +32,7 @@ pub struct DataEvent {
     // @@protoc_insertion_point(field:common.DataEvent.job_id)
     pub job_id: ::protobuf::MessageField<super::common::JobId>,
     // @@protoc_insertion_point(field:common.DataEvent.to)
-    pub to: u64,
+    pub to: u32,
     // @@protoc_insertion_point(field:common.DataEvent.event_type)
     pub event_type: ::protobuf::EnumOrUnknown<DataEventTypeEnum>,
     // @@protoc_insertion_point(field:common.DataEvent.data)
@@ -112,7 +112,7 @@ impl ::protobuf::Message for DataEvent {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.job_id)?;
                 },
                 16 => {
-                    self.to = is.read_uint64()?;
+                    self.to = is.read_uint32()?;
                 },
                 24 => {
                     self.event_type = is.read_enum_or_unknown()?;
@@ -143,7 +143,7 @@ impl ::protobuf::Message for DataEvent {
             my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
         }
         if self.to != 0 {
-            my_size += ::protobuf::rt::uint64_size(2, self.to);
+            my_size += ::protobuf::rt::uint32_size(2, self.to);
         }
         if self.event_type != ::protobuf::EnumOrUnknown::new(DataEventTypeEnum::INSERT) {
             my_size += ::protobuf::rt::int32_size(3, self.event_type.value());
@@ -170,7 +170,7 @@ impl ::protobuf::Message for DataEvent {
             ::protobuf::rt::write_message_field_with_cached_size(1, v, os)?;
         }
         if self.to != 0 {
-            os.write_uint64(2, self.to)?;
+            os.write_uint32(2, self.to)?;
         }
         if self.event_type != ::protobuf::EnumOrUnknown::new(DataEventTypeEnum::INSERT) {
             os.write_enum(3, ::protobuf::EnumOrUnknown::value(&self.event_type))?;
@@ -307,7 +307,7 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x12common/event.proto\x12\x06common\x1a\x13common/common.proto\x1a\
     \x12common/table.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x83\x02\
     \n\tDataEvent\x12$\n\x06job_id\x18\x01\x20\x01(\x0b2\r.common.JobIdR\x05\
-    jobId\x12\x0e\n\x02to\x18\x02\x20\x01(\x04R\x02to\x128\n\nevent_type\x18\
+    jobId\x12\x0e\n\x02to\x18\x02\x20\x01(\rR\x02to\x128\n\nevent_type\x18\
     \x03\x20\x01(\x0e2\x19.common.DataEventTypeEnumR\teventType\x12!\n\x04da\
     ta\x18\x04\x20\x03(\x0b2\r.common.EntryR\x04data\x12(\n\x08old_data\x18\
     \x05\x20\x03(\x0b2\r.common.EntryR\x07oldData\x129\n\nevent_time\x18\x06\

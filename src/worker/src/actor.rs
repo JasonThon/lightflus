@@ -53,7 +53,7 @@ impl LocalExecutorManager {
                     to: sink.sink_id(),
                 }
             )) {
-                Err(err) => return Err(err::ExecutionException::fail_send_event_to_job_graph(&self.job_id)),
+                Err(err) => return Err(ExecutionException::fail_send_event_to_job_graph(&self.job_id)),
                 _ => {}
             }
         }

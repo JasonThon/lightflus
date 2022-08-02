@@ -7,7 +7,7 @@ use tokio::task::JoinHandle;
 use common::{err, event, types};
 use common::err::ExecutionException;
 use common::event::LocalEvent;
-use common::types::{AdjacentList, ExecutorId, JobID, NodeIdx, NodeSet, OperatorInfo};
+use common::types::{ExecutorId, JobID, NodeIdx, NodeSet};
 use proto::common::common::JobId;
 use proto::common::stream;
 use proto::common::stream::DataflowMeta;
@@ -154,7 +154,7 @@ pub struct DataflowContext {
     pub meta: Vec<DataflowMeta>,
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     #[serde(default)]
-    pub nodes: BTreeMap<types::ExecutorId, OperatorInfo>,
+    pub nodes: BTreeMap<ExecutorId, stream::OperatorInfo>,
     pub config: StreamConfig,
 }
 
@@ -165,7 +165,7 @@ impl DataflowContext {
 
     pub fn new(job_id: JobId,
                meta: Vec<DataflowMeta>,
-               nodes: BTreeMap<ExecutorId, OperatorInfo>,
+               nodes: BTreeMap<ExecutorId, stream::OperatorInfo>,
                config: StreamConfig) -> DataflowContext {
         DataflowContext {
             job_id,
@@ -176,6 +176,28 @@ impl DataflowContext {
     }
 
     pub fn create_executors(&self) -> Vec<Box<dyn Executor>> {
+        let ref mut sink_manager = SinkManger::new();
+        let ref mut source_manager = SourceManager::new();
+        self.meta
+            .iter()
+            .map(|meta| {
+                meta.neighbors
+                    .iter()
+                    .for_each(|node_id| {
+                        let executor_id = node_id as ExecutorId;
+                        if self.nodes.contains_key(&executor_id) {
+                            sink_manager.create_local(&executor_id)
+                        } else {
+                            sink_manager.create_remote(&executor_id)
+                        }
+                    });
+
+                LocalExecutor::with_source_and_sink(
+                    meta.center as ExecutorId,
+                    sink_manager.get_manager_by_ids(meta.neighbors.clone()),
+                    source_manager.get_manager_by_id(meta.center.clone()),
+                )
+            }).for_each()
         todo!()
     }
 }
@@ -188,16 +210,17 @@ pub trait Executor {
 }
 
 pub struct LocalExecutor {
-    pub executor_id: types::ExecutorId,
+    pub executor_id: ExecutorId,
 
-    source: sync::Arc<SourceManager>,
+    source: SourceManagerRef,
     sink: SinkManger,
+    sinks: Vec<Box<dyn Sink>>,
 }
 
 impl LocalExecutor {
-    pub fn with_source_and_sink(executor_id: types::ExecutorId,
+    pub fn with_source_and_sink(executor_id: ExecutorId,
                                 sink: SinkManger,
-                                source: SourceManager) -> Self <S, K> {
+                                source: SourceManager) -> Self {
         Self {
             executor_id,
             source: sync::Arc::new(source),
@@ -218,27 +241,51 @@ impl Executor for LocalExecutor {
 
 pub struct SourceManager {}
 
+impl SourceManager {
+    pub fn new() -> SourceManager {
+        SourceManager {}
+    }
+    pub(crate) fn get_manager_by_id(&self, id: types::SourceId) -> SourceManager {
+        todo!()
+    }
+}
+
 pub trait Source {}
 
+#[derive(Clone)]
 pub struct SinkManger {}
+
+impl SinkManger {
+    pub(crate) fn get_manager_by_ids(&self, sink_ids: Vec<types::SinkId>) -> SinkManger {
+        todo!()
+    }
+
+    pub(crate) fn create_local(&mut self, executor_id: &ExecutorId) {
+        todo!()
+    }
+
+    pub(crate) fn create_remote(&mut self, executor_id: &ExecutorId) {
+        todo!()
+    }
+}
+
+impl SinkManger {
+    fn new() -> SinkManger {
+        SinkManger {}
+    }
+}
 
 pub trait Sink {
     fn sink_id(&self) -> types::SinkId;
-    fn sink(&self, msg: dyn SinkableMessage) -> Result<(), SinkException>;
+    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<(), SinkException>;
 }
 
-pub trait SinkableMessage {
-
-}
+pub trait SinkableMessage {}
 
 pub enum SinkableMessageImpl {
     LocalMessage(LocalEvent),
 }
 
-impl SinkableMessage for SinkableMessageImpl {
+impl SinkableMessage for SinkableMessageImpl {}
 
-}
-
-pub struct SinkException {
-
-}
+pub struct SinkException {}

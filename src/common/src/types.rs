@@ -849,8 +849,8 @@ impl ValueState {
 
 pub type RowIdx = u64;
 pub type NodeIdx = u32;
-pub type SinkId = i32;
-pub type SourceId = i32;
+pub type SinkId = u32;
+pub type SourceId = u32;
 pub type ExecutorId = i32;
 
 pub trait FromBytes: Sized {

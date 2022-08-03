@@ -24,7 +24,6 @@ pub struct LocalExecutorManager {
     handlers: Vec<JoinHandle<()>>,
     inner_sinks: Vec<Box<dyn Sink>>,
 
-    pub config: StreamConfig,
 }
 
 impl LocalExecutorManager {
@@ -33,7 +32,6 @@ impl LocalExecutorManager {
 
         Self {
             job_id: ctx.job_id.clone(),
-            config: ctx.config.clone(),
             inner_sinks: executors
                 .iter()
                 .map(|exec| exec.as_sinkable())

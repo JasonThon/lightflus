@@ -52,7 +52,6 @@ pub enum ErrorKind {
     NotConnected,
     NotFound,
     Unknown,
-    MongoError(mongodb::error::ErrorKind),
     GrpcError,
     InvalidJson,
 }
@@ -62,98 +61,6 @@ impl From<grpcio::Error> for CommonException {
         Self {
             kind: ErrorKind::GrpcError,
             message: format!("{:?}", err),
-        }
-    }
-}
-
-impl From<mongodb::error::Error> for CommonException {
-    fn from(err: mongodb::error::Error) -> Self {
-        match err.kind.as_ref() {
-            mongodb::error::ErrorKind::InvalidArgument {
-                message, ..
-            } => CommonException::new(
-                ErrorKind::MongoError(err.kind.as_ref().clone()),
-                message.as_str(),
-            ),
-            mongodb::error::ErrorKind::Authentication {
-                message, ..
-            } => CommonException::new(
-                ErrorKind::MongoError(err.kind.as_ref().clone()),
-                message.as_str(),
-            ),
-            mongodb::error::ErrorKind::BsonDeserialization(_) =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    "bson fail to deserialize",
-                ),
-            mongodb::error::ErrorKind::BsonSerialization(_) =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    "bson fail to serialize",
-                ),
-            mongodb::error::ErrorKind::BulkWrite(_) =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    "bulk write failed",
-                ),
-            mongodb::error::ErrorKind::Command(_) =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    "command error",
-                ),
-            mongodb::error::ErrorKind::DnsResolve { message, .. } =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    message.as_str(),
-                ),
-            mongodb::error::ErrorKind::Internal { message, .. } =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    message.as_str(),
-                ),
-            mongodb::error::ErrorKind::Io(_) =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    "bson fail to serialize",
-                ),
-            mongodb::error::ErrorKind::ConnectionPoolCleared { message, .. } =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    message.as_str(),
-                ),
-            mongodb::error::ErrorKind::InvalidResponse { message, .. } =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    message.as_str(),
-                ),
-            mongodb::error::ErrorKind::ServerSelection { message, .. } =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    message.as_str(),
-                ),
-            mongodb::error::ErrorKind::SessionsNotSupported =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    "session not support",
-                ),
-            mongodb::error::ErrorKind::InvalidTlsConfig { message, .. } =>
-                CommonException::new(
-                    ErrorKind::MongoError(err.kind.as_ref().clone()),
-                    message.as_str(),
-                ),
-            mongodb::error::ErrorKind::Write(_) => CommonException::new(
-                ErrorKind::MongoError(err.kind.as_ref().clone()),
-                "write failed",
-            ),
-            mongodb::error::ErrorKind::Transaction { message, .. } => CommonException::new(
-                ErrorKind::MongoError(err.kind.as_ref().clone()),
-                message.as_str(),
-            ),
-            mongodb::error::ErrorKind::IncompatibleServer { message, .. } => CommonException::new(
-                ErrorKind::MongoError(err.kind.as_ref().clone()),
-                message.as_str(),
-            ),
-            _ => CommonException::new(ErrorKind::Unknown, "unknown")
         }
     }
 }
@@ -244,8 +151,6 @@ impl ExecutionException {
             msg: format!("graph event sent failed to id {:?}", job_id),
         }
     }
-
-    pub fn fail_recv_event()
 }
 
 #[derive(Debug, Clone)]
@@ -268,10 +173,4 @@ impl From<ExecutionException> for TaskWorkerError {
     fn from(err: ExecutionException) -> Self {
         Self::ExecutionError(err.to_string())
     }
-}
-
-#[derive(Debug, Clone)]
-pub struct PipelineError {
-    pub kind: ErrorKind,
-    pub msg: String,
 }

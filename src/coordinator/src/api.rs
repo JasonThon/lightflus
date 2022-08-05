@@ -1,11 +1,13 @@
-use common::proto::probe;
-use dataflow_api::coordinator::coordinator_grpc;
 use common::event;
 use crate::{cluster, coord};
 use common::err::Error;
 use std::sync;
 use grpcio::{RpcContext, UnarySink};
-use dataflow_api::coordinator::coordinator;
+use proto::common::probe::{ProbeRequest, ProbeResponse};
+use proto::common::probe::probe_request::ProbeType;
+use proto::common::stream::Dataflow;
+use proto::coordinator::coordinator::{CreateStreamGraphResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest, TerminateDataflowResponse};
+use proto::coordinator::coordinator_grpc::CoordinatorApi;
 
 const SUCCESS_MSG: &str = "success";
 
@@ -28,45 +30,38 @@ unsafe impl Send for CoordinatorApiImpl {}
 
 unsafe impl Sync for CoordinatorApiImpl {}
 
-impl coordinator_grpc::CoordinatorApi for CoordinatorApiImpl {
+impl CoordinatorApi for CoordinatorApiImpl {
     fn probe(&mut self,
              _ctx: RpcContext,
-             req: probe::ProbeRequest,
-             sink: UnarySink<probe::ProbeResponse>) {
+             req: ProbeRequest,
+             sink: UnarySink<ProbeResponse>) {
         match req.probeType.unwrap() {
-            probe::probe_request::ProbeType::Readiness => {
+            ProbeType::Readiness => {
                 match self.cluster.try_write() {
                     Ok(mut cluster) => {
-                        sink.success(probe::ProbeResponse::default());
+                        sink.success(ProbeResponse::default());
                         cluster.probe_state();
                     }
                     Err(_) => {
-                        sink.success(probe::ProbeResponse::default());
+                        sink.success(ProbeResponse::default());
                     }
                 }
             }
-            probe::probe_request::ProbeType::Liveness => {
-                sink.success(probe::ProbeResponse::default());
+            ProbeType::Liveness => {
+                sink.success(ProbeResponse::default());
             }
         }
     }
 
-    fn create_stream_graph(&mut self,
-                           _ctx: RpcContext,
-                           _req: common::proto::stream::StreamGraph,
-                           sink: UnarySink<coordinator::CreateStreamGraphResponse>) {
-
-    }
-
-    fn terminate_stream_graph(&mut self, ctx: RpcContext,
-                              _req: coordinator::TerminateStreamGraphRequest,
-                              sink: UnarySink<coordinator::TerminateStreamGraphResponse>) {
+    fn create_dataflow(&mut self, ctx: RpcContext, _req: Dataflow, sink: UnarySink<CreateStreamGraphResponse>) {
         todo!()
     }
 
-    fn get_stream_graph(&mut self, ctx: RpcContext,
-                        _req: coordinator::GetStreamGraphRequest,
-                        sink: UnarySink<coordinator::GetStreamGraphResponse>) {
+    fn terminate_dataflow(&mut self, ctx: RpcContext, _req: TerminateDataflowRequest, sink: UnarySink<TerminateDataflowResponse>) {
+        todo!()
+    }
+
+    fn get_dataflow(&mut self, ctx: RpcContext, _req: GetDataflowRequest, sink: UnarySink<GetDataflowResponse>) {
         todo!()
     }
 }

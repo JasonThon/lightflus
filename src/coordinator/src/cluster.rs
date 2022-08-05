@@ -84,27 +84,6 @@ impl Cluster {
         }
     }
 
-    pub(crate) fn stop_job(&self, job_id: &types::JobID) -> Result<(), grpcio::Error> {
-        for worker in &self.workers {
-            if worker.is_available() {
-                let cli = worker::cli::new_dataflow_worker_client(worker::cli::DataflowWorkerConfig {
-                    host: None,
-                    port: None,
-                    uri: Some(worker.addr.clone()),
-                });
-                let mut req = worker::worker::StopStreamGraphRequest::default();
-                req.job_id = ::protobuf::MessageField::some(job_id.into());
-
-                match cli.stop_stream_graph(&req) {
-                    Err(err) => return Err(err),
-                    Ok(_) => continue
-                }
-            }
-        }
-
-        Ok(())
-    }
-
     pub fn probe_state(&mut self) {
         common::lists::for_each_mut(&mut self.workers, |node| {
             node.probe_state()

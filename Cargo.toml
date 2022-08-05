@@ -1,9 +1,7 @@
 [workspace]
 members = [
-    "src/data-client",
     "src/proto",
     "src/stream",
-    "src/connector",
     "src/common",
     "src/worker",
     "src/coordinator"

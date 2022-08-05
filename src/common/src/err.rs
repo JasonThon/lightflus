@@ -231,7 +231,7 @@ impl Error for ExecutionException {
 }
 
 impl ExecutionException {
-    pub fn invalid_job_graph(job_id: &types::JobID) -> ExecutionException {
+    pub fn invalid_job_graph(job_id: &JobId) -> ExecutionException {
         ExecutionException {
             kind: ErrorKind::InvalidJobGraph,
             msg: format!("Invalid job graph with id {:?}", job_id),

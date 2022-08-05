@@ -13,16 +13,10 @@ grpcio = "0.10.3"
 protobuf = "3.1.0"
 regex = "1"
 bytes = "1.1.0"
-actix = "0.12"
 chrono = "0.4"
 rdkafka = { version = "0.26", default-features = false }
 log = "0.4"
 proto = { path = "../proto" }
-
-[dependencies.mongodb]
-version = "2.1.0"
-default-features = false
-features = ["sync"]
 
 [dev-dependencies]
 common = { path = "../common" }

@@ -16,18 +16,16 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Run proto build
+        run: cargo check --manifest-path src/proto/Cargo.toml
       - name: Run common lib tests
         run: cargo test --manifest-path src/common/Cargo.toml
       - name: Run dataflow tests
         run: cargo test --manifest-path src/stream/Cargo.toml
-      - name: Run connector tests
-        run: cargo test --manifest-path src/connector/Cargo.toml
       - name: Check Coordinator
-        run: cargo build --manifest-path src/coordinator/Cargo.toml
+        run: cargo check --manifest-path src/coordinator/Cargo.toml
       - name: Check Worker
-        run: cargo build --manifest-path src/worker/Cargo.toml
-      - name: Check Connector
-        run: cargo build --manifest-path src/connector/Cargo.toml
+        run: cargo check --manifest-path src/worker/Cargo.toml
 
   build_docker_image:
 
@@ -38,19 +36,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
-      - name: Install Coordinator
-        run: cargo install --path src/coordinator/
-      - name: Install Worker
-        run: cargo install --path src/worker/
-      - name: Install Worker
-        run: cargo install --path src/connector/
       - name: Build coordinator image
         run: docker build . --file docker/coordinator/Dockerfile --tag markmakemate/tableflow/runtime/coordinator:${{ github.event.release.tag_name }}
       - name: Build worker image
         run: docker build . --file docker/worker/Dockerfile --tag markmakemate/tableflow/runtime/worker:${{ github.event.release.tag_name }}
-      - name: Build connector image
-        run: docker build . --file docker/connector/Dockerfile --tag markmakemate/tableflow/runtime/connector:${{ github.event.release.tag_name }}
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
@@ -60,5 +49,3 @@ jobs:
         run: docker push markmakemate/tableflow/runtime/worker:${{ github.event.release.tag_name }}
       - name: Publish coordinator docker image
         run: docker push markmakemate/tableflow/runtime/coordinator:${{ github.event.release.tag_name }}
-      - name: Publish coordinator docker image
-        run: docker push markmakemate/tableflow/runtime/connector:${{ github.event.release.tag_name }}

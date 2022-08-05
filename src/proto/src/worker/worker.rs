@@ -21,6 +21,9 @@
 
 //! Generated file from `worker/worker.proto`
 
+use crate::common;
+use crate::common::{event, probe, stream};
+
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_1_0;
@@ -30,7 +33,7 @@ const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_1_0;
 pub struct DispatchDataEventsRequest {
     // message fields
     // @@protoc_insertion_point(field:dataflow.DispatchDataEventsRequest.events)
-    pub events: ::std::vec::Vec<super::event::DataEvent>,
+    pub events: ::std::vec::Vec<common::event::DataEvent>,
     // special fields
     // @@protoc_insertion_point(special_field:dataflow.DispatchDataEventsRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -539,9 +542,9 @@ impl ::protobuf::reflect::ProtobufValue for StopDataflowResponse {
 pub struct CreateDataflowRequest {
     // message fields
     // @@protoc_insertion_point(field:dataflow.CreateDataflowRequest.job_id)
-    pub job_id: ::protobuf::MessageField<super::common::JobId>,
+    pub job_id: ::protobuf::MessageField<common::common::JobId>,
     // @@protoc_insertion_point(field:dataflow.CreateDataflowRequest.dataflow)
-    pub dataflow: ::protobuf::MessageField<super::stream::Dataflow>,
+    pub dataflow: ::protobuf::MessageField<stream::Dataflow>,
     // special fields
     // @@protoc_insertion_point(special_field:dataflow.CreateDataflowRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -946,10 +949,10 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(4);
-            deps.push(super::probe::file_descriptor().clone());
-            deps.push(super::event::file_descriptor().clone());
-            deps.push(super::common::file_descriptor().clone());
-            deps.push(super::stream::file_descriptor().clone());
+            deps.push(probe::file_descriptor().clone());
+            deps.push(event::file_descriptor().clone());
+            deps.push(common::common::file_descriptor().clone());
+            deps.push(stream::file_descriptor().clone());
             let mut messages = ::std::vec::Vec::with_capacity(6);
             messages.push(DispatchDataEventsRequest::generated_message_descriptor_data());
             messages.push(DispatchDataEventsResponse::generated_message_descriptor_data());

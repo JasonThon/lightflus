@@ -11,8 +11,7 @@ protobuf = "3.1.0"
 serde = { version = "1.0", features = ["derive"] }
 
 [features]
-worker = []
-coordinator = []
-conn = []
+worker = ["proto-common"]
+coordinator = ["proto-common"]
 proto-common = []
-all = ["worker", "coordinator", "conn", "proto-common"]
+all = ["worker", "coordinator", "proto-common"]

@@ -7,7 +7,6 @@ pub mod sysenv;
 pub mod mongo;
 pub mod lists;
 pub mod kafka;
-pub mod collections;
 pub mod types;
 pub mod event;
 pub mod err;

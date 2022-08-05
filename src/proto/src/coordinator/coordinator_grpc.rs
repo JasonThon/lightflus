@@ -16,14 +16,16 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
-const METHOD_COORDINATOR_API_PROBE: ::grpcio::Method<common::proto::probe::ProbeRequest, common::proto::probe::ProbeResponse> = ::grpcio::Method {
+use crate::common::{probe, stream};
+
+const METHOD_COORDINATOR_API_PROBE: ::grpcio::Method<probe::ProbeRequest, probe::ProbeResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/coordinator.CoordinatorApi/Probe",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
-const METHOD_COORDINATOR_API_CREATE_DATAFLOW: ::grpcio::Method<super::stream::Dataflow, super::coordinator::CreateStreamGraphResponse> = ::grpcio::Method {
+const METHOD_COORDINATOR_API_CREATE_DATAFLOW: ::grpcio::Method<stream::Dataflow, super::coordinator::CreateStreamGraphResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
     name: "/coordinator.CoordinatorApi/CreateDataflow",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
@@ -56,35 +58,35 @@ impl CoordinatorApiClient {
         }
     }
 
-    pub fn probe_opt(&self, req: &common::proto::probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<common::proto::probe::ProbeResponse> {
+    pub fn probe_opt(&self, req: &probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<probe::ProbeResponse> {
         self.client.unary_call(&METHOD_COORDINATOR_API_PROBE, req, opt)
     }
 
-    pub fn probe(&self, req: &common::proto::probe::ProbeRequest) -> ::grpcio::Result<common::proto::probe::ProbeResponse> {
+    pub fn probe(&self, req: &probe::ProbeRequest) -> ::grpcio::Result<probe::ProbeResponse> {
         self.probe_opt(req, ::grpcio::CallOption::default())
     }
 
-    pub fn probe_async_opt(&self, req: &common::proto::probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<common::proto::probe::ProbeResponse>> {
+    pub fn probe_async_opt(&self, req: &probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<probe::ProbeResponse>> {
         self.client.unary_call_async(&METHOD_COORDINATOR_API_PROBE, req, opt)
     }
 
-    pub fn probe_async(&self, req: &common::proto::probe::ProbeRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<common::proto::probe::ProbeResponse>> {
+    pub fn probe_async(&self, req: &probe::ProbeRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<probe::ProbeResponse>> {
         self.probe_async_opt(req, ::grpcio::CallOption::default())
     }
 
-    pub fn create_dataflow_opt(&self, req: &super::stream::Dataflow, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::coordinator::CreateStreamGraphResponse> {
+    pub fn create_dataflow_opt(&self, req: &stream::Dataflow, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::coordinator::CreateStreamGraphResponse> {
         self.client.unary_call(&METHOD_COORDINATOR_API_CREATE_DATAFLOW, req, opt)
     }
 
-    pub fn create_dataflow(&self, req: &super::stream::Dataflow) -> ::grpcio::Result<super::coordinator::CreateStreamGraphResponse> {
+    pub fn create_dataflow(&self, req: &stream::Dataflow) -> ::grpcio::Result<super::coordinator::CreateStreamGraphResponse> {
         self.create_dataflow_opt(req, ::grpcio::CallOption::default())
     }
 
-    pub fn create_dataflow_async_opt(&self, req: &super::stream::Dataflow, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::coordinator::CreateStreamGraphResponse>> {
+    pub fn create_dataflow_async_opt(&self, req: &stream::Dataflow, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::coordinator::CreateStreamGraphResponse>> {
         self.client.unary_call_async(&METHOD_COORDINATOR_API_CREATE_DATAFLOW, req, opt)
     }
 
-    pub fn create_dataflow_async(&self, req: &super::stream::Dataflow) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::coordinator::CreateStreamGraphResponse>> {
+    pub fn create_dataflow_async(&self, req: &stream::Dataflow) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::coordinator::CreateStreamGraphResponse>> {
         self.create_dataflow_async_opt(req, ::grpcio::CallOption::default())
     }
 
@@ -125,10 +127,10 @@ impl CoordinatorApiClient {
 }
 
 pub trait CoordinatorApi {
-    fn probe(&mut self, ctx: ::grpcio::RpcContext, _req: common::proto::probe::ProbeRequest, sink: ::grpcio::UnarySink<common::proto::probe::ProbeResponse>) {
+    fn probe(&mut self, ctx: ::grpcio::RpcContext, _req: probe::ProbeRequest, sink: ::grpcio::UnarySink<probe::ProbeResponse>) {
         grpcio::unimplemented_call!(ctx, sink)
     }
-    fn create_dataflow(&mut self, ctx: ::grpcio::RpcContext, _req: super::stream::Dataflow, sink: ::grpcio::UnarySink<super::coordinator::CreateStreamGraphResponse>) {
+    fn create_dataflow(&mut self, ctx: ::grpcio::RpcContext, _req: stream::Dataflow, sink: ::grpcio::UnarySink<super::coordinator::CreateStreamGraphResponse>) {
         grpcio::unimplemented_call!(ctx, sink)
     }
     fn terminate_dataflow(&mut self, ctx: ::grpcio::RpcContext, _req: super::coordinator::TerminateDataflowRequest, sink: ::grpcio::UnarySink<super::coordinator::TerminateDataflowResponse>) {

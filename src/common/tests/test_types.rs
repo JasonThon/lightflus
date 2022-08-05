@@ -4,59 +4,7 @@ use common::{event, types};
 use std::collections;
 use bytes::Buf;
 
-mod utils;
-
 use utils::*;
-
-#[test]
-fn test_traverse_from_bottom() {
-    let ref meta = vec![
-        types::AdjacentVec {
-            center: 4,
-            neighbors: vec![8, 9],
-        },
-        types::AdjacentVec {
-            center: 0,
-            neighbors: vec![1, 2, 3],
-        },
-        types::AdjacentVec {
-            center: 1,
-            neighbors: vec![4, 5],
-        },
-        types::AdjacentVec {
-            center: 3,
-            neighbors: vec![5, 7],
-        },
-    ];
-
-    let traversed = types::traverse_from_bottom(meta);
-
-    assert_eq!(traversed, vec![
-        types::AdjacentVec {
-            center: 4,
-            neighbors: vec![8, 9],
-        },
-        types::AdjacentVec {
-            center: 1,
-            neighbors: vec![4, 5],
-        },
-        types::AdjacentVec {
-            center: 3,
-            neighbors: vec![5, 7],
-        },
-        types::AdjacentVec {
-            center: 0,
-            neighbors: vec![1, 2, 3],
-        },
-    ])
-}
-
-#[test]
-fn test_job_id_eq() {
-    let id = types::job_id("tableId", "headerId");
-    let id1 = types::job_id("tableId", "headerId");
-    assert_eq!(id, id1);
-}
 
 #[test]
 fn test_typed_value_get_data() {

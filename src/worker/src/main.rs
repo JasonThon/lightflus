@@ -8,7 +8,6 @@ use proto::worker::worker_grpc;
 mod api;
 pub mod worker;
 pub mod actor;
-mod constants;
 
 fn main() {
     let result = fs::File::open("src/worker/etc/worker.json");
@@ -48,10 +47,10 @@ fn main() {
         panic!("{:?}", grpc_server.unwrap_err())
     }
 
-    let mut unwraped_server = grpc_server.unwrap();
-    unwraped_server.start();
+    let mut unwrap_server = grpc_server.unwrap();
+    unwrap_server.start();
     runner.run();
-    let _ = futures_executor::block_on(unwraped_server.shutdown());
+    let _ = futures_executor::block_on(unwrap_server.shutdown());
 
     actix::System::current().stop();
 }

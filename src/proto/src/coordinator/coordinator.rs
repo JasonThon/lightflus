@@ -21,6 +21,8 @@
 
 //! Generated file from `coordinator/coordinator.proto`
 
+use crate::common::{common, probe, stream};
+
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
 const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_1_0;
@@ -30,7 +32,7 @@ const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_3_1_0;
 pub struct CreateStreamGraphResponse {
     // message fields
     // @@protoc_insertion_point(field:coordinator.CreateStreamGraphResponse.status)
-    pub status: ::protobuf::EnumOrUnknown<common::proto::stream::DataflowStatus>,
+    pub status: ::protobuf::EnumOrUnknown<stream::DataflowStatus>,
     // special fields
     // @@protoc_insertion_point(special_field:coordinator.CreateStreamGraphResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -84,6 +86,14 @@ impl ::protobuf::Message for CreateStreamGraphResponse {
         ::std::result::Result::Ok(())
     }
 
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if self.status != ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED) {
+            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.status))?;
+        }
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
     // Compute sizes of nested messages
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
@@ -94,14 +104,6 @@ impl ::protobuf::Message for CreateStreamGraphResponse {
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
         my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if self.status != ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED) {
-            os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.status))?;
-        }
-        os.write_unknown_fields(self.special_fields.unknown_fields())?;
-        ::std::result::Result::Ok(())
     }
 
     fn special_fields(&self) -> &::protobuf::SpecialFields {
@@ -275,7 +277,7 @@ impl ::protobuf::reflect::ProtobufValue for TerminateDataflowRequest {
 pub struct TerminateDataflowResponse {
     // message fields
     // @@protoc_insertion_point(field:coordinator.TerminateDataflowResponse.status)
-    pub status: ::protobuf::EnumOrUnknown<common::proto::stream::DataflowStatus>,
+    pub status: ::protobuf::EnumOrUnknown<stream::DataflowStatus>,
     // special fields
     // @@protoc_insertion_point(special_field:coordinator.TerminateDataflowResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -333,7 +335,7 @@ impl ::protobuf::Message for TerminateDataflowResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if self.status != ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED) {
+        if self.status != ::protobuf::EnumOrUnknown::new(stream::DataflowStatus::INITIALIZED) {
             my_size += ::protobuf::rt::int32_size(1, self.status.value());
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
@@ -342,7 +344,7 @@ impl ::protobuf::Message for TerminateDataflowResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if self.status != ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED) {
+        if self.status != ::protobuf::EnumOrUnknown::new(stream::DataflowStatus::INITIALIZED) {
             os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.status))?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
@@ -362,7 +364,7 @@ impl ::protobuf::Message for TerminateDataflowResponse {
     }
 
     fn clear(&mut self) {
-        self.status = ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED);
+        self.status = ::protobuf::EnumOrUnknown::new(stream::DataflowStatus::INITIALIZED);
         self.special_fields.clear();
     }
 
@@ -397,7 +399,7 @@ impl ::protobuf::reflect::ProtobufValue for TerminateDataflowResponse {
 pub struct GetDataflowRequest {
     // message fields
     // @@protoc_insertion_point(field:coordinator.GetDataflowRequest.job_id)
-    pub job_id: ::protobuf::MessageField<common::proto::common::JobId>,
+    pub job_id: ::protobuf::MessageField<common::JobId>,
     // special fields
     // @@protoc_insertion_point(special_field:coordinator.GetDataflowRequest.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -417,7 +419,7 @@ impl GetDataflowRequest {
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
         let mut fields = ::std::vec::Vec::with_capacity(1);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
-        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, common::proto::common::JobId>(
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, common::JobId>(
             "job_id",
             |m: &GetDataflowRequest| { &m.job_id },
             |m: &mut GetDataflowRequest| { &mut m.job_id },
@@ -520,9 +522,9 @@ impl ::protobuf::reflect::ProtobufValue for GetDataflowRequest {
 pub struct GetDataflowResponse {
     // message fields
     // @@protoc_insertion_point(field:coordinator.GetDataflowResponse.status)
-    pub status: ::protobuf::EnumOrUnknown<common::proto::stream::DataflowStatus>,
+    pub status: ::protobuf::EnumOrUnknown<stream::DataflowStatus>,
     // @@protoc_insertion_point(field:coordinator.GetDataflowResponse.graph)
-    pub graph: ::protobuf::MessageField<common::proto::stream::Dataflow>,
+    pub graph: ::protobuf::MessageField<stream::Dataflow>,
     // special fields
     // @@protoc_insertion_point(special_field:coordinator.GetDataflowResponse.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -547,7 +549,7 @@ impl GetDataflowResponse {
             |m: &GetDataflowResponse| { &m.status },
             |m: &mut GetDataflowResponse| { &mut m.status },
         ));
-        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, common::proto::stream::Dataflow>(
+        fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, stream::Dataflow>(
             "graph",
             |m: &GetDataflowResponse| { &m.graph },
             |m: &mut GetDataflowResponse| { &mut m.graph },
@@ -588,7 +590,7 @@ impl ::protobuf::Message for GetDataflowResponse {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if self.status != ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED) {
+        if self.status != ::protobuf::EnumOrUnknown::new(stream::DataflowStatus::INITIALIZED) {
             my_size += ::protobuf::rt::int32_size(1, self.status.value());
         }
         if let Some(v) = self.graph.as_ref() {
@@ -601,7 +603,7 @@ impl ::protobuf::Message for GetDataflowResponse {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if self.status != ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED) {
+        if self.status != ::protobuf::EnumOrUnknown::new(stream::DataflowStatus::INITIALIZED) {
             os.write_enum(1, ::protobuf::EnumOrUnknown::value(&self.status))?;
         }
         if let Some(v) = self.graph.as_ref() {
@@ -624,7 +626,7 @@ impl ::protobuf::Message for GetDataflowResponse {
     }
 
     fn clear(&mut self) {
-        self.status = ::protobuf::EnumOrUnknown::new(common::proto::stream::DataflowStatus::INITIALIZED);
+        self.status = ::protobuf::EnumOrUnknown::new(stream::DataflowStatus::INITIALIZED);
         self.graph.clear();
         self.special_fields.clear();
     }
@@ -727,9 +729,9 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
     file_descriptor.get(|| {
         let generated_file_descriptor = generated_file_descriptor_lazy.get(|| {
             let mut deps = ::std::vec::Vec::with_capacity(3);
-            deps.push(common::proto::probe::file_descriptor().clone());
-            deps.push(common::proto::stream::file_descriptor().clone());
-            deps.push(common::proto::common::file_descriptor().clone());
+            deps.push(probe::file_descriptor().clone());
+            deps.push(stream::file_descriptor().clone());
+            deps.push(common::file_descriptor().clone());
             let mut messages = ::std::vec::Vec::with_capacity(5);
             messages.push(CreateStreamGraphResponse::generated_message_descriptor_data());
             messages.push(TerminateDataflowRequest::generated_message_descriptor_data());

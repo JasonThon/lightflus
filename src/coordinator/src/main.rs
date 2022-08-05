@@ -2,8 +2,8 @@ use std::{collections, sync};
 
 use tokio::sync::mpsc;
 
-use dataflow_api::coordinator::coordinator_grpc;
 use common::{event, err::CommonException};
+use proto::coordinator::coordinator_grpc;
 
 const DATAFLOW_DB: &str = "dataflow";
 
@@ -50,37 +50,6 @@ async fn main() {
 
     let mut clusters = cluster::Cluster::new(&config.cluster);
     clusters.probe_state();
-
-    let init_result = coordinator.init();
-    match init_result {
-        Err(err) => panic!("initialize failed: {:?}", err),
-        Ok(models) => {
-            rt.spawn(async move {
-                let mut undispatched_queue = collections::VecDeque::new();
-
-                for model in &models {
-                    match model.dispatch() {
-                        Err(err) => {
-                            log::error!("dispatch model {:?} failed: {:?}", model, err);
-                            undispatched_queue.push_back(model);
-                        }
-                        _ => {}
-                    }
-                }
-
-                while !undispatched_queue.is_empty() {
-                    let model = undispatched_queue.pop_front().unwrap();
-                    match model.dispatch() {
-                        Err(err) => {
-                            log::error!("dispatch model {:?} failed: {:?}", model, err);
-                            undispatched_queue.push_back(model);
-                        }
-                        _ => {}
-                    }
-                }
-            });
-        }
-    }
 
     let server = api::CoordinatorApiImpl::new(coordinator, clusters);
     let service = coordinator_grpc::create_coordinator_api(server);

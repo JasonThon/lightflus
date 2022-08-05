@@ -4,5 +4,6 @@ members = [
     "src/stream",
     "src/common",
     "src/worker",
-    "src/coordinator"
+    "src/coordinator",
+    "src/storage"
 ]

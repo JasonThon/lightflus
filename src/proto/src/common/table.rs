@@ -294,14 +294,14 @@ impl ::protobuf::reflect::ProtobufValue for EntryList {
 // @@protoc_insertion_point(message:common.Schema)
 pub struct Schema {
     // message fields
-    // @@protoc_insertion_point(field:common.Schema.id)
-    pub id: ::std::string::String,
+    // @@protoc_insertion_point(field:common.Schema.database)
+    pub database: ::std::string::String,
+    // @@protoc_insertion_point(field:common.Schema.name)
+    pub name: ::std::string::String,
     // @@protoc_insertion_point(field:common.Schema.fields)
     pub fields: ::std::vec::Vec<Field>,
     // @@protoc_insertion_point(field:common.Schema.account_id)
     pub account_id: ::std::string::String,
-    // @@protoc_insertion_point(field:common.Schema.name)
-    pub name: ::std::string::String,
     // @@protoc_insertion_point(field:common.Schema.created_at)
     pub created_at: ::protobuf::MessageField<::protobuf::well_known_types::timestamp::Timestamp>,
     // @@protoc_insertion_point(field:common.Schema.modified_at)
@@ -326,9 +326,14 @@ impl Schema {
         let mut fields = ::std::vec::Vec::with_capacity(6);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
-            "id",
-            |m: &Schema| { &m.id },
-            |m: &mut Schema| { &mut m.id },
+            "database",
+            |m: &Schema| { &m.database },
+            |m: &mut Schema| { &mut m.database },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "name",
+            |m: &Schema| { &m.name },
+            |m: &mut Schema| { &mut m.name },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
             "fields",
@@ -339,11 +344,6 @@ impl Schema {
             "account_id",
             |m: &Schema| { &m.account_id },
             |m: &mut Schema| { &mut m.account_id },
-        ));
-        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
-            "name",
-            |m: &Schema| { &m.name },
-            |m: &mut Schema| { &mut m.name },
         ));
         fields.push(::protobuf::reflect::rt::v2::make_message_field_accessor::<_, ::protobuf::well_known_types::timestamp::Timestamp>(
             "created_at",
@@ -374,21 +374,21 @@ impl ::protobuf::Message for Schema {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.id = is.read_string()?;
+                    self.database = is.read_string()?;
                 },
                 18 => {
+                    self.name = is.read_string()?;
+                },
+                26 => {
                     self.fields.push(is.read_message()?);
                 },
                 34 => {
                     self.account_id = is.read_string()?;
                 },
                 42 => {
-                    self.name = is.read_string()?;
-                },
-                50 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.created_at)?;
                 },
-                58 => {
+                50 => {
                     ::protobuf::rt::read_singular_message_into_field(is, &mut self.modified_at)?;
                 },
                 tag => {
@@ -403,8 +403,11 @@ impl ::protobuf::Message for Schema {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if !self.id.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.id);
+        if !self.database.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.database);
+        }
+        if !self.name.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.name);
         }
         for value in &self.fields {
             let len = value.compute_size();
@@ -412,9 +415,6 @@ impl ::protobuf::Message for Schema {
         };
         if !self.account_id.is_empty() {
             my_size += ::protobuf::rt::string_size(4, &self.account_id);
-        }
-        if !self.name.is_empty() {
-            my_size += ::protobuf::rt::string_size(5, &self.name);
         }
         if let Some(v) = self.created_at.as_ref() {
             let len = v.compute_size();
@@ -430,23 +430,23 @@ impl ::protobuf::Message for Schema {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if !self.id.is_empty() {
-            os.write_string(1, &self.id)?;
+        if !self.database.is_empty() {
+            os.write_string(1, &self.database)?;
+        }
+        if !self.name.is_empty() {
+            os.write_string(2, &self.name)?;
         }
         for v in &self.fields {
-            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(3, v, os)?;
         };
         if !self.account_id.is_empty() {
             os.write_string(4, &self.account_id)?;
         }
-        if !self.name.is_empty() {
-            os.write_string(5, &self.name)?;
-        }
         if let Some(v) = self.created_at.as_ref() {
-            ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(5, v, os)?;
         }
         if let Some(v) = self.modified_at.as_ref() {
-            ::protobuf::rt::write_message_field_with_cached_size(7, v, os)?;
+            ::protobuf::rt::write_message_field_with_cached_size(6, v, os)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -465,10 +465,10 @@ impl ::protobuf::Message for Schema {
     }
 
     fn clear(&mut self) {
-        self.id.clear();
+        self.database.clear();
+        self.name.clear();
         self.fields.clear();
         self.account_id.clear();
-        self.name.clear();
         self.created_at.clear();
         self.modified_at.clear();
         self.special_fields.clear();
@@ -476,10 +476,10 @@ impl ::protobuf::Message for Schema {
 
     fn default_instance() -> &'static Schema {
         static instance: Schema = Schema {
-            id: ::std::string::String::new(),
+            database: ::std::string::String::new(),
+            name: ::std::string::String::new(),
             fields: ::std::vec::Vec::new(),
             account_id: ::std::string::String::new(),
-            name: ::std::string::String::new(),
             created_at: ::protobuf::MessageField::none(),
             modified_at: ::protobuf::MessageField::none(),
             special_fields: ::protobuf::SpecialFields::new(),
@@ -509,12 +509,16 @@ impl ::protobuf::reflect::ProtobufValue for Schema {
 // @@protoc_insertion_point(message:common.Field)
 pub struct Field {
     // message fields
-    // @@protoc_insertion_point(field:common.Field.id)
-    pub id: ::std::string::String,
     // @@protoc_insertion_point(field:common.Field.name)
     pub name: ::std::string::String,
     // @@protoc_insertion_point(field:common.Field.type)
     pub type_: ::protobuf::EnumOrUnknown<FieldType>,
+    // @@protoc_insertion_point(field:common.Field.comment)
+    pub comment: ::std::string::String,
+    // @@protoc_insertion_point(field:common.Field.default_value)
+    pub default_value: ::std::vec::Vec<u8>,
+    // @@protoc_insertion_point(field:common.Field.nullable)
+    pub nullable: bool,
     // special fields
     // @@protoc_insertion_point(special_field:common.Field.special_fields)
     pub special_fields: ::protobuf::SpecialFields,
@@ -532,13 +536,8 @@ impl Field {
     }
 
     fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
-        let mut fields = ::std::vec::Vec::with_capacity(3);
+        let mut fields = ::std::vec::Vec::with_capacity(5);
         let mut oneofs = ::std::vec::Vec::with_capacity(0);
-        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
-            "id",
-            |m: &Field| { &m.id },
-            |m: &mut Field| { &mut m.id },
-        ));
         fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
             "name",
             |m: &Field| { &m.name },
@@ -548,6 +547,21 @@ impl Field {
             "type",
             |m: &Field| { &m.type_ },
             |m: &mut Field| { &mut m.type_ },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "comment",
+            |m: &Field| { &m.comment },
+            |m: &mut Field| { &mut m.comment },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "default_value",
+            |m: &Field| { &m.default_value },
+            |m: &mut Field| { &mut m.default_value },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "nullable",
+            |m: &Field| { &m.nullable },
+            |m: &mut Field| { &mut m.nullable },
         ));
         ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<Field>(
             "Field",
@@ -568,13 +582,19 @@ impl ::protobuf::Message for Field {
         while let Some(tag) = is.read_raw_tag_or_eof()? {
             match tag {
                 10 => {
-                    self.id = is.read_string()?;
-                },
-                18 => {
                     self.name = is.read_string()?;
                 },
-                24 => {
+                16 => {
                     self.type_ = is.read_enum_or_unknown()?;
+                },
+                26 => {
+                    self.comment = is.read_string()?;
+                },
+                34 => {
+                    self.default_value = is.read_bytes()?;
+                },
+                40 => {
+                    self.nullable = is.read_bool()?;
                 },
                 tag => {
                     ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
@@ -588,14 +608,20 @@ impl ::protobuf::Message for Field {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u64 {
         let mut my_size = 0;
-        if !self.id.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.id);
-        }
         if !self.name.is_empty() {
-            my_size += ::protobuf::rt::string_size(2, &self.name);
+            my_size += ::protobuf::rt::string_size(1, &self.name);
         }
         if self.type_ != ::protobuf::EnumOrUnknown::new(FieldType::BOOLEAN) {
-            my_size += ::protobuf::rt::int32_size(3, self.type_.value());
+            my_size += ::protobuf::rt::int32_size(2, self.type_.value());
+        }
+        if !self.comment.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.comment);
+        }
+        if !self.default_value.is_empty() {
+            my_size += ::protobuf::rt::bytes_size(4, &self.default_value);
+        }
+        if self.nullable != false {
+            my_size += 1 + 1;
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
         self.special_fields.cached_size().set(my_size as u32);
@@ -603,14 +629,20 @@ impl ::protobuf::Message for Field {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
-        if !self.id.is_empty() {
-            os.write_string(1, &self.id)?;
-        }
         if !self.name.is_empty() {
-            os.write_string(2, &self.name)?;
+            os.write_string(1, &self.name)?;
         }
         if self.type_ != ::protobuf::EnumOrUnknown::new(FieldType::BOOLEAN) {
-            os.write_enum(3, ::protobuf::EnumOrUnknown::value(&self.type_))?;
+            os.write_enum(2, ::protobuf::EnumOrUnknown::value(&self.type_))?;
+        }
+        if !self.comment.is_empty() {
+            os.write_string(3, &self.comment)?;
+        }
+        if !self.default_value.is_empty() {
+            os.write_bytes(4, &self.default_value)?;
+        }
+        if self.nullable != false {
+            os.write_bool(5, self.nullable)?;
         }
         os.write_unknown_fields(self.special_fields.unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -629,17 +661,21 @@ impl ::protobuf::Message for Field {
     }
 
     fn clear(&mut self) {
-        self.id.clear();
         self.name.clear();
         self.type_ = ::protobuf::EnumOrUnknown::new(FieldType::BOOLEAN);
+        self.comment.clear();
+        self.default_value.clear();
+        self.nullable = false;
         self.special_fields.clear();
     }
 
     fn default_instance() -> &'static Field {
         static instance: Field = Field {
-            id: ::std::string::String::new(),
             name: ::std::string::String::new(),
             type_: ::protobuf::EnumOrUnknown::from_i32(0),
+            comment: ::std::string::String::new(),
+            default_value: ::std::vec::Vec::new(),
+            nullable: false,
             special_fields: ::protobuf::SpecialFields::new(),
         };
         &instance
@@ -663,6 +699,147 @@ impl ::protobuf::reflect::ProtobufValue for Field {
     type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
 }
 
+#[derive(PartialEq,Clone,Default,Debug)]
+// @@protoc_insertion_point(message:common.FieldEntries)
+pub struct FieldEntries {
+    // message fields
+    // @@protoc_insertion_point(field:common.FieldEntries.name)
+    pub name: ::std::string::String,
+    // @@protoc_insertion_point(field:common.FieldEntries.entries)
+    pub entries: ::std::vec::Vec<Entry>,
+    // special fields
+    // @@protoc_insertion_point(special_field:common.FieldEntries.special_fields)
+    pub special_fields: ::protobuf::SpecialFields,
+}
+
+impl<'a> ::std::default::Default for &'a FieldEntries {
+    fn default() -> &'a FieldEntries {
+        <FieldEntries as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl FieldEntries {
+    pub fn new() -> FieldEntries {
+        ::std::default::Default::default()
+    }
+
+    fn generated_message_descriptor_data() -> ::protobuf::reflect::GeneratedMessageDescriptorData {
+        let mut fields = ::std::vec::Vec::with_capacity(2);
+        let mut oneofs = ::std::vec::Vec::with_capacity(0);
+        fields.push(::protobuf::reflect::rt::v2::make_simpler_field_accessor::<_, _>(
+            "name",
+            |m: &FieldEntries| { &m.name },
+            |m: &mut FieldEntries| { &mut m.name },
+        ));
+        fields.push(::protobuf::reflect::rt::v2::make_vec_simpler_accessor::<_, _>(
+            "entries",
+            |m: &FieldEntries| { &m.entries },
+            |m: &mut FieldEntries| { &mut m.entries },
+        ));
+        ::protobuf::reflect::GeneratedMessageDescriptorData::new_2::<FieldEntries>(
+            "FieldEntries",
+            fields,
+            oneofs,
+        )
+    }
+}
+
+impl ::protobuf::Message for FieldEntries {
+    const NAME: &'static str = "FieldEntries";
+
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::Result<()> {
+        while let Some(tag) = is.read_raw_tag_or_eof()? {
+            match tag {
+                10 => {
+                    self.name = is.read_string()?;
+                },
+                18 => {
+                    self.entries.push(is.read_message()?);
+                },
+                tag => {
+                    ::protobuf::rt::read_unknown_or_skip_group(tag, is, self.special_fields.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u64 {
+        let mut my_size = 0;
+        if !self.name.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.name);
+        }
+        for value in &self.entries {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint64_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.special_fields.unknown_fields());
+        self.special_fields.cached_size().set(my_size as u32);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::Result<()> {
+        if !self.name.is_empty() {
+            os.write_string(1, &self.name)?;
+        }
+        for v in &self.entries {
+            ::protobuf::rt::write_message_field_with_cached_size(2, v, os)?;
+        };
+        os.write_unknown_fields(self.special_fields.unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn special_fields(&self) -> &::protobuf::SpecialFields {
+        &self.special_fields
+    }
+
+    fn mut_special_fields(&mut self) -> &mut ::protobuf::SpecialFields {
+        &mut self.special_fields
+    }
+
+    fn new() -> FieldEntries {
+        FieldEntries::new()
+    }
+
+    fn clear(&mut self) {
+        self.name.clear();
+        self.entries.clear();
+        self.special_fields.clear();
+    }
+
+    fn default_instance() -> &'static FieldEntries {
+        static instance: FieldEntries = FieldEntries {
+            name: ::std::string::String::new(),
+            entries: ::std::vec::Vec::new(),
+            special_fields: ::protobuf::SpecialFields::new(),
+        };
+        &instance
+    }
+}
+
+impl ::protobuf::MessageFull for FieldEntries {
+    fn descriptor() -> ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::Lazy<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::Lazy::new();
+        descriptor.get(|| file_descriptor().message_by_package_relative_name("FieldEntries").unwrap()).clone()
+    }
+}
+
+impl ::std::fmt::Display for FieldEntries {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for FieldEntries {
+    type RuntimeType = ::protobuf::reflect::rt::RuntimeTypeMessage<Self>;
+}
+
 #[derive(Clone,Copy,PartialEq,Eq,Debug,Hash)]
 // @@protoc_insertion_point(enum:common.FieldType)
 pub enum FieldType {
@@ -680,10 +857,8 @@ pub enum FieldType {
     VARCHAR = 5,
     // @@protoc_insertion_point(enum_value:common.FieldType.DATE)
     DATE = 6,
-    // @@protoc_insertion_point(enum_value:common.FieldType.TIMESTAMP_MILLIS)
-    TIMESTAMP_MILLIS = 7,
-    // @@protoc_insertion_point(enum_value:common.FieldType.TIMESTAMP_MICROS)
-    TIMESTAMP_MICROS = 8,
+    // @@protoc_insertion_point(enum_value:common.FieldType.TIMESTAMP)
+    TIMESTAMP = 7,
 }
 
 impl ::protobuf::Enum for FieldType {
@@ -702,8 +877,7 @@ impl ::protobuf::Enum for FieldType {
             4 => ::std::option::Option::Some(FieldType::FLOAT_64),
             5 => ::std::option::Option::Some(FieldType::VARCHAR),
             6 => ::std::option::Option::Some(FieldType::DATE),
-            7 => ::std::option::Option::Some(FieldType::TIMESTAMP_MILLIS),
-            8 => ::std::option::Option::Some(FieldType::TIMESTAMP_MICROS),
+            7 => ::std::option::Option::Some(FieldType::TIMESTAMP),
             _ => ::std::option::Option::None
         }
     }
@@ -716,8 +890,7 @@ impl ::protobuf::Enum for FieldType {
         FieldType::FLOAT_64,
         FieldType::VARCHAR,
         FieldType::DATE,
-        FieldType::TIMESTAMP_MILLIS,
-        FieldType::TIMESTAMP_MICROS,
+        FieldType::TIMESTAMP,
     ];
 }
 
@@ -750,83 +923,99 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     to\x1a\x1fgoogle/protobuf/timestamp.proto\"-\n\x05Entry\x12\x0e\n\x02pk\
     \x18\x01\x20\x01(\x04R\x02pk\x12\x14\n\x05value\x18\x02\x20\x01(\x0cR\
     \x05value\"4\n\tEntryList\x12'\n\x07entries\x18\x01\x20\x03(\x0b2\r.comm\
-    on.EntryR\x07entries\"\xea\x01\n\x06Schema\x12\x0e\n\x02id\x18\x01\x20\
-    \x01(\tR\x02id\x12%\n\x06fields\x18\x02\x20\x03(\x0b2\r.common.FieldR\
-    \x06fields\x12\x1d\n\naccount_id\x18\x04\x20\x01(\tR\taccountId\x12\x12\
-    \n\x04name\x18\x05\x20\x01(\tR\x04name\x129\n\ncreated_at\x18\x06\x20\
-    \x01(\x0b2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n\x0bmodified_\
-    at\x18\x07\x20\x01(\x0b2\x1a.google.protobuf.TimestampR\nmodifiedAt\"R\n\
-    \x05Field\x12\x0e\n\x02id\x18\x01\x20\x01(\tR\x02id\x12\x12\n\x04name\
-    \x18\x02\x20\x01(\tR\x04name\x12%\n\x04type\x18\x03\x20\x01(\x0e2\x11.co\
-    mmon.FieldTypeR\x04type*\x8f\x01\n\tFieldType\x12\x0b\n\x07BOOLEAN\x10\0\
-    \x12\n\n\x06INT_32\x10\x01\x12\n\n\x06INT_64\x10\x02\x12\x0c\n\x08FLOAT_\
-    32\x10\x03\x12\x0c\n\x08FLOAT_64\x10\x04\x12\x0b\n\x07VARCHAR\x10\x05\
-    \x12\x08\n\x04DATE\x10\x06\x12\x14\n\x10TIMESTAMP_MILLIS\x10\x07\x12\x14\
-    \n\x10TIMESTAMP_MICROS\x10\x08B\x07Z\x05protoJ\xfc\n\n\x06\x12\x04\0\0-\
-    \x01\n\x08\n\x01\x0c\x12\x03\0\0\x12\n\x08\n\x01\x02\x12\x03\x02\0\x0f\n\
-    \x08\n\x01\x08\x12\x03\x03\0\x1c\n\t\n\x02\x08\x0b\x12\x03\x03\0\x1c\n\t\
-    \n\x02\x03\0\x12\x03\x04\0&\n\t\n\x02\x03\x01\x12\x03\x05\0)\n\n\n\x02\
-    \x04\0\x12\x04\x07\0\n\x01\n\n\n\x03\x04\0\x01\x12\x03\x07\x08\r\n\x1d\n\
-    \x04\x04\0\x02\0\x12\x03\x08\x02\x10\"\x10\x20primary\x20key\x20id\n\n\
-    \x0c\n\x05\x04\0\x02\0\x05\x12\x03\x08\x02\x08\n\x0c\n\x05\x04\0\x02\0\
-    \x01\x12\x03\x08\t\x0b\n\x0c\n\x05\x04\0\x02\0\x03\x12\x03\x08\x0e\x0f\n\
-    \x1a\n\x04\x04\0\x02\x01\x12\x03\t\x02\x12\"\r\x20entry\x20value\n\n\x0c\
-    \n\x05\x04\0\x02\x01\x05\x12\x03\t\x02\x07\n\x0c\n\x05\x04\0\x02\x01\x01\
-    \x12\x03\t\x08\r\n\x0c\n\x05\x04\0\x02\x01\x03\x12\x03\t\x10\x11\n\n\n\
-    \x02\x04\x01\x12\x04\x0c\0\x0e\x01\n\n\n\x03\x04\x01\x01\x12\x03\x0c\x08\
-    \x11\n\x0b\n\x04\x04\x01\x02\0\x12\x03\r\x02$\n\x0c\n\x05\x04\x01\x02\0\
-    \x04\x12\x03\r\x02\n\n\x0c\n\x05\x04\x01\x02\0\x06\x12\x03\r\x0b\x17\n\
-    \x0c\n\x05\x04\x01\x02\0\x01\x12\x03\r\x18\x1f\n\x0c\n\x05\x04\x01\x02\0\
-    \x03\x12\x03\r\"#\n)\n\x02\x04\x02\x12\x04\x13\0\x1b\x01\x1a\x1d*\nDefin\
-    ition\x20of\x20Table\x20Schema\n\n\n\n\x03\x04\x02\x01\x12\x03\x13\x08\
-    \x0e\n\x18\n\x04\x04\x02\x02\0\x12\x03\x14\x02\x10\"\x0b\x20schema\x20id\
-    \n\n\x0c\n\x05\x04\x02\x02\0\x05\x12\x03\x14\x02\x08\n\x0c\n\x05\x04\x02\
-    \x02\0\x01\x12\x03\x14\t\x0b\n\x0c\n\x05\x04\x02\x02\0\x03\x12\x03\x14\
-    \x0e\x0f\n\x15\n\x04\x04\x02\x02\x01\x12\x03\x15\x02\x1c\"\x08\x20fields\
-    \n\n\x0c\n\x05\x04\x02\x02\x01\x04\x12\x03\x15\x02\n\n\x0c\n\x05\x04\x02\
-    \x02\x01\x06\x12\x03\x15\x0b\x10\n\x0c\n\x05\x04\x02\x02\x01\x01\x12\x03\
-    \x15\x11\x17\n\x0c\n\x05\x04\x02\x02\x01\x03\x12\x03\x15\x1a\x1b\n\x19\n\
-    \x04\x04\x02\x02\x02\x12\x03\x16\x02\x18\"\x0c\x20account\x20id\n\n\x0c\
-    \n\x05\x04\x02\x02\x02\x05\x12\x03\x16\x02\x08\n\x0c\n\x05\x04\x02\x02\
-    \x02\x01\x12\x03\x16\t\x13\n\x0c\n\x05\x04\x02\x02\x02\x03\x12\x03\x16\
-    \x16\x17\n\x1a\n\x04\x04\x02\x02\x03\x12\x03\x17\x02\x12\"\r\x20schema\
-    \x20name\n\n\x0c\n\x05\x04\x02\x02\x03\x05\x12\x03\x17\x02\x08\n\x0c\n\
-    \x05\x04\x02\x02\x03\x01\x12\x03\x17\t\r\n\x0c\n\x05\x04\x02\x02\x03\x03\
-    \x12\x03\x17\x10\x11\n\x0b\n\x04\x04\x02\x02\x04\x12\x03\x18\x02+\n\x0c\
-    \n\x05\x04\x02\x02\x04\x06\x12\x03\x18\x02\x1b\n\x0c\n\x05\x04\x02\x02\
-    \x04\x01\x12\x03\x18\x1c&\n\x0c\n\x05\x04\x02\x02\x04\x03\x12\x03\x18)*\
-    \n\x0b\n\x04\x04\x02\x02\x05\x12\x03\x19\x02,\n\x0c\n\x05\x04\x02\x02\
-    \x05\x06\x12\x03\x19\x02\x1b\n\x0c\n\x05\x04\x02\x02\x05\x01\x12\x03\x19\
-    \x1c'\n\x0c\n\x05\x04\x02\x02\x05\x03\x12\x03\x19*+\n\n\n\x02\x04\x03\
-    \x12\x04\x1d\0!\x01\n\n\n\x03\x04\x03\x01\x12\x03\x1d\x08\r\n\x17\n\x04\
-    \x04\x03\x02\0\x12\x03\x1e\x02\x10\"\n\x20field\x20id\n\n\x0c\n\x05\x04\
-    \x03\x02\0\x05\x12\x03\x1e\x02\x08\n\x0c\n\x05\x04\x03\x02\0\x01\x12\x03\
-    \x1e\t\x0b\n\x0c\n\x05\x04\x03\x02\0\x03\x12\x03\x1e\x0e\x0f\n\x19\n\x04\
-    \x04\x03\x02\x01\x12\x03\x1f\x02\x12\"\x0c\x20field\x20name\n\n\x0c\n\
-    \x05\x04\x03\x02\x01\x05\x12\x03\x1f\x02\x08\n\x0c\n\x05\x04\x03\x02\x01\
-    \x01\x12\x03\x1f\t\r\n\x0c\n\x05\x04\x03\x02\x01\x03\x12\x03\x1f\x10\x11\
-    \n\x19\n\x04\x04\x03\x02\x02\x12\x03\x20\x02\x15\"\x0c\x20field\x20type\
-    \n\n\x0c\n\x05\x04\x03\x02\x02\x06\x12\x03\x20\x02\x0b\n\x0c\n\x05\x04\
-    \x03\x02\x02\x01\x12\x03\x20\x0c\x10\n\x0c\n\x05\x04\x03\x02\x02\x03\x12\
-    \x03\x20\x13\x14\n\n\n\x02\x05\0\x12\x04#\0-\x01\n\n\n\x03\x05\0\x01\x12\
-    \x03#\x05\x0e\n\x0b\n\x04\x05\0\x02\0\x12\x03$\x02\x0e\n\x0c\n\x05\x05\0\
-    \x02\0\x01\x12\x03$\x02\t\n\x0c\n\x05\x05\0\x02\0\x02\x12\x03$\x0c\r\n\
-    \x0b\n\x04\x05\0\x02\x01\x12\x03%\x02\r\n\x0c\n\x05\x05\0\x02\x01\x01\
-    \x12\x03%\x02\x08\n\x0c\n\x05\x05\0\x02\x01\x02\x12\x03%\x0b\x0c\n\x0b\n\
-    \x04\x05\0\x02\x02\x12\x03&\x02\r\n\x0c\n\x05\x05\0\x02\x02\x01\x12\x03&\
-    \x02\x08\n\x0c\n\x05\x05\0\x02\x02\x02\x12\x03&\x0b\x0c\n\x0b\n\x04\x05\
-    \0\x02\x03\x12\x03'\x02\x0f\n\x0c\n\x05\x05\0\x02\x03\x01\x12\x03'\x02\n\
-    \n\x0c\n\x05\x05\0\x02\x03\x02\x12\x03'\r\x0e\n\x0b\n\x04\x05\0\x02\x04\
-    \x12\x03(\x02\x0f\n\x0c\n\x05\x05\0\x02\x04\x01\x12\x03(\x02\n\n\x0c\n\
-    \x05\x05\0\x02\x04\x02\x12\x03(\r\x0e\n\x0b\n\x04\x05\0\x02\x05\x12\x03)\
-    \x02\x0e\n\x0c\n\x05\x05\0\x02\x05\x01\x12\x03)\x02\t\n\x0c\n\x05\x05\0\
-    \x02\x05\x02\x12\x03)\x0c\r\n\x0b\n\x04\x05\0\x02\x06\x12\x03*\x02\x0b\n\
-    \x0c\n\x05\x05\0\x02\x06\x01\x12\x03*\x02\x06\n\x0c\n\x05\x05\0\x02\x06\
-    \x02\x12\x03*\t\n\n\x0b\n\x04\x05\0\x02\x07\x12\x03+\x02\x17\n\x0c\n\x05\
-    \x05\0\x02\x07\x01\x12\x03+\x02\x12\n\x0c\n\x05\x05\0\x02\x07\x02\x12\
-    \x03+\x15\x16\n\x0b\n\x04\x05\0\x02\x08\x12\x03,\x02\x17\n\x0c\n\x05\x05\
-    \0\x02\x08\x01\x12\x03,\x02\x12\n\x0c\n\x05\x05\0\x02\x08\x02\x12\x03,\
-    \x15\x16b\x06proto3\
+    on.EntryR\x07entries\"\xf6\x01\n\x06Schema\x12\x1a\n\x08database\x18\x01\
+    \x20\x01(\tR\x08database\x12\x12\n\x04name\x18\x02\x20\x01(\tR\x04name\
+    \x12%\n\x06fields\x18\x03\x20\x03(\x0b2\r.common.FieldR\x06fields\x12\
+    \x1d\n\naccount_id\x18\x04\x20\x01(\tR\taccountId\x129\n\ncreated_at\x18\
+    \x05\x20\x01(\x0b2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n\x0bm\
+    odified_at\x18\x06\x20\x01(\x0b2\x1a.google.protobuf.TimestampR\nmodifie\
+    dAt\"\x9d\x01\n\x05Field\x12\x12\n\x04name\x18\x01\x20\x01(\tR\x04name\
+    \x12%\n\x04type\x18\x02\x20\x01(\x0e2\x11.common.FieldTypeR\x04type\x12\
+    \x18\n\x07comment\x18\x03\x20\x01(\tR\x07comment\x12#\n\rdefault_value\
+    \x18\x04\x20\x01(\x0cR\x0cdefaultValue\x12\x1a\n\x08nullable\x18\x05\x20\
+    \x01(\x08R\x08nullable\"K\n\x0cFieldEntries\x12\x12\n\x04name\x18\x01\
+    \x20\x01(\tR\x04name\x12'\n\x07entries\x18\x02\x20\x03(\x0b2\r.common.En\
+    tryR\x07entries*r\n\tFieldType\x12\x0b\n\x07BOOLEAN\x10\0\x12\n\n\x06INT\
+    _32\x10\x01\x12\n\n\x06INT_64\x10\x02\x12\x0c\n\x08FLOAT_32\x10\x03\x12\
+    \x0c\n\x08FLOAT_64\x10\x04\x12\x0b\n\x07VARCHAR\x10\x05\x12\x08\n\x04DAT\
+    E\x10\x06\x12\r\n\tTIMESTAMP\x10\x07B\x07Z\x05protoJ\xb3\r\n\x06\x12\x04\
+    \0\02\x01\n\x08\n\x01\x0c\x12\x03\0\0\x12\n\x08\n\x01\x02\x12\x03\x02\0\
+    \x0f\n\x08\n\x01\x08\x12\x03\x03\0\x1c\n\t\n\x02\x08\x0b\x12\x03\x03\0\
+    \x1c\n\t\n\x02\x03\0\x12\x03\x04\0&\n\t\n\x02\x03\x01\x12\x03\x05\0)\n\n\
+    \n\x02\x04\0\x12\x04\x07\0\n\x01\n\n\n\x03\x04\0\x01\x12\x03\x07\x08\r\n\
+    \x1d\n\x04\x04\0\x02\0\x12\x03\x08\x02\x10\"\x10\x20primary\x20key\x20id\
+    \n\n\x0c\n\x05\x04\0\x02\0\x05\x12\x03\x08\x02\x08\n\x0c\n\x05\x04\0\x02\
+    \0\x01\x12\x03\x08\t\x0b\n\x0c\n\x05\x04\0\x02\0\x03\x12\x03\x08\x0e\x0f\
+    \n\x1a\n\x04\x04\0\x02\x01\x12\x03\t\x02\x12\"\r\x20entry\x20value\n\n\
+    \x0c\n\x05\x04\0\x02\x01\x05\x12\x03\t\x02\x07\n\x0c\n\x05\x04\0\x02\x01\
+    \x01\x12\x03\t\x08\r\n\x0c\n\x05\x04\0\x02\x01\x03\x12\x03\t\x10\x11\n\n\
+    \n\x02\x04\x01\x12\x04\x0c\0\x0e\x01\n\n\n\x03\x04\x01\x01\x12\x03\x0c\
+    \x08\x11\n\x0b\n\x04\x04\x01\x02\0\x12\x03\r\x02$\n\x0c\n\x05\x04\x01\
+    \x02\0\x04\x12\x03\r\x02\n\n\x0c\n\x05\x04\x01\x02\0\x06\x12\x03\r\x0b\
+    \x17\n\x0c\n\x05\x04\x01\x02\0\x01\x12\x03\r\x18\x1f\n\x0c\n\x05\x04\x01\
+    \x02\0\x03\x12\x03\r\"#\n)\n\x02\x04\x02\x12\x04\x13\0\x1a\x01\x1a\x1d*\
+    \nDefinition\x20of\x20Table\x20Schema\n\n\n\n\x03\x04\x02\x01\x12\x03\
+    \x13\x08\x0e\n\x17\n\x04\x04\x02\x02\0\x12\x03\x14\x02\x16\"\n\x20databa\
+    se\n\n\x0c\n\x05\x04\x02\x02\0\x05\x12\x03\x14\x02\x08\n\x0c\n\x05\x04\
+    \x02\x02\0\x01\x12\x03\x14\t\x11\n\x0c\n\x05\x04\x02\x02\0\x03\x12\x03\
+    \x14\x14\x15\n\x1a\n\x04\x04\x02\x02\x01\x12\x03\x15\x02\x12\"\r\x20sche\
+    ma\x20name\n\n\x0c\n\x05\x04\x02\x02\x01\x05\x12\x03\x15\x02\x08\n\x0c\n\
+    \x05\x04\x02\x02\x01\x01\x12\x03\x15\t\r\n\x0c\n\x05\x04\x02\x02\x01\x03\
+    \x12\x03\x15\x10\x11\n\x15\n\x04\x04\x02\x02\x02\x12\x03\x16\x02\x1c\"\
+    \x08\x20fields\n\n\x0c\n\x05\x04\x02\x02\x02\x04\x12\x03\x16\x02\n\n\x0c\
+    \n\x05\x04\x02\x02\x02\x06\x12\x03\x16\x0b\x10\n\x0c\n\x05\x04\x02\x02\
+    \x02\x01\x12\x03\x16\x11\x17\n\x0c\n\x05\x04\x02\x02\x02\x03\x12\x03\x16\
+    \x1a\x1b\n\x19\n\x04\x04\x02\x02\x03\x12\x03\x17\x02\x18\"\x0c\x20accoun\
+    t\x20id\n\n\x0c\n\x05\x04\x02\x02\x03\x05\x12\x03\x17\x02\x08\n\x0c\n\
+    \x05\x04\x02\x02\x03\x01\x12\x03\x17\t\x13\n\x0c\n\x05\x04\x02\x02\x03\
+    \x03\x12\x03\x17\x16\x17\n\x1a\n\x04\x04\x02\x02\x04\x12\x03\x18\x02+\"\
+    \r\x20create\x20time\n\n\x0c\n\x05\x04\x02\x02\x04\x06\x12\x03\x18\x02\
+    \x1b\n\x0c\n\x05\x04\x02\x02\x04\x01\x12\x03\x18\x1c&\n\x0c\n\x05\x04\
+    \x02\x02\x04\x03\x12\x03\x18)*\n\x20\n\x04\x04\x02\x02\x05\x12\x03\x19\
+    \x02,\"\x13\x20modification\x20time\n\n\x0c\n\x05\x04\x02\x02\x05\x06\
+    \x12\x03\x19\x02\x1b\n\x0c\n\x05\x04\x02\x02\x05\x01\x12\x03\x19\x1c'\n\
+    \x0c\n\x05\x04\x02\x02\x05\x03\x12\x03\x19*+\n\n\n\x02\x04\x03\x12\x04\
+    \x1c\0\"\x01\n\n\n\x03\x04\x03\x01\x12\x03\x1c\x08\r\n\x19\n\x04\x04\x03\
+    \x02\0\x12\x03\x1d\x02\x12\"\x0c\x20field\x20name\n\n\x0c\n\x05\x04\x03\
+    \x02\0\x05\x12\x03\x1d\x02\x08\n\x0c\n\x05\x04\x03\x02\0\x01\x12\x03\x1d\
+    \t\r\n\x0c\n\x05\x04\x03\x02\0\x03\x12\x03\x1d\x10\x11\n\x19\n\x04\x04\
+    \x03\x02\x01\x12\x03\x1e\x02\x15\"\x0c\x20field\x20type\n\n\x0c\n\x05\
+    \x04\x03\x02\x01\x06\x12\x03\x1e\x02\x0b\n\x0c\n\x05\x04\x03\x02\x01\x01\
+    \x12\x03\x1e\x0c\x10\n\x0c\n\x05\x04\x03\x02\x01\x03\x12\x03\x1e\x13\x14\
+    \n\x16\n\x04\x04\x03\x02\x02\x12\x03\x1f\x02\x15\"\t\x20comment\n\n\x0c\
+    \n\x05\x04\x03\x02\x02\x05\x12\x03\x1f\x02\x08\n\x0c\n\x05\x04\x03\x02\
+    \x02\x01\x12\x03\x1f\t\x10\n\x0c\n\x05\x04\x03\x02\x02\x03\x12\x03\x1f\
+    \x13\x14\n\x1c\n\x04\x04\x03\x02\x03\x12\x03\x20\x02\x1a\"\x0f\x20defaul\
+    t\x20value\n\n\x0c\n\x05\x04\x03\x02\x03\x05\x12\x03\x20\x02\x07\n\x0c\n\
+    \x05\x04\x03\x02\x03\x01\x12\x03\x20\x08\x15\n\x0c\n\x05\x04\x03\x02\x03\
+    \x03\x12\x03\x20\x18\x19\n\x17\n\x04\x04\x03\x02\x04\x12\x03!\x02\x14\"\
+    \n\x20nullable\n\n\x0c\n\x05\x04\x03\x02\x04\x05\x12\x03!\x02\x06\n\x0c\
+    \n\x05\x04\x03\x02\x04\x01\x12\x03!\x07\x0f\n\x0c\n\x05\x04\x03\x02\x04\
+    \x03\x12\x03!\x12\x13\n\n\n\x02\x05\0\x12\x04$\0-\x01\n\n\n\x03\x05\0\
+    \x01\x12\x03$\x05\x0e\n\x0b\n\x04\x05\0\x02\0\x12\x03%\x02\x0e\n\x0c\n\
+    \x05\x05\0\x02\0\x01\x12\x03%\x02\t\n\x0c\n\x05\x05\0\x02\0\x02\x12\x03%\
+    \x0c\r\n\x0b\n\x04\x05\0\x02\x01\x12\x03&\x02\r\n\x0c\n\x05\x05\0\x02\
+    \x01\x01\x12\x03&\x02\x08\n\x0c\n\x05\x05\0\x02\x01\x02\x12\x03&\x0b\x0c\
+    \n\x0b\n\x04\x05\0\x02\x02\x12\x03'\x02\r\n\x0c\n\x05\x05\0\x02\x02\x01\
+    \x12\x03'\x02\x08\n\x0c\n\x05\x05\0\x02\x02\x02\x12\x03'\x0b\x0c\n\x0b\n\
+    \x04\x05\0\x02\x03\x12\x03(\x02\x0f\n\x0c\n\x05\x05\0\x02\x03\x01\x12\
+    \x03(\x02\n\n\x0c\n\x05\x05\0\x02\x03\x02\x12\x03(\r\x0e\n\x0b\n\x04\x05\
+    \0\x02\x04\x12\x03)\x02\x0f\n\x0c\n\x05\x05\0\x02\x04\x01\x12\x03)\x02\n\
+    \n\x0c\n\x05\x05\0\x02\x04\x02\x12\x03)\r\x0e\n\x0b\n\x04\x05\0\x02\x05\
+    \x12\x03*\x02\x0e\n\x0c\n\x05\x05\0\x02\x05\x01\x12\x03*\x02\t\n\x0c\n\
+    \x05\x05\0\x02\x05\x02\x12\x03*\x0c\r\n\x0b\n\x04\x05\0\x02\x06\x12\x03+\
+    \x02\x0b\n\x0c\n\x05\x05\0\x02\x06\x01\x12\x03+\x02\x06\n\x0c\n\x05\x05\
+    \0\x02\x06\x02\x12\x03+\t\n\n\x0b\n\x04\x05\0\x02\x07\x12\x03,\x02\x10\n\
+    \x0c\n\x05\x05\0\x02\x07\x01\x12\x03,\x02\x0b\n\x0c\n\x05\x05\0\x02\x07\
+    \x02\x12\x03,\x0e\x0f\n\n\n\x02\x04\x04\x12\x04/\02\x01\n\n\n\x03\x04\
+    \x04\x01\x12\x03/\x08\x14\n\x19\n\x04\x04\x04\x02\0\x12\x030\x02\x12\"\
+    \x0c\x20field\x20name\n\n\x0c\n\x05\x04\x04\x02\0\x05\x12\x030\x02\x08\n\
+    \x0c\n\x05\x04\x04\x02\0\x01\x12\x030\t\r\n\x0c\n\x05\x04\x04\x02\0\x03\
+    \x12\x030\x10\x11\n\x1c\n\x04\x04\x04\x02\x01\x12\x031\x02\x1d\"\x0f\x20\
+    field\x20entries\n\n\x0c\n\x05\x04\x04\x02\x01\x04\x12\x031\x02\n\n\x0c\
+    \n\x05\x04\x04\x02\x01\x06\x12\x031\x0b\x10\n\x0c\n\x05\x04\x04\x02\x01\
+    \x01\x12\x031\x11\x18\n\x0c\n\x05\x04\x04\x02\x01\x03\x12\x031\x1b\x1cb\
+    \x06proto3\
 ";
 
 /// `FileDescriptorProto` object which was a source for this generated file
@@ -846,11 +1035,12 @@ pub fn file_descriptor() -> &'static ::protobuf::reflect::FileDescriptor {
             let mut deps = ::std::vec::Vec::with_capacity(2);
             deps.push(::protobuf::well_known_types::struct_::file_descriptor().clone());
             deps.push(::protobuf::well_known_types::timestamp::file_descriptor().clone());
-            let mut messages = ::std::vec::Vec::with_capacity(4);
+            let mut messages = ::std::vec::Vec::with_capacity(5);
             messages.push(Entry::generated_message_descriptor_data());
             messages.push(EntryList::generated_message_descriptor_data());
             messages.push(Schema::generated_message_descriptor_data());
             messages.push(Field::generated_message_descriptor_data());
+            messages.push(FieldEntries::generated_message_descriptor_data());
             let mut enums = ::std::vec::Vec::with_capacity(1);
             enums.push(FieldType::generated_enum_descriptor_data());
             ::protobuf::reflect::GeneratedFileDescriptor::new_generated(

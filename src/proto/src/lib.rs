@@ -4,3 +4,5 @@ pub mod coordinator;
 pub mod worker;
 #[cfg(feature = "proto-common")]
 pub mod common;
+#[cfg(feature = "qe")]
+pub mod qe;

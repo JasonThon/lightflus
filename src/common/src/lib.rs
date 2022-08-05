@@ -4,7 +4,6 @@ use std::net::UdpSocket;
 
 pub mod net;
 pub mod sysenv;
-pub mod mongo;
 pub mod lists;
 pub mod kafka;
 pub mod types;

@@ -1,8 +1,8 @@
-use std::{collections, sync};
+use std::{collections, fs, sync};
 
 use tokio::sync::mpsc;
 
-use common::{event, err::CommonException};
+use common::{event, err::CommonException, utils};
 use proto::coordinator::coordinator_grpc;
 
 const DATAFLOW_DB: &str = "dataflow";
@@ -14,13 +14,19 @@ pub mod cluster;
 #[tokio::main]
 async fn main() {
     log::set_max_level(log::LevelFilter::Info);
-    env_logger::init();
-    let file_result = std::fs::File::open("src/coordinator/etc/coord.json");
+    let config_file_path = utils::Args::default()
+        .arg("c")
+        .map(|arg| arg.value.clone());
+
+    let file_result = fs::File::open(
+        config_file_path
+            .unwrap_or("src/coordinator/etc/coord.json".to_string())
+    );
     if file_result.is_err() {
         panic!("{}", format!("fail to read config file: {:?}", file_result.unwrap_err()))
     }
     let file = file_result.unwrap();
-    let env_setup = common::sysenv::serde_env::from_reader(file);
+    let env_setup = common::utils::from_reader(file);
     if env_setup.is_err() {
         panic!("{}", format!("fail to read config file: {:?}", env_setup.unwrap_err()))
     }

@@ -2,7 +2,7 @@ name: tablflow-runtime cicd
 
 on:
   push:
-    branches: [ master, release ]
+    branches: [ master ]
   pull_request:
     branches: [ master, release ]
   release:
@@ -30,8 +30,6 @@ jobs:
   build_docker_image:
 
     if: ${{ github.event_name == 'release' }}
-
-    needs: [ test_and_build ]
 
     runs-on: ubuntu-latest
 

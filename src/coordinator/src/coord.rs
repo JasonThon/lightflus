@@ -28,7 +28,6 @@ impl Coordinator {
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct CoordinatorConfig {
-    pub mongo: common::mongo::MongoConfig,
     pub port: usize,
     pub cluster: Vec<cluster::NodeConfig>,
     pub conn_proxy: String,

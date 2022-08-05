@@ -1,5 +1,5 @@
 use tokio::sync::mpsc::error::SendError;
-use crate::dataflow::SinkableMessageImpl;
+use crate::actor::SinkableMessageImpl;
 
 #[derive(Debug, Clone)]
 pub struct PipelineError {

@@ -1,7 +1,7 @@
 use std::ops::{Add, AddAssign};
 use std::time;
 use common::sysenv;
-use crate::constants;
+use crate::types;
 
 #[derive(Clone)]
 pub enum TriggerType {
@@ -36,7 +36,7 @@ impl Trigger {
 impl Default for Trigger {
     fn default() -> Self {
         Self::Watermark {
-            firetime: time::SystemTime::now().add(constants::DEFAULT_FIRETIME_DURATION),
+            firetime: time::SystemTime::now().add(time::Duration::from_millis(100)),
             mark: Default::default(),
         }
     }

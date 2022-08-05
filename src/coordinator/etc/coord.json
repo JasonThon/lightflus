@@ -1,15 +1,9 @@
 {
-  "mongo": {
-    "host": "${MONGO_HOST}",
-    "port": 27017,
-    "database": "dataflow"
-  },
   "port": 8091,
   "cluster": [
     {
       "host": "${WORKER_NODE_1}",
       "port": 8090
     }
-  ],
-  "conn_proxy": "${CONNECTOR_PROXY}"
+  ]
 }

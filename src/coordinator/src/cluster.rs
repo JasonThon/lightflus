@@ -2,6 +2,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use common;
 use common::{err, event, types};
+use common::net::HostAddr;
 use proto::common::probe;
 use proto::worker;
 
@@ -14,8 +15,8 @@ enum NodeStatus {
 
 #[derive(Clone, Eq, PartialEq)]
 struct Node {
-    pub addr: String,
     status: NodeStatus,
+    pub host_addr: HostAddr,
 }
 
 impl Node {
@@ -23,7 +24,7 @@ impl Node {
         let client = worker::cli::new_dataflow_worker_client(worker::cli::DataflowWorkerConfig {
             host: None,
             port: None,
-            uri: Some(self.addr.clone()),
+            uri: Some(self.host_addr.as_uri()),
         });
 
         let ref mut request = probe::ProbeRequest::new();
@@ -55,14 +56,15 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<String, err::CommonException> {
+    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<HostAddr, err::CommonException> {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
-        let workers = common::lists::filter_map(
-            &self.workers,
-            |worker| worker.is_available(),
-            |node| node.addr.clone(),
-        );
+
+        let workers: Vec<HostAddr> = self.workers
+            .iter()
+            .filter(|worker| worker.is_available())
+            .map(|node| node.host_addr.clone())
+            .collect();
 
         if workers.is_empty() {
             return Err(err::CommonException::new(err::ErrorKind::NoAvailableWorker, "no available worker"));
@@ -72,26 +74,30 @@ impl Cluster {
     }
 
     pub fn is_available(&self) -> bool {
-        common::lists::any_match(&self.workers, |worker| worker.is_available())
+        self.workers
+            .iter()
+            .filter(|worker| worker.is_available())
+            .next()
+            .is_some()
     }
 
     pub fn new(addrs: &Vec<NodeConfig>) -> Self {
         Cluster {
-            workers: common::lists::map(
-                addrs,
-                |addr| addr.to_node(),
-            ),
+            workers: addrs
+                .iter()
+                .map(|config| config.to_node())
+                .collect(),
         }
     }
 
     pub fn probe_state(&mut self) {
-        common::lists::for_each_mut(&mut self.workers, |node| {
-            node.probe_state()
-        })
+        self.workers
+            .iter_mut()
+            .for_each(|node| node.probe_state())
     }
 }
 
-#[derive(Clone, serde::Deserialize, serde::Serialize, Debug)]
+#[derive(Clone, serde::Deserialize, Debug)]
 pub struct NodeConfig {
     pub host: String,
     pub port: u16,
@@ -100,8 +106,11 @@ pub struct NodeConfig {
 impl NodeConfig {
     fn to_node(&self) -> Node {
         Node {
-            addr: format!("{}:{}", &self.host, &self.port),
             status: NodeStatus::Pending,
+            host_addr: HostAddr {
+                host: self.host.clone(),
+                port: self.port,
+            },
         }
     }
 }

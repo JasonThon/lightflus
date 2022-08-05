@@ -16,7 +16,7 @@ use crate::constants;
 use common::types::DataEventType;
 use proto::common::common as proto_common;
 use proto::common::stream as proto_stream;
-use stream::dataflow::{DataflowContext, Sink, SinkableMessageImpl, StreamConfig};
+use stream::actor::{DataflowContext, Sink, SinkableMessageImpl, StreamConfig};
 
 #[derive(Debug)]
 pub struct LocalExecutorManager {
@@ -35,11 +35,11 @@ impl LocalExecutorManager {
             inner_sinks: executors
                 .iter()
                 .map(|exec| exec.as_sinkable())
-                .collect::<Vec<Box<dyn Sink>>>(),
+                .collect(),
             handlers: executors
                 .iter()
                 .map(|exec| exec.run())
-                .collect::<Vec<JoinHandle<()>>>(),
+                .collect(),
         }
     }
 

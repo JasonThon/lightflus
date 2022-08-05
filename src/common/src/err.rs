@@ -2,7 +2,6 @@ use std::io;
 
 use tokio::sync::mpsc;
 use crate::types;
-use grpcio;
 use proto::common::common::JobId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -54,15 +53,6 @@ pub enum ErrorKind {
     Unknown,
     GrpcError,
     InvalidJson,
-}
-
-impl From<grpcio::Error> for CommonException {
-    fn from(err: grpcio::Error) -> Self {
-        Self {
-            kind: ErrorKind::GrpcError,
-            message: format!("{:?}", err),
-        }
-    }
 }
 
 impl From<std::io::Error> for CommonException {

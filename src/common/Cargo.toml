@@ -6,17 +6,13 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-serde_json = "1.0.59"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["sync"] }
-grpcio = "0.10.3"
-protobuf = "3.1.0"
 regex = "1"
 bytes = "1.1.0"
 chrono = "0.4"
-rdkafka = { version = "0.26", default-features = false }
-log = "0.4"
 proto = { path = "../proto" }
+serde_json = "1.0.59"
 
 [dev-dependencies]
 common = { path = "../common" }

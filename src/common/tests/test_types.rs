@@ -1,10 +1,6 @@
-extern crate core;
-
 use common::{event, types};
 use std::collections;
 use bytes::Buf;
-
-use utils::*;
 
 #[test]
 fn test_typed_value_get_data() {

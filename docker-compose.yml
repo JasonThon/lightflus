@@ -29,15 +29,6 @@ services:
     environment:
       - MINIO_ROOT_USER=root
       - MINIO_ROOT_PASSWORD=f8-O0IuOq#O9T52r
-  mongo:
-    image: mongo:latest
-    ports:
-      - "27017:27017"
-    volumes:
-      - ~/mongo:/data
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: f8-O0IuOq#O9T52r
   tableflow-coordinator:
     image: tableflow/runtime/coordinator:latest
     build:
@@ -53,7 +44,6 @@ services:
       CONNECTOR_PROXY: tableflow-connector:10899
       KAFKA_BROKERS: kafka:9002
     depends_on:
-      - tableflow-connector
       - tableflow-worker
   tableflow-worker:
     image: tableflow/runtime/worker:latest
@@ -62,6 +52,8 @@ services:
       dockerfile: docker/worker/Dockerfile
     ports:
       - "18090:18090"
+    depends_on:
+      - tableflow-qe
   tableflow-qe:
     image: tableflow-qe:latest
     ports:

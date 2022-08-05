@@ -1,23 +1,32 @@
 use std::fs;
+use std::path::Path;
 use std::sync;
 use actix::Actor;
+use common::utils;
 
 use dataflow_api::dataflow_worker_grpc;
 use proto::worker::worker_grpc;
 
 mod api;
 pub mod worker;
-pub mod actor;
+pub mod manager;
 
 fn main() {
-    let result = fs::File::open("src/worker/etc/worker.json");
+    let config_file_path = utils::Args::default()
+        .arg("c")
+        .map(|arg| arg.value.clone());
+
+    let result = fs::File::open(
+        config_file_path
+            .unwrap_or("src/worker/etc/worker.json".to_string())
+    );
     if result.is_err() {
         panic!("{}", format!("config file open failed: {:?}", result.unwrap_err()))
     }
 
     let file = result.unwrap();
 
-    let env_setup = common::sysenv::serde_env::from_reader(file);
+    let env_setup = common::utils::from_reader(file);
     if env_setup.is_err() {
         panic!("{}", format!("config file read failed: {:?}", env_setup.unwrap_err()))
     }

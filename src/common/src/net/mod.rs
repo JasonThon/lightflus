@@ -1,51 +1,8 @@
+use std::net::UdpSocket;
+
 pub const SUCCESS: i32 = 200;
 pub const BAD_REQUEST: i32 = 400;
 pub const INTERNAL_SERVER_ERROR: i32 = 500;
-
-pub fn to_io_error(err: grpcio::Error) -> std::io::Error {
-    match err {
-        grpcio::Error::Codec(err) => std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            format!("codec error: {}", err.as_ref()),
-        ),
-        grpcio::Error::CallFailure(_) => std::io::Error::new(
-            std::io::ErrorKind::NotConnected,
-            "internal call failed",
-        ),
-        grpcio::Error::RpcFailure(_) => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::RpcFinished(_) => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::RemoteStopped => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::ShutdownFailed => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::BindFail(_, _) => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::QueueShutdown => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::GoogleAuthenticationFailed => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-        grpcio::Error::InvalidMetadata(_) => std::io::Error::new(
-            std::io::ErrorKind::ConnectionRefused,
-            "",
-        ),
-    }
-}
 
 #[derive(Clone, Debug)]
 pub struct ClientConfig {
@@ -61,4 +18,41 @@ pub struct ClientConfig {
 pub struct HostAddr {
     pub host: String,
     pub port: u16,
+}
+
+impl HostAddr {
+    pub fn as_uri(&self) -> String {
+        format!("{}:{}", &self.host, self.port)
+    }
+}
+
+pub fn hostname() -> Option<String> {
+    use std::process::Command;
+    if cfg!(unix) || cfg!(windows) {
+        let output = match Command::new("hostname").output() {
+            Ok(o) => o,
+            Err(_) => return None,
+        };
+        let mut s = String::from_utf8(output.stdout).unwrap();
+        s.pop();  // pop '\n'
+        Some(s)
+    } else {
+        None
+    }
+}
+
+pub fn local_ip() -> Option<String> {
+    let socket = match UdpSocket::bind("0.0.0.0:0") {
+        Ok(s) => s,
+        Err(_) => return None
+    };
+
+    match socket.connect("8.8.8.8:80") {
+        Ok(()) => (),
+        Err(_) => return None,
+    };
+
+    socket.local_addr()
+        .ok()
+        .map(|addr| addr.ip().to_string())
 }

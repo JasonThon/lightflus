@@ -2,13 +2,13 @@ use std::{collections, sync};
 
 use common::{types, event, err};
 use common::err::{Error, TaskWorkerError};
-use crate::actor;
+use crate::manager;
 use proto::worker::worker;
 use proto::common::common as proto_common;
 use proto::common::stream as proto_stream;
-use crate::actor::LocalExecutorManager;
+use crate::manager::LocalExecutorManager;
 
-type DataflowCacheRef = sync::RwLock<Vec<actor::LocalExecutorManager>>;
+type DataflowCacheRef = sync::RwLock<Vec<manager::LocalExecutorManager>>;
 
 pub struct TaskWorker {
     cache: DataflowCacheRef,
@@ -60,7 +60,7 @@ impl TaskWorkerBuilder {
     }
 }
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Clone)]
 pub struct TaskWorkerConfig {
     pub port: usize,
 }

@@ -36,7 +36,7 @@ pub struct DataflowContext {
     pub meta: Vec<DataflowMeta>,
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     #[serde(default)]
-    pub nodes: BTreeMap<ExecutorId, stream::OperatorInfo>,
+    pub nodes: BTreeMap<ExecutorId, OperatorInfo>,
     pub config: StreamConfig,
 }
 
@@ -47,7 +47,7 @@ impl DataflowContext {
 
     pub fn new(job_id: JobId,
                meta: Vec<DataflowMeta>,
-               nodes: BTreeMap<ExecutorId, stream::OperatorInfo>,
+               nodes: BTreeMap<ExecutorId, OperatorInfo>,
                config: StreamConfig) -> DataflowContext {
         DataflowContext {
             job_id,
@@ -105,7 +105,7 @@ pub struct LocalExecutor {
     pub executor_id: ExecutorId,
 
     sinks: Vec<sync::Mutex<dyn Sink>>,
-    source: sync::Arc<Box<dyn Source>>,
+    source: Arc<Box<dyn Source>>,
 }
 
 impl LocalExecutor {
@@ -114,7 +114,7 @@ impl LocalExecutor {
                                 source: Box<dyn Source>) -> Self {
         Self {
             executor_id,
-            source: sync::Arc::new(source),
+            source: Arc::new(source),
             sinks,
         }
     }
@@ -180,7 +180,7 @@ impl SourceSinkManger {
             })
     }
 
-    pub(crate) fn get_sinks_by_ids(&self, sink_ids: Vec<types::SinkId>) -> Vec<Box<dyn Sink>> {
+    pub(crate) fn get_sinks_by_ids(&self, sink_ids: Vec<SinkId>) -> Vec<Box<dyn Sink>> {
         sink_ids
             .iter()
             .map(|sink_id| {
@@ -253,7 +253,7 @@ impl SourceSinkManger {
 }
 
 pub trait Sink {
-    fn sink_id(&self) -> types::SinkId;
+    fn sink_id(&self) -> SinkId;
     fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException>;
 }
 
@@ -269,7 +269,7 @@ impl SinkableMessage for SinkableMessageImpl {}
 #[derive(Clone)]
 pub struct LocalSink {
     pub(crate) sender: EventSender<SinkableMessageImpl>,
-    pub(crate) sink_id: types::SinkId,
+    pub(crate) sink_id: SinkId,
 }
 
 impl Sink for LocalSink {
@@ -291,7 +291,7 @@ impl Sink for LocalSink {
 
 #[derive(Clone)]
 pub struct RemoteSink {
-    pub(crate) sink_id: types::SinkId,
+    pub(crate) sink_id: SinkId,
     pub(crate) host_addr: HostAddr,
 }
 

@@ -12,6 +12,6 @@ protobuf = "3.1.0"
 [features]
 worker = ["proto-common"]
 coordinator = ["proto-common"]
-qe = ["proto-common"]
+query-engine = ["proto-common"]
 proto-common = []
-all = ["worker", "coordinator", "proto-common", "qe"]
+all = ["worker", "coordinator", "proto-common", "query-engine"]

@@ -2,15 +2,15 @@ use std::{collections, sync};
 use std::borrow::BorrowMut;
 use std::collections::{BTreeMap, HashMap};
 
-use common::{types, event, err};
+use common::{err, event, types};
 use common::err::{Error, TaskWorkerError};
 use common::types::HashedJobId;
-use crate::manager;
-use proto::worker::worker;
-use proto::common::common as proto_common;
 use proto::common::common::JobId;
 use proto::common::event::DataEvent;
-use proto::common::stream as proto_stream;
+use proto::common::stream::Dataflow;
+use proto::worker::worker;
+
+use crate::manager;
 use crate::manager::LocalExecutorManager;
 
 type DataflowCacheRef = sync::RwLock<BTreeMap<HashedJobId, manager::LocalExecutorManager>>;
@@ -28,7 +28,7 @@ impl TaskWorker {
         }
     }
 
-    pub fn stop_dataflow(&self, job_id: proto_common::JobId) -> Result<(), err::TaskWorkerError> {
+    pub fn stop_dataflow(&self, job_id: JobId) -> Result<(), TaskWorkerError> {
         match self.cache.try_read()
             .map(|managers| managers
                 .get(&job_id.into())
@@ -42,12 +42,12 @@ impl TaskWorker {
         }
     }
 
-    pub fn create_dataflow(&self, job_id: proto_common::JobId, dataflow: proto_stream::Dataflow) -> Result<(), err::TaskWorkerError> {
+    pub fn create_dataflow(&self, job_id: JobId, dataflow: Dataflow) -> Result<(), TaskWorkerError> {
         Ok(())
     }
 
-    pub fn dispatch_events(&self, events: Vec<proto::common::event::DataEvent>)
-                           -> Result<collections::HashMap<String, worker::DispatchDataEventStatusEnum>, err::TaskWorkerError> {
+    pub fn dispatch_events(&self, events: Vec<DataEvent>)
+                           -> Result<HashMap<String, worker::DispatchDataEventStatusEnum>, TaskWorkerError> {
         events.iter()
             .map(|event| collections::HashMap::from([(event.job_id.unwrap(), vec![event.clone()])]))
             .reduce(|accum, map| {
@@ -76,7 +76,7 @@ impl TaskWorker {
                                 .iter()
                                 .collect()
                         )
-                        .map_err(|err| err::TaskWorkerError::ExecutionError(format!("{:?}", err))))
+                        .map_err(|err| TaskWorkerError::ExecutionError(format!("{:?}", err))))
                 })
                 .next()
                 .unwrap_or_else(|| Ok(Default::default()))

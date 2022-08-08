@@ -81,7 +81,7 @@ fn test_group_hashmap() {
             name: "name2".to_string(),
         },
     ];
-    let map = lang::group_btree_map(list, |elem| elem.id.clone());
+    let map = lang::group(list, |elem| elem.id.clone());
     assert!(map.contains_key(&0));
     assert!(map.contains_key(&1));
     assert!(map.contains_key(&2));
@@ -154,7 +154,7 @@ fn test_group_deque_hashmap() {
         },
     ]);
 
-    let map = lang::group_deque_btree_map(deque, |elem| elem.id.clone());
+    let map = lang::group_deque_as_btree_map(deque, |elem| elem.id.clone());
 
     assert_eq!(map, collections::BTreeMap::from([
         (0, vec![

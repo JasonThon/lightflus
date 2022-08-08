@@ -1,6 +1,6 @@
 use std::{collections, ops, string};
 use std::cmp::Ordering;
-use crate::{err, event, lang};
+use crate::{err, event};
 
 use bytes::Buf;
 use proto::common::common::JobId;

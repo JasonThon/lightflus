@@ -1,9 +1,8 @@
 use std::{collections, sync};
 
-use common::{event};
+use common::event;
 use common::err::{Error, TaskWorkerError};
-use common::proto::probe::{ProbeRequest, ProbeResponse};
-use proto::{dataflow_worker, common::probe};
+use proto::common::probe;
 use proto::worker::worker;
 use proto::worker::worker_grpc;
 use crate::worker as w;

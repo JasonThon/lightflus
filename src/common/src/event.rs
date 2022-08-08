@@ -1,4 +1,5 @@
 use std::{collections, marker};
+use std::fmt::{Display, Formatter};
 
 use bytes::Buf;
 use proto::common::common::JobId;
@@ -12,7 +13,7 @@ pub trait KeyedEvent<K, V> {
     fn get_value(&self) -> V;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum LocalEvent {
     RowChangeStream(Vec<RowDataEvent>),
     Terminate {
@@ -27,7 +28,7 @@ impl From<&DataEvent> for RowDataEvent {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct RowDataEvent {
     pub row_idx: types::RowIdx,
     pub job_id: JobId,

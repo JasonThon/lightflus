@@ -1,11 +1,8 @@
 use std::fs;
 use std::path::Path;
 use std::sync;
-use actix::Actor;
 use common::utils;
 
-use dataflow_api::dataflow_worker_grpc;
-use proto::worker::worker_grpc;
 
 mod api;
 pub mod worker;

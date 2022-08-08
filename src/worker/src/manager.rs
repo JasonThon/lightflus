@@ -1,24 +1,19 @@
 use std::{collections, sync};
 use std::collections::HashMap;
-
-use tokio::sync::mpsc;
-
-use common::{err, event, types};
-use common::err::ExecutionException;
-use common::net::ClientConfig;
 use std::ops::Deref;
 use std::time;
 
-use actix::Actor;
 use serde::ser::SerializeStruct;
+use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use common::event::{LocalEvent, RowDataEvent};
 
-use crate::constants;
+use common::{err, event, types};
+use common::err::ExecutionException;
+use common::event::{LocalEvent, RowDataEvent};
+use common::net::ClientConfig;
 use common::types::{DataEventType, SinkId};
-use proto::common::common as proto_common;
+use proto::common::common::JobId;
 use proto::common::event::DataEvent;
-use proto::common::stream as proto_stream;
 use proto::common::stream::Dataflow;
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use stream::actor::{DataflowContext, Sink, SinkableMessageImpl, StreamConfig};
@@ -26,7 +21,7 @@ use stream::err::SinkException;
 
 #[derive(Debug)]
 pub struct LocalExecutorManager {
-    pub job_id: proto_common::JobId,
+    pub job_id: JobId,
     handlers: Vec<JoinHandle<()>>,
     inner_sinks: Vec<Box<dyn Sink>>,
 
@@ -81,15 +76,19 @@ impl LocalExecutorManager {
         }
     }
 
-    pub fn stop(&self) -> Result<(), err::ExecutionException> {
+    pub fn stop(&self) -> Result<(), ExecutionException> {
         for sink in self.inner_sinks {
-            match sink.sink(SinkableMessageImpl::LocalMessage(
-                event::LocalEvent::Terminate {
-                    job_id: self.job_id.clone(),
-                    to: sink.sink_id(),
-                }
-            )) {
-                Err(err) => return Err(ExecutionException::fail_send_event_to_job_graph(&self.job_id)),
+            let event = LocalEvent::Terminate {
+                job_id: self.job_id.clone(),
+                to: sink.sink_id(),
+            };
+            match sink.sink(SinkableMessageImpl::LocalMessage(event.clone())) {
+                Err(err) => return Err(ExecutionException::sink_local_event_failure(
+                    &self.job_id,
+                    &event,
+                    sink.sink_id(),
+                    format!("{err:?}"),
+                )),
                 _ => {}
             }
         }

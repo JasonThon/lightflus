@@ -1,8 +1,12 @@
 use std::io;
 
 use tokio::sync::mpsc;
-use crate::types;
+
 use proto::common::common::JobId;
+
+use crate::event::LocalEvent;
+use crate::types;
+use crate::types::SinkId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 struct ApiError {
@@ -40,7 +44,7 @@ pub enum ErrorKind {
     ActorSendError,
     NodesRemoveFailed,
     InvalidJobGraph,
-    SendGraphEventFailed,
+    SinkLocalEventFailure,
     IllegalConnectionType,
     Timeout,
     InvalidEndpoint,
@@ -79,8 +83,7 @@ impl From<std::io::Error> for CommonException {
 
 impl From<serde_json::Error> for CommonException {
     fn from(err: serde_json::Error) -> Self {
-        log::error!("invalid json: {}", err);
-        Self::new(ErrorKind::InvalidJson, "invalid json")
+        Self::new(ErrorKind::InvalidJson, format!("invalid json: {}", err).as_str())
     }
 }
 
@@ -135,10 +138,10 @@ impl ExecutionException {
         }
     }
 
-    pub fn fail_send_event_to_job_graph(job_id: &JobId) -> ExecutionException {
+    pub fn sink_local_event_failure(job_id: &JobId, event: &LocalEvent, sink_id: SinkId, err_msg: String) -> ExecutionException {
         ExecutionException {
-            kind: ErrorKind::SendGraphEventFailed,
-            msg: format!("graph event sent failed to id {:?}", job_id),
+            kind: ErrorKind::SinkLocalEventFailure,
+            msg: format!("job id {job_id:?} sink msg {event:?} to {} failed. {err_msg:?}", sink_id),
         }
     }
 }

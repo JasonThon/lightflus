@@ -28,6 +28,7 @@ pub fn map_self<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) ->
 pub fn group_hashmap<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> collections::HashMap<T, Vec<&N>>
     where T: std::hash::Hash + std::cmp::Eq {
     let mut result = collections::HashMap::new();
+
     list.iter().for_each(|elem| {
         let key = key_extractor(elem);
 

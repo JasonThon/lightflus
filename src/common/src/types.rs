@@ -508,3 +508,16 @@ pub trait KeyedValue<K, V> {
     fn key(&self) -> K;
     fn value(&self) -> V;
 }
+
+#[derive(Clone, Default, Eq, PartialEq, Hash)]
+pub struct HashedJobId {
+    pub table_id: u32,
+}
+
+impl From<JobId> for HashedJobId {
+    fn from(id: JobId) -> Self {
+        Self {
+            table_id: id.table_id
+        }
+    }
+}

@@ -11,7 +11,8 @@ mod api;
 pub mod worker;
 pub mod manager;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     let config_file_path = utils::Args::default()
         .arg("c")
         .map(|arg| arg.value.clone());
@@ -39,7 +40,6 @@ fn main() {
     }
 
     let ref mut config = reader.unwrap();
-    let runner = actix::System::new();
     let task_worker = worker::new_worker();
 
     let server = api::TaskWorkerApiImpl::new(task_worker);
@@ -58,8 +58,7 @@ fn main() {
 
     let mut unwrap_server = grpc_server.unwrap();
     unwrap_server.start();
-    runner.run();
-    let _ = futures_executor::block_on(unwrap_server.shutdown());
 
-    actix::System::current().stop();
+    let _ = tokio::signal::ctrl_c().await;
+    let _ = unwrap_server.shutdown().await;
 }

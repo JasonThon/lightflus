@@ -12,6 +12,7 @@ use tokio::sync::mpsc;
 use common::event::LocalEvent;
 use tokio::task::JoinHandle;
 use common::net::HostAddr;
+use proto::worker::worker::DispatchDataEventStatusEnum;
 use crate::err::SinkException;
 use crate::{trigger, window};
 
@@ -253,7 +254,7 @@ impl SourceSinkManger {
 
 pub trait Sink {
     fn sink_id(&self) -> types::SinkId;
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<(), SinkException>;
+    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException>;
 }
 
 pub trait SinkableMessage {}
@@ -276,10 +277,11 @@ impl Sink for LocalSink {
         self.sink_id
     }
 
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<(), SinkException> {
+    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException> {
         if msg.type_id() == &TypeId::of::<SinkableMessageImpl>() {
             self.sender
                 .send(msg as SinkableMessageImpl)
+                .map(|| DispatchDataEventStatusEnum::DONE)
                 .map_err(|err| err.into())
         } else {
             Err(SinkException::invalid_message_type())
@@ -306,7 +308,7 @@ impl Sink for RemoteSink {
     Each one face different tech trade-off. In 1.0.* version, we only support At Least Once sink in default.
     From 2.0 version, 2-PC exactly-once delivery will be planed to be supported.
     **/
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<(), SinkException> {
+    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException> {
         todo!()
     }
 }
@@ -337,7 +339,7 @@ impl Sink for SinkImpl {
         }
     }
 
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<(), SinkException> {
+    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match self {
             SinkImpl::Local(sink) => sink.sink(msg),
             SinkImpl::Remote(sink) => sink.sink(msg)

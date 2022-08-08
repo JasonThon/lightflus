@@ -12,6 +12,7 @@ pub enum ErrorKind {
     InvalidMessageType
 }
 
+#[derive(Debug)]
 pub struct SinkException {
     kind: ErrorKind,
     msg: String,

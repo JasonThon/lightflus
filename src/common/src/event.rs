@@ -2,6 +2,7 @@ use std::{collections, marker};
 
 use bytes::Buf;
 use proto::common::common::JobId;
+use proto::common::event::DataEvent;
 
 use crate::types;
 
@@ -18,6 +19,12 @@ pub enum LocalEvent {
         job_id: JobId,
         to: types::SinkId,
     },
+}
+
+impl From<&DataEvent> for RowDataEvent {
+    fn from(event: &DataEvent) -> Self {
+        todo!()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

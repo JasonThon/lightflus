@@ -10,7 +10,7 @@ rayon = "1.5"
 common = { path = "../common" }
 chrono = "0.4"
 tokio = { version = "1", features = ["rt", "sync"] }
-proto = { path = "../proto" }
+proto = { path = "../proto", features = ["worker"] }
 log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 

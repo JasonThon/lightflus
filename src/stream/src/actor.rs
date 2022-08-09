@@ -4,7 +4,6 @@ use common::{err, types};
 use proto::common::common::JobId;
 use proto::common::stream::{DataflowMeta, OperatorInfo};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use proto::common::stream;
 use std::cell::{RefCell, RefMut};
 use std::sync::Arc;
 use std::any::{Any, TypeId};

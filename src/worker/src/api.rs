@@ -32,23 +32,24 @@ impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
         let mut response = probe::ProbeResponse::new();
         response.available = true;
         match req.probeType.unwrap() {
-            probe::probe_request::ProbeType::Liveness => {
+            probe::ProbeRequest_ProbeType::Liveness => {
                 sink.success(response);
             }
-            probe::probe_request::ProbeType::Readiness => {
+            probe::ProbeRequest_ProbeType::Readiness => {
                 sink.success(response);
             }
         }
     }
 
     fn dispatch_data_events(&mut self, _ctx: grpcio::RpcContext, req: worker::DispatchDataEventsRequest, sink: grpcio::UnarySink<worker::DispatchDataEventsResponse>) {
-        match self.worker.dispatch_events(req.events.clone()) {
+        match self.worker.dispatch_events(req.events.to_vec()) {
             Ok(status_set) => {
                 let mut response = worker::DispatchDataEventsResponse::new();
-
-                response.statusSet = status_set.iter()
-                    .map(|(key, status)| (key.clone(), protobuf::EnumOrUnknown::new(status.clone())))
-                    .collect::<collections::HashMap<String, ::protobuf::EnumOrUnknown<worker::DispatchDataEventStatusEnum>>>();
+                response.set_statusSet(
+                    status_set.iter()
+                        .map(|(key, status)| (key.clone(), status.clone()))
+                        .collect()
+                );
 
                 sink.success(response);
             }

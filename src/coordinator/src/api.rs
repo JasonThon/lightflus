@@ -3,8 +3,8 @@ use crate::{cluster, coord};
 use common::err::Error;
 use std::sync;
 use grpcio::{RpcContext, UnarySink};
+use proto::common::probe;
 use proto::common::probe::{ProbeRequest, ProbeResponse};
-use proto::common::probe::probe_request::ProbeType;
 use proto::common::stream::Dataflow;
 use proto::coordinator::coordinator::{CreateStreamGraphResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest, TerminateDataflowResponse};
 use proto::coordinator::coordinator_grpc::CoordinatorApi;
@@ -36,7 +36,7 @@ impl CoordinatorApi for CoordinatorApiImpl {
              req: ProbeRequest,
              sink: UnarySink<ProbeResponse>) {
         match req.probeType.unwrap() {
-            ProbeType::Readiness => {
+            probe::ProbeRequest_ProbeType::Readiness => {
                 match self.cluster.try_write() {
                     Ok(mut cluster) => {
                         sink.success(ProbeResponse::default());
@@ -47,7 +47,7 @@ impl CoordinatorApi for CoordinatorApiImpl {
                     }
                 }
             }
-            ProbeType::Liveness => {
+            probe::ProbeRequest_ProbeType::Liveness => {
                 sink.success(ProbeResponse::default());
             }
         }

@@ -5,7 +5,6 @@ use tokio::sync::mpsc;
 use proto::common::common::JobId;
 
 use crate::event::LocalEvent;
-use crate::types;
 use crate::types::SinkId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]

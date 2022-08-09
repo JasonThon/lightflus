@@ -1,7 +1,5 @@
 use std::ops::{Add, AddAssign};
 use std::time;
-use common::sysenv;
-use crate::types;
 
 #[derive(Clone)]
 pub enum TriggerType {

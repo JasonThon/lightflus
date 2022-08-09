@@ -4,7 +4,6 @@ use crate::{err, event};
 
 use bytes::Buf;
 use proto::common::common::JobId;
-use proto::common::stream as proto_stream;
 
 pub type DataTypeSymbol = u8;
 
@@ -253,7 +252,7 @@ impl ops::Div for TypedValue {
                     TypedValue::Double(other) => TypedValue::Double((value as f64) / other),
                     TypedValue::Float(other) => TypedValue::Float((value as f32) / other),
                     TypedValue::Int(other) => TypedValue::Double((value as f64) / (other as f64)),
-                    TypedValue::Long(other) => TypedValue::Double(((value as f64) / (other as f64))),
+                    TypedValue::Long(other) => TypedValue::Double((value as f64) / (other as f64)),
                     _ => TypedValue::Invalid,
                 }
             }

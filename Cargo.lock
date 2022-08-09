@@ -172,7 +172,7 @@ dependencies = [
  "grpcio",
  "log",
  "proto",
- "protobuf 3.1.0",
+ "protobuf",
  "serde",
  "serde_json",
  "tokio",
@@ -303,7 +303,7 @@ dependencies = [
  "libc",
  "log",
  "parking_lot",
- "protobuf 2.27.1",
+ "protobuf",
 ]
 
 [[package]]
@@ -570,7 +570,7 @@ name = "proto"
 version = "0.1.0"
 dependencies = [
  "grpcio",
- "protobuf 3.1.0",
+ "protobuf",
 ]
 
 [[package]]
@@ -578,26 +578,6 @@ name = "protobuf"
 version = "2.27.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf7e6d18738ecd0902d30d1ad232c9125985a3422929b16c65517b38adc14f96"
-
-[[package]]
-name = "protobuf"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ee4a7d8b91800c8f167a6268d1a1026607368e1adc84e98fe044aeb905302f7"
-dependencies = [
- "once_cell",
- "protobuf-support",
- "thiserror",
-]
-
-[[package]]
-name = "protobuf-support"
-version = "3.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8ca157fe12fc7ee2e315f2f735e27df41b3d97cdd70ea112824dac1ffb08ee1c"
-dependencies = [
- "thiserror",
-]
 
 [[package]]
 name = "quote"
@@ -793,26 +773,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "thiserror"
-version = "1.0.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "854babe52e4df1653706b98fcfc05843010039b406875930a70e4d9644e5c417"
-dependencies = [
- "thiserror-impl",
-]
-
-[[package]]
-name = "thiserror-impl"
-version = "1.0.30"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa32fd3f627f367fe16f893e2597ae3c05020f8bba2666a4e6ea73d377e5714b"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "time"
 version = "0.1.43"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -934,7 +894,7 @@ dependencies = [
  "grpcio",
  "log",
  "proto",
- "protobuf 3.1.0",
+ "protobuf",
  "serde",
  "serde_json",
  "stream",

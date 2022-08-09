@@ -1,4 +1,3 @@
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::env;
 use std::io::Read;
@@ -63,7 +62,6 @@ impl Arg {
 }
 
 pub fn get_env(k: &str) -> Option<String> {
-    use std::env;
     match env::var(k.to_string()) {
         Ok(var) => Some(var),
         Err(_) => None

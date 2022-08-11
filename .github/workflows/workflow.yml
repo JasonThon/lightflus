@@ -31,6 +31,8 @@ jobs:
 
     if: ${{ github.event_name == 'release' }}
 
+    needs: [ test_and_build ]
+
     runs-on: ubuntu-latest
 
     steps:

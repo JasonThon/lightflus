@@ -1,6 +1,6 @@
 use common::types::{ExecutorId, SinkId, SourceId};
 use std::sync;
-use common::{err, types};
+use common::{err, types, utils};
 use proto::common::common::JobId;
 use proto::common::stream::{DataflowMeta, OperatorInfo};
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -49,13 +49,18 @@ impl DataflowContext {
                     .iter()
                     .for_each(|node_id| {
                         let executor_id = *node_id as ExecutorId;
+                        let remote_node = self.nodes
+                            .get(&executor_id)
+                            .filter(|operator| utils::is_remote_operator(*operator));
 
-                        if self.nodes.contains_key(&executor_id) {
-                            source_sink_manager.create_local(&executor_id)
-                        } else {
-                            self.nodes.get(&executor_id)
+                        if remote_node.is_some() {
+                            remote_node.iter().for_each(|operator| self.nodes
+                                .get(&executor_id)
                                 .iter()
                                 .for_each(|info| source_sink_manager.create_remote_sink(&executor_id, *info))
+                            )
+                        } else {
+                            source_sink_manager.create_local(&executor_id)
                         }
                     })
             });
@@ -74,6 +79,10 @@ impl DataflowContext {
                     .unwrap(),
             )))
             .collect()
+    }
+
+    pub fn validate(&self) -> bool {
+        return true;
     }
 }
 

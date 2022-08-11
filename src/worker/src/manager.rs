@@ -58,10 +58,14 @@ impl LocalExecutorManager {
             .unwrap_or(DispatchDataEventStatusEnum::DONE)
     }
 
-    pub fn new(ctx: DataflowContext) -> Self {
+    pub fn new(ctx: DataflowContext) -> Result<Self, ExecutionException> {
+        if !ctx.validate() {
+            return Err(ExecutionException::invalid_dataflow(&ctx.job_id));
+        }
+
         let executors = ctx.create_executors();
 
-        Self {
+        Ok(Self {
             job_id: ctx.job_id.clone(),
             inner_sinks: executors
                 .iter()
@@ -71,7 +75,7 @@ impl LocalExecutorManager {
                 .iter()
                 .map(|exec| exec.run())
                 .collect(),
-        }
+        })
     }
 
     pub fn stop(&self) -> Result<(), ExecutionException> {

@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 use serde::de::Error;
+use proto::common::stream::OperatorInfo;
+use crate::net::hostname;
 
 pub struct Args {
     args: HashMap<String, Arg>,
@@ -100,4 +102,10 @@ fn replace_by_env(value: &str) -> String {
                 _ => {}
             }));
     buf.clone()
+}
+
+pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
+    hostname()
+        .map(|host| operator.get_host_addr().host != host)
+        .unwrap_or(false)
 }

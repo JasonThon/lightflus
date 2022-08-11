@@ -3,8 +3,8 @@ use std::borrow::BorrowMut;
 use std::collections::{BTreeMap, HashMap};
 
 use common::{err, event, types};
-use common::err::{Error, TaskWorkerError};
-use common::types::HashedJobId;
+use common::err::{Error, ExecutionException, TaskWorkerError};
+use common::types::{ExecutorId, HashedJobId};
 use proto::common::common::JobId;
 use proto::common::event::DataEvent;
 use proto::common::stream::Dataflow;
@@ -45,7 +45,25 @@ impl TaskWorker {
     }
 
     pub fn create_dataflow(&self, job_id: JobId, dataflow: Dataflow) -> Result<(), TaskWorkerError> {
-        Ok(())
+        let ctx = DataflowContext::new(
+            job_id.clone(),
+            dataflow.meta.to_vec(),
+            dataflow.nodes
+                .iter()
+                .map(|entry| (*entry.0 as ExecutorId, entry.1.clone()))
+                .collect(),
+        );
+
+        match self.cache.try_write()
+            .map(|mut managers| LocalExecutorManager::new(ctx)
+                .map(|manager| {
+                    managers.insert(job_id.into(), manager);
+                })
+            )
+            .map_err(|err| TaskWorkerError::ExecutionError(err.to_string())) {
+            Ok(r) => r.map_err(|err| err.into()),
+            Err(err) => Err(err)
+        }
     }
 
     pub fn dispatch_events(&self, events: Vec<DataEvent>)

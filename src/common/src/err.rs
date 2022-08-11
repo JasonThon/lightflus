@@ -42,7 +42,7 @@ pub enum ErrorKind {
     NoAvailableWorker,
     ActorSendError,
     NodesRemoveFailed,
-    InvalidJobGraph,
+    InvalidDataflow,
     SinkLocalEventFailure,
     IllegalConnectionType,
     Timeout,
@@ -130,9 +130,9 @@ impl Error for ExecutionException {
 }
 
 impl ExecutionException {
-    pub fn invalid_job_graph(job_id: &JobId) -> ExecutionException {
+    pub fn invalid_dataflow(job_id: &JobId) -> ExecutionException {
         ExecutionException {
-            kind: ErrorKind::InvalidJobGraph,
+            kind: ErrorKind::InvalidDataflow,
             msg: format!("Invalid job graph with id {:?}", job_id),
         }
     }

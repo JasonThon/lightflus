@@ -9,6 +9,7 @@ use proto::common::common::JobId;
 use proto::common::event::DataEvent;
 use proto::common::stream::Dataflow;
 use proto::worker::worker;
+use proto::worker::worker::DispatchDataEventStatusEnum;
 use stream::actor::DataflowContext;
 
 use crate::manager;
@@ -37,7 +38,7 @@ impl TaskWorker {
                 .map(|r| r.map_err(|err| err::TaskWorkerError::from(err)))
                 .unwrap_or_else(|| Ok(()))
             )
-            .map_err(|err| err::TaskWorkerError::ExecutionError(err.to_string())) {
+            .map_err(|err| TaskWorkerError::ExecutionError(err.to_string())) {
             Ok(r) => r,
             Err(err) => Err(err)
         }
@@ -50,7 +51,7 @@ impl TaskWorker {
     pub fn dispatch_events(&self, events: Vec<DataEvent>)
                            -> Result<HashMap<String, worker::DispatchDataEventStatusEnum>, TaskWorkerError> {
         events.iter()
-            .map(|event| collections::HashMap::from([(event.job_id.unwrap(), vec![event.clone()])]))
+            .map(|event| collections::HashMap::from([(HashedJobId::from(event.job_id.clone().unwrap()), vec![event.clone()])]))
             .reduce(|accum, map| {
                 let mut result = collections::HashMap::from(accum);
                 map.iter()
@@ -73,11 +74,13 @@ impl TaskWorker {
                         .try_read()
                         .map(|managers|
                             managers.get(pair.0.into())
-                                .map(|m| (m.job_id.to_string(), m.dispatch_events(map.get(&m.job_id).unwrap())))
-                                .iter()
-                                .collect()
+                                .map(|m|
+                                    (m.job_id.table_id.to_string(), m.dispatch_events(map.get(&m.job_id.clone().into()).unwrap()))
+                                )
+                                .map(|pair| HashMap::from([pair]))
+                                .unwrap_or_else(|| Default::default())
                         )
-                        .map_err(|err| TaskWorkerError::ExecutionError(format!("{:?}", err))))
+                        .map_err(|err| TaskWorkerError::ExecutionError(format!("{:?}", err)))
                 })
                 .next()
                 .unwrap_or_else(|| Ok(Default::default()))

@@ -40,7 +40,7 @@ $ docker-compose up
 ## For Contributor
 
 Welcome to Tableflow Team. Our mission is to create an advanced, high performance and stable streaming system which is
-based on Dataflow Model.
+based on Dataflow Model in the Cloud.
 
 You can read following documents to know more about Tableflow. If you have no access, please contact with the admin.
 

@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::sync;
 use common::utils;
+use proto::worker::worker_grpc;
 
 
 mod api;

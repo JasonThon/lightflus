@@ -6,37 +6,21 @@ use proto::common::stream::{DataflowMeta, OperatorInfo};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::cell::{RefCell, RefMut};
 use std::sync::Arc;
-use std::any::{Any, TypeId};
 use tokio::sync::mpsc;
 use common::event::LocalEvent;
 use tokio::task::JoinHandle;
 use common::net::HostAddr;
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use crate::err::SinkException;
-use crate::{trigger, window};
 
 pub type EventReceiver<Input> = mpsc::UnboundedReceiver<Input>;
 pub type EventSender<Input> = mpsc::UnboundedSender<Input>;
 
-#[derive(Debug, serde::Serialize, serde::Deserialize, Clone)]
-pub struct StreamConfig {
-    // trigger type
-    pub trigger_type: trigger::TriggerType,
-    // window
-    pub window_type: window::WindowType,
-}
-
-#[derive(serde::Serialize, serde::Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DataflowContext {
     pub job_id: JobId,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    #[serde(default)]
     pub meta: Vec<DataflowMeta>,
-    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-    #[serde(default)]
     pub nodes: BTreeMap<ExecutorId, OperatorInfo>,
-    pub config: StreamConfig,
 }
 
 impl DataflowContext {
@@ -46,17 +30,15 @@ impl DataflowContext {
 
     pub fn new(job_id: JobId,
                meta: Vec<DataflowMeta>,
-               nodes: BTreeMap<ExecutorId, OperatorInfo>,
-               config: StreamConfig) -> DataflowContext {
+               nodes: BTreeMap<ExecutorId, OperatorInfo>) -> DataflowContext {
         DataflowContext {
             job_id,
             meta,
             nodes,
-            config,
         }
     }
 
-    pub fn create_executors(&self) -> Vec<dyn Executor> {
+    pub fn create_executors(&self) -> Vec<ExecutorImpl> {
         let ref mut source_sink_manager = SourceSinkManger::new();
         self.meta
             .iter()
@@ -66,7 +48,7 @@ impl DataflowContext {
                 meta.neighbors
                     .iter()
                     .for_each(|node_id| {
-                        let executor_id = node_id as ExecutorId;
+                        let executor_id = *node_id as ExecutorId;
 
                         if self.nodes.contains_key(&executor_id) {
                             source_sink_manager.create_local(&executor_id)
@@ -80,40 +62,40 @@ impl DataflowContext {
 
         self.meta
             .iter()
-            .map(|meta| LocalExecutor::with_source_and_sink(
+            .map(|meta| ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
                 meta.center as ExecutorId,
                 source_sink_manager
                     .get_sinks_by_ids(meta.neighbors.clone())
                     .iter()
-                    .map(|sink| sync::Mutex::new(**sink))
+                    .map(|sink| sink.clone())
                     .collect(),
                 source_sink_manager
                     .get_source_by_id(meta.center.clone())
                     .unwrap(),
-            ))
+            )))
             .collect()
     }
 }
 
 pub trait Executor {
     fn run(&self) -> JoinHandle<()>;
-    fn as_sinkable(&self) -> Box<dyn Sink>;
+    fn as_sinkable(&self) -> SinkImpl;
 }
 
 pub struct LocalExecutor {
     pub executor_id: ExecutorId,
 
-    sinks: Vec<sync::Mutex<dyn Sink>>,
-    source: Arc<Box<dyn Source>>,
+    sinks: Vec<SinkImpl>,
+    local_source: Arc<SourceImpl>,
 }
 
 impl LocalExecutor {
     pub fn with_source_and_sink(executor_id: ExecutorId,
-                                sinks: Vec<sync::Mutex<dyn Sink>>,
-                                source: Box<dyn Source>) -> Self {
+                                sinks: Vec<SinkImpl>,
+                                source: SourceImpl) -> Self {
         Self {
             executor_id,
-            source: Arc::new(source),
+            local_source: Arc::new(source),
             sinks,
         }
     }
@@ -124,11 +106,29 @@ impl Executor for LocalExecutor {
         todo!()
     }
 
-    fn as_sinkable(&self) -> Box<dyn Sink> {
-        Box::new(LocalSink {
-            sender: self.source.create_msg_sender(),
+    fn as_sinkable(&self) -> SinkImpl {
+        SinkImpl::Local(LocalSink {
+            sender: self.local_source.create_msg_sender(),
             sink_id: self.executor_id as u32,
         })
+    }
+}
+
+pub enum ExecutorImpl {
+    Local(LocalExecutor)
+}
+
+impl Executor for ExecutorImpl {
+    fn run(&self) -> JoinHandle<()> {
+        match self {
+            ExecutorImpl::Local(exec) => exec.run()
+        }
+    }
+
+    fn as_sinkable(&self) -> SinkImpl {
+        match self {
+            ExecutorImpl::Local(exec) => exec.as_sinkable()
+        }
     }
 }
 
@@ -136,28 +136,27 @@ pub trait Source {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl>;
 }
 
-#[derive(Clone)]
 pub struct SourceSinkManger {
     local_sink_id_set: HashSet<SinkId>,
     remote_sinks_infos: HashMap<SinkId, OperatorInfo>,
     local_source_rx: RefCell<HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>>,
-    local_sources: RefCell<HashMap<SourceId, Box<dyn Source>>>,
+    sources: RefCell<HashMap<SourceId, SourceImpl>>,
     local_source_tx: RefCell<HashMap<SourceId, EventSender<SinkableMessageImpl>>>,
-    local_sinks: RefCell<HashMap<SinkId, Box<dyn Sink>>>,
+    sinks: RefCell<HashMap<SinkId, SinkImpl>>,
 }
 
 impl SourceSinkManger {
-    pub(crate) fn get_source_by_id(&self, source_id: types::SourceId) -> Option<Box<dyn Source>> {
-        let borrowed_local_sources = self.local_sources.borrow();
+    pub(crate) fn get_source_by_id(&self, source_id: SourceId) -> Option<SourceImpl> {
+        let borrowed_local_sources = self.sources.borrow();
         if borrowed_local_sources.contains_key(&source_id) {
             return borrowed_local_sources.get(&source_id)
-                .map(|s| *s);
+                .map(|s| s.clone());
         }
 
         self.local_source_rx.borrow()
             .get(&source_id)
             .map(|recv| {
-                let boxed_source = Box::new(LocalSource {
+                let source = LocalSource {
                     recv: recv.clone(),
                     source_id: source_id.clone(),
                     tx: self.local_source_tx
@@ -165,29 +164,29 @@ impl SourceSinkManger {
                         .get(&source_id)
                         .map(|tx| tx.clone())
                         .unwrap(),
-                });
+                };
 
                 RefMut::map(
-                    self.local_sources.borrow_mut(),
+                    self.sources.borrow_mut(),
                     |map| {
-                        map.insert(source_id, boxed_source.clone());
+                        map.insert(source_id, SourceImpl::Local(source.clone()));
                         map
                     },
                 );
 
-                boxed_source
+                SourceImpl::Local(source)
             })
     }
 
-    pub(crate) fn get_sinks_by_ids(&self, sink_ids: Vec<SinkId>) -> Vec<Box<dyn Sink>> {
+    pub(crate) fn get_sinks_by_ids(&self, sink_ids: Vec<SinkId>) -> Vec<SinkImpl> {
         sink_ids
             .iter()
             .map(|sink_id| {
-                let borrowed_local_sinks = self.local_sinks.borrow();
+                let borrowed_local_sinks = self.sinks.borrow();
                 if borrowed_local_sinks.contains_key(sink_id) {
                     return borrowed_local_sinks
                         .get(sink_id)
-                        .map(|b| *b)
+                        .map(|b| b.clone())
                         .unwrap();
                 }
 
@@ -208,19 +207,17 @@ impl SourceSinkManger {
                         },
                     );
 
-                    Box::new(SinkImpl::Local(
+                    SinkImpl::Local(
                         LocalSink {
                             sender: tx,
                             sink_id: *sink_id,
                         })
-                    )
                 } else {
-                    Box::new(SinkImpl::Remote(
+                    SinkImpl::Remote(
                         RemoteSink {
                             sink_id: *sink_id,
                             host_addr: HostAddr { host: "".to_string(), port: 0 },
                         })
-                    )
                 }
             })
             .collect()
@@ -244,21 +241,21 @@ impl SourceSinkManger {
             local_sink_id_set: Default::default(),
             remote_sinks_infos: Default::default(),
             local_source_rx: RefCell::new(Default::default()),
-            local_sources: RefCell::new(Default::default()),
+            sources: RefCell::new(Default::default()),
             local_source_tx: RefCell::new(Default::default()),
-            local_sinks: RefCell::new(Default::default()),
+            sinks: RefCell::new(Default::default()),
         }
     }
 }
 
 pub trait Sink {
     fn sink_id(&self) -> SinkId;
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException>;
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException>;
 }
 
 pub trait SinkableMessage {}
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum SinkableMessageImpl {
     LocalMessage(LocalEvent),
 }
@@ -276,14 +273,13 @@ impl Sink for LocalSink {
         self.sink_id
     }
 
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        if msg.type_id() == &TypeId::of::<SinkableMessageImpl>() {
-            self.sender
-                .send(msg as SinkableMessageImpl)
-                .map(|| DispatchDataEventStatusEnum::DONE)
-                .map_err(|err| err.into())
-        } else {
-            Err(SinkException::invalid_message_type())
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+        match &msg {
+            SinkableMessageImpl::LocalMessage(_) => self.sender
+                .send(msg)
+                .map(|_| DispatchDataEventStatusEnum::DONE)
+                .map_err(|err| err.into()),
+            _ => Err(SinkException::invalid_message_type())
         }
     }
 }
@@ -307,7 +303,7 @@ impl Sink for RemoteSink {
     Each one face different tech trade-off. In 1.0.* version, we only support At Least Once sink in default.
     From 2.0 version, 2-PC exactly-once delivery will be planed to be supported.
     **/
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         todo!()
     }
 }
@@ -325,7 +321,21 @@ impl Source for LocalSource {
     }
 }
 
-pub(crate) enum SinkImpl {
+#[derive(Clone)]
+pub enum SourceImpl {
+    Local(LocalSource)
+}
+
+impl Source for SourceImpl {
+    fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
+        match self {
+            SourceImpl::Local(source) => source.create_msg_sender()
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SinkImpl {
     Local(LocalSink),
     Remote(RemoteSink),
 }
@@ -338,7 +348,7 @@ impl Sink for SinkImpl {
         }
     }
 
-    fn sink<M: SinkableMessage>(&self, msg: M) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match self {
             SinkImpl::Local(sink) => sink.sink(msg),
             SinkImpl::Remote(sink) => sink.sink(msg)

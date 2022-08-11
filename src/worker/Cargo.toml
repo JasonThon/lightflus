@@ -12,6 +12,6 @@ proto = { path = "../proto", features = ["worker"] }
 protobuf = "2.27.1"
 grpcio = "0.10.3"
 serde = { version = "1.0", features = ["derive"] }
-tokio = { version = "1", features = ["rt", "sync", "signal"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "signal", "macros"] }
 log = "0.4"
 serde_json = "1.0.59"

@@ -496,7 +496,7 @@ pub type RowIdx = u64;
 pub type NodeIdx = u32;
 pub type SinkId = u32;
 pub type SourceId = u32;
-pub type ExecutorId = i32;
+pub type ExecutorId = u32;
 
 pub trait FromBytes: Sized {
     fn from_bytes(data: Vec<u8>) -> Option<Self>;
@@ -508,7 +508,7 @@ pub trait KeyedValue<K, V> {
     fn value(&self) -> V;
 }
 
-#[derive(Clone, Default, Eq, PartialEq, Hash)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct HashedJobId {
     pub table_id: u32,
 }

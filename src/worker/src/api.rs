@@ -73,7 +73,7 @@ impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
                     grpcio::RpcStatusCode::INTERNAL,
                     format!("{:?}", err),
                 ))
-            }
+            };
         }
     }
 

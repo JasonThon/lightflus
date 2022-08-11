@@ -16,24 +16,22 @@ use proto::common::common::JobId;
 use proto::common::event::DataEvent;
 use proto::common::stream::Dataflow;
 use proto::worker::worker::DispatchDataEventStatusEnum;
-use stream::actor::{DataflowContext, Sink, SinkableMessageImpl, StreamConfig};
+use stream::actor::{DataflowContext, Executor, Sink, SinkableMessageImpl, SinkImpl};
 use stream::err::SinkException;
 
-#[derive(Debug)]
 pub struct LocalExecutorManager {
     pub job_id: JobId,
     handlers: Vec<JoinHandle<()>>,
-    inner_sinks: Vec<Box<dyn Sink>>,
-
+    inner_sinks: Vec<SinkImpl>,
 }
 
 impl LocalExecutorManager {
-    pub(crate) fn dispatch_events(&self, events: &Vec<DataEvent>) -> DispatchDataEventStatusEnum {
+    pub fn dispatch_events(&self, events: &Vec<DataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
         let sink_id_opt = events
             .iter()
             .next()
-            .map(|e| e.to as SinkId);
+            .map(|e| e.to_operator_id as SinkId);
         let local_events = events
             .iter()
             .map(|e| RowDataEvent::from(e));
@@ -77,7 +75,7 @@ impl LocalExecutorManager {
     }
 
     pub fn stop(&self) -> Result<(), ExecutionException> {
-        for sink in self.inner_sinks {
+        for sink in &self.inner_sinks {
             let event = LocalEvent::Terminate {
                 job_id: self.job_id.clone(),
                 to: sink.sink_id(),

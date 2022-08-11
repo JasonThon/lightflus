@@ -31,7 +31,7 @@ impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
              sink: grpcio::UnarySink<probe::ProbeResponse>) {
         let mut response = probe::ProbeResponse::new();
         response.available = true;
-        match req.probeType.unwrap() {
+        match req.probeType {
             probe::ProbeRequest_ProbeType::Liveness => {
                 sink.success(response);
             }

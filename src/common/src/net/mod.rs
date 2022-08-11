@@ -14,7 +14,7 @@ pub struct ClientConfig {
     pub retry: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct HostAddr {
     pub host: String,
     pub port: u16,

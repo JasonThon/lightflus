@@ -35,7 +35,7 @@ impl CoordinatorApi for CoordinatorApiImpl {
              _ctx: RpcContext,
              req: ProbeRequest,
              sink: UnarySink<ProbeResponse>) {
-        match req.probeType.unwrap() {
+        match req.probeType {
             probe::ProbeRequest_ProbeType::Readiness => {
                 match self.cluster.try_write() {
                     Ok(mut cluster) => {

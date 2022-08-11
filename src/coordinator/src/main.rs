@@ -38,19 +38,11 @@ async fn main() {
     }
 
     let config = reader.unwrap();
-    let result = config.mongo.to_client();
-    if result.is_err() {
-        panic!("{}", format!("fail to connect mongo: {:?}", result.unwrap_err()))
-    }
 
     let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
 
-    let client = result.unwrap();
     let coordinator = coord::Coordinator::new(
-        coord::JobStorage::Mongo(
-            client.database(DATAFLOW_DB)
-                .collection(coord::COORD_JOB_GRAPH_COLLECTION)
-        ),
+        coord::JobStorage::PgSQL,
         config.conn_proxy,
     );
 

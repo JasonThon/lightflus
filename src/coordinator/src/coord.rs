@@ -7,7 +7,9 @@ use common::{err, event, types};
 
 pub const COORD_JOB_GRAPH_COLLECTION: &str = "coord.job.graph";
 
-pub enum JobStorage {}
+pub enum JobStorage {
+    PgSQL
+}
 
 impl JobStorage {}
 

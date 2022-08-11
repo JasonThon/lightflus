@@ -28,7 +28,7 @@ impl Node {
         });
 
         let ref mut request = probe::ProbeRequest::new();
-        request.set_nodeType(probe::ProbeRequest_ProbeType::Coordinator);
+        request.set_nodeType(probe::ProbeRequest_NodeType::Coordinator);
         request.set_probeType(probe::ProbeRequest_ProbeType::Liveness);
 
         match client.probe(request) {

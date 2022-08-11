@@ -20,56 +20,63 @@ use crate::common::common;
 
 const METHOD_QUERY_ENGINE_QUERY: ::grpcio::Method<super::qe::QueryRequest, super::qe::QueryResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/Query",
+    name: "/proto.QueryEngine/Query",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_DELETE: ::grpcio::Method<super::qe::DeleteRequest, common::Response> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/Delete",
+    name: "/proto.QueryEngine/Delete",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_UPDATE: ::grpcio::Method<super::qe::UpdateRequest, super::qe::UpdateResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/Update",
+    name: "/proto.QueryEngine/Update",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_INSERT: ::grpcio::Method<super::qe::InsertRequest, common::Response> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/Insert",
+    name: "/proto.QueryEngine/Insert",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_GET_SCHEMA: ::grpcio::Method<super::qe::GetSchemaRequest, super::qe::GetSchemaResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/GetSchema",
+    name: "/proto.QueryEngine/GetSchema",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_DELETE_SCHEMA: ::grpcio::Method<super::qe::DeleteSchemaRequest, common::Response> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/DeleteSchema",
+    name: "/proto.QueryEngine/DeleteSchema",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_UPDATE_SCHEMA: ::grpcio::Method<super::qe::UpdateSchemaRequest, common::Response> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/UpdateSchema",
+    name: "/proto.QueryEngine/UpdateSchema",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_QUERY_ENGINE_CREATE_SCHEMA: ::grpcio::Method<super::qe::CreateSchemaRequest, common::Response> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/tableflow.QueryEngine/CreateSchema",
+    name: "/proto.QueryEngine/CreateSchema",
+    req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+    resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
+};
+
+const METHOD_QUERY_ENGINE_SUBSCRIBE_CHANGE_STREAM: ::grpcio::Method<super::qe::SubscribeChangeStreamRequest, super::qe::SubscribeChangeStreamResponse> = ::grpcio::Method {
+    ty: ::grpcio::MethodType::Unary,
+    name: "/proto.QueryEngine/SubscribeChangeStream",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
@@ -213,6 +220,22 @@ impl QueryEngineClient {
     pub fn create_schema_async(&self, req: &super::qe::CreateSchemaRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<common::Response>> {
         self.create_schema_async_opt(req, ::grpcio::CallOption::default())
     }
+
+    pub fn subscribe_change_stream_opt(&self, req: &super::qe::SubscribeChangeStreamRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::qe::SubscribeChangeStreamResponse> {
+        self.client.unary_call(&METHOD_QUERY_ENGINE_SUBSCRIBE_CHANGE_STREAM, req, opt)
+    }
+
+    pub fn subscribe_change_stream(&self, req: &super::qe::SubscribeChangeStreamRequest) -> ::grpcio::Result<super::qe::SubscribeChangeStreamResponse> {
+        self.subscribe_change_stream_opt(req, ::grpcio::CallOption::default())
+    }
+
+    pub fn subscribe_change_stream_async_opt(&self, req: &super::qe::SubscribeChangeStreamRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::qe::SubscribeChangeStreamResponse>> {
+        self.client.unary_call_async(&METHOD_QUERY_ENGINE_SUBSCRIBE_CHANGE_STREAM, req, opt)
+    }
+
+    pub fn subscribe_change_stream_async(&self, req: &super::qe::SubscribeChangeStreamRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::qe::SubscribeChangeStreamResponse>> {
+        self.subscribe_change_stream_async_opt(req, ::grpcio::CallOption::default())
+    }
     pub fn spawn<F>(&self, f: F) where F: ::std::future::Future<Output = ()> + Send + 'static {
         self.client.spawn(f)
     }
@@ -241,6 +264,9 @@ pub trait QueryEngine {
         grpcio::unimplemented_call!(ctx, sink)
     }
     fn create_schema(&mut self, ctx: ::grpcio::RpcContext, _req: super::qe::CreateSchemaRequest, sink: ::grpcio::UnarySink<common::Response>) {
+        grpcio::unimplemented_call!(ctx, sink)
+    }
+    fn subscribe_change_stream(&mut self, ctx: ::grpcio::RpcContext, _req: super::qe::SubscribeChangeStreamRequest, sink: ::grpcio::UnarySink<super::qe::SubscribeChangeStreamResponse>) {
         grpcio::unimplemented_call!(ctx, sink)
     }
 }
@@ -275,9 +301,13 @@ pub fn create_query_engine<S: QueryEngine + Send + Clone + 'static>(s: S) -> ::g
     builder = builder.add_unary_handler(&METHOD_QUERY_ENGINE_UPDATE_SCHEMA, move |ctx, req, resp| {
         instance.update_schema(ctx, req, resp)
     });
-    let mut instance = s;
+    let mut instance = s.clone();
     builder = builder.add_unary_handler(&METHOD_QUERY_ENGINE_CREATE_SCHEMA, move |ctx, req, resp| {
         instance.create_schema(ctx, req, resp)
+    });
+    let mut instance = s;
+    builder = builder.add_unary_handler(&METHOD_QUERY_ENGINE_SUBSCRIBE_CHANGE_STREAM, move |ctx, req, resp| {
+        instance.subscribe_change_stream(ctx, req, resp)
     });
     builder.build()
 }

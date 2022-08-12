@@ -53,7 +53,7 @@ impl LocalExecutorManager {
         Ok(Self {
             job_id: ctx.job_id.clone(),
             inner_sinks: executors.iter().map(|exec| exec.as_sinkable()).collect(),
-            handlers: executors.iter().map(|exec| exec.run()).collect(),
+            handlers: executors.iter().map(|exec| exec.clone().run()).collect(),
         })
     }
 

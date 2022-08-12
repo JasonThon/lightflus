@@ -1,7 +1,7 @@
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use common;
-use common::{err, event, types};
+use common::{err, types};
 use common::net::HostAddr;
 use proto::common::probe;
 use proto::worker;

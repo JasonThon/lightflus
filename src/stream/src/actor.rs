@@ -8,7 +8,8 @@ use proto::common::stream::{DataflowMeta, OperatorInfo};
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
+use tokio::select;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 
@@ -53,9 +54,7 @@ impl DataflowContext {
 
                 if remote_node.is_some() {
                     remote_node.iter().for_each(|operator| {
-                        self.nodes.get(&executor_id).iter().for_each(|info| {
-                            source_sink_manager.create_remote_sink(&executor_id, *info)
-                        })
+                        source_sink_manager.create_remote_sink(&executor_id, *operator)
                     })
                 } else {
                     source_sink_manager.create_local(&executor_id)
@@ -76,6 +75,7 @@ impl DataflowContext {
                     source_sink_manager
                         .get_source_by_id(meta.center.clone())
                         .unwrap(),
+                    self.nodes.get(&meta.center).unwrap().clone(),
                 ))
             })
             .collect()
@@ -87,12 +87,14 @@ impl DataflowContext {
 }
 
 pub trait Executor {
-    fn run(&self) -> JoinHandle<()>;
+    fn run(self) -> JoinHandle<()>;
     fn as_sinkable(&self) -> SinkImpl;
 }
 
+#[derive(Clone)]
 pub struct LocalExecutor {
     pub executor_id: ExecutorId,
+    pub(crate) operator: OperatorInfo,
 
     sinks: Vec<SinkImpl>,
     local_source: Arc<SourceImpl>,
@@ -103,9 +105,11 @@ impl LocalExecutor {
         executor_id: ExecutorId,
         sinks: Vec<SinkImpl>,
         source: SourceImpl,
+        operator: OperatorInfo,
     ) -> Self {
         Self {
             executor_id,
+            operator,
             local_source: Arc::new(source),
             sinks,
         }
@@ -113,8 +117,18 @@ impl LocalExecutor {
 }
 
 impl Executor for LocalExecutor {
-    fn run(&self) -> JoinHandle<()> {
-        todo!()
+    fn run(self) -> JoinHandle<()> {
+        tokio::spawn(async move {
+            loop {
+                select! {
+                    Some(msg) = async {
+                        self.local_source.fetch_msg()
+                    } => {
+                        self.process(msg)
+                    }
+                }
+            }
+        })
     }
 
     fn as_sinkable(&self) -> SinkImpl {
@@ -125,12 +139,13 @@ impl Executor for LocalExecutor {
     }
 }
 
+#[derive(Clone)]
 pub enum ExecutorImpl {
     Local(LocalExecutor),
 }
 
 impl Executor for ExecutorImpl {
-    fn run(&self) -> JoinHandle<()> {
+    fn run(self) -> JoinHandle<()> {
         match self {
             ExecutorImpl::Local(exec) => exec.run(),
         }
@@ -145,12 +160,14 @@ impl Executor for ExecutorImpl {
 
 pub trait Source {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl>;
+    fn fetch_msg(&self) -> Option<SinkableMessageImpl>;
+    fn source_id(&self) -> SourceId;
 }
 
 pub struct SourceSinkManger {
     local_sink_id_set: HashSet<SinkId>,
     remote_sinks_infos: HashMap<SinkId, OperatorInfo>,
-    local_source_rx: RefCell<HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>>,
+    local_source_rx: RefCell<HashMap<SourceId, Arc<Mutex<EventReceiver<SinkableMessageImpl>>>>>,
     sources: RefCell<HashMap<SourceId, SourceImpl>>,
     local_source_tx: RefCell<HashMap<SourceId, EventSender<SinkableMessageImpl>>>,
     sinks: RefCell<HashMap<SinkId, SinkImpl>>,
@@ -199,7 +216,7 @@ impl SourceSinkManger {
                 if self.local_sink_id_set.contains(sink_id) {
                     let (tx, rx) = mpsc::unbounded_channel();
                     let _ = RefMut::map(self.local_source_rx.borrow_mut(), |map| {
-                        map.insert(*sink_id as SourceId, Arc::new(rx));
+                        map.insert(*sink_id as SourceId, Arc::new(Mutex::new(rx)));
                         map
                     });
                     let _ = RefMut::map(self.local_source_tx.borrow_mut(), |map| {
@@ -313,7 +330,7 @@ impl Sink for RemoteSink {
 
 #[derive(Clone)]
 pub struct LocalSource {
-    pub(crate) recv: Arc<EventReceiver<SinkableMessageImpl>>,
+    pub(crate) recv: Arc<Mutex<EventReceiver<SinkableMessageImpl>>>,
     pub(crate) source_id: SourceId,
     tx: EventSender<SinkableMessageImpl>,
 }
@@ -321,6 +338,15 @@ pub struct LocalSource {
 impl Source for LocalSource {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
         self.tx.clone()
+    }
+
+    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+        let mut recv = self.recv.lock().unwrap();
+        (*recv).try_recv().ok()
+    }
+
+    fn source_id(&self) -> SourceId {
+        self.source_id
     }
 }
 
@@ -333,6 +359,18 @@ impl Source for SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.create_msg_sender(),
+        }
+    }
+
+    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+        match self {
+            SourceImpl::Local(source) => source.fetch_msg(),
+        }
+    }
+
+    fn source_id(&self) -> SourceId {
+        match self {
+            SourceImpl::Local(source) => source.source_id(),
         }
     }
 }

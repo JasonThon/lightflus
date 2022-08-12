@@ -1,15 +1,13 @@
 use std::{collections, sync};
-use std::borrow::BorrowMut;
 use std::collections::{BTreeMap, HashMap};
 
-use common::{err, event, types};
-use common::err::{Error, ExecutionException, TaskWorkerError};
+use common::err ;
+use common::err::{Error, TaskWorkerError};
 use common::types::{ExecutorId, HashedJobId};
 use proto::common::common::JobId;
 use proto::common::event::DataEvent;
 use proto::common::stream::Dataflow;
 use proto::worker::worker;
-use proto::worker::worker::DispatchDataEventStatusEnum;
 use stream::actor::DataflowContext;
 
 use crate::manager;

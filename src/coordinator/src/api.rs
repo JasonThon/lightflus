@@ -1,4 +1,3 @@
-use common::event;
 use crate::{cluster, coord};
 use common::err::Error;
 use std::sync;
@@ -8,8 +7,6 @@ use proto::common::probe::{ProbeRequest, ProbeResponse};
 use proto::common::stream::Dataflow;
 use proto::coordinator::coordinator::{CreateStreamGraphResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest, TerminateDataflowResponse};
 use proto::coordinator::coordinator_grpc::CoordinatorApi;
-
-const SUCCESS_MSG: &str = "success";
 
 #[derive(Clone)]
 pub(crate) struct CoordinatorApiImpl {

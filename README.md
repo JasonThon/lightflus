@@ -4,7 +4,7 @@
 
 1. First, install Rust environment:
     1. Go to official page: https://www.rust-lang.org/ to download installation pkg
-2. CLion + Rust Plugin (**Recommended**);
+2. Visual Studio Code + Rust Plugin (**Recommended**);
 3. Docker engine and swarm mode opened (**Recommended**);
 
 ## Start up

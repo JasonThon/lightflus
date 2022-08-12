@@ -1,11 +1,9 @@
-use std::{collections, fs, sync};
+use std::{fs, sync};
 
-use tokio::sync::mpsc;
 
-use common::{event, err::CommonException, utils};
+use common::utils;
 use proto::coordinator::coordinator_grpc;
 
-const DATAFLOW_DB: &str = "dataflow";
 
 mod api;
 pub mod coord;

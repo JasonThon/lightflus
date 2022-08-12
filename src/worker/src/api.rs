@@ -1,11 +1,10 @@
-use std::{collections, sync};
+use std::sync;
 
-use common::event;
-use common::err::{Error, TaskWorkerError};
+use crate::worker as w;
+use common::err::Error;
 use proto::common::probe;
 use proto::worker::worker;
 use proto::worker::worker_grpc;
-use crate::worker as w;
 
 #[derive(Clone)]
 pub(crate) struct TaskWorkerApiImpl {
@@ -19,16 +18,18 @@ unsafe impl Sync for TaskWorkerApiImpl {}
 impl TaskWorkerApiImpl {
     pub(crate) fn new(worker: w::TaskWorker) -> TaskWorkerApiImpl {
         TaskWorkerApiImpl {
-            worker: sync::Arc::new(worker)
+            worker: sync::Arc::new(worker),
         }
     }
 }
 
 impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
-    fn probe(&mut self,
-             _ctx: grpcio::RpcContext,
-             req: probe::ProbeRequest,
-             sink: grpcio::UnarySink<probe::ProbeResponse>) {
+    fn probe(
+        &mut self,
+        _ctx: grpcio::RpcContext,
+        req: probe::ProbeRequest,
+        sink: grpcio::UnarySink<probe::ProbeResponse>,
+    ) {
         let mut response = probe::ProbeResponse::new();
         response.available = true;
         match req.probeType {
@@ -41,14 +42,20 @@ impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
         }
     }
 
-    fn dispatch_data_events(&mut self, _ctx: grpcio::RpcContext, req: worker::DispatchDataEventsRequest, sink: grpcio::UnarySink<worker::DispatchDataEventsResponse>) {
+    fn dispatch_data_events(
+        &mut self,
+        _ctx: grpcio::RpcContext,
+        req: worker::DispatchDataEventsRequest,
+        sink: grpcio::UnarySink<worker::DispatchDataEventsResponse>,
+    ) {
         match self.worker.dispatch_events(req.events.to_vec()) {
             Ok(status_set) => {
                 let mut response = worker::DispatchDataEventsResponse::new();
                 response.set_statusSet(
-                    status_set.iter()
+                    status_set
+                        .iter()
                         .map(|(key, status)| (key.clone(), status.clone()))
-                        .collect()
+                        .collect(),
                 );
 
                 sink.success(response);
@@ -63,25 +70,42 @@ impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
         }
     }
 
-    fn stop_dataflow(&mut self, ctx: grpcio::RpcContext, req: worker::StopDataflowRequest, sink: grpcio::UnarySink<worker::StopDataflowResponse>) {
+    fn stop_dataflow(
+        &mut self,
+        ctx: grpcio::RpcContext,
+        req: worker::StopDataflowRequest,
+        sink: grpcio::UnarySink<worker::StopDataflowResponse>,
+    ) {
         if ctx.deadline().exceeded() {
-            sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::DEADLINE_EXCEEDED));
+            sink.fail(grpcio::RpcStatus::new(
+                grpcio::RpcStatusCode::DEADLINE_EXCEEDED,
+            ));
         } else {
             match self.worker.stop_dataflow(req.job_id.unwrap()) {
                 Ok(_) => sink.success(worker::StopDataflowResponse::default()),
                 Err(err) => sink.fail(grpcio::RpcStatus::with_message(
                     grpcio::RpcStatusCode::INTERNAL,
                     format!("{:?}", err),
-                ))
+                )),
             };
         }
     }
 
-    fn create_dataflow(&mut self, ctx: grpcio::RpcContext, req: worker::CreateDataflowRequest, sink: grpcio::UnarySink<worker::CreateDataflowResponse>) {
+    fn create_dataflow(
+        &mut self,
+        ctx: grpcio::RpcContext,
+        req: worker::CreateDataflowRequest,
+        sink: grpcio::UnarySink<worker::CreateDataflowResponse>,
+    ) {
         if ctx.deadline().exceeded() {
-            sink.fail(grpcio::RpcStatus::new(grpcio::RpcStatusCode::DEADLINE_EXCEEDED));
+            sink.fail(grpcio::RpcStatus::new(
+                grpcio::RpcStatusCode::DEADLINE_EXCEEDED,
+            ));
         } else {
-            match self.worker.create_dataflow(req.job_id.unwrap(), req.dataflow.unwrap()) {
+            match self
+                .worker
+                .create_dataflow(req.job_id.unwrap(), req.dataflow.unwrap())
+            {
                 Ok(_) => {
                     sink.success(worker::CreateDataflowResponse::default());
                 }

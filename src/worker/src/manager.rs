@@ -17,10 +17,12 @@ pub struct LocalExecutorManager {
 impl LocalExecutorManager {
     pub fn dispatch_events(&self, events: &Vec<DataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
-        let sink_id_opt = events.iter().next().map(|e| e.to_operator_id as SinkId);
         let local_events = events.iter().map(|e| RowDataEvent::from(e));
 
-        sink_id_opt
+        events
+            .iter()
+            .next()
+            .map(|e| e.to_operator_id as SinkId)
             .map(|sink_id| {
                 self.inner_sinks
                     .iter()

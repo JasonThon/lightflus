@@ -10,14 +10,14 @@ use proto::coordinator::coordinator_grpc::CoordinatorApi;
 
 #[derive(Clone)]
 pub(crate) struct CoordinatorApiImpl {
-    coordinator: sync::Arc<coord::Coordinator>,
+    coordinator: coord::Coordinator,
     cluster: sync::Arc<sync::RwLock<cluster::Cluster>>,
 }
 
 impl CoordinatorApiImpl {
     pub(crate) fn new(coordinator: coord::Coordinator, cluster: cluster::Cluster) -> CoordinatorApiImpl {
         CoordinatorApiImpl {
-            coordinator: sync::Arc::new(coordinator),
+            coordinator: coordinator,
             cluster: sync::Arc::new(sync::RwLock::new(cluster)),
         }
     }
@@ -50,7 +50,8 @@ impl CoordinatorApi for CoordinatorApiImpl {
         }
     }
 
-    fn create_dataflow(&mut self, ctx: RpcContext, _req: Dataflow, sink: UnarySink<CreateStreamGraphResponse>) {
+    fn create_dataflow(&mut self, _ctx: RpcContext, req: Dataflow, sink: UnarySink<CreateStreamGraphResponse>) {
+        self.coordinator.create_dataflow(req)
         todo!()
     }
 

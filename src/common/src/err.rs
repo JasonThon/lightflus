@@ -8,7 +8,7 @@ use crate::event::LocalEvent;
 use crate::types::SinkId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-struct ApiError {
+pub struct ApiError {
     pub code: u16,
     pub msg: String,
 }

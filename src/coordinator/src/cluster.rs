@@ -1,10 +1,10 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use common;
-use common::{err, types};
 use common::net::HostAddr;
+use common::{err, types};
 use proto::common::probe;
 use proto::worker;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Eq, PartialEq)]
 enum NodeStatus {
@@ -56,21 +56,22 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> Result<HostAddr, err::CommonException> {
+    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> HostAddr {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
 
-        let workers: Vec<HostAddr> = self.workers
+        let workers: Vec<HostAddr> = self
+            .workers
             .iter()
             .filter(|worker| worker.is_available())
             .map(|node| node.host_addr.clone())
             .collect();
 
         if workers.is_empty() {
-            return Err(err::CommonException::new(err::ErrorKind::NoAvailableWorker, "no available worker"));
+            return Default::default();
         }
 
-        Ok(workers[hasher.finish() as usize % workers.len()].clone())
+        workers[hasher.finish() as usize % workers.len()].clone()
     }
 
     pub fn is_available(&self) -> bool {
@@ -83,17 +84,12 @@ impl Cluster {
 
     pub fn new(addrs: &Vec<NodeConfig>) -> Self {
         Cluster {
-            workers: addrs
-                .iter()
-                .map(|config| config.to_node())
-                .collect(),
+            workers: addrs.iter().map(|config| config.to_node()).collect(),
         }
     }
 
     pub fn probe_state(&mut self) {
-        self.workers
-            .iter_mut()
-            .for_each(|node| node.probe_state())
+        self.workers.iter_mut().for_each(|node| node.probe_state())
     }
 }
 

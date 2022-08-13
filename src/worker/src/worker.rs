@@ -10,7 +10,6 @@ use proto::common::stream::Dataflow;
 use proto::worker::worker;
 use stream::actor::DataflowContext;
 
-use crate::manager;
 use crate::manager::LocalExecutorManager;
 
 type DataflowCacheRef = sync::RwLock<BTreeMap<HashedJobId, manager::LocalExecutorManager>>;

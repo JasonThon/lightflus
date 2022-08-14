@@ -2,25 +2,24 @@ use std::io;
 
 use tokio::sync::mpsc;
 
-use proto::common::common::JobId;
+use proto::common::common::{JobId, Response};
 
 use crate::event::LocalEvent;
 use crate::types::SinkId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApiError {
-    pub code: grpcio::RpcStatusCode,
+    pub code: i32,
     pub msg: String,
 }
 
 pub trait Error {
     fn to_string(&self) -> String {
-        serde_json::to_string(
-            &ApiError {
-                code: grpcio::RpcStatusCode::from(self.code() as i32),
-                msg: format!("Error Kind: {:?}. Message: {}", self.kind(), self.msg()),
-            })
-            .unwrap()
+        serde_json::to_string(&ApiError {
+            code: self.code() as i32,
+            msg: format!("Error Kind: {:?}. Message: {}", self.kind(), self.msg()),
+        })
+        .unwrap()
     }
 
     fn kind(&self) -> ErrorKind;
@@ -36,6 +35,11 @@ impl From<grpcio::Error> for ApiError {
     }
 }
 
+impl From<&Response> for ApiError {
+    fn from(resp: &Response) -> Self {
+        todo!()
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct CommonException {
@@ -67,20 +71,23 @@ pub enum ErrorKind {
 impl From<std::io::Error> for CommonException {
     fn from(err: std::io::Error) -> Self {
         match err.kind() {
-            io::ErrorKind::TimedOut =>
-                CommonException::new(ErrorKind::Timeout, "request timeout"),
-            io::ErrorKind::AddrNotAvailable =>
-                CommonException::new(ErrorKind::InvalidEndpoint, "endpoint address is invalid"),
-            io::ErrorKind::ConnectionRefused =>
-                CommonException::new(ErrorKind::ConnectionRefused, "connection refused"),
-            io::ErrorKind::ConnectionAborted =>
-                CommonException::new(ErrorKind::ConnectionAborted, "connection abort"),
-            io::ErrorKind::UnexpectedEof =>
-                CommonException::new(ErrorKind::UnexpectedEof, "unexpected eof"),
-            io::ErrorKind::NotConnected =>
-                CommonException::new(ErrorKind::NotConnected, "not connected"),
-            io::ErrorKind::NotFound =>
-                CommonException::new(ErrorKind::NotFound, "not found"),
+            io::ErrorKind::TimedOut => CommonException::new(ErrorKind::Timeout, "request timeout"),
+            io::ErrorKind::AddrNotAvailable => {
+                CommonException::new(ErrorKind::InvalidEndpoint, "endpoint address is invalid")
+            }
+            io::ErrorKind::ConnectionRefused => {
+                CommonException::new(ErrorKind::ConnectionRefused, "connection refused")
+            }
+            io::ErrorKind::ConnectionAborted => {
+                CommonException::new(ErrorKind::ConnectionAborted, "connection abort")
+            }
+            io::ErrorKind::UnexpectedEof => {
+                CommonException::new(ErrorKind::UnexpectedEof, "unexpected eof")
+            }
+            io::ErrorKind::NotConnected => {
+                CommonException::new(ErrorKind::NotConnected, "not connected")
+            }
+            io::ErrorKind::NotFound => CommonException::new(ErrorKind::NotFound, "not found"),
             _ => CommonException::new(ErrorKind::Unknown, "unknown error"),
         }
     }
@@ -88,7 +95,10 @@ impl From<std::io::Error> for CommonException {
 
 impl From<serde_json::Error> for CommonException {
     fn from(err: serde_json::Error) -> Self {
-        Self::new(ErrorKind::InvalidJson, format!("invalid json: {}", err).as_str())
+        Self::new(
+            ErrorKind::InvalidJson,
+            format!("invalid json: {}", err).as_str(),
+        )
     }
 }
 
@@ -143,10 +153,18 @@ impl ExecutionException {
         }
     }
 
-    pub fn sink_local_event_failure(job_id: &JobId, event: &LocalEvent, sink_id: SinkId, err_msg: String) -> ExecutionException {
+    pub fn sink_local_event_failure(
+        job_id: &JobId,
+        event: &LocalEvent,
+        sink_id: SinkId,
+        err_msg: String,
+    ) -> ExecutionException {
         ExecutionException {
             kind: ErrorKind::SinkLocalEventFailure,
-            msg: format!("job id {job_id:?} sink msg {event:?} to {} failed. {err_msg:?}", sink_id),
+            msg: format!(
+                "job id {job_id:?} sink msg {event:?} to {} failed. {err_msg:?}",
+                sink_id
+            ),
         }
     }
 }
@@ -162,7 +180,7 @@ impl From<mpsc::error::TryRecvError> for TaskWorkerError {
     fn from(err: mpsc::error::TryRecvError) -> Self {
         match err {
             mpsc::error::TryRecvError::Empty => TaskWorkerError::ChannelEmpty,
-            mpsc::error::TryRecvError::Disconnected => TaskWorkerError::ChannelDisconnected
+            mpsc::error::TryRecvError::Disconnected => TaskWorkerError::ChannelDisconnected,
         }
     }
 }

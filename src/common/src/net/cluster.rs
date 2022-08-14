@@ -1,7 +1,7 @@
-use common::net::{to_host_addr, HashableHostAddr};
-use common::types;
-use common::types::SingleKV;
-use common::{self, utils};
+use crate::net::{to_host_addr, HashableHostAddr};
+use crate::types;
+use crate::types::SingleKV;
+use crate::utils;
 use proto::common::probe;
 use proto::common::stream::Dataflow;
 use proto::worker;
@@ -55,7 +55,7 @@ impl Node {
 }
 
 pub struct Cluster {
-    workers: Vec<Node>,
+    pub(crate) workers: Vec<Node>,
 }
 
 impl Cluster {
@@ -103,16 +103,25 @@ impl Cluster {
             .get_nodes()
             .iter()
             .map(|entry| {
-                HashMap::from([(self.partition_key(&SingleKV::new(*entry.0)), vec![entry.1])])
+                HashMap::from([(
+                    self.partition_key(&SingleKV::new(*entry.0)),
+                    vec![entry.1.clone()],
+                )])
             })
             .reduce(|mut accum, mut map| {
                 map.iter_mut().for_each(|entry| {
-                    accum.get_mut(entry.0).iter().for_each(|operators| {
-                        entry.1.iter_mut().for_each(|info| {
-                            info.set_host_addr(to_host_addr(entry.0));
-                            operators.push(*info)
-                        })
-                    })
+                    entry.1.iter_mut().for_each(|info| {
+                        info.set_host_addr(to_host_addr(entry.0));
+                    });
+                    let option = accum.get_mut(entry.0);
+                    if option.is_none() {
+                        accum.insert(entry.0.clone(), entry.1.clone());
+                    } else {
+                        accum
+                            .get_mut(entry.0)
+                            .iter_mut()
+                            .for_each(|operators| operators.append(entry.1))
+                    }
                 });
 
                 accum
@@ -147,5 +156,23 @@ impl NodeConfig {
                 port: self.port,
             },
         }
+    }
+}
+
+mod cluster_tests {
+    #[test]
+    pub fn test_cluster_available() {
+        use super::{Cluster, NodeConfig};
+        let mut cluster = Cluster::new(&vec![NodeConfig {
+            host: "localhost".to_string(),
+            port: 8080,
+        }]);
+
+        cluster
+            .workers
+            .iter_mut()
+            .for_each(|node| node.status = super::NodeStatus::Running);
+
+        assert!(cluster.is_available())
     }
 }

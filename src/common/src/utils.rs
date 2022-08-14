@@ -108,7 +108,7 @@ pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
 
 pub fn to_dataflow(
     job_id: &JobId,
-    operators: &Vec<&OperatorInfo>,
+    operators: &Vec<OperatorInfo>,
     meta: &[DataflowMeta],
 ) -> Dataflow {
     let mut dataflow = Dataflow::new();

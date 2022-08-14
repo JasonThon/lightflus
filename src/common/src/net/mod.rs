@@ -6,6 +6,7 @@ pub const SUCCESS: i32 = 200;
 pub const BAD_REQUEST: i32 = 400;
 pub const INTERNAL_SERVER_ERROR: i32 = 500;
 pub mod status;
+pub mod cluster;
 
 #[derive(Clone, Debug)]
 pub struct ClientConfig {

@@ -11,9 +11,10 @@ tokio = { version = "1", features = ["sync"] }
 regex = "1"
 bytes = "1.1.0"
 chrono = "0.4"
-proto = { path = "../proto", features = ["proto-common"] }
+proto = { path = "../proto", features = ["proto-common", "worker"] }
 serde_json = "1.0.59"
 grpcio = "0.10.3"
+log = "0.4"
 
 [dev-dependencies]
 common = { path = "../common" }

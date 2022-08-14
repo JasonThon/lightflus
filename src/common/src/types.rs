@@ -1,6 +1,7 @@
 use bytes::Buf;
 use proto::common::common::JobId;
 use std::cmp::Ordering;
+use std::hash::Hash;
 use std::ops;
 
 pub type DataTypeSymbol = u8;
@@ -489,5 +490,28 @@ impl From<JobId> for HashedJobId {
         Self {
             table_id: id.table_id,
         }
+    }
+}
+
+pub struct SingleKV<K> {
+    key: K,
+}
+
+impl<K> SingleKV<K> {
+    pub fn new(key: K) -> Self {
+        Self { key }
+    }
+}
+
+impl<K> KeyedValue<K, K> for SingleKV<K>
+where
+    K: Hash + Clone,
+{
+    fn key(&self) -> K {
+        self.key.clone()
+    }
+
+    fn value(&self) -> K {
+        self.key.clone()
     }
 }

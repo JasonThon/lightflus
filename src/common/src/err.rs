@@ -9,7 +9,7 @@ use crate::types::SinkId;
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct ApiError {
-    pub code: u16,
+    pub code: grpcio::RpcStatusCode,
     pub msg: String,
 }
 
@@ -17,7 +17,7 @@ pub trait Error {
     fn to_string(&self) -> String {
         serde_json::to_string(
             &ApiError {
-                code: self.code(),
+                code: grpcio::RpcStatusCode::from(self.code() as i32),
                 msg: format!("Error Kind: {:?}. Message: {}", self.kind(), self.msg()),
             })
             .unwrap()
@@ -28,6 +28,12 @@ pub trait Error {
     fn msg(&self) -> String;
 
     fn code(&self) -> u16;
+}
+
+impl From<grpcio::Error> for ApiError {
+    fn from(err: grpcio::Error) -> Self {
+        todo!()
+    }
 }
 
 

@@ -1,6 +1,6 @@
 use crate::err::SinkException;
 use common::event::LocalEvent;
-use common::net::HostAddr;
+use common::net::HashableHostAddr;
 use common::types::{ExecutorId, SinkId, SourceId};
 use common::{err, utils};
 use proto::common::common::JobId;
@@ -231,7 +231,7 @@ impl SourceSinkManger {
                 } else {
                     SinkImpl::Remote(RemoteSink {
                         sink_id: *sink_id,
-                        host_addr: HostAddr {
+                        host_addr: HashableHostAddr {
                             host: "".to_string(),
                             port: 0,
                         },
@@ -307,7 +307,7 @@ impl Sink for LocalSink {
 #[derive(Clone)]
 pub struct RemoteSink {
     pub(crate) sink_id: SinkId,
-    pub(crate) host_addr: HostAddr,
+    pub(crate) host_addr: HashableHostAddr,
 }
 
 impl Sink for RemoteSink {

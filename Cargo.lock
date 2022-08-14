@@ -157,6 +157,7 @@ dependencies = [
  "bytes",
  "chrono",
  "common",
+ "grpcio",
  "proto",
  "regex",
  "serde",
@@ -169,6 +170,7 @@ name = "coordinator"
 version = "0.1.0"
 dependencies = [
  "common",
+ "coordinator",
  "grpcio",
  "log",
  "proto",

@@ -1,9 +1,12 @@
-use common;
-use common::net::HostAddr;
-use common::{err, types};
+use common::net::{to_host_addr, HashableHostAddr};
+use common::types;
+use common::types::SingleKV;
+use common::{self, utils};
 use proto::common::probe;
+use proto::common::stream::Dataflow;
 use proto::worker;
 use std::collections::hash_map::DefaultHasher;
+use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Eq, PartialEq)]
@@ -16,7 +19,7 @@ enum NodeStatus {
 #[derive(Clone, Eq, PartialEq)]
 struct Node {
     status: NodeStatus,
-    pub host_addr: HostAddr,
+    pub host_addr: HashableHostAddr,
 }
 
 impl Node {
@@ -56,11 +59,14 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> HostAddr {
+    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(
+        &self,
+        keyed: &T,
+    ) -> HashableHostAddr {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
 
-        let workers: Vec<HostAddr> = self
+        let workers: Vec<HashableHostAddr> = self
             .workers
             .iter()
             .filter(|worker| worker.is_available())
@@ -91,6 +97,39 @@ impl Cluster {
     pub fn probe_state(&mut self) {
         self.workers.iter_mut().for_each(|node| node.probe_state())
     }
+
+    pub fn partition_dataflow(&self, dataflow: Dataflow) -> HashMap<String, Dataflow> {
+        dataflow
+            .get_nodes()
+            .iter()
+            .map(|entry| {
+                HashMap::from([(self.partition_key(&SingleKV::new(*entry.0)), vec![entry.1])])
+            })
+            .reduce(|mut accum, mut map| {
+                map.iter_mut().for_each(|entry| {
+                    accum.get_mut(entry.0).iter().for_each(|operators| {
+                        entry.1.iter_mut().for_each(|info| {
+                            info.set_host_addr(to_host_addr(entry.0));
+                            operators.push(*info)
+                        })
+                    })
+                });
+
+                accum
+            })
+            .map(|subgraph| {
+                subgraph
+                    .iter()
+                    .map(|entry| {
+                        (
+                            entry.0.as_uri(),
+                            utils::to_dataflow(dataflow.get_job_id(), entry.1, dataflow.get_meta()),
+                        )
+                    })
+                    .collect()
+            })
+            .unwrap_or(Default::default())
+    }
 }
 
 #[derive(Clone, serde::Deserialize, Debug)]
@@ -103,7 +142,7 @@ impl NodeConfig {
     fn to_node(&self) -> Node {
         Node {
             status: NodeStatus::Pending,
-            host_addr: HostAddr {
+            host_addr: HashableHostAddr {
                 host: self.host.clone(),
                 port: self.port,
             },

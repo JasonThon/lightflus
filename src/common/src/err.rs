@@ -64,6 +64,7 @@ pub enum ErrorKind {
     Unknown,
     InvalidJson,
     SaveDataflowFailed,
+    GetDataflowFailed,
     UnexpectedWireType,
     IncorrectWireTag,
     IncompleteWireMap,

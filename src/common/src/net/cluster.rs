@@ -99,7 +99,7 @@ impl Cluster {
         self.workers.iter_mut().for_each(|node| node.probe_state())
     }
 
-    pub fn partition_dataflow(&self, dataflow: Dataflow) -> HashMap<String, Dataflow> {
+    pub fn partition_dataflow(&self, dataflow: &Dataflow) -> HashMap<String, Dataflow> {
         dataflow
             .get_nodes()
             .iter()

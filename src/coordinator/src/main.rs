@@ -1,7 +1,9 @@
 use std::{fs, sync};
 
-use common::{utils, net::cluster::Cluster};
+use common::{net::cluster::Cluster, utils};
 use proto::coordinator::coordinator_grpc;
+
+use crate::coord::Coordinator;
 
 mod api;
 pub mod coord;
@@ -41,7 +43,7 @@ async fn main() {
 
     let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
 
-    let coordinator = coord::Coordinator::new(coord::JobStorageImpl::RocksDB, &config.cluster);
+    let coordinator = Coordinator::new(config.storage.to_dataflow_storage(), &config.cluster);
 
     let mut clusters = Cluster::new(&config.cluster);
     clusters.probe_state();

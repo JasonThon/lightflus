@@ -1,6 +1,6 @@
 use crate::coord;
 use common::{err::Error, net::cluster};
-use grpcio::{RpcContext, UnarySink};
+use grpcio::{RpcContext, RpcStatus, RpcStatusCode, UnarySink};
 use proto::common::probe;
 use proto::common::probe::{ProbeRequest, ProbeResponse};
 use proto::common::stream::{Dataflow, DataflowStatus};
@@ -88,6 +88,20 @@ impl CoordinatorApi for CoordinatorApiImpl {
         _req: GetDataflowRequest,
         sink: UnarySink<GetDataflowResponse>,
     ) {
-        todo!()
+        match self
+            .coordinator
+            .get_dataflow(_req.get_job_id())
+            .map(|dataflow| {
+                let mut resp = GetDataflowResponse::default();
+                resp.set_graph(dataflow.clone());
+                resp
+            }) {
+            Some(resp) => {
+                sink.success(resp);
+            }
+            None => {
+                sink.fail(RpcStatus::new(RpcStatusCode::NOT_FOUND));
+            }
+        }
     }
 }

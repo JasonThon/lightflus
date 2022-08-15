@@ -13,15 +13,6 @@ pub(crate) const FLOAT: DataTypeSymbol = 4;
 pub(crate) const DOUBLE: DataTypeSymbol = 5;
 pub(crate) const BOOLEAN: DataTypeSymbol = 6;
 
-#[derive(Eq, PartialEq, Clone, serde::Serialize, serde::Deserialize, Debug, Hash)]
-pub enum DataEventType {
-    INSERT,
-    UPDATE,
-    DELETE,
-    INVALID,
-    STOP,
-}
-
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq)]
 pub enum ValueType {
     String,

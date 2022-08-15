@@ -1,6 +1,6 @@
 use crate::net::hostname;
 use proto::common::{
-    common::{HostAddr, JobId},
+    common::JobId,
     stream::{Dataflow, DataflowMeta, OperatorInfo},
 };
 use serde::de::Error;

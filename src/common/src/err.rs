@@ -16,7 +16,7 @@ pub struct ApiError {
 pub trait Error {
     fn to_string(&self) -> String {
         serde_json::to_string(&ApiError {
-            code: self.code() as i32,
+            code: self.code(),
             msg: format!("Error Kind: {:?}. Message: {}", self.kind(), self.msg()),
         })
         .unwrap()
@@ -26,17 +26,17 @@ pub trait Error {
 
     fn msg(&self) -> String;
 
-    fn code(&self) -> u16;
+    fn code(&self) -> i32;
 }
 
 impl From<grpcio::Error> for ApiError {
-    fn from(err: grpcio::Error) -> Self {
+    fn from(_err: grpcio::Error) -> Self {
         todo!()
     }
 }
 
 impl From<&Response> for ApiError {
-    fn from(resp: &Response) -> Self {
+    fn from(_resp: &Response) -> Self {
         todo!()
     }
 }
@@ -120,7 +120,7 @@ impl Error for CommonException {
         self.message.clone()
     }
 
-    fn code(&self) -> u16 {
+    fn code(&self) -> i32 {
         500
     }
 }
@@ -140,7 +140,7 @@ impl Error for ExecutionException {
         self.msg.clone()
     }
 
-    fn code(&self) -> u16 {
+    fn code(&self) -> i32 {
         500
     }
 }

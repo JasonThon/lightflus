@@ -1,10 +1,9 @@
 use std::{fs, sync};
 
-use common::utils;
+use common::{utils, net::cluster::Cluster};
 use proto::coordinator::coordinator_grpc;
 
 mod api;
-pub mod cluster;
 pub mod coord;
 
 #[tokio::main]
@@ -42,9 +41,9 @@ async fn main() {
 
     let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
 
-    let coordinator = coord::Coordinator::new(coord::JobStorage::PgSQL, &config.cluster);
+    let coordinator = coord::Coordinator::new(coord::JobStorage::RocksDB, &config.cluster);
 
-    let mut clusters = cluster::Cluster::new(&config.cluster);
+    let mut clusters = Cluster::new(&config.cluster);
     clusters.probe_state();
 
     let server = api::CoordinatorApiImpl::new(coordinator, clusters);

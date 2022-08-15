@@ -1,5 +1,7 @@
+use chrono::Timelike;
 use proto::common::common::JobId;
-use proto::common::event::DataEvent;
+use proto::common::event::{DataEvent, DataEventTypeEnum};
+use proto::common::table::Entry;
 
 use crate::types;
 
@@ -12,26 +14,36 @@ pub trait KeyedEvent<K, V> {
 #[derive(Clone, Debug)]
 pub enum LocalEvent {
     RowChangeStream(Vec<RowDataEvent>),
-    Terminate {
-        job_id: JobId,
-        to: types::SinkId,
-    },
+    Terminate { job_id: JobId, to: types::SinkId },
 }
 
 impl From<&DataEvent> for RowDataEvent {
     fn from(event: &DataEvent) -> Self {
-        todo!()
+        let event_time = event.get_event_time();
+        let datetime = chrono::Utc::now()
+            .with_second(event_time.get_seconds() as u32)
+            .and_then(|utc| utc.with_nanosecond(event_time.get_nanos() as u32))
+            .unwrap();
+
+        Self {
+            job_id: event.get_job_id().clone(),
+            to: event.get_to_operator_id(),
+            data: event.get_data().to_vec(),
+            old_data: event.get_old_data().to_vec(),
+            from: event.get_from_operator_id(),
+            event_type: event.get_event_type(),
+            event_time: datetime.into(),
+        }
     }
 }
 
 #[derive(Clone, Debug)]
 pub struct RowDataEvent {
-    pub row_idx: types::RowIdx,
     pub job_id: JobId,
     pub to: types::SinkId,
-    pub data: Vec<u8>,
-    pub old_data: Vec<u8>,
+    pub data: Vec<Entry>,
+    pub old_data: Vec<Entry>,
     pub from: types::SourceId,
-    pub event_type: types::DataEventType,
+    pub event_type: DataEventTypeEnum,
     pub event_time: std::time::SystemTime,
 }

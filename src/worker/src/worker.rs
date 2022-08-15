@@ -94,7 +94,12 @@ impl TaskWorker {
                                 (
                                     manager.job_id.table_id.to_string(),
                                     manager.dispatch_events(
-                                        group.get(&manager.job_id.clone().into()).unwrap(),
+                                        &group
+                                            .get(&manager.job_id.clone().into())
+                                            .map(|events| {
+                                                events.iter().map(|e| (*e).clone()).collect()
+                                            })
+                                            .unwrap(),
                                     ),
                                 )
                             })

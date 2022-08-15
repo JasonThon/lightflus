@@ -1,5 +1,5 @@
-use crate::{cluster, coord};
-use common::err::Error;
+use crate::coord;
+use common::{err::Error, net::cluster};
 use grpcio::{RpcContext, UnarySink};
 use proto::common::probe;
 use proto::common::probe::{ProbeRequest, ProbeResponse};
@@ -61,17 +61,21 @@ impl CoordinatorApi for CoordinatorApiImpl {
             Ok(_) => {
                 let ref mut resp = CreateStreamGraphResponse::default();
                 resp.set_status(DataflowStatus::RUNNING);
-                sink.success(resp);
+                sink.success(resp.clone());
             }
             Err(err) => {
-                sink.fail(err.code);
+                let status = grpcio::RpcStatus::with_message(
+                    grpcio::RpcStatusCode::from(err.code),
+                    err.msg.clone(),
+                );
+                sink.fail(status);
             }
         }
     }
 
     fn terminate_dataflow(
         &mut self,
-        ctx: RpcContext,
+        _ctx: RpcContext,
         _req: TerminateDataflowRequest,
         sink: UnarySink<TerminateDataflowResponse>,
     ) {
@@ -80,7 +84,7 @@ impl CoordinatorApi for CoordinatorApiImpl {
 
     fn get_dataflow(
         &mut self,
-        ctx: RpcContext,
+        _ctx: RpcContext,
         _req: GetDataflowRequest,
         sink: UnarySink<GetDataflowResponse>,
     ) {

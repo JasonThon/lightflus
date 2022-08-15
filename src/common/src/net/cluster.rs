@@ -1,4 +1,4 @@
-use crate::net::{to_host_addr, HashableHostAddr};
+use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
 use crate::utils;
@@ -9,17 +9,17 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 enum NodeStatus {
     Pending,
     Running,
     Unreachable,
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 struct Node {
     status: NodeStatus,
-    pub host_addr: HashableHostAddr,
+    pub host_addr: PersistableHostAddr,
 }
 
 impl Node {
@@ -54,19 +54,20 @@ impl Node {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Cluster {
-    pub(crate) workers: Vec<Node>,
+    workers: Vec<Node>,
 }
 
 impl Cluster {
     pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(
         &self,
         keyed: &T,
-    ) -> HashableHostAddr {
+    ) -> PersistableHostAddr {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
 
-        let workers: Vec<HashableHostAddr> = self
+        let workers: Vec<PersistableHostAddr> = self
             .workers
             .iter()
             .filter(|worker| worker.is_available())
@@ -151,7 +152,7 @@ impl NodeConfig {
     fn to_node(&self) -> Node {
         Node {
             status: NodeStatus::Pending,
-            host_addr: HashableHostAddr {
+            host_addr: PersistableHostAddr {
                 host: self.host.clone(),
                 port: self.port,
             },

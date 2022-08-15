@@ -6,14 +6,14 @@ use proto::{
     worker::{cli, worker::CreateDataflowRequest},
 };
 
-pub const COORD_JOB_GRAPH_COLLECTION: &str = "coord.job.graph";
-
+#[derive(Clone, Debug)]
 pub enum JobStorage {
-    PgSQL,
+    RocksDB,
 }
 
 impl JobStorage {}
 
+#[derive(Clone)]
 pub struct Coordinator {
     job_storage: JobStorage,
     cluster: cluster::Cluster,
@@ -29,6 +29,7 @@ impl Coordinator {
 
     pub fn create_dataflow(&mut self, dataflow: Dataflow) -> Result<(), ApiError> {
         let map = self.cluster.partition_dataflow(dataflow);
+
         for elem in map {
             let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
                 host: None,

@@ -11,7 +11,7 @@ pub mod cluster;
 #[derive(Clone, Debug)]
 pub struct ClientConfig {
     // address
-    pub address: HashableHostAddr,
+    pub address: PersistableHostAddr,
     // timeout
     pub timeout: u32,
     // retry count
@@ -19,18 +19,18 @@ pub struct ClientConfig {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, Hash)]
-pub struct HashableHostAddr {
+pub struct PersistableHostAddr {
     pub host: String,
     pub port: u16,
 }
 
-impl HashableHostAddr {
+impl PersistableHostAddr {
     pub fn as_uri(&self) -> String {
         format!("{}:{}", &self.host, self.port)
     }
 }
 
-pub fn to_host_addr(hashable: &HashableHostAddr) -> HostAddr {
+pub fn to_host_addr(hashable: &PersistableHostAddr) -> HostAddr {
     let mut addr = HostAddr::new();
     addr.set_host(hashable.host.clone());
     addr.set_port(hashable.port as u32);

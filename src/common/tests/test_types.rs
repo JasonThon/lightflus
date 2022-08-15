@@ -1,5 +1,5 @@
-use common::{event, types};
-use std::collections;
+use common::types;
+
 use bytes::Buf;
 
 #[test]
@@ -61,9 +61,18 @@ fn test_typed_value_left_int_dual_op() {
 
     let a1 = types::TypedValue::Int(100);
     let a2 = types::TypedValue::Double(313.12998000);
-    assert_eq!(a1.clone() + a2.clone(), types::TypedValue::Double(413.12998));
-    assert_eq!(a1.clone() - a2.clone(), types::TypedValue::Double(-213.12998));
-    assert_eq!(a1.clone() * a2.clone(), types::TypedValue::Double(31312.998));
+    assert_eq!(
+        a1.clone() + a2.clone(),
+        types::TypedValue::Double(413.12998)
+    );
+    assert_eq!(
+        a1.clone() - a2.clone(),
+        types::TypedValue::Double(-213.12998)
+    );
+    assert_eq!(
+        a1.clone() * a2.clone(),
+        types::TypedValue::Double(31312.998)
+    );
     assert_eq!(a1 / a2, types::TypedValue::Double(0.3193561983429373));
 
     let a1 = types::TypedValue::Int(100);
@@ -152,31 +161,78 @@ fn test_typed_value_left_float_dual_op() {
 
     let a1 = types::TypedValue::Float(1999.111222333);
     let a2 = types::TypedValue::Float(899.9999);
-    assert_eq!(a1.clone() + a2.clone(), types::TypedValue::Float(2899.11112233));
-    assert_eq!(a1.clone() - a2.clone(), types::TypedValue::Float(1099.11132233));
-    assert_eq!(a1.clone() * a2.clone(), types::TypedValue::Float(1799199.90018858));
-    assert_eq!(a1.clone() / a2.clone(), types::TypedValue::Float(2.22123494));
+    assert_eq!(
+        a1.clone() + a2.clone(),
+        types::TypedValue::Float(2899.11112233)
+    );
+    assert_eq!(
+        a1.clone() - a2.clone(),
+        types::TypedValue::Float(1099.11132233)
+    );
+    assert_eq!(
+        a1.clone() * a2.clone(),
+        types::TypedValue::Float(1799199.90018858)
+    );
+    assert_eq!(
+        a1.clone() / a2.clone(),
+        types::TypedValue::Float(2.22123494)
+    );
 
     let a1 = types::TypedValue::Float(1999.111222333);
     let a2 = types::TypedValue::Int(899);
-    assert_eq!(a1.clone() + a2.clone(), types::TypedValue::Float(2898.11122233));
-    assert_eq!(a1.clone() - a2.clone(), types::TypedValue::Float(1100.11122233));
-    assert_eq!(a1.clone() * a2.clone(), types::TypedValue::Float(1797200.98887737));
-    assert_eq!(a1.clone() / a2.clone(), types::TypedValue::Float(2.22370548));
-
+    assert_eq!(
+        a1.clone() + a2.clone(),
+        types::TypedValue::Float(2898.11122233)
+    );
+    assert_eq!(
+        a1.clone() - a2.clone(),
+        types::TypedValue::Float(1100.11122233)
+    );
+    assert_eq!(
+        a1.clone() * a2.clone(),
+        types::TypedValue::Float(1797200.98887737)
+    );
+    assert_eq!(
+        a1.clone() / a2.clone(),
+        types::TypedValue::Float(2.22370548)
+    );
 
     let a1 = types::TypedValue::Float(1999.111222333);
     let a2 = types::TypedValue::Long(899);
-    assert_eq!(a1.clone() + a2.clone(), types::TypedValue::Float(2898.11122233));
-    assert_eq!(a1.clone() - a2.clone(), types::TypedValue::Float(1100.11122233));
-    assert_eq!(a1.clone() * a2.clone(), types::TypedValue::Float(1797200.98887737));
-    assert_eq!(a1.clone() / a2.clone(), types::TypedValue::Float(2.22370548));
+    assert_eq!(
+        a1.clone() + a2.clone(),
+        types::TypedValue::Float(2898.11122233)
+    );
+    assert_eq!(
+        a1.clone() - a2.clone(),
+        types::TypedValue::Float(1100.11122233)
+    );
+    assert_eq!(
+        a1.clone() * a2.clone(),
+        types::TypedValue::Float(1797200.98887737)
+    );
+    assert_eq!(
+        a1.clone() / a2.clone(),
+        types::TypedValue::Float(2.22370548)
+    );
 
     let a1 = types::TypedValue::Float(1999.111222333);
     let a2 = types::TypedValue::Double(899.99099);
     // TODO float calculate with double should not loss precision
-    assert_eq!(a1.clone() + a2.clone(), types::TypedValue::Double(2899.1021960546877));
-    assert_eq!(a1.clone() - a2.clone(), types::TypedValue::Double(1099.1202160546875));
-    assert_eq!(a1.clone() * a2.clone(), types::TypedValue::Double(1799182.0734572522));
-    assert_eq!(a1.clone() / a2.clone(), types::TypedValue::Double(2.221256910643836));
+    assert_eq!(
+        a1.clone() + a2.clone(),
+        types::TypedValue::Double(2899.1021960546877)
+    );
+    assert_eq!(
+        a1.clone() - a2.clone(),
+        types::TypedValue::Double(1099.1202160546875)
+    );
+    assert_eq!(
+        a1.clone() * a2.clone(),
+        types::TypedValue::Double(1799182.0734572522)
+    );
+    assert_eq!(
+        a1.clone() / a2.clone(),
+        types::TypedValue::Double(2.221256910643836)
+    );
 }

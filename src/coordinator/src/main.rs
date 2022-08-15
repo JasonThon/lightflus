@@ -41,7 +41,7 @@ async fn main() {
 
     let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
 
-    let coordinator = coord::Coordinator::new(coord::JobStorage::RocksDB, &config.cluster);
+    let coordinator = coord::Coordinator::new(coord::JobStorageImpl::RocksDB, &config.cluster);
 
     let mut clusters = Cluster::new(&config.cluster);
     clusters.probe_state();

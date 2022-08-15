@@ -50,8 +50,6 @@ pub struct CommonException {
 #[derive(Clone, Debug)]
 pub enum ErrorKind {
     NoAvailableWorker,
-    ActorSendError,
-    NodesRemoveFailed,
     InvalidDataflow,
     SinkLocalEventFailure,
     IllegalConnectionType,
@@ -64,8 +62,88 @@ pub enum ErrorKind {
     NotConnected,
     NotFound,
     Unknown,
-    GrpcError,
     InvalidJson,
+    SaveDataflowFailed,
+    UnexpectedWireType,
+    IncorrectWireTag,
+    IncompleteWireMap,
+    IncorrectVarint,
+    Utf8Error,
+    InvalidEnumValue,
+    OverRecursionLimit,
+    TruncatedMessage,
+    MessageNotInitialized,
+    Other,
+}
+
+impl From<protobuf::ProtobufError> for CommonException {
+    fn from(err: protobuf::ProtobufError) -> Self {
+        match err {
+            protobuf::ProtobufError::IoError(e) => Self::from(e),
+            protobuf::ProtobufError::WireError(e) => Self::from(e),
+            protobuf::ProtobufError::Utf8(e) => Self {
+                kind: ErrorKind::Utf8Error,
+                message: format!(
+                    "utf8 error. {}: {}. {}: {:?}",
+                    "valid UTF-8 start from",
+                    e.valid_up_to(),
+                    "error length",
+                    e.error_len()
+                ),
+            },
+            protobuf::ProtobufError::MessageNotInitialized { message } => Self {
+                kind: ErrorKind::MessageNotInitialized,
+                message: message.to_string(),
+            },
+        }
+    }
+}
+
+impl From<protobuf::error::WireError> for CommonException {
+    fn from(err: protobuf::error::WireError) -> Self {
+        match err {
+            protobuf::error::WireError::UnexpectedEof => Self {
+                kind: ErrorKind::UnexpectedEof,
+                message: "unexpected eof".to_string(),
+            },
+            protobuf::error::WireError::UnexpectedWireType(t) => Self {
+                kind: ErrorKind::UnexpectedWireType,
+                message: format!("UnexpectedWireType: {:?}", t),
+            },
+            protobuf::error::WireError::IncorrectTag(v) => Self {
+                kind: ErrorKind::IncorrectWireTag,
+                message: format!("IncorrectWireTag: {}", v),
+            },
+            protobuf::error::WireError::IncompleteMap => Self {
+                kind: ErrorKind::IncompleteWireMap,
+                message: "IncompleteWireMap".to_string(),
+            },
+            protobuf::error::WireError::IncorrectVarint => Self {
+                kind: ErrorKind::IncorrectVarint,
+                message: "IncorrectVarint".to_string(),
+            },
+            protobuf::error::WireError::Utf8Error => Self {
+                kind: ErrorKind::Utf8Error,
+                message: "uft8 error".to_string(),
+            },
+            protobuf::error::WireError::InvalidEnumValue(v) => Self {
+                kind: ErrorKind::InvalidEnumValue,
+                message: format!("InvalidEnumValue error. enum: {}", v),
+            },
+            protobuf::error::WireError::OverRecursionLimit => Self {
+                kind: ErrorKind::OverRecursionLimit,
+                message: "OverRecursionLimit error".to_string(),
+            },
+            protobuf::error::WireError::TruncatedMessage => Self {
+                kind: ErrorKind::TruncatedMessage,
+                message: "TruncatedMessage error".to_string(),
+            },
+            protobuf::error::WireError::Other => Self {
+                kind: ErrorKind::Other,
+                message: "Other error".to_string(),
+            },
+        }
+    }
 }
 
 impl From<std::io::Error> for CommonException {
@@ -108,6 +186,10 @@ impl CommonException {
             kind,
             message: msg.to_string(),
         }
+    }
+
+    pub fn to_api_error(&self) -> Result<(), ApiError> {
+        todo!()
     }
 }
 

@@ -15,6 +15,7 @@ proto = { path = "../proto", features = ["proto-common", "worker"] }
 serde_json = "1.0.59"
 grpcio = "0.10.3"
 log = "0.4"
+protobuf = "2.27.1"
 
 [dev-dependencies]
 common = { path = "../common" }

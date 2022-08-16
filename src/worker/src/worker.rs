@@ -1,5 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
-use std::{collections, sync};
+use std::sync;
 
 use common::collections::lang;
 use common::err;

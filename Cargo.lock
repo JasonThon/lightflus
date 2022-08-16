@@ -800,6 +800,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "common",
+ "crossbeam-channel",
  "log",
  "proto",
  "rayon",

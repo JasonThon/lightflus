@@ -8,13 +8,11 @@ use proto::common::stream::{DataflowMeta, OperatorInfo};
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::{Arc, Mutex};
-use tokio::select;
-use tokio::sync::mpsc;
+use std::sync::Arc;
 use tokio::task::JoinHandle;
 
-pub type EventReceiver<Input> = mpsc::UnboundedReceiver<Input>;
-pub type EventSender<Input> = mpsc::UnboundedSender<Input>;
+pub type EventReceiver<Input> = crossbeam_channel::Receiver<Input>;
+pub type EventSender<Input> = crossbeam_channel::Sender<Input>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DataflowContext {
@@ -97,7 +95,7 @@ pub struct LocalExecutor {
     pub(crate) operator: OperatorInfo,
 
     sinks: Vec<SinkImpl>,
-    local_source: Arc<SourceImpl>,
+    local_source: SourceImpl,
 }
 
 impl LocalExecutor {
@@ -110,7 +108,7 @@ impl LocalExecutor {
         Self {
             executor_id,
             operator,
-            local_source: Arc::new(source),
+            local_source: source,
             sinks,
         }
     }
@@ -120,12 +118,7 @@ impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
         tokio::spawn(async move {
             loop {
-                select! {
-                    Some(msg) = async {
-                        self.local_source.fetch_msg()
-                    } => {
-                    }
-                }
+                let msg = self.local_source.fetch_msg().await;
             }
         })
     }
@@ -166,7 +159,7 @@ pub trait Source {
 pub struct SourceSinkManger {
     local_sink_id_set: HashSet<SinkId>,
     remote_sinks_infos: HashMap<SinkId, OperatorInfo>,
-    local_source_rx: RefCell<HashMap<SourceId, Arc<Mutex<EventReceiver<SinkableMessageImpl>>>>>,
+    local_source_rx: RefCell<HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>>,
     sources: RefCell<HashMap<SourceId, SourceImpl>>,
     local_source_tx: RefCell<HashMap<SourceId, EventSender<SinkableMessageImpl>>>,
     sinks: RefCell<HashMap<SinkId, SinkImpl>>,
@@ -213,9 +206,9 @@ impl SourceSinkManger {
                 }
 
                 if self.local_sink_id_set.contains(sink_id) {
-                    let (tx, rx) = mpsc::unbounded_channel();
+                    let (tx, rx) = crossbeam_channel::unbounded();
                     let _ = RefMut::map(self.local_source_rx.borrow_mut(), |map| {
-                        map.insert(*sink_id as SourceId, Arc::new(Mutex::new(rx)));
+                        map.insert(*sink_id as SourceId, Arc::new(rx));
                         map
                     });
                     let _ = RefMut::map(self.local_source_tx.borrow_mut(), |map| {
@@ -280,6 +273,9 @@ pub enum SinkableMessageImpl {
 
 impl SinkableMessage for SinkableMessageImpl {}
 
+unsafe impl Send for SinkableMessageImpl {}
+unsafe impl Sync for SinkableMessageImpl {}
+
 #[derive(Clone)]
 pub struct LocalSink {
     pub(crate) sender: EventSender<SinkableMessageImpl>,
@@ -329,7 +325,7 @@ impl Sink for RemoteSink {
 
 #[derive(Clone)]
 pub struct LocalSource {
-    pub(crate) recv: Arc<Mutex<EventReceiver<SinkableMessageImpl>>>,
+    pub(crate) recv: Arc<EventReceiver<SinkableMessageImpl>>,
     pub(crate) source_id: SourceId,
     tx: EventSender<SinkableMessageImpl>,
 }
@@ -340,8 +336,7 @@ impl Source for LocalSource {
     }
 
     fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
-        let mut recv = self.recv.lock().unwrap();
-        (*recv).try_recv().ok()
+        self.recv.recv().ok()
     }
 
     fn source_id(&self) -> SourceId {
@@ -354,14 +349,14 @@ pub enum SourceImpl {
     Local(LocalSource),
 }
 
-impl Source for SourceImpl {
+impl SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.create_msg_sender(),
         }
     }
 
-    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+    async fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.fetch_msg(),
         }

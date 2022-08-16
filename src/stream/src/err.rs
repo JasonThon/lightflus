@@ -1,4 +1,5 @@
-use tokio::sync::mpsc::error::SendError;
+use crossbeam_channel::SendError;
+
 use crate::actor::SinkableMessageImpl;
 
 #[derive(Debug, Clone)]

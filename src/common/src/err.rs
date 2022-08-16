@@ -74,6 +74,8 @@ pub enum ErrorKind {
     OverRecursionLimit,
     TruncatedMessage,
     MessageNotInitialized,
+    OpenDBFailed,
+    DeleteDataflowFailed,
     Other,
 }
 

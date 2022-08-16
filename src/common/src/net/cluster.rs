@@ -1,13 +1,19 @@
+use crate::collections::lang;
+use crate::err::ApiError;
 use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
 use crate::utils;
+use proto::common::common::JobId;
 use proto::common::probe;
-use proto::common::stream::Dataflow;
-use proto::worker;
+use proto::common::stream::{Dataflow, DataflowStatus};
+use proto::worker::worker::{CreateDataflowRequest, StopDataflowRequest};
+use proto::worker::{self, cli};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+
+use super::status;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum NodeStatus {
@@ -139,6 +145,70 @@ impl Cluster {
                     .collect()
             })
             .unwrap_or(Default::default())
+    }
+
+    pub fn terminate_dataflow(&self, job_id: &JobId) -> Result<DataflowStatus, ApiError> {
+        for worker in &self.workers {
+            if !worker.is_available() {
+                continue;
+            }
+            let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
+                host: None,
+                port: None,
+                uri: Some(worker.host_addr.as_uri()),
+            });
+            let ref mut req = StopDataflowRequest::default();
+            req.set_job_id(job_id.clone());
+            match client.stop_dataflow(req) {
+                Err(err) => return Err(ApiError::from(err)),
+                _ => {}
+            }
+        }
+
+        Ok(DataflowStatus::CLOSING)
+    }
+
+    pub fn create_dataflow(&self, dataflows: HashMap<String, Dataflow>) -> Result<(), ApiError> {
+        if !self.is_available() {
+            return Err(ApiError {
+                code: status::CLUSTER_UNAVAILBALE,
+                msg: "cluster is unavailabe".to_string(),
+            });
+        }
+
+        for elem in dataflows {
+            if !lang::any_match(&self.workers, |node| {
+                node.host_addr.as_uri() == elem.0.clone() && node.is_available()
+            }) {
+                return Err(ApiError {
+                    code: status::WORKER_UNAVAILABLE,
+                    msg: "worker is unavailabe".to_string(),
+                });
+            }
+            let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
+                host: None,
+                port: None,
+                uri: Some(elem.0.clone()),
+            });
+            let ref mut req = CreateDataflowRequest::new();
+            req.set_job_id(elem.1.get_job_id().clone());
+            req.set_dataflow(elem.1.clone());
+            match client
+                .create_dataflow(req)
+                .map_err(|err| ApiError::from(err))
+                .and_then(|resp| {
+                    if resp.get_resp().get_status() == status::SUCCESS {
+                        Ok(())
+                    } else {
+                        Err(ApiError::from(resp.get_resp()))
+                    }
+                }) {
+                Ok(_) => {}
+                Err(err) => return Err(err),
+            }
+        }
+
+        Ok(())
     }
 }
 

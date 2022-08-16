@@ -7,11 +7,8 @@ use common::net::cluster;
 use common::net::status;
 
 use proto::common::common::JobId;
+use proto::common::stream::Dataflow;
 use proto::common::stream::DataflowStatus;
-use proto::{
-    common::stream::Dataflow,
-    worker::{cli, worker::CreateDataflowRequest},
-};
 use protobuf::Message;
 use protobuf::RepeatedField;
 use rocksdb::DB;
@@ -19,6 +16,8 @@ use rocksdb::DB;
 pub(crate) trait DataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException>;
     fn get(&self, job_id: &JobId) -> Option<Dataflow>;
+    fn may_exists(&self, job_id: &JobId) -> bool;
+    fn delete(&self, job_id: &JobId) -> Result<(), CommonException>;
 }
 
 #[derive(Clone, Debug)]
@@ -55,7 +54,7 @@ impl DataflowStorage for RocksDataflowStorage {
     fn get(&self, job_id: &JobId) -> Option<Dataflow> {
         match DB::open_default(self.dataflow_store_path.as_str())
             .map_err(|err| CommonException {
-                kind: ErrorKind::SaveDataflowFailed,
+                kind: ErrorKind::OpenDBFailed,
                 message: err.into_string(),
             })
             .and_then(|db| {
@@ -77,6 +76,45 @@ impl DataflowStorage for RocksDataflowStorage {
                 None
             }
         }
+    }
+
+    fn may_exists(&self, job_id: &JobId) -> bool {
+        match DB::open_default(self.dataflow_store_path.as_str())
+            .map_err(|err| CommonException {
+                kind: ErrorKind::OpenDBFailed,
+                message: err.into_string(),
+            })
+            .and_then(|db| {
+                job_id
+                    .write_to_bytes()
+                    .map_err(|err| err.into())
+                    .map(|key| db.key_may_exist(key))
+            }) {
+            Ok(exist) => exist,
+            Err(err) => {
+                log::error!("call dataflow exists error {:?}", err);
+                false
+            }
+        }
+    }
+
+    fn delete(&self, job_id: &JobId) -> Result<(), CommonException> {
+        DB::open_default(self.dataflow_store_path.as_str())
+            .map_err(|err| CommonException {
+                kind: ErrorKind::OpenDBFailed,
+                message: err.into_string(),
+            })
+            .and_then(|db| {
+                job_id
+                    .write_to_bytes()
+                    .map_err(|err| err.into())
+                    .and_then(|key| {
+                        db.delete(key).map_err(|err| CommonException {
+                            kind: ErrorKind::DeleteDataflowFailed,
+                            message: err.into_string(),
+                        })
+                    })
+            })
     }
 }
 
@@ -119,6 +157,18 @@ impl DataflowStorageImpl {
             DataflowStorageImpl::RocksDB(storage) => storage.get(job_id),
         }
     }
+
+    fn may_exists(&self, job_id: &JobId) -> bool {
+        match self {
+            DataflowStorageImpl::RocksDB(storage) => storage.may_exists(job_id),
+        }
+    }
+
+    fn delete(&self, job_id: &JobId) -> Result<(), CommonException> {
+        match self {
+            DataflowStorageImpl::RocksDB(storage) => storage.delete(job_id),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -152,35 +202,24 @@ impl Coordinator {
             return terminate_result.map(|_| ());
         }
 
-        for elem in map {
-            let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
-                host: None,
-                port: None,
-                uri: Some(elem.0.clone()),
-            });
-            let ref mut req = CreateDataflowRequest::new();
-            req.set_job_id(elem.1.get_job_id().clone());
-            req.set_dataflow(elem.1.clone());
-            match client
-                .create_dataflow(req)
-                .map_err(|err| ApiError::from(err))
-                .and_then(|resp| {
-                    if resp.get_resp().get_status() == status::SUCCESS {
-                        Ok(())
-                    } else {
-                        Err(ApiError::from(resp.get_resp()))
-                    }
-                }) {
-                Ok(_) => {}
-                Err(err) => return Err(err),
-            }
-        }
-
-        Ok(())
+        self.cluster.create_dataflow(map)
     }
 
     pub fn terminate_dataflow(&self, job_id: &JobId) -> Result<DataflowStatus, ApiError> {
-        todo!()
+        if !self.dataflow_storage.may_exists(job_id) {
+            Ok(DataflowStatus::CLOSED)
+        } else {
+            self.dataflow_storage
+                .delete(job_id)
+                .map_err(|err| {
+                    log::error!("delete dataflow failed: {:?}", err);
+                    ApiError {
+                        code: status::SERVICE_INTERNAL_ERROR,
+                        msg: err.message,
+                    }
+                })
+                .and_then(|_| self.cluster.terminate_dataflow(job_id))
+        }
     }
 
     pub fn get_dataflow(&self, job_id: &JobId) -> Option<Dataflow> {

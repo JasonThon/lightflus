@@ -1,30 +1,38 @@
 use std::collections;
 use std::collections::VecDeque;
 
-pub fn map_self<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> collections::HashMap<T, &N>
-    where T: std::hash::Hash + Eq {
+pub fn map_self<N, T, F: FnMut(&N) -> T>(
+    list: &Vec<N>,
+    mut key_extractor: F,
+) -> collections::HashMap<T, &N>
+where
+    T: std::hash::Hash + Eq,
+{
     list.iter()
         .map(|elem| (key_extractor(elem), elem))
         .collect()
 }
 
-pub fn group<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> collections::BTreeMap<T, Vec<&N>>
-    where T: std::hash::Hash + Eq + Ord + Clone {
+pub fn group<N, T, F: FnMut(&N) -> T>(
+    list: &Vec<N>,
+    mut key_extractor: F,
+) -> collections::BTreeMap<T, Vec<&N>>
+where
+    T: std::hash::Hash + Eq + Ord + Clone,
+{
     list.iter()
         .map(|elem| collections::BTreeMap::from([(key_extractor(elem), vec![elem])]))
         .reduce(|mut accum, map| {
-            map.iter()
-                .for_each(|elem| {
-                    let mut value_opts = accum.get_mut(&elem.0);
-                    value_opts.iter_mut()
-                        .for_each(|value| elem.1
-                            .iter()
-                            .for_each(|e| value.push(*e)));
+            map.iter().for_each(|elem| {
+                let mut value_opts = accum.get_mut(&elem.0);
+                value_opts
+                    .iter_mut()
+                    .for_each(|value| elem.1.iter().for_each(|e| value.push(*e)));
 
-                    if value_opts.is_none() {
-                        accum.insert(elem.0.clone(), elem.1.clone());
-                    }
-                });
+                if value_opts.is_none() {
+                    accum.insert(elem.0.clone(), elem.1.clone());
+                }
+            });
 
             accum
         })
@@ -44,8 +52,13 @@ pub fn group<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> co
 /// ]));
 /// assert!(deque.is_empty())
 /// ```
-pub fn group_deque_as_btree_map<N, T, F: FnMut(&N) -> T>(deque: &mut VecDeque<N>, mut key_extractor: F) -> collections::BTreeMap<T, Vec<N>>
-    where T: std::hash::Hash + PartialEq + Ord {
+pub fn group_deque_as_btree_map<N, T, F: FnMut(&N) -> T>(
+    deque: &mut VecDeque<N>,
+    mut key_extractor: F,
+) -> collections::BTreeMap<T, Vec<N>>
+where
+    T: std::hash::Hash + PartialEq + Ord,
+{
     let mut result = collections::BTreeMap::new();
 
     while let Some(elem) = deque.pop_front() {
@@ -54,9 +67,13 @@ pub fn group_deque_as_btree_map<N, T, F: FnMut(&N) -> T>(deque: &mut VecDeque<N>
             None => {
                 result.insert(key, vec![elem]);
             }
-            Some(values) => values.push(elem)
+            Some(values) => values.push(elem),
         }
     }
 
     result
+}
+
+pub fn any_match<T, F: FnMut(&T) -> bool>(elems: &Vec<T>, mut predicate: F) -> bool {
+    elems.iter().filter(|e| predicate(*e)).next().is_some()
 }

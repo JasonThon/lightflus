@@ -79,7 +79,19 @@ impl CoordinatorApi for CoordinatorApiImpl {
         _req: TerminateDataflowRequest,
         sink: UnarySink<TerminateDataflowResponse>,
     ) {
-        todo!()
+        match self.coordinator.terminate_dataflow(_req.get_job_id()) {
+            Ok(status) => {
+                let mut resp = TerminateDataflowResponse::default();
+                resp.set_status(status);
+                sink.success(resp);
+            }
+            Err(err) => {
+                sink.fail(RpcStatus::with_message(
+                    RpcStatusCode::from(err.code),
+                    err.msg,
+                ));
+            }
+        }
     }
 
     fn get_dataflow(

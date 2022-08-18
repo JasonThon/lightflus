@@ -6,7 +6,7 @@ use common::types::SinkId;
 use proto::common::common::JobId;
 use proto::common::event::DataEvent;
 use proto::worker::worker::DispatchDataEventStatusEnum;
-use stream::actor::{DataflowContext, Executor, Sink, SinkImpl, SinkableMessageImpl};
+use stream::actor::{DataflowContext, Sink, SinkImpl, SinkableMessageImpl};
 
 pub struct LocalExecutorManager {
     pub job_id: JobId,

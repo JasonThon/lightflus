@@ -1,4 +1,5 @@
 use crate::err::SinkException;
+use common::collections::lang;
 use common::event::LocalEvent;
 use common::net::PersistableHostAddr;
 use common::types::{ExecutorId, SinkId, SourceId};
@@ -116,7 +117,8 @@ impl LocalExecutor {
 
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
-        tokio::spawn(async move {
+        let rt = tokio::runtime::Runtime::new().unwrap();
+        rt.spawn(async move {
             loop {
                 let msg = self.local_source.fetch_msg().await;
                 println!("{:?}", msg)
@@ -137,14 +139,14 @@ pub enum ExecutorImpl {
     Local(LocalExecutor),
 }
 
-impl Executor for ExecutorImpl {
-    fn run(self) -> JoinHandle<()> {
+impl ExecutorImpl {
+    pub fn run(self) -> JoinHandle<()> {
         match self {
             ExecutorImpl::Local(exec) => exec.run(),
         }
     }
 
-    fn as_sinkable(&self) -> SinkImpl {
+    pub fn as_sinkable(&self) -> SinkImpl {
         match self {
             ExecutorImpl::Local(exec) => exec.as_sinkable(),
         }
@@ -160,77 +162,22 @@ pub trait Source {
 pub struct SourceSinkManger {
     local_sink_id_set: HashSet<SinkId>,
     remote_sinks_infos: HashMap<SinkId, OperatorInfo>,
-    local_source_rx: RefCell<HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>>,
-    sources: RefCell<HashMap<SourceId, SourceImpl>>,
-    local_source_tx: RefCell<HashMap<SourceId, EventSender<SinkableMessageImpl>>>,
-    sinks: RefCell<HashMap<SinkId, SinkImpl>>,
+    local_source_rx: HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>,
+    sources: HashMap<SourceId, SourceImpl>,
+    local_source_tx: HashMap<SourceId, EventSender<SinkableMessageImpl>>,
+    sinks: HashMap<SinkId, SinkImpl>,
 }
 
 impl SourceSinkManger {
     pub(crate) fn get_source_by_id(&self, source_id: SourceId) -> Option<SourceImpl> {
-        let borrowed_local_sources = self.sources.borrow();
-        if borrowed_local_sources.contains_key(&source_id) {
-            return borrowed_local_sources.get(&source_id).map(|s| s.clone());
-        }
-
-        self.local_source_rx.borrow().get(&source_id).map(|recv| {
-            let source = LocalSource {
-                recv: recv.clone(),
-                source_id: source_id.clone(),
-                tx: self
-                    .local_source_tx
-                    .borrow()
-                    .get(&source_id)
-                    .map(|tx| tx.clone())
-                    .unwrap(),
-            };
-
-            RefMut::map(self.sources.borrow_mut(), |map| {
-                map.insert(source_id, SourceImpl::Local(source.clone()));
-                map
-            });
-
-            SourceImpl::Local(source)
-        })
+        self.sources.get(&source_id).map(|s| s.clone())
     }
 
     pub(crate) fn get_sinks_by_ids(&self, sink_ids: Vec<SinkId>) -> Vec<SinkImpl> {
-        sink_ids
+        self.sinks
             .iter()
-            .map(|sink_id| {
-                let borrowed_local_sinks = self.sinks.borrow();
-                if borrowed_local_sinks.contains_key(sink_id) {
-                    return borrowed_local_sinks
-                        .get(sink_id)
-                        .map(|b| b.clone())
-                        .unwrap();
-                }
-
-                if self.local_sink_id_set.contains(sink_id) {
-                    let (tx, rx) = crossbeam_channel::unbounded();
-                    let _ = RefMut::map(self.local_source_rx.borrow_mut(), |map| {
-                        map.insert(*sink_id as SourceId, Arc::new(rx));
-                        map
-                    });
-                    let _ = RefMut::map(self.local_source_tx.borrow_mut(), |map| {
-                        map.insert(*sink_id as SourceId, tx.clone());
-                        map
-                    });
-
-                    SinkImpl::Local(LocalSink {
-                        sender: tx,
-                        sink_id: *sink_id,
-                    })
-                } else {
-                    SinkImpl::Remote(RemoteSink {
-                        sink_id: *sink_id,
-                        host_addr: PersistableHostAddr {
-                            host: "".to_string(),
-                            port: 0,
-                        },
-                    })
-                }
-            })
+            .filter(|entry| lang::any_match(&sink_ids, |id| id == entry.0))
+            .map(|entry| entry.1.clone())
             .collect()
     }
 
@@ -238,12 +185,41 @@ impl SourceSinkManger {
     Lazyly create local sink and inner source
      */
     pub(crate) fn create_local(&mut self, executor_id: &ExecutorId) {
-        self.local_sink_id_set.insert(*executor_id as SinkId);
+        let (tx, rx) = crossbeam_channel::unbounded();
+        let rx_arc = Arc::new(rx);
+        self.local_source_rx
+            .insert(*executor_id as SourceId, rx_arc.clone());
+        self.local_source_tx
+            .insert(*executor_id as SourceId, tx.clone());
+        let source = LocalSource {
+            recv: rx_arc,
+            source_id: executor_id.clone(),
+            tx: tx.clone(),
+        };
+
+        self.sources.insert(*executor_id, SourceImpl::Local(source));
+        self.sinks.insert(
+            *executor_id,
+            SinkImpl::Local(LocalSink {
+                sender: tx,
+                sink_id: *executor_id,
+            }),
+        );
     }
 
     pub(crate) fn create_remote_sink(&mut self, executor_id: &ExecutorId, info: &OperatorInfo) {
-        self.remote_sinks_infos
-            .insert(*executor_id as SinkId, info.clone());
+        self.local_source_tx.get(executor_id).iter().for_each(|tx| {
+            self.sinks.insert(
+                *executor_id,
+                SinkImpl::Remote(RemoteSink {
+                    sink_id: *executor_id,
+                    host_addr: PersistableHostAddr {
+                        host: "".to_string(),
+                        port: 0,
+                    },
+                }),
+            );
+        })
     }
 }
 
@@ -252,10 +228,10 @@ impl SourceSinkManger {
         SourceSinkManger {
             local_sink_id_set: Default::default(),
             remote_sinks_infos: Default::default(),
-            local_source_rx: RefCell::new(Default::default()),
-            sources: RefCell::new(Default::default()),
-            local_source_tx: RefCell::new(Default::default()),
-            sinks: RefCell::new(Default::default()),
+            local_source_rx: Default::default(),
+            sources: Default::default(),
+            local_source_tx: Default::default(),
+            sinks: Default::default(),
         }
     }
 }

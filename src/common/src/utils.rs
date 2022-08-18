@@ -101,6 +101,10 @@ fn replace_by_env(value: &str) -> String {
 }
 
 pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
+    if operator.get_host_addr().get_host() == "localhost" {
+        return false;
+    }
+
     hostname()
         .map(|host| operator.get_host_addr().host != host)
         .unwrap_or(false)

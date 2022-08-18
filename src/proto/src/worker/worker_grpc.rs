@@ -16,30 +16,32 @@
 #![allow(unused_imports)]
 #![allow(unused_results)]
 
-const METHOD_TASK_WORKER_API_PROBE: ::grpcio::Method<super::super::common::probe::ProbeRequest, super::super::common::probe::ProbeResponse> = ::grpcio::Method {
+use crate::common::probe;
+
+const METHOD_TASK_WORKER_API_PROBE: ::grpcio::Method<probe::ProbeRequest, probe::ProbeResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/dataflow.TaskWorkerApi/Probe",
+    name: "/proto.TaskWorkerApi/Probe",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_TASK_WORKER_API_DISPATCH_DATA_EVENTS: ::grpcio::Method<super::worker::DispatchDataEventsRequest, super::worker::DispatchDataEventsResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/dataflow.TaskWorkerApi/DispatchDataEvents",
+    name: "/proto.TaskWorkerApi/DispatchDataEvents",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_TASK_WORKER_API_STOP_DATAFLOW: ::grpcio::Method<super::worker::StopDataflowRequest, super::worker::StopDataflowResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/dataflow.TaskWorkerApi/StopDataflow",
+    name: "/proto.TaskWorkerApi/StopDataflow",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
 
 const METHOD_TASK_WORKER_API_CREATE_DATAFLOW: ::grpcio::Method<super::worker::CreateDataflowRequest, super::worker::CreateDataflowResponse> = ::grpcio::Method {
     ty: ::grpcio::MethodType::Unary,
-    name: "/dataflow.TaskWorkerApi/CreateDataflow",
+    name: "/proto.TaskWorkerApi/CreateDataflow",
     req_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
     resp_mar: ::grpcio::Marshaller { ser: ::grpcio::pb_ser, de: ::grpcio::pb_de },
 };
@@ -56,19 +58,19 @@ impl TaskWorkerApiClient {
         }
     }
 
-    pub fn probe_opt(&self, req: &super::super::common::probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<super::super::common::probe::ProbeResponse> {
+    pub fn probe_opt(&self, req: &probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<probe::ProbeResponse> {
         self.client.unary_call(&METHOD_TASK_WORKER_API_PROBE, req, opt)
     }
 
-    pub fn probe(&self, req: &super::super::common::probe::ProbeRequest) -> ::grpcio::Result<super::super::common::probe::ProbeResponse> {
+    pub fn probe(&self, req: &probe::ProbeRequest) -> ::grpcio::Result<probe::ProbeResponse> {
         self.probe_opt(req, ::grpcio::CallOption::default())
     }
 
-    pub fn probe_async_opt(&self, req: &super::super::common::probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::super::common::probe::ProbeResponse>> {
+    pub fn probe_async_opt(&self, req: &probe::ProbeRequest, opt: ::grpcio::CallOption) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<probe::ProbeResponse>> {
         self.client.unary_call_async(&METHOD_TASK_WORKER_API_PROBE, req, opt)
     }
 
-    pub fn probe_async(&self, req: &super::super::common::probe::ProbeRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<super::super::common::probe::ProbeResponse>> {
+    pub fn probe_async(&self, req: &probe::ProbeRequest) -> ::grpcio::Result<::grpcio::ClientUnaryReceiver<probe::ProbeResponse>> {
         self.probe_async_opt(req, ::grpcio::CallOption::default())
     }
 
@@ -125,7 +127,7 @@ impl TaskWorkerApiClient {
 }
 
 pub trait TaskWorkerApi {
-    fn probe(&mut self, ctx: ::grpcio::RpcContext, _req: super::super::common::probe::ProbeRequest, sink: ::grpcio::UnarySink<super::super::common::probe::ProbeResponse>) {
+    fn probe(&mut self, ctx: ::grpcio::RpcContext, _req: probe::ProbeRequest, sink: ::grpcio::UnarySink<probe::ProbeResponse>) {
         grpcio::unimplemented_call!(ctx, sink)
     }
     fn dispatch_data_events(&mut self, ctx: ::grpcio::RpcContext, _req: super::worker::DispatchDataEventsRequest, sink: ::grpcio::UnarySink<super::worker::DispatchDataEventsResponse>) {

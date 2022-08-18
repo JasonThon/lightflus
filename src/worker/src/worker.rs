@@ -2,8 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync;
 
 use common::collections::lang;
-use common::err;
-use common::err::{Error, TaskWorkerError};
+use common::err::TaskWorkerError;
 use common::types::{ExecutorId, HashedJobId};
 use proto::common::common::JobId;
 use proto::common::event::DataEvent;
@@ -36,7 +35,7 @@ impl TaskWorker {
                 managers
                     .get(&job_id.into())
                     .map(|m| m.stop())
-                    .map(|r| r.map_err(|err| err::TaskWorkerError::from(err)))
+                    .map(|r| r.map_err(|err| err.into()))
                     .unwrap_or_else(|| Ok(()))
             })
             .map_err(|err| TaskWorkerError::ExecutionError(err.to_string()))
@@ -92,7 +91,7 @@ impl TaskWorker {
                             .get(pair.0)
                             .map(|manager| {
                                 (
-                                    manager.job_id.table_id.to_string(),
+                                    format!("{:?}", &manager.job_id),
                                     manager.dispatch_events(
                                         &group
                                             .get(&manager.job_id.clone().into())

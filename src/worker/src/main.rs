@@ -41,12 +41,11 @@ async fn main() {
 
     let server = api::TaskWorkerApiImpl::new(task_worker);
     let service = worker_grpc::create_task_worker_api(server);
-    println!("start service at port {}", &config.port);
 
     let grpc_server = grpcio::ServerBuilder::new(
         sync::Arc::new(grpcio::Environment::new(10)))
         .register_service(service)
-        .bind("0.0.0.0", config.port as u16)
+        .bind("127.0.0.1", config.port as u16)
         .build();
 
     if grpc_server.is_err() {
@@ -55,6 +54,7 @@ async fn main() {
 
     let mut unwrap_server = grpc_server.unwrap();
     unwrap_server.start();
+    println!("start service at port {}", &config.port);
 
     let _ = tokio::signal::ctrl_c().await;
     let _ = unwrap_server.shutdown().await;

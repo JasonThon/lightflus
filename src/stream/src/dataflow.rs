@@ -1,8 +1,3 @@
-use std::time;
-
 pub enum Window {
-    Sliding {
-        size: time::Duration,
-        period: time::Duration
-    }
+    Sliding { size: i32, period: i32 },
 }

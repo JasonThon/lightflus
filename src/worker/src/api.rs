@@ -1,7 +1,6 @@
 use std::sync;
 
 use crate::worker as w;
-use common::err::Error;
 use proto::common::probe;
 use proto::worker::worker;
 use proto::worker::worker_grpc;
@@ -26,7 +25,7 @@ impl TaskWorkerApiImpl {
 impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
     fn probe(
         &mut self,
-        _ctx: grpcio::RpcContext,
+        ctx: grpcio::RpcContext,
         req: probe::ProbeRequest,
         sink: grpcio::UnarySink<probe::ProbeResponse>,
     ) {

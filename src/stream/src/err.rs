@@ -10,18 +10,22 @@ pub struct PipelineError {
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
-    InvalidMessageType
+    InvalidMessageType,
+    MessageSendFailed,
 }
 
 #[derive(Clone, Debug)]
 pub struct SinkException {
-    kind: ErrorKind,
-    msg: String,
+    pub kind: ErrorKind,
+    pub msg: String,
 }
 
 impl From<SendError<SinkableMessageImpl>> for SinkException {
-    fn from(_: SendError<SinkableMessageImpl>) -> Self {
-        todo!()
+    fn from(err: SendError<SinkableMessageImpl>) -> Self {
+        Self {
+            kind: ErrorKind::MessageSendFailed,
+            msg: format!("message {:?} send to channel failed", err.0),
+        }
     }
 }
 

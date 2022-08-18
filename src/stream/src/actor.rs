@@ -119,6 +119,7 @@ impl Executor for LocalExecutor {
         tokio::spawn(async move {
             loop {
                 let msg = self.local_source.fetch_msg().await;
+                println!("{:?}", msg)
             }
         })
     }
@@ -234,7 +235,7 @@ impl SourceSinkManger {
     }
 
     /*
-    create local sink and inner source
+    Lazyly create local sink and inner source
      */
     pub(crate) fn create_local(&mut self, executor_id: &ExecutorId) {
         self.local_sink_id_set.insert(*executor_id as SinkId);

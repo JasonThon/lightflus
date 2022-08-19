@@ -22,7 +22,7 @@ impl LocalExecutorManager {
                 job_id: e.get_job_id().clone(),
                 to: e.get_to_operator_id(),
             },
-            _ => LocalEvent::RowChangeStream(vec![RowDataEvent::from(e)]),
+            _ => LocalEvent::RowChangeStream(RowDataEvent::from(e)),
         });
 
         events

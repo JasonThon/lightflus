@@ -1,39 +1,44 @@
-use std::fs;
-use std::sync;
 use common::utils;
 use proto::worker::worker_grpc;
-
+use std::fs;
+use std::sync;
 
 mod api;
-pub mod worker;
 pub mod manager;
+pub mod worker;
 
 #[tokio::main]
 async fn main() {
-    let config_file_path = utils::Args::default()
-        .arg("c")
-        .map(|arg| arg.value.clone());
+    let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
-    let result = fs::File::open(
-        config_file_path
-            .unwrap_or("src/worker/etc/worker.json".to_string())
-    );
+    let result =
+        fs::File::open(config_file_path.unwrap_or("src/worker/etc/worker.json".to_string()));
     if result.is_err() {
-        panic!("{}", format!("config file open failed: {:?}", result.unwrap_err()))
+        panic!(
+            "{}",
+            format!("config file open failed: {:?}", result.unwrap_err())
+        )
     }
+    env_logger::init();
 
     let file = result.unwrap();
 
     let env_setup = common::utils::from_reader(file);
     if env_setup.is_err() {
-        panic!("{}", format!("config file read failed: {:?}", env_setup.unwrap_err()))
+        panic!(
+            "{}",
+            format!("config file read failed: {:?}", env_setup.unwrap_err())
+        )
     }
 
     let value = env_setup.unwrap();
     let reader = serde_json::from_str::<worker::TaskWorkerConfig>(value.as_str());
 
     if reader.is_err() {
-        panic!("{}", format!("config file parse failed: {:?}", reader.unwrap_err()))
+        panic!(
+            "{}",
+            format!("config file parse failed: {:?}", reader.unwrap_err())
+        )
     }
 
     let ref mut config = reader.unwrap();
@@ -42,8 +47,7 @@ async fn main() {
     let server = api::TaskWorkerApiImpl::new(task_worker);
     let service = worker_grpc::create_task_worker_api(server);
 
-    let grpc_server = grpcio::ServerBuilder::new(
-        sync::Arc::new(grpcio::Environment::new(10)))
+    let grpc_server = grpcio::ServerBuilder::new(sync::Arc::new(grpcio::Environment::new(10)))
         .register_service(service)
         .bind("127.0.0.1", config.port as u16)
         .build();

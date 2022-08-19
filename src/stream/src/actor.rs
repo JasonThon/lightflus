@@ -117,10 +117,10 @@ impl Executor for LocalExecutor {
                 match &msg {
                     SinkableMessageImpl::LocalMessage(message) => match message {
                         LocalEvent::RowChangeStream(change) => {
-                            println!("{:?}", change)
+                            log::info!("{:?}", change)
                         }
-                        LocalEvent::Terminate { job_id, to: _ } => {
-                            println!("stopping......");
+                        LocalEvent::Terminate { job_id, to } => {
+                            log::info!("stopping {:?}......node id {}", job_id, to);
                             self.sinks.iter().for_each(|sink| {
                                 let _ = sink.sink(SinkableMessageImpl::LocalMessage(
                                     LocalEvent::Terminate {

@@ -904,6 +904,7 @@ name = "worker"
 version = "0.1.0"
 dependencies = [
  "common",
+ "env_logger",
  "grpcio",
  "log",
  "proto",

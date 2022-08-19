@@ -13,17 +13,17 @@ pub trait KeyedEvent<K, V> {
 
 #[derive(Clone, Debug)]
 pub enum LocalEvent {
-    RowChangeStream(Vec<RowDataEvent>),
+    RowChangeStream(RowDataEvent),
     Terminate { job_id: JobId, to: types::SinkId },
 }
 
 impl From<&DataEvent> for RowDataEvent {
     fn from(event: &DataEvent) -> Self {
-        // let event_time = event.get_event_time();
-        // let datetime = chrono::Utc::now()
-        //     .with_second(event_time.get_seconds() as u32)
-        //     .and_then(|utc| utc.with_nanosecond(event_time.get_nanos() as u32))
-        //     .unwrap();
+        let event_time = event.get_event_time();
+        let datetime = chrono::Utc::now()
+            .with_second(event_time.get_seconds() as u32)
+            .and_then(|utc| utc.with_nanosecond(event_time.get_nanos() as u32))
+            .unwrap_or(chrono::Utc::now());
 
         Self {
             job_id: event.get_job_id().clone(),
@@ -32,7 +32,7 @@ impl From<&DataEvent> for RowDataEvent {
             old_data: event.get_old_data().to_vec(),
             from: event.get_from_operator_id(),
             event_type: event.get_event_type(),
-            event_time: std::time::SystemTime::now(),
+            event_time: datetime.into(),
         }
     }
 }

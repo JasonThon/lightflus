@@ -18,18 +18,7 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     depends_on:
       - zookeeper
-  minio:
-    image: bitnami/minio:latest
-    container_name: minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - ~/minio/data:/data
-    environment:
-      - MINIO_ROOT_USER=root
-      - MINIO_ROOT_PASSWORD=f8-O0IuOq#O9T52r
-  tableflow-coordinator:
+  coordinator:
     image: tableflow/runtime/coordinator:latest
     build:
       context: .
@@ -44,26 +33,11 @@ services:
       CONNECTOR_PROXY: tableflow-connector:10899
       KAFKA_BROKERS: kafka:9002
     depends_on:
-      - tableflow-worker
-  tableflow-worker:
+      - worker
+  worker:
     image: tableflow/runtime/worker:latest
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
     ports:
       - "18090:18090"
-    depends_on:
-      - tableflow-qe
-  tableflow-qe:
-    image: tableflow-qe:latest
-    ports:
-      - "9090:9090"
-    environment:
-      KAFKA_BROKERS_1: kafka:9092
-      REDIS_HOST: redis
-      STORE_TYPE: MinIO
-      STORE_NAME: minio
-      STORE_ENDPOINT: minio:9000
-      STORE_ACCESS_ID: LTAI5tEgJF8gPbzZUHUQyzYd
-      STORE_ACCESS_SECRET: 6ab2at3WQ8JkBZaOxoBvf03zlV7n0t
-      STORE_BUCKET: tableflow

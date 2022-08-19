@@ -13,6 +13,10 @@ where
         .collect()
 }
 
+pub fn map<U, T, F: FnMut(&U) -> T>(list: &Vec<U>, mapper: F) -> Vec<T> {
+    list.iter().map(mapper).collect()
+}
+
 pub fn group<N, T, F: FnMut(&N) -> T>(
     list: &Vec<N>,
     mut key_extractor: F,

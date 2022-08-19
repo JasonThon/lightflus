@@ -1,10 +1,10 @@
-use tokio::task::JoinHandle;
+use std::thread::JoinHandle;
 
 use common::err::ExecutionException;
 use common::event::{LocalEvent, RowDataEvent};
 use common::types::SinkId;
 use proto::common::common::JobId;
-use proto::common::event::DataEvent;
+use proto::common::event::{DataEvent, DataEventTypeEnum};
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use stream::actor::{DataflowContext, Sink, SinkImpl, SinkableMessageImpl};
 
@@ -17,7 +17,13 @@ pub struct LocalExecutorManager {
 impl LocalExecutorManager {
     pub fn dispatch_events(&self, events: &Vec<DataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
-        let local_events = events.iter().map(|e| RowDataEvent::from(e));
+        let local_events = events.iter().map(|e| match e.get_event_type() {
+            DataEventTypeEnum::STOP => LocalEvent::Terminate {
+                job_id: e.get_job_id().clone(),
+                to: e.get_to_operator_id(),
+            },
+            _ => LocalEvent::RowChangeStream(vec![RowDataEvent::from(e)]),
+        });
 
         events
             .iter()
@@ -29,16 +35,21 @@ impl LocalExecutorManager {
                     .filter(|sink| sink.sink_id() == sink_id)
                     .next()
                     .map(|sink| {
-                        sink.sink(SinkableMessageImpl::LocalMessage(
-                            LocalEvent::RowChangeStream(local_events.collect()),
-                        ))
-                    })
-                    .map(|result| match result {
-                        Ok(_) => DispatchDataEventStatusEnum::DONE,
-                        Err(err) => {
-                            log::error!("dispatch event failed: {:?}", err);
-                            DispatchDataEventStatusEnum::FAILURE
-                        }
+                        local_events
+                            .map(|e| sink.sink(SinkableMessageImpl::LocalMessage(e)))
+                            .map(|result| match result {
+                                Ok(status) => status,
+                                Err(err) => {
+                                    // TODO fault tolerant
+                                    log::error!("dispatch event failed: {:?}", err);
+                                    DispatchDataEventStatusEnum::FAILURE
+                                }
+                            })
+                            .reduce(|accum, result| match accum {
+                                DispatchDataEventStatusEnum::FAILURE => accum,
+                                _ => result,
+                            })
+                            .unwrap_or(DispatchDataEventStatusEnum::DONE)
                     })
                     .unwrap_or(DispatchDataEventStatusEnum::DONE)
             })
@@ -77,8 +88,6 @@ impl LocalExecutorManager {
                 _ => {}
             }
         }
-
-        self.handlers.iter().for_each(|handler| handler.abort());
 
         Ok(())
     }

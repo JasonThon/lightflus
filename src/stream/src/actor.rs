@@ -7,10 +7,9 @@ use common::{err, utils};
 use proto::common::common::JobId;
 use proto::common::stream::{DataflowMeta, OperatorInfo};
 use proto::worker::worker::DispatchDataEventStatusEnum;
-use std::cell::{RefCell, RefMut};
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
-use tokio::task::JoinHandle;
+use std::thread::JoinHandle;
 
 pub type EventReceiver<Input> = crossbeam_channel::Receiver<Input>;
 pub type EventSender<Input> = crossbeam_channel::Sender<Input>;
@@ -66,11 +65,7 @@ impl DataflowContext {
             .map(|meta| {
                 ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
                     meta.center as ExecutorId,
-                    source_sink_manager
-                        .get_sinks_by_ids(meta.neighbors.clone())
-                        .iter()
-                        .map(|sink| sink.clone())
-                        .collect(),
+                    source_sink_manager.get_sinks_by_ids(meta.neighbors.clone()),
                     source_sink_manager
                         .get_source_by_id(meta.center.clone())
                         .unwrap(),
@@ -117,11 +112,27 @@ impl LocalExecutor {
 
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
-        let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.spawn(async move {
-            loop {
-                let msg = self.local_source.fetch_msg().await;
-                println!("{:?}", msg)
+        std::thread::spawn(move || 'outloop: loop {
+            while let Some(msg) = self.local_source.fetch_msg() {
+                match &msg {
+                    SinkableMessageImpl::LocalMessage(message) => match message {
+                        LocalEvent::RowChangeStream(change) => {
+                            println!("{:?}", change)
+                        }
+                        LocalEvent::Terminate { job_id, to: _ } => {
+                            println!("stopping......");
+                            self.sinks.iter().for_each(|sink| {
+                                let _ = sink.sink(SinkableMessageImpl::LocalMessage(
+                                    LocalEvent::Terminate {
+                                        job_id: job_id.clone(),
+                                        to: sink.sink_id(),
+                                    },
+                                ));
+                            });
+                            break 'outloop;
+                        }
+                    },
+                }
             }
         })
     }
@@ -160,8 +171,6 @@ pub trait Source {
 }
 
 pub struct SourceSinkManger {
-    local_sink_id_set: HashSet<SinkId>,
-    remote_sinks_infos: HashMap<SinkId, OperatorInfo>,
     local_source_rx: HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>,
     sources: HashMap<SourceId, SourceImpl>,
     local_source_tx: HashMap<SourceId, EventSender<SinkableMessageImpl>>,
@@ -182,7 +191,7 @@ impl SourceSinkManger {
     }
 
     /*
-    Lazyly create local sink and inner source
+    call this method will create local sink and inner source simultaneously
      */
     pub(crate) fn create_local(&mut self, executor_id: &ExecutorId) {
         let (tx, rx) = crossbeam_channel::unbounded();
@@ -226,8 +235,6 @@ impl SourceSinkManger {
 impl SourceSinkManger {
     fn new() -> SourceSinkManger {
         SourceSinkManger {
-            local_sink_id_set: Default::default(),
-            remote_sinks_infos: Default::default(),
             local_source_rx: Default::default(),
             sources: Default::default(),
             local_source_tx: Default::default(),
@@ -333,7 +340,7 @@ impl SourceImpl {
         }
     }
 
-    async fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.fetch_msg(),
         }

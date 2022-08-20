@@ -28,21 +28,13 @@ impl TaskWorker {
     }
 
     pub fn stop_dataflow(&self, job_id: JobId) -> Result<(), TaskWorkerError> {
-        match self
-            .cache
-            .try_read()
-            .map(|managers| {
-                managers
-                    .get(&job_id.into())
-                    .map(|m| m.stop())
-                    .map(|r| r.map_err(|err| err.into()))
-                    .unwrap_or_else(|| Ok(()))
+        let ref hashable_job_id = job_id.into();
+        self.cache
+            .try_write()
+            .map(|mut managers| {
+                managers.remove(hashable_job_id);
             })
             .map_err(|err| TaskWorkerError::ExecutionError(err.to_string()))
-        {
-            Ok(r) => r,
-            Err(err) => Err(err),
-        }
     }
 
     pub fn create_dataflow(

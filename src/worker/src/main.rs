@@ -58,7 +58,7 @@ async fn main() {
 
     let mut unwrap_server = grpc_server.unwrap();
     unwrap_server.start();
-    println!("start service at port {}", &config.port);
+    log::info!("start service at port {}", &config.port);
 
     let _ = tokio::signal::ctrl_c().await;
     let _ = unwrap_server.shutdown().await;

@@ -26,12 +26,8 @@ services:
     ports:
       - "18091:18091"
     environment:
-      MONGO_HOST: mongo
-      MONGO_USERNAME: root
-      MONGO_PASSWORD: f8-O0IuOq#O9T52r
+      RUST_LOG: INFO
       WORKER_NODE_1: tableflow-worker
-      CONNECTOR_PROXY: tableflow-connector:10899
-      KAFKA_BROKERS: kafka:9002
     depends_on:
       - worker
   worker:
@@ -39,5 +35,8 @@ services:
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
+    environment:
+      RUST_LOG: INFO
+      KAFKA_BROKERS: kafka:9002
     ports:
       - "18090:18090"

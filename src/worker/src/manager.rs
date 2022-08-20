@@ -14,6 +14,30 @@ pub struct LocalExecutorManager {
     inner_sinks: Vec<SinkImpl>,
 }
 
+impl Drop for LocalExecutorManager {
+    fn drop(&mut self) {
+        log::info!("LocalExecutorManager for Job {:?} is dropping", self.job_id);
+        for sink in &self.inner_sinks {
+            let event = LocalEvent::Terminate {
+                job_id: self.job_id.clone(),
+                to: sink.sink_id(),
+            };
+            match sink.sink(SinkableMessageImpl::LocalMessage(event.clone())) {
+                Err(err) => {
+                    log::error!(
+                        "termintate node {} failed. details: {:?}",
+                        sink.sink_id(),
+                        err
+                    );
+                }
+                _ => log::info!("terminate node {} success", sink.sink_id()),
+            }
+        }
+        self.handlers.clear();
+        self.inner_sinks.clear();
+    }
+}
+
 impl LocalExecutorManager {
     pub fn dispatch_events(&self, events: &Vec<DataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
@@ -68,27 +92,5 @@ impl LocalExecutorManager {
             inner_sinks: executors.iter().map(|exec| exec.as_sinkable()).collect(),
             handlers: executors.iter().map(|exec| exec.clone().run()).collect(),
         })
-    }
-
-    pub fn stop(&self) -> Result<(), ExecutionException> {
-        for sink in &self.inner_sinks {
-            let event = LocalEvent::Terminate {
-                job_id: self.job_id.clone(),
-                to: sink.sink_id(),
-            };
-            match sink.sink(SinkableMessageImpl::LocalMessage(event.clone())) {
-                Err(err) => {
-                    return Err(ExecutionException::sink_local_event_failure(
-                        &self.job_id,
-                        &event,
-                        sink.sink_id(),
-                        format!("{err:?}"),
-                    ))
-                }
-                _ => {}
-            }
-        }
-
-        Ok(())
     }
 }

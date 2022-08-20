@@ -152,6 +152,9 @@
                     "kind": "bin"
                 }
             },
+            "env": {
+                "RUST_LOG": "INFO"
+            },
             "args": [],
             "cwd": "${workspaceFolder}"
         },
@@ -188,6 +191,9 @@
                     "name": "coordinator",
                     "kind": "bin"
                 }
+            },
+            "env": {
+                "RUST_LOG": "INFO"
             },
             "args": [],
             "cwd": "${workspaceFolder}"

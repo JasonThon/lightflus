@@ -220,3 +220,43 @@ fn test_group_deque_hashmap() {
 
     assert!(deque.is_empty())
 }
+
+#[test]
+fn test_any_match() {
+    #[derive(Clone, Eq, PartialEq, Debug)]
+    struct Test {
+        id: u64,
+        name: String,
+    }
+    let ref list = vec![
+        Test {
+            id: 0,
+            name: "name0".to_string(),
+        },
+        Test {
+            id: 1,
+            name: "name1".to_string(),
+        },
+        Test {
+            id: 0,
+            name: "name0-1".to_string(),
+        },
+        Test {
+            id: 1,
+            name: "name1-1".to_string(),
+        },
+        Test {
+            id: 2,
+            name: "name2".to_string(),
+        },
+    ];
+
+    assert!(lang::any_match(list, |elem| elem.id == 0));
+    assert!(lang::any_match(list, |elem| elem.id == 1));
+    assert!(lang::any_match(list, |elem| elem.id == 2));
+    assert!(lang::any_match(list, |elem| elem.name == "name2".to_string()));
+    assert!(lang::any_match(list, |elem| elem.name == "name1".to_string()));
+    assert!(lang::any_match(list, |elem| elem.name == "name1-1".to_string()));
+    assert!(lang::any_match(list, |elem| elem.name == "name0".to_string()));
+    assert!(lang::any_match(list, |elem| elem.name == "name0-1".to_string()));
+}

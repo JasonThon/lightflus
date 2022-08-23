@@ -5,4 +5,5 @@ members = [
     "src/common",
     "src/worker",
     "src/coordinator",
+    "src/storage"
 ]

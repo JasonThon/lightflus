@@ -4,9 +4,9 @@ use common::event::LocalEvent;
 use common::types::{ExecutorId, SinkId, SourceId};
 use common::{err, utils};
 use proto::common::common::{HostAddr, JobId};
-use proto::common::stream::{DataflowMeta, OperatorInfo};
+use proto::common::stream::{DataflowMeta, OperatorInfo, SourceDesc, SourceTypeEnum};
 use proto::worker::worker::DispatchDataEventStatusEnum;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
@@ -46,14 +46,18 @@ impl DataflowContext {
 
             meta.neighbors.iter().for_each(|node_id| {
                 let executor_id = *node_id as ExecutorId;
-                let remote_node = self
-                    .nodes
-                    .get(&executor_id)
-                    .filter(|operator| utils::is_remote_operator(*operator));
+                let operator_info = self.nodes.get(&executor_id);
+                let remote_node =
+                    operator_info.filter(|operator| utils::is_remote_operator(*operator));
+                let external_source = operator_info.filter(|operator| (*operator).has_source());
 
                 if remote_node.is_some() {
                     remote_node.iter().for_each(|operator| {
                         source_sink_manager.create_remote_sink(&executor_id, *operator)
+                    })
+                } else if external_source.is_some() {
+                    external_source.iter().for_each(|operator| {
+                        source_sink_manager.create_external_source(&executor_id, *operator)
                     })
                 } else {
                     source_sink_manager.create_local(&executor_id)
@@ -105,7 +109,7 @@ pub struct LocalExecutor {
     pub(crate) operator: OperatorInfo,
 
     sinks: Vec<SinkImpl>,
-    local_source: SourceImpl,
+    source: SourceImpl,
 }
 
 impl LocalExecutor {
@@ -118,7 +122,7 @@ impl LocalExecutor {
         Self {
             executor_id,
             operator,
-            local_source: source,
+            source,
             sinks,
         }
     }
@@ -127,7 +131,7 @@ impl LocalExecutor {
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
         spawn(move || 'outloop: loop {
-            while let Some(msg) = self.local_source.fetch_msg() {
+            while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     SinkableMessageImpl::LocalMessage(message) => match message {
                         LocalEvent::RowChangeStream(change) => {
@@ -148,7 +152,7 @@ impl Executor for LocalExecutor {
 
     fn as_sinkable(&self) -> SinkImpl {
         SinkImpl::Local(LocalSink {
-            sender: self.local_source.create_msg_sender(),
+            sender: self.source.create_msg_sender(),
             sink_id: self.executor_id as u32,
         })
     }
@@ -182,10 +186,10 @@ pub trait Source {
 }
 
 pub struct SourceSinkManger {
-    local_source_rx: HashMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>,
-    sources: HashMap<SourceId, SourceImpl>,
-    local_source_tx: HashMap<SourceId, EventSender<SinkableMessageImpl>>,
-    sinks: HashMap<SinkId, SinkImpl>,
+    local_source_rx: BTreeMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>,
+    sources: BTreeMap<SourceId, SourceImpl>,
+    local_source_tx: BTreeMap<SourceId, EventSender<SinkableMessageImpl>>,
+    sinks: BTreeMap<SinkId, SinkImpl>,
 }
 
 impl SourceSinkManger {
@@ -241,6 +245,28 @@ impl SourceSinkManger {
                 host_addr: info.get_host_addr().clone(),
             }),
         );
+    }
+
+    pub(crate) fn create_external_source(
+        &mut self,
+        executor_id: &ExecutorId,
+        operator: &OperatorInfo,
+    ) {
+        if self.sources.contains_key(executor_id) {
+            return;
+        }
+        match operator.get_source().get_field_type() {
+            SourceTypeEnum::KAFKA => {
+                self.sources.insert(
+                    *executor_id,
+                    SourceImpl::Kafka(Kafka::with_config(
+                        *executor_id,
+                        operator.get_source().get_source_desc(),
+                    )),
+                );
+            }
+            _ => todo!(),
+        }
     }
 }
 
@@ -345,18 +371,26 @@ impl LocalSource {
 #[derive(Clone)]
 pub enum SourceImpl {
     Local(LocalSource),
+    Kafka(Kafka),
 }
 
 impl SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
+        let zero_tx = || -> EventSender<SinkableMessageImpl> {
+            let (tx, _) = crossbeam_channel::bounded(0);
+            tx
+        };
+
         match self {
             SourceImpl::Local(source) => source.create_msg_sender(),
+            SourceImpl::Kafka(_) => zero_tx(),
         }
     }
 
     fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.fetch_msg(),
+            SourceImpl::Kafka(_) => None,
         }
     }
 }
@@ -380,5 +414,26 @@ impl Sink for SinkImpl {
             SinkImpl::Local(sink) => sink.sink(msg),
             SinkImpl::Remote(sink) => sink.sink(msg),
         }
+    }
+}
+
+#[derive(Clone)]
+pub struct Kafka {
+    source_id: SourceId,
+}
+
+impl Kafka {
+    pub fn with_config(source_id: ExecutorId, config: &SourceDesc) -> Kafka {
+        Kafka { source_id }
+    }
+}
+
+impl Source for Kafka {
+    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+        todo!()
+    }
+
+    fn source_id(&self) -> SourceId {
+        self.source_id
     }
 }

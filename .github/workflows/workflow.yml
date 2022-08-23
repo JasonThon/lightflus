@@ -26,6 +26,8 @@ jobs:
         run: cargo check --manifest-path src/coordinator/Cargo.toml
       - name: Check Worker
         run: cargo check --manifest-path src/worker/Cargo.toml
+      - name: Check Storage
+        run: cargo check --manifest-path src/storage/Cargo.toml
 
   build_docker_image:
 

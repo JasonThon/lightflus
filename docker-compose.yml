@@ -27,11 +27,18 @@ services:
       - "18091:18091"
     environment:
       RUST_LOG: INFO
-      WORKER_NODE_1: tableflow-worker
+      WORKER_NODE_1: worker-1
     depends_on:
       - worker
+    healthcheck:
+      test: [ "/tableflow/runtime/tools/healthcheck", "-TARGET localhost:8791", "-METHOD /proto.CoordinatorApi/Probe", "-SERVICE 0", "-PROBE 1" ]
+      interval: 3s  
+      timeout: 5s
+      retries: 3
+      start_period: 10s
   worker:
     image: tableflow/runtime/worker:latest
+    hostname: worker-1
     build:
       context: .
       dockerfile: docker/worker/Dockerfile
@@ -40,3 +47,9 @@ services:
       KAFKA_BROKERS: kafka:9002
     ports:
       - "18090:18090"
+    healthcheck:
+      test: [ "/tableflow/runtime/tools/healthcheck", "-TARGET localhost:18090", "-METHOD /proto.TaskWorkerApi/Probe", "-SERVICE 1", "-PROBE 0" ]
+      interval: 2s
+      timeout: 1s
+      retries: 3
+      start_period: 5s

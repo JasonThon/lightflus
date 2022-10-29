@@ -5,7 +5,7 @@ use common::collections::lang;
 use common::err::TaskWorkerError;
 use common::types::{ExecutorId, HashedJobId};
 use proto::common::common::JobId;
-use proto::common::event::DataEvent;
+use proto::common::event::KeyedDataEvent;
 use proto::common::stream::Dataflow;
 use proto::worker::worker;
 use stream::actor::DataflowContext;
@@ -69,7 +69,7 @@ impl TaskWorker {
 
     pub fn dispatch_events(
         &self,
-        events: Vec<DataEvent>,
+        events: Vec<KeyedDataEvent>,
     ) -> Result<HashMap<String, worker::DispatchDataEventStatusEnum>, TaskWorkerError> {
         let group = lang::group(&events, |e| HashedJobId::from(e.job_id.clone().unwrap()));
 

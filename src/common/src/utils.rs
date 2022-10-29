@@ -1,6 +1,12 @@
-use crate::net::hostname;
+use crate::{
+    net::hostname,
+    types::{
+        BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL, STRING_SYMBOL,
+        UNDEFINED_SYMBOL,
+    },
+};
 use proto::common::{
-    common::JobId,
+    common::{DataTypeEnum, ResourceId},
     stream::{Dataflow, DataflowMeta, OperatorInfo},
 };
 use serde::de::Error;
@@ -101,7 +107,7 @@ fn replace_by_env(value: &str) -> String {
 }
 
 pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
-    if operator.get_host_addr().get_host() == "localhost" {
+    if operator.get_host_addr().get_host() == "localhost" || !operator.has_host_addr() {
         return false;
     }
 
@@ -111,7 +117,7 @@ pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
 }
 
 pub fn to_dataflow(
-    job_id: &JobId,
+    job_id: &ResourceId,
     operators: &Vec<OperatorInfo>,
     meta: &[DataflowMeta],
 ) -> Dataflow {
@@ -131,4 +137,25 @@ pub fn to_dataflow(
     );
 
     dataflow
+}
+
+pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
+    let raw = symbol.as_str();
+    if raw == STRING_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_STRING
+    } else if raw == NUMBER_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_NUMBER
+    } else if raw == OBJECT_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+    } else if raw == BOOLEAN_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+    } else if raw == BIGINT_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_BIGINT
+    } else if raw == NULL_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_NULL
+    } else if raw == UNDEFINED_SYMBOL {
+        DataTypeEnum::DATA_TYPE_ENUM_NULL
+    } else {
+        DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+    }
 }

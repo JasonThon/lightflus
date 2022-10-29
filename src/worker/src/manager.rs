@@ -1,10 +1,10 @@
 use std::thread::JoinHandle;
 
 use common::err::ExecutionException;
-use common::event::{LocalEvent, RowDataEvent};
+use common::event::LocalEvent;
 use common::types::SinkId;
 use proto::common::common::JobId;
-use proto::common::event::{DataEvent, DataEventTypeEnum};
+use proto::common::event::{DataEvent, DataEventTypeEnum, KeyedDataEvent};
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use stream::actor::{DataflowContext, Sink, SinkImpl, SinkableMessageImpl};
 
@@ -39,15 +39,11 @@ impl Drop for LocalExecutorManager {
 }
 
 impl LocalExecutorManager {
-    pub fn dispatch_events(&self, events: &Vec<DataEvent>) -> DispatchDataEventStatusEnum {
+    pub fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
-        let local_events = events.iter().map(|e| match e.get_event_type() {
-            DataEventTypeEnum::STOP => LocalEvent::Terminate {
-                job_id: e.get_job_id().clone(),
-                to: e.get_to_operator_id(),
-            },
-            _ => LocalEvent::RowChangeStream(RowDataEvent::from(e)),
-        });
+        let local_events = events
+            .iter()
+            .map(|e| LocalEvent::KeyedDataStreamEvent(e.clone()));
 
         events
             .iter()

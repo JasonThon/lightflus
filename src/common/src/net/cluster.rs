@@ -4,7 +4,7 @@ use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
 use crate::utils;
-use proto::common::common::JobId;
+use proto::common::common::ResourceId;
 use proto::common::probe;
 use proto::common::stream::{Dataflow, DataflowStatus};
 use proto::worker::worker::{CreateDataflowRequest, StopDataflowRequest};
@@ -147,7 +147,7 @@ impl Cluster {
             .unwrap_or(Default::default())
     }
 
-    pub fn terminate_dataflow(&self, job_id: &JobId) -> Result<DataflowStatus, ApiError> {
+    pub fn terminate_dataflow(&self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {
         for worker in &self.workers {
             if !worker.is_available() {
                 continue;

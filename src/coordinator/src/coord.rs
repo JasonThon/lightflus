@@ -6,7 +6,7 @@ use common::err::ErrorKind;
 use common::net::cluster;
 use common::net::status;
 
-use proto::common::common::JobId;
+use proto::common::common::ResourceId;
 use proto::common::stream::Dataflow;
 use proto::common::stream::DataflowStatus;
 use protobuf::Message;
@@ -15,9 +15,9 @@ use rocksdb::DB;
 
 pub(crate) trait DataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException>;
-    fn get(&self, job_id: &JobId) -> Option<Dataflow>;
-    fn may_exists(&self, job_id: &JobId) -> bool;
-    fn delete(&self, job_id: &JobId) -> Result<(), CommonException>;
+    fn get(&self, job_id: &ResourceId) -> Option<Dataflow>;
+    fn may_exists(&self, job_id: &ResourceId) -> bool;
+    fn delete(&self, job_id: &ResourceId) -> Result<(), CommonException>;
 }
 
 #[derive(Clone, Debug)]
@@ -51,7 +51,7 @@ impl DataflowStorage for RocksDataflowStorage {
             })
     }
 
-    fn get(&self, job_id: &JobId) -> Option<Dataflow> {
+    fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
         match DB::open_default(self.dataflow_store_path.as_str())
             .map_err(|err| CommonException {
                 kind: ErrorKind::OpenDBFailed,
@@ -78,7 +78,7 @@ impl DataflowStorage for RocksDataflowStorage {
         }
     }
 
-    fn may_exists(&self, job_id: &JobId) -> bool {
+    fn may_exists(&self, job_id: &ResourceId) -> bool {
         match DB::open_default(self.dataflow_store_path.as_str())
             .map_err(|err| CommonException {
                 kind: ErrorKind::OpenDBFailed,
@@ -98,7 +98,7 @@ impl DataflowStorage for RocksDataflowStorage {
         }
     }
 
-    fn delete(&self, job_id: &JobId) -> Result<(), CommonException> {
+    fn delete(&self, job_id: &ResourceId) -> Result<(), CommonException> {
         DB::open_default(self.dataflow_store_path.as_str())
             .map_err(|err| CommonException {
                 kind: ErrorKind::OpenDBFailed,
@@ -126,7 +126,7 @@ pub enum DataflowStorageImpl {
 impl DataflowStorageImpl {
     fn save(
         &mut self,
-        job_id: &JobId,
+        job_id: &ResourceId,
         map: &HashMap<String, Dataflow>,
     ) -> Result<(), CommonException> {
         let mut metas = vec![];
@@ -152,19 +152,19 @@ impl DataflowStorageImpl {
         }
     }
 
-    fn get(&self, job_id: &JobId) -> Option<Dataflow> {
+    fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
         match self {
             DataflowStorageImpl::RocksDB(storage) => storage.get(job_id),
         }
     }
 
-    fn may_exists(&self, job_id: &JobId) -> bool {
+    fn may_exists(&self, job_id: &ResourceId) -> bool {
         match self {
             DataflowStorageImpl::RocksDB(storage) => storage.may_exists(job_id),
         }
     }
 
-    fn delete(&self, job_id: &JobId) -> Result<(), CommonException> {
+    fn delete(&self, job_id: &ResourceId) -> Result<(), CommonException> {
         match self {
             DataflowStorageImpl::RocksDB(storage) => storage.delete(job_id),
         }
@@ -205,7 +205,7 @@ impl Coordinator {
         self.cluster.create_dataflow(map)
     }
 
-    pub fn terminate_dataflow(&self, job_id: &JobId) -> Result<DataflowStatus, ApiError> {
+    pub fn terminate_dataflow(&self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {
         if !self.dataflow_storage.may_exists(job_id) {
             Ok(DataflowStatus::CLOSED)
         } else {
@@ -222,7 +222,7 @@ impl Coordinator {
         }
     }
 
-    pub fn get_dataflow(&self, job_id: &JobId) -> Option<Dataflow> {
+    pub fn get_dataflow(&self, job_id: &ResourceId) -> Option<Dataflow> {
         self.dataflow_storage.get(job_id)
     }
 }

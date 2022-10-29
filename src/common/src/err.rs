@@ -2,7 +2,7 @@ use std::io;
 
 use tokio::sync::mpsc;
 
-use proto::common::common::{JobId, Response};
+use proto::common::common::{ResourceId, Response};
 
 use crate::event::LocalEvent;
 use crate::types::SinkId;
@@ -231,7 +231,7 @@ impl Error for ExecutionException {
 }
 
 impl ExecutionException {
-    pub fn invalid_dataflow(job_id: &JobId) -> ExecutionException {
+    pub fn invalid_dataflow(job_id: &ResourceId) -> ExecutionException {
         ExecutionException {
             kind: ErrorKind::InvalidDataflow,
             msg: format!("Invalid job graph with id {:?}", job_id),
@@ -239,7 +239,7 @@ impl ExecutionException {
     }
 
     pub fn sink_local_event_failure(
-        job_id: &JobId,
+        job_id: &ResourceId,
         event: &LocalEvent,
         sink_id: SinkId,
         err_msg: String,

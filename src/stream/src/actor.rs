@@ -1,10 +1,14 @@
+use crate::dataflow::TaskContext;
 use crate::err::SinkException;
+use crate::state::new_state_mgt;
 use common::collections::lang;
 use common::event::LocalEvent;
 use common::types::{ExecutorId, SinkId, SourceId};
 use common::{err, utils};
 use proto::common::common::{HostAddr, JobId};
-use proto::common::stream::{DataflowMeta, OperatorInfo, SourceDesc, SourceTypeEnum};
+use proto::common::stream::{
+    DataflowMeta, KafkaDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
+};
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use std::collections::BTreeMap;
 use std::sync::Arc;
@@ -50,6 +54,7 @@ impl DataflowContext {
                 let remote_node =
                     operator_info.filter(|operator| utils::is_remote_operator(*operator));
                 let external_source = operator_info.filter(|operator| (*operator).has_source());
+                let external_sink = operator_info.filter(|operator| (*operator).has_sink());
 
                 if remote_node.is_some() {
                     remote_node.iter().for_each(|operator| {
@@ -58,6 +63,10 @@ impl DataflowContext {
                 } else if external_source.is_some() {
                     external_source.iter().for_each(|operator| {
                         source_sink_manager.create_external_source(&executor_id, *operator)
+                    })
+                } else if external_sink.is_some() {
+                    external_sink.iter().for_each(|operator| {
+                        source_sink_manager.create_external_sink(&executor_id, *operator)
                     })
                 } else {
                     source_sink_manager.create_local(&executor_id)
@@ -130,15 +139,26 @@ impl LocalExecutor {
 
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
+        let task = TaskContext::new(self.operator.clone(), new_state_mgt());
+
         spawn(move || 'outloop: loop {
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     SinkableMessageImpl::LocalMessage(message) => match message {
-                        LocalEvent::RowChangeStream(change) => {
-                            self.sinks.iter().for_each(|sink| {
-                                let _ = sink.sink(msg.clone());
-                            });
-                            log::info!("nodeId: {}, msg: {:?}", &self.executor_id, change)
+                        LocalEvent::KeyedDataStreamEvent(e) => {
+                            match task.process(e) {
+                                Ok(result) => {
+                                    let after_process = LocalEvent::KeyedDataStreamEvent(result);
+                                    self.sinks.iter().for_each(|sink| {
+                                        let _ = sink
+                                            .sink(SinkableMessageImpl::LocalMessage(after_process));
+                                    });
+                                }
+                                Err(_) => {
+                                    // TODO fault tolerance
+                                }
+                            }
+                            log::info!("nodeId: {}, msg: {:?}", &self.executor_id, e)
                         }
                         LocalEvent::Terminate { job_id, to } => {
                             log::info!("stopping {:?} at node id {}", job_id, to);
@@ -255,18 +275,33 @@ impl SourceSinkManger {
         if self.sources.contains_key(executor_id) {
             return;
         }
-        match operator.get_source().get_field_type() {
-            SourceTypeEnum::KAFKA => {
-                self.sources.insert(
-                    *executor_id,
-                    SourceImpl::Kafka(Kafka::with_config(
+        operator
+            .get_source()
+            .desc
+            .iter()
+            .for_each(|desc| match desc {
+                Source_oneof_desc::kafka(conf) => {
+                    self.sources.insert(
                         *executor_id,
-                        operator.get_source().get_source_desc(),
-                    )),
+                        SourceImpl::Kafka(Kafka::with_config(*executor_id, conf)),
+                    );
+                }
+                _ => {}
+            })
+    }
+
+    fn create_external_sink(&self, executor_id: &ExecutorId, operator: &OperatorInfo) {
+        if self.sinks.contains_key(executor_id) {
+            return;
+        }
+        operator.get_sink().desc.iter().for_each(|desc| match desc {
+            Sink_oneof_desc::kafka(kafka) => {
+                self.sinks.insert(
+                    *executor_id,
+                    SinkImpl::Kafka(Kafka::with_config(*executor_id, kafka)),
                 );
             }
-            _ => todo!(),
-        }
+        });
     }
 }
 
@@ -399,6 +434,7 @@ impl SourceImpl {
 pub enum SinkImpl {
     Local(LocalSink),
     Remote(RemoteSink),
+    Kafka(Kafka),
 }
 
 impl Sink for SinkImpl {
@@ -406,6 +442,7 @@ impl Sink for SinkImpl {
         match self {
             SinkImpl::Local(sink) => sink.sink_id(),
             SinkImpl::Remote(sink) => sink.sink_id(),
+            SinkImpl::Kafka(kafka) => kafka.sink_id(),
         }
     }
 
@@ -413,18 +450,23 @@ impl Sink for SinkImpl {
         match self {
             SinkImpl::Local(sink) => sink.sink(msg),
             SinkImpl::Remote(sink) => sink.sink(msg),
+            SinkImpl::Kafka(sink) => sink.sink(msg),
         }
     }
 }
 
 #[derive(Clone)]
 pub struct Kafka {
-    source_id: SourceId,
+    connector_id: SourceId,
+    conf: KafkaDesc,
 }
 
 impl Kafka {
-    pub fn with_config(source_id: ExecutorId, config: &SourceDesc) -> Kafka {
-        Kafka { source_id }
+    pub fn with_config(executor_id: ExecutorId, config: &KafkaDesc) -> Kafka {
+        Kafka {
+            connector_id: executor_id,
+            conf: config.clone(),
+        }
     }
 }
 
@@ -434,6 +476,16 @@ impl Source for Kafka {
     }
 
     fn source_id(&self) -> SourceId {
-        self.source_id
+        self.connector_id
+    }
+}
+
+impl Sink for Kafka {
+    fn sink_id(&self) -> SinkId {
+        self.connector_id
+    }
+
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+        todo!()
     }
 }

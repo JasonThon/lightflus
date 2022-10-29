@@ -1,66 +1,29 @@
-use bytes::Buf;
-use proto::common::common::JobId;
+use bytes::{Buf, BufMut};
+use proto::common::common::{DataTypeEnum, ResourceId};
+use proto::common::event::Entry;
+use protobuf::ProtobufEnum;
 use std::cmp::Ordering;
+use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::ops;
 
-pub type DataTypeSymbol = u8;
-
-pub(crate) const STRING: DataTypeSymbol = 1;
-pub(crate) const INT: DataTypeSymbol = 2;
-pub(crate) const LONG: DataTypeSymbol = 3;
-pub(crate) const FLOAT: DataTypeSymbol = 4;
-pub(crate) const DOUBLE: DataTypeSymbol = 5;
-pub(crate) const BOOLEAN: DataTypeSymbol = 6;
-
-#[derive(Clone, serde::Serialize, serde::Deserialize, Debug, Eq, PartialEq)]
-pub enum ValueType {
-    String,
-    Double,
-    Float,
-    Int,
-    Long,
-    Boolean,
-    Invalid,
-}
-
-impl From<TypedValue> for ValueType {
-    fn from(typed: TypedValue) -> Self {
-        match typed {
-            TypedValue::String(_) => Self::String,
-            TypedValue::Double(_) => Self::Double,
-            TypedValue::Float(_) => Self::Float,
-            TypedValue::Int(_) => Self::Int,
-            TypedValue::Long(_) => Self::Long,
-            TypedValue::Boolean(_) => Self::Boolean,
-            _ => Self::Invalid,
-        }
-    }
-}
-
-impl From<ValueType> for DataTypeSymbol {
-    fn from(vt: ValueType) -> Self {
-        match vt {
-            ValueType::String => STRING,
-            ValueType::Double => DOUBLE,
-            ValueType::Float => FLOAT,
-            ValueType::Int => INT,
-            ValueType::Long => LONG,
-            ValueType::Boolean => BOOLEAN,
-            ValueType::Invalid => 7,
-        }
-    }
-}
+pub(crate) const STRING_SYMBOL: &str = "string";
+pub(crate) const NUMBER_SYMBOL: &str = "number";
+pub(crate) const NULL_SYMBOL: &str = "null";
+pub(crate) const UNDEFINED_SYMBOL: &str = "undefined";
+pub(crate) const BOOLEAN_SYMBOL: &str = "boolean";
+pub(crate) const OBJECT_SYMBOL: &str = "object";
+pub(crate) const BIGINT_SYMBOL: &str = "bigint";
 
 // TODO fix float calculated with double precision loss problem
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum TypedValue {
     String(String),
-    Double(f64),
-    Float(f32),
-    Int(i32),
-    Long(i64),
+    BigInt(i64),
     Boolean(bool),
+    Number(f64),
+    Null,
+    Object(BTreeMap<String, Vec<u8>>),
     Invalid,
 }
 
@@ -74,32 +37,21 @@ impl PartialEq for TypedValue {
                 TypedValue::String(other) => value == other,
                 _ => false,
             },
-            TypedValue::Double(value) => match other {
-                TypedValue::Double(other) => value.eq(other),
-                TypedValue::Float(other) => value.eq(&(*other as f64)),
-                TypedValue::Int(other) => value.eq(&(*other as f64)),
-                TypedValue::Long(other) => value.eq(&(*other as f64)),
+            TypedValue::Number(value) => match other {
+                TypedValue::Number(other) => value.eq(other),
                 _ => false,
             },
-            TypedValue::Float(value) => match other {
-                TypedValue::Double(other) => (*value as f64).eq(other),
-                TypedValue::Float(other) => value.eq(other),
-                TypedValue::Int(other) => value.eq(&(*other as f32)),
-                TypedValue::Long(other) => (*value as f64).eq(&(*other as f64)),
+            TypedValue::Null => match other {
+                TypedValue::Null => true,
                 _ => false,
             },
-            TypedValue::Int(value) => match other {
-                TypedValue::Double(other) => (*value as f64).eq(other),
-                TypedValue::Float(other) => other.eq(&(*value as f32)),
-                TypedValue::Int(other) => value.eq(other),
-                TypedValue::Long(other) => other.eq(&(*value as i64)),
+            TypedValue::Object(value) => match other {
+                TypedValue::Object(other) => value.eq(other),
                 _ => false,
             },
-            TypedValue::Long(value) => match other {
-                TypedValue::Double(other) => (*value as f64).eq(other),
-                TypedValue::Float(other) => (*value as f64).eq(&(*other as f64)),
-                TypedValue::Int(other) => value.eq(&(*other as i64)),
-                TypedValue::Long(other) => value == other,
+            TypedValue::BigInt(value) => match other {
+                TypedValue::Number(other) => (*value as f64).eq(other),
+                TypedValue::BigInt(other) => value == other,
                 _ => false,
             },
             TypedValue::Boolean(value) => match other {
@@ -122,32 +74,22 @@ impl PartialOrd for TypedValue {
                 TypedValue::String(other) => value.partial_cmp(other),
                 _ => None,
             },
-            TypedValue::Double(value) => match other {
-                TypedValue::Double(other) => value.partial_cmp(other),
-                TypedValue::Float(other) => value.partial_cmp(&(*other as f64)),
-                TypedValue::Int(other) => value.partial_cmp(&(*other as f64)),
-                TypedValue::Long(other) => value.partial_cmp(&(*other as f64)),
+            TypedValue::Number(value) => match other {
+                TypedValue::Number(other) => value.partial_cmp(other),
+                TypedValue::BigInt(other) => value.partial_cmp(&(*other as f64)),
                 _ => None,
             },
-            TypedValue::Float(value) => match other {
-                TypedValue::Double(other) => (*value as f64).partial_cmp(other),
-                TypedValue::Float(other) => value.partial_cmp(other),
-                TypedValue::Int(other) => value.partial_cmp(&(*other as f32)),
-                TypedValue::Long(other) => (*value as f64).partial_cmp(&(*other as f64)),
+            TypedValue::Object(value) => match other {
+                TypedValue::Object(other) => value.partial_cmp(other),
                 _ => None,
             },
-            TypedValue::Int(value) => match other {
-                TypedValue::Double(other) => (*value as f64).partial_cmp(other),
-                TypedValue::Float(other) => (*value as f32).partial_cmp(other),
-                TypedValue::Int(other) => value.partial_cmp(other),
-                TypedValue::Long(other) => (*value as i64).partial_cmp(other),
+            TypedValue::Null => match other {
+                TypedValue::Null => Some(Ordering::Equal),
                 _ => None,
             },
-            TypedValue::Long(value) => match other {
-                TypedValue::Double(other) => (*value as f64).partial_cmp(other),
-                TypedValue::Float(other) => (*value as f64).partial_cmp(&(*other as f64)),
-                TypedValue::Int(other) => value.partial_cmp(&(*other as i64)),
-                TypedValue::Long(other) => value.partial_cmp(other),
+            TypedValue::BigInt(value) => match other {
+                TypedValue::Number(other) => (*value as f64).partial_cmp(other),
+                TypedValue::BigInt(other) => value.partial_cmp(other),
                 _ => None,
             },
             _ => None,
@@ -179,32 +121,15 @@ impl ops::Sub for TypedValue {
 
     fn sub(self, rhs: Self) -> Self::Output {
         match self {
-            TypedValue::Double(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(value - other),
-                TypedValue::Float(other) => TypedValue::Double(value - (other as f64)),
-                TypedValue::Int(other) => TypedValue::Double(value - (other as f64)),
-                TypedValue::Long(other) => TypedValue::Double(value - (other as f64)),
+            TypedValue::Number(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number(value - other),
+                TypedValue::BigInt(other) => TypedValue::Number(value - (other as f64)),
                 _ => TypedValue::Invalid,
             },
-            TypedValue::Float(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(value as f64 - other),
-                TypedValue::Float(other) => TypedValue::Float(value - other),
-                TypedValue::Int(other) => TypedValue::Float(value - (other as f32)),
-                TypedValue::Long(other) => TypedValue::Float(value - (other as f32)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Int(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
-                TypedValue::Float(other) => TypedValue::Float((value as f32) - other),
-                TypedValue::Int(other) => TypedValue::Int(value - other),
-                TypedValue::Long(other) => TypedValue::Long((value as i64) - other),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Long(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64) - other),
-                TypedValue::Float(other) => TypedValue::Float(value as f32 - other),
-                TypedValue::Int(other) => TypedValue::Long(value - (other as i64)),
-                TypedValue::Long(other) => TypedValue::Long(value - other),
+            TypedValue::Null => TypedValue::Null,
+            TypedValue::BigInt(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number((value as f64) - other),
+                TypedValue::BigInt(other) => TypedValue::BigInt(value - other),
                 _ => TypedValue::Invalid,
             },
             _ => TypedValue::Invalid,
@@ -218,32 +143,15 @@ impl ops::Div for TypedValue {
 
     fn div(self, rhs: Self) -> Self::Output {
         match self {
-            TypedValue::Double(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(value / other),
-                TypedValue::Float(other) => TypedValue::Double(value / (other as f64)),
-                TypedValue::Int(other) => TypedValue::Double(value / (other as f64)),
-                TypedValue::Long(other) => TypedValue::Double(value / (other as f64)),
+            TypedValue::Number(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number(value / other),
+                TypedValue::BigInt(other) => TypedValue::Number(value / (other as f64)),
                 _ => TypedValue::Invalid,
             },
-            TypedValue::Float(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(value as f64 / other),
-                TypedValue::Float(other) => TypedValue::Float(value / other),
-                TypedValue::Int(other) => TypedValue::Float(value / (other as f32)),
-                TypedValue::Long(other) => TypedValue::Float(value / (other as f32)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Int(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64) / other),
-                TypedValue::Float(other) => TypedValue::Float((value as f32) / other),
-                TypedValue::Int(other) => TypedValue::Double((value as f64) / (other as f64)),
-                TypedValue::Long(other) => TypedValue::Double((value as f64) / (other as f64)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Long(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64) / other),
-                TypedValue::Float(other) => TypedValue::Float((value as f32) / other),
-                TypedValue::Int(other) => TypedValue::Float((value as f32) / (other as f32)),
-                TypedValue::Long(other) => TypedValue::Float((value as f32) / (other as f32)),
+            TypedValue::Null => TypedValue::Null,
+            TypedValue::BigInt(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number((value as f64) / other),
+                TypedValue::BigInt(other) => TypedValue::Number((value as f64) / (other as f64)),
                 _ => TypedValue::Invalid,
             },
             _ => TypedValue::Invalid,
@@ -278,32 +186,15 @@ impl ops::Mul for TypedValue {
 
     fn mul(self, rhs: Self) -> Self::Output {
         match self {
-            TypedValue::Double(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(other * value),
-                TypedValue::Float(other) => TypedValue::Float(other * value as f32),
-                TypedValue::Int(other) => TypedValue::Double(other as f64 * value),
-                TypedValue::Long(other) => TypedValue::Double(other as f64 * value),
+            TypedValue::Number(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number(other * value),
+                TypedValue::BigInt(other) => TypedValue::Number(other as f64 * value),
                 _ => TypedValue::Invalid,
             },
-            TypedValue::Float(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(other * (value as f64)),
-                TypedValue::Float(other) => TypedValue::Float(other * value),
-                TypedValue::Int(other) => TypedValue::Float(other as f32 * value),
-                TypedValue::Long(other) => TypedValue::Float(other as f32 * value),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Int(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(other * value as f64),
-                TypedValue::Float(other) => TypedValue::Float(other * value as f32),
-                TypedValue::Int(other) => TypedValue::Int(other * value),
-                TypedValue::Long(other) => TypedValue::Long(other * value as i64),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Long(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(other * value as f64),
-                TypedValue::Float(other) => TypedValue::Float(other * value as f32),
-                TypedValue::Int(other) => TypedValue::Long(other as i64 * value),
-                TypedValue::Long(other) => TypedValue::Long(other * value),
+            TypedValue::Null => TypedValue::Null,
+            TypedValue::BigInt(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number(other * value as f64),
+                TypedValue::BigInt(other) => TypedValue::BigInt(other * value),
                 _ => TypedValue::Invalid,
             },
             _ => TypedValue::Invalid,
@@ -321,32 +212,15 @@ impl ops::Add for TypedValue {
                 TypedValue::String(other) => TypedValue::String(value.add(other.as_str())),
                 _ => TypedValue::Invalid,
             },
-            TypedValue::Double(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(value.add(other)),
-                TypedValue::Float(other) => TypedValue::Double(value.add(other as f64)),
-                TypedValue::Int(other) => TypedValue::Double(value.add(other as f64)),
-                TypedValue::Long(other) => TypedValue::Double(value.add(other as f64)),
+            TypedValue::Number(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number(value.add(other)),
+                TypedValue::BigInt(other) => TypedValue::Number(value.add(other as f64)),
                 _ => TypedValue::Invalid,
             },
-            TypedValue::Float(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double(value as f64 + other),
-                TypedValue::Float(other) => TypedValue::Float(value + other),
-                TypedValue::Int(other) => TypedValue::Float(value + other as f32),
-                TypedValue::Long(other) => TypedValue::Float(value + other as f32),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Int(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64).add(other)),
-                TypedValue::Float(other) => TypedValue::Float((value as f32).add(other)),
-                TypedValue::Int(other) => TypedValue::Int(value.add(other)),
-                TypedValue::Long(other) => TypedValue::Long((value as i64).add(other)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Long(value) => match rhs {
-                TypedValue::Double(other) => TypedValue::Double((value as f64) + other),
-                TypedValue::Float(other) => TypedValue::Float((value as f32) + other as f32),
-                TypedValue::Int(other) => TypedValue::Long(value + other as i64),
-                TypedValue::Long(other) => TypedValue::Long(value + other),
+            TypedValue::Null => self,
+            TypedValue::BigInt(value) => match rhs {
+                TypedValue::Number(other) => TypedValue::Number((value as f64) + other),
+                TypedValue::BigInt(other) => TypedValue::BigInt(value + other),
                 _ => TypedValue::Invalid,
             },
             _ => TypedValue::Invalid,
@@ -360,26 +234,16 @@ impl ops::AddAssign for TypedValue {
         match self {
             TypedValue::String(value) => match rhs {
                 TypedValue::String(other) => value.push_str(other.as_str()),
-                TypedValue::Double(other) => value.push_str(other.to_string().as_str()),
-                TypedValue::Float(other) => value.push_str(other.to_string().as_str()),
-                TypedValue::Int(other) => value.push_str(other.to_string().as_str()),
-                TypedValue::Long(other) => value.push_str(other.to_string().as_str()),
+                TypedValue::Number(other) => value.push_str(other.to_string().as_str()),
+                TypedValue::BigInt(other) => value.push_str(other.to_string().as_str()),
                 _ => {}
             },
-            TypedValue::Double(value) => match rhs {
-                TypedValue::Double(other) => value.add_assign(other),
+            TypedValue::Number(value) => match rhs {
+                TypedValue::Number(other) => value.add_assign(other),
                 _ => {}
             },
-            TypedValue::Float(value) => match rhs {
-                TypedValue::Float(other) => value.add_assign(other),
-                _ => {}
-            },
-            TypedValue::Int(value) => match rhs {
-                TypedValue::Int(other) => value.add_assign(other),
-                _ => {}
-            },
-            TypedValue::Long(value) => match rhs {
-                TypedValue::Long(other) => value.add_assign(other),
+            TypedValue::BigInt(value) => match rhs {
+                TypedValue::BigInt(other) => value.add_assign(other),
                 _ => {}
             },
             _ => {}
@@ -389,69 +253,63 @@ impl ops::AddAssign for TypedValue {
 
 impl TypedValue {
     pub fn get_data(&self) -> Vec<u8> {
-        let symbol: DataTypeSymbol = self.get_type().into();
-
         match self {
-            TypedValue::String(value) => {
-                let mut result = value.as_bytes().to_vec();
-                result.insert(0, symbol);
-                result
-            }
-            TypedValue::Double(value) => {
-                let mut result = value.to_be_bytes().to_vec();
-                result.insert(0, symbol);
-                result
-            }
-            TypedValue::Float(value) => {
-                let mut result = value.to_be_bytes().to_vec();
-                result.insert(0, symbol);
-                result
-            }
-            TypedValue::Int(value) => {
-                let mut result = value.to_be_bytes().to_vec();
-                result.insert(0, symbol);
-                result
-            }
-            TypedValue::Long(value) => {
-                let mut result = value.to_be_bytes().to_vec();
-                result.insert(0, symbol);
-                result
-            }
+            TypedValue::String(value) => value.as_bytes().to_vec(),
+            TypedValue::Number(value) => value.to_be_bytes().to_vec(),
+            TypedValue::BigInt(value) => value.to_be_bytes().to_vec(),
             TypedValue::Boolean(value) => {
                 let data = if *value { 1 as u8 } else { 0 as u8 };
-
-                vec![symbol, data]
+                vec![data]
             }
             _ => vec![],
         }
     }
 
-    pub fn from(data: &Vec<u8>) -> TypedValue {
-        let data_type = data[0];
+    pub fn from_vec(data: &Vec<u8>) -> Self {
+        let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
-            STRING => match String::from_utf8(data[1..data.len()].to_vec()) {
-                Ok(val) => TypedValue::String(val),
-                Err(_) => TypedValue::Invalid,
-            },
-            INT => TypedValue::Int(data[1..data.len()].to_vec().as_slice().get_i32()),
-            FLOAT => TypedValue::Float(data[1..data.len()].to_vec().as_slice().get_f32()),
-            LONG => TypedValue::Long(data[1..data.len()].to_vec().as_slice().get_i64()),
-            DOUBLE => TypedValue::Double(data[1..data.len()].to_vec().as_slice().get_f64()),
-            BOOLEAN => TypedValue::Boolean(data[1] == 1),
-            _ => TypedValue::Invalid,
+            DataTypeEnum::DATA_TYPE_ENUM_STRING => {
+                match String::from_utf8(data[1..data.len()].to_vec()) {
+                    Ok(val) => TypedValue::String(val),
+                    Err(_) => TypedValue::Invalid,
+                }
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_BIGINT => {
+                TypedValue::BigInt(data[1..data.len()].to_vec().as_slice().get_i64())
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_NUMBER => {
+                TypedValue::Number(data[1..data.len()].to_vec().as_slice().get_f64())
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN => TypedValue::Boolean(data[1] == 1),
+            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
+            DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
+            DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
+                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(data.as_slice())
+                    .unwrap_or(Default::default()),
+            ),
         }
     }
 
-    pub fn get_type(&self) -> ValueType {
+    pub fn get_type(&self) -> DataTypeEnum {
         match self {
-            TypedValue::String(_) => ValueType::String,
-            TypedValue::Double(_) => ValueType::Double,
-            TypedValue::Float(_) => ValueType::Float,
-            TypedValue::Int(_) => ValueType::Int,
-            TypedValue::Long(_) => ValueType::Long,
-            _ => ValueType::Invalid,
+            TypedValue::String(_) => DataTypeEnum::DATA_TYPE_ENUM_STRING,
+            TypedValue::Number(_) => DataTypeEnum::DATA_TYPE_ENUM_NUMBER,
+            TypedValue::BigInt(_) => DataTypeEnum::DATA_TYPE_ENUM_BIGINT,
+            TypedValue::Null => DataTypeEnum::DATA_TYPE_ENUM_NULL,
+            TypedValue::Object(_) => DataTypeEnum::DATA_TYPE_ENUM_OBJECT,
+            TypedValue::Boolean(_) => DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN,
+            _ => DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED,
         }
+    }
+}
+
+impl From<&Entry> for TypedValue {
+    fn from(entry: &Entry) -> Self {
+        let symbol = entry.get_data_type().value() as u8;
+        let mut data = vec![symbol];
+        data.put_slice(entry.get_value());
+        Self::from_vec(&data)
     }
 }
 
@@ -472,14 +330,14 @@ pub trait KeyedValue<K, V> {
 }
 
 #[derive(Clone, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct HashedJobId {
-    pub table_id: u32,
+pub struct HashedResourceId {
+    pub stream_id: u32,
 }
 
-impl From<JobId> for HashedJobId {
-    fn from(id: JobId) -> Self {
+impl From<ResourceId> for HashedResourceId {
+    fn from(id: ResourceId) -> Self {
         Self {
-            table_id: id.table_id,
+            stream_id: id.stream_id,
         }
     }
 }

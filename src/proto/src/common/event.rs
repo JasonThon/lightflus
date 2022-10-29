@@ -23,14 +23,15 @@
 /// of protobuf runtime.
 // const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_2_27_1;
 
+use crate::common::common;
+
 #[derive(PartialEq,Clone,Default)]
-pub struct DataEvent {
+pub struct KeyedDataEvent {
     // message fields
-    pub job_id: ::protobuf::SingularPtrField<super::common::JobId>,
+    pub job_id: ::protobuf::SingularPtrField<common::ResourceId>,
+    pub key: ::protobuf::SingularPtrField<Entry>,
     pub to_operator_id: u32,
-    pub event_type: DataEventTypeEnum,
-    pub data: ::protobuf::RepeatedField<super::table::Entry>,
-    pub old_data: ::protobuf::RepeatedField<super::table::Entry>,
+    pub data: ::protobuf::RepeatedField<Entry>,
     pub event_time: ::protobuf::SingularPtrField<::protobuf::well_known_types::Timestamp>,
     pub process_time: ::protobuf::SingularPtrField<::protobuf::well_known_types::Timestamp>,
     pub from_operator_id: u32,
@@ -39,22 +40,22 @@ pub struct DataEvent {
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a DataEvent {
-    fn default() -> &'a DataEvent {
-        <DataEvent as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a KeyedDataEvent {
+    fn default() -> &'a KeyedDataEvent {
+        <KeyedDataEvent as ::protobuf::Message>::default_instance()
     }
 }
 
-impl DataEvent {
-    pub fn new() -> DataEvent {
+impl KeyedDataEvent {
+    pub fn new() -> KeyedDataEvent {
         ::std::default::Default::default()
     }
 
-    // .common.JobId job_id = 1;
+    // .common.ResourceId job_id = 1;
 
 
-    pub fn get_job_id(&self) -> &super::common::JobId {
-        self.job_id.as_ref().unwrap_or_else(|| <super::common::JobId as ::protobuf::Message>::default_instance())
+    pub fn get_job_id(&self) -> &common::ResourceId {
+        self.job_id.as_ref().unwrap_or_else(|| <common::ResourceId as ::protobuf::Message>::default_instance())
     }
     pub fn clear_job_id(&mut self) {
         self.job_id.clear();
@@ -65,13 +66,13 @@ impl DataEvent {
     }
 
     // Param is passed by value, moved
-    pub fn set_job_id(&mut self, v: super::common::JobId) {
+    pub fn set_job_id(&mut self, v: common::ResourceId) {
         self.job_id = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_job_id(&mut self) -> &mut super::common::JobId {
+    pub fn mut_job_id(&mut self) -> &mut common::ResourceId {
         if self.job_id.is_none() {
             self.job_id.set_default();
         }
@@ -79,11 +80,44 @@ impl DataEvent {
     }
 
     // Take field
-    pub fn take_job_id(&mut self) -> super::common::JobId {
-        self.job_id.take().unwrap_or_else(|| super::common::JobId::new())
+    pub fn take_job_id(&mut self) -> common::ResourceId {
+        self.job_id.take().unwrap_or_else(|| common::ResourceId::new())
     }
 
-    // uint32 to_operator_id = 2;
+    // .common.Entry key = 2;
+
+
+    pub fn get_key(&self) -> &Entry {
+        self.key.as_ref().unwrap_or_else(|| <Entry as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_key(&mut self) {
+        self.key.clear();
+    }
+
+    pub fn has_key(&self) -> bool {
+        self.key.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_key(&mut self, v: Entry) {
+        self.key = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_key(&mut self) -> &mut Entry {
+        if self.key.is_none() {
+            self.key.set_default();
+        }
+        self.key.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_key(&mut self) -> Entry {
+        self.key.take().unwrap_or_else(|| Entry::new())
+    }
+
+    // uint32 to_operator_id = 3;
 
 
     pub fn get_to_operator_id(&self) -> u32 {
@@ -98,25 +132,10 @@ impl DataEvent {
         self.to_operator_id = v;
     }
 
-    // .common.DataEventTypeEnum event_type = 3;
+    // repeated .common.Entry data = 5;
 
 
-    pub fn get_event_type(&self) -> DataEventTypeEnum {
-        self.event_type
-    }
-    pub fn clear_event_type(&mut self) {
-        self.event_type = DataEventTypeEnum::INSERT;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_event_type(&mut self, v: DataEventTypeEnum) {
-        self.event_type = v;
-    }
-
-    // repeated .common.Entry data = 4;
-
-
-    pub fn get_data(&self) -> &[super::table::Entry] {
+    pub fn get_data(&self) -> &[Entry] {
         &self.data
     }
     pub fn clear_data(&mut self) {
@@ -124,43 +143,18 @@ impl DataEvent {
     }
 
     // Param is passed by value, moved
-    pub fn set_data(&mut self, v: ::protobuf::RepeatedField<super::table::Entry>) {
+    pub fn set_data(&mut self, v: ::protobuf::RepeatedField<Entry>) {
         self.data = v;
     }
 
     // Mutable pointer to the field.
-    pub fn mut_data(&mut self) -> &mut ::protobuf::RepeatedField<super::table::Entry> {
+    pub fn mut_data(&mut self) -> &mut ::protobuf::RepeatedField<Entry> {
         &mut self.data
     }
 
     // Take field
-    pub fn take_data(&mut self) -> ::protobuf::RepeatedField<super::table::Entry> {
+    pub fn take_data(&mut self) -> ::protobuf::RepeatedField<Entry> {
         ::std::mem::replace(&mut self.data, ::protobuf::RepeatedField::new())
-    }
-
-    // repeated .common.Entry old_data = 5;
-
-
-    pub fn get_old_data(&self) -> &[super::table::Entry] {
-        &self.old_data
-    }
-    pub fn clear_old_data(&mut self) {
-        self.old_data.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_old_data(&mut self, v: ::protobuf::RepeatedField<super::table::Entry>) {
-        self.old_data = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_old_data(&mut self) -> &mut ::protobuf::RepeatedField<super::table::Entry> {
-        &mut self.old_data
-    }
-
-    // Take field
-    pub fn take_old_data(&mut self) -> ::protobuf::RepeatedField<super::table::Entry> {
-        ::std::mem::replace(&mut self.old_data, ::protobuf::RepeatedField::new())
     }
 
     // .google.protobuf.Timestamp event_time = 6;
@@ -245,19 +239,19 @@ impl DataEvent {
     }
 }
 
-impl ::protobuf::Message for DataEvent {
+impl ::protobuf::Message for KeyedDataEvent {
     fn is_initialized(&self) -> bool {
         for v in &self.job_id {
             if !v.is_initialized() {
                 return false;
             }
         };
-        for v in &self.data {
+        for v in &self.key {
             if !v.is_initialized() {
                 return false;
             }
         };
-        for v in &self.old_data {
+        for v in &self.data {
             if !v.is_initialized() {
                 return false;
             }
@@ -283,20 +277,17 @@ impl ::protobuf::Message for DataEvent {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.job_id)?;
                 },
                 2 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.key)?;
+                },
+                3 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     let tmp = is.read_uint32()?;
                     self.to_operator_id = tmp;
                 },
-                3 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.event_type, 3, &mut self.unknown_fields)?
-                },
-                4 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data)?;
-                },
                 5 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.old_data)?;
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.data)?;
                 },
                 6 => {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.event_time)?;
@@ -327,17 +318,14 @@ impl ::protobuf::Message for DataEvent {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
-        if self.to_operator_id != 0 {
-            my_size += ::protobuf::rt::value_size(2, self.to_operator_id, ::protobuf::wire_format::WireTypeVarint);
+        if let Some(ref v) = self.key.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
-        if self.event_type != DataEventTypeEnum::INSERT {
-            my_size += ::protobuf::rt::enum_size(3, self.event_type);
+        if self.to_operator_id != 0 {
+            my_size += ::protobuf::rt::value_size(3, self.to_operator_id, ::protobuf::wire_format::WireTypeVarint);
         }
         for value in &self.data {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
-        for value in &self.old_data {
             let len = value.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         };
@@ -363,18 +351,15 @@ impl ::protobuf::Message for DataEvent {
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
-        if self.to_operator_id != 0 {
-            os.write_uint32(2, self.to_operator_id)?;
-        }
-        if self.event_type != DataEventTypeEnum::INSERT {
-            os.write_enum(3, ::protobuf::ProtobufEnum::value(&self.event_type))?;
-        }
-        for v in &self.data {
-            os.write_tag(4, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+        if let Some(ref v) = self.key.as_ref() {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
-        };
-        for v in &self.old_data {
+        }
+        if self.to_operator_id != 0 {
+            os.write_uint32(3, self.to_operator_id)?;
+        }
+        for v in &self.data {
             os.write_tag(5, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
@@ -422,75 +407,69 @@ impl ::protobuf::Message for DataEvent {
         Self::descriptor_static()
     }
 
-    fn new() -> DataEvent {
-        DataEvent::new()
+    fn new() -> KeyedDataEvent {
+        KeyedDataEvent::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::JobId>>(
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<common::ResourceId>>(
                 "job_id",
-                |m: &DataEvent| { &m.job_id },
-                |m: &mut DataEvent| { &mut m.job_id },
+                |m: &KeyedDataEvent| { &m.job_id },
+                |m: &mut KeyedDataEvent| { &mut m.job_id },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Entry>>(
+                "key",
+                |m: &KeyedDataEvent| { &m.key },
+                |m: &mut KeyedDataEvent| { &mut m.key },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
                 "to_operator_id",
-                |m: &DataEvent| { &m.to_operator_id },
-                |m: &mut DataEvent| { &mut m.to_operator_id },
+                |m: &KeyedDataEvent| { &m.to_operator_id },
+                |m: &mut KeyedDataEvent| { &mut m.to_operator_id },
             ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<DataEventTypeEnum>>(
-                "event_type",
-                |m: &DataEvent| { &m.event_type },
-                |m: &mut DataEvent| { &mut m.event_type },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::table::Entry>>(
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Entry>>(
                 "data",
-                |m: &DataEvent| { &m.data },
-                |m: &mut DataEvent| { &mut m.data },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::table::Entry>>(
-                "old_data",
-                |m: &DataEvent| { &m.old_data },
-                |m: &mut DataEvent| { &mut m.old_data },
+                |m: &KeyedDataEvent| { &m.data },
+                |m: &mut KeyedDataEvent| { &mut m.data },
             ));
             fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<::protobuf::well_known_types::Timestamp>>(
                 "event_time",
-                |m: &DataEvent| { &m.event_time },
-                |m: &mut DataEvent| { &mut m.event_time },
+                |m: &KeyedDataEvent| { &m.event_time },
+                |m: &mut KeyedDataEvent| { &mut m.event_time },
             ));
             fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<::protobuf::well_known_types::Timestamp>>(
                 "process_time",
-                |m: &DataEvent| { &m.process_time },
-                |m: &mut DataEvent| { &mut m.process_time },
+                |m: &KeyedDataEvent| { &m.process_time },
+                |m: &mut KeyedDataEvent| { &mut m.process_time },
             ));
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
                 "from_operator_id",
-                |m: &DataEvent| { &m.from_operator_id },
-                |m: &mut DataEvent| { &mut m.from_operator_id },
+                |m: &KeyedDataEvent| { &m.from_operator_id },
+                |m: &mut KeyedDataEvent| { &mut m.from_operator_id },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<DataEvent>(
-                "DataEvent",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<KeyedDataEvent>(
+                "KeyedDataEvent",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static DataEvent {
-        static instance: ::protobuf::rt::LazyV2<DataEvent> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(DataEvent::new)
+    fn default_instance() -> &'static KeyedDataEvent {
+        static instance: ::protobuf::rt::LazyV2<KeyedDataEvent> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(KeyedDataEvent::new)
     }
 }
 
-impl ::protobuf::Clear for DataEvent {
+impl ::protobuf::Clear for KeyedDataEvent {
     fn clear(&mut self) {
         self.job_id.clear();
+        self.key.clear();
         self.to_operator_id = 0;
-        self.event_type = DataEventTypeEnum::INSERT;
         self.data.clear();
-        self.old_data.clear();
         self.event_time.clear();
         self.process_time.clear();
         self.from_operator_id = 0;
@@ -498,128 +477,256 @@ impl ::protobuf::Clear for DataEvent {
     }
 }
 
-impl ::std::fmt::Debug for DataEvent {
+impl ::std::fmt::Debug for KeyedDataEvent {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for DataEvent {
+impl ::protobuf::reflect::ProtobufValue for KeyedDataEvent {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
 
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum DataEventTypeEnum {
-    INSERT = 0,
-    UPDATE = 1,
-    DELETE = 2,
-    STOP = 3,
+#[derive(PartialEq,Clone,Default)]
+pub struct Entry {
+    // message fields
+    pub data_type: common::DataTypeEnum,
+    pub value: ::std::vec::Vec<u8>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
 }
 
-impl ::protobuf::ProtobufEnum for DataEventTypeEnum {
-    fn value(&self) -> i32 {
-        *self as i32
+impl<'a> ::std::default::Default for &'a Entry {
+    fn default() -> &'a Entry {
+        <Entry as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Entry {
+    pub fn new() -> Entry {
+        ::std::default::Default::default()
     }
 
-    fn from_i32(value: i32) -> ::std::option::Option<DataEventTypeEnum> {
-        match value {
-            0 => ::std::option::Option::Some(DataEventTypeEnum::INSERT),
-            1 => ::std::option::Option::Some(DataEventTypeEnum::UPDATE),
-            2 => ::std::option::Option::Some(DataEventTypeEnum::DELETE),
-            3 => ::std::option::Option::Some(DataEventTypeEnum::STOP),
-            _ => ::std::option::Option::None
+    // .common.DataTypeEnum data_type = 1;
+
+
+    pub fn get_data_type(&self) -> common::DataTypeEnum {
+        self.data_type
+    }
+    pub fn clear_data_type(&mut self) {
+        self.data_type = common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_data_type(&mut self, v: common::DataTypeEnum) {
+        self.data_type = v;
+    }
+
+    // bytes value = 2;
+
+
+    pub fn get_value(&self) -> &[u8] {
+        &self.value
+    }
+    pub fn clear_value(&mut self) {
+        self.value.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_value(&mut self, v: ::std::vec::Vec<u8>) {
+        self.value = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_value(&mut self) -> &mut ::std::vec::Vec<u8> {
+        &mut self.value
+    }
+
+    // Take field
+    pub fn take_value(&mut self) -> ::std::vec::Vec<u8> {
+        ::std::mem::replace(&mut self.value, ::std::vec::Vec::new())
+    }
+}
+
+impl ::protobuf::Message for Entry {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.data_type, 1, &mut self.unknown_fields)?
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_proto3_bytes_into(wire_type, is, &mut self.value)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
         }
+        ::std::result::Result::Ok(())
     }
 
-    fn values() -> &'static [Self] {
-        static values: &'static [DataEventTypeEnum] = &[
-            DataEventTypeEnum::INSERT,
-            DataEventTypeEnum::UPDATE,
-            DataEventTypeEnum::DELETE,
-            DataEventTypeEnum::STOP,
-        ];
-        values
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if self.data_type != common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED {
+            my_size += ::protobuf::rt::enum_size(1, self.data_type);
+        }
+        if !self.value.is_empty() {
+            my_size += ::protobuf::rt::bytes_size(2, &self.value);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
     }
 
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if self.data_type != common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED {
+            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.data_type))?;
+        }
+        if !self.value.is_empty() {
+            os.write_bytes(2, &self.value)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Entry {
+        Entry::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<DataEventTypeEnum>("DataEventTypeEnum", file_descriptor_proto())
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<common::DataTypeEnum>>(
+                "data_type",
+                |m: &Entry| { &m.data_type },
+                |m: &mut Entry| { &mut m.data_type },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBytes>(
+                "value",
+                |m: &Entry| { &m.value },
+                |m: &mut Entry| { &mut m.value },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Entry>(
+                "Entry",
+                fields,
+                file_descriptor_proto()
+            )
         })
     }
-}
 
-impl ::std::marker::Copy for DataEventTypeEnum {
-}
-
-impl ::std::default::Default for DataEventTypeEnum {
-    fn default() -> Self {
-        DataEventTypeEnum::INSERT
+    fn default_instance() -> &'static Entry {
+        static instance: ::protobuf::rt::LazyV2<Entry> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Entry::new)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for DataEventTypeEnum {
+impl ::protobuf::Clear for Entry {
+    fn clear(&mut self) {
+        self.data_type = common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED;
+        self.value.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Entry {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Entry {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
+        ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
     \n\x12common/event.proto\x12\x06common\x1a\x13common/common.proto\x1a\
-    \x12common/table.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x03\
-    \n\tDataEvent\x12$\n\x06job_id\x18\x01\x20\x01(\x0b2\r.common.JobIdR\x05\
-    jobId\x12$\n\x0eto_operator_id\x18\x02\x20\x01(\rR\x0ctoOperatorId\x128\
-    \n\nevent_type\x18\x03\x20\x01(\x0e2\x19.common.DataEventTypeEnumR\teven\
-    tType\x12!\n\x04data\x18\x04\x20\x03(\x0b2\r.common.EntryR\x04data\x12(\
-    \n\x08old_data\x18\x05\x20\x03(\x0b2\r.common.EntryR\x07oldData\x129\n\n\
-    event_time\x18\x06\x20\x01(\x0b2\x1a.google.protobuf.TimestampR\teventTi\
-    me\x12=\n\x0cprocess_time\x18\x07\x20\x01(\x0b2\x1a.google.protobuf.Time\
-    stampR\x0bprocessTime\x12(\n\x10from_operator_id\x18\x08\x20\x01(\rR\x0e\
-    fromOperatorId*A\n\x11DataEventTypeEnum\x12\n\n\x06INSERT\x10\0\x12\n\n\
-    \x06UPDATE\x10\x01\x12\n\n\x06DELETE\x10\x02\x12\x08\n\x04STOP\x10\x03B\
-    \x1eZ\x1ctableflow/alpha/common/eventJ\x8e\x07\n\x06\x12\x04\0\0\x18\x01\
-    \n\x08\n\x01\x0c\x12\x03\0\0\x12\n\x08\n\x01\x02\x12\x03\x02\0\x0f\n\t\n\
-    \x02\x03\0\x12\x03\x03\0\x1d\n\t\n\x02\x03\x01\x12\x03\x04\0\x1c\n\t\n\
-    \x02\x03\x02\x12\x03\x05\0)\n\x08\n\x01\x08\x12\x03\x06\03\n\t\n\x02\x08\
-    \x0b\x12\x03\x06\03\n\n\n\x02\x04\0\x12\x04\x08\0\x11\x01\n\n\n\x03\x04\
-    \0\x01\x12\x03\x08\x08\x11\n\x18\n\x04\x04\0\x02\0\x12\x03\t\x02\x1a\"\
-    \x0b\x20source\x20id\n\n\x0c\n\x05\x04\0\x02\0\x06\x12\x03\t\x02\x0e\n\
-    \x0c\n\x05\x04\0\x02\0\x01\x12\x03\t\x0f\x15\n\x0c\n\x05\x04\0\x02\0\x03\
-    \x12\x03\t\x18\x19\n2\n\x04\x04\0\x02\x01\x12\x03\n\x02\x1c\"%\x20operat\
-    or_id\x20this\x20event\x20will\x20be\x20sent\n\n\x0c\n\x05\x04\0\x02\x01\
-    \x05\x12\x03\n\x02\x08\n\x0c\n\x05\x04\0\x02\x01\x01\x12\x03\n\t\x17\n\
-    \x0c\n\x05\x04\0\x02\x01\x03\x12\x03\n\x1a\x1b\n\x19\n\x04\x04\0\x02\x02\
-    \x12\x03\x0b\x02#\"\x0c\x20event\x20type\n\n\x0c\n\x05\x04\0\x02\x02\x06\
-    \x12\x03\x0b\x02\x13\n\x0c\n\x05\x04\0\x02\x02\x01\x12\x03\x0b\x14\x1e\n\
-    \x0c\n\x05\x04\0\x02\x02\x03\x12\x03\x0b!\"\n\x18\n\x04\x04\0\x02\x03\
-    \x12\x03\x0c\x02!\"\x0b\x20mandatory\n\n\x0c\n\x05\x04\0\x02\x03\x04\x12\
-    \x03\x0c\x02\n\n\x0c\n\x05\x04\0\x02\x03\x06\x12\x03\x0c\x0b\x17\n\x0c\n\
-    \x05\x04\0\x02\x03\x01\x12\x03\x0c\x18\x1c\n\x0c\n\x05\x04\0\x02\x03\x03\
-    \x12\x03\x0c\x1f\x20\n(\n\x04\x04\0\x02\x04\x12\x03\r\x02%\"\x1b\x20opti\
-    onal\x20for\x20INSERT\x20event\n\n\x0c\n\x05\x04\0\x02\x04\x04\x12\x03\r\
-    \x02\n\n\x0c\n\x05\x04\0\x02\x04\x06\x12\x03\r\x0b\x17\n\x0c\n\x05\x04\0\
-    \x02\x04\x01\x12\x03\r\x18\x20\n\x0c\n\x05\x04\0\x02\x04\x03\x12\x03\r#$\
-    \n\x0b\n\x04\x04\0\x02\x05\x12\x03\x0e\x02+\n\x0c\n\x05\x04\0\x02\x05\
-    \x06\x12\x03\x0e\x02\x1b\n\x0c\n\x05\x04\0\x02\x05\x01\x12\x03\x0e\x1c&\
-    \n\x0c\n\x05\x04\0\x02\x05\x03\x12\x03\x0e)*\n\x0b\n\x04\x04\0\x02\x06\
-    \x12\x03\x0f\x02-\n\x0c\n\x05\x04\0\x02\x06\x06\x12\x03\x0f\x02\x1b\n\
-    \x0c\n\x05\x04\0\x02\x06\x01\x12\x03\x0f\x1c(\n\x0c\n\x05\x04\0\x02\x06\
-    \x03\x12\x03\x0f+,\n3\n\x04\x04\0\x02\x07\x12\x03\x10\x02\x1e\"&\x20oper\
-    ator_id\x20this\x20event\x20where\x20be\x20sent\n\n\x0c\n\x05\x04\0\x02\
-    \x07\x05\x12\x03\x10\x02\x08\n\x0c\n\x05\x04\0\x02\x07\x01\x12\x03\x10\t\
-    \x19\n\x0c\n\x05\x04\0\x02\x07\x03\x12\x03\x10\x1c\x1d\n\n\n\x02\x05\0\
-    \x12\x04\x13\0\x18\x01\n\n\n\x03\x05\0\x01\x12\x03\x13\x05\x16\n\x0b\n\
-    \x04\x05\0\x02\0\x12\x03\x14\x02\r\n\x0c\n\x05\x05\0\x02\0\x01\x12\x03\
-    \x14\x02\x08\n\x0c\n\x05\x05\0\x02\0\x02\x12\x03\x14\x0b\x0c\n\x0b\n\x04\
-    \x05\0\x02\x01\x12\x03\x15\x02\r\n\x0c\n\x05\x05\0\x02\x01\x01\x12\x03\
-    \x15\x02\x08\n\x0c\n\x05\x05\0\x02\x01\x02\x12\x03\x15\x0b\x0c\n\x0b\n\
-    \x04\x05\0\x02\x02\x12\x03\x16\x02\r\n\x0c\n\x05\x05\0\x02\x02\x01\x12\
-    \x03\x16\x02\x08\n\x0c\n\x05\x05\0\x02\x02\x02\x12\x03\x16\x0b\x0c\n\x0b\
-    \n\x04\x05\0\x02\x03\x12\x03\x17\x02\x0b\n\x0c\n\x05\x05\0\x02\x03\x01\
-    \x12\x03\x17\x02\x06\n\x0c\n\x05\x05\0\x02\x03\x02\x12\x03\x17\t\nb\x06p\
-    roto3\
+    \x1fgoogle/protobuf/timestamp.proto\"\xc9\x02\n\x0eKeyedDataEvent\x12)\n\
+    \x06job_id\x18\x01\x20\x01(\x0b2\x12.common.ResourceIdR\x05jobId\x12\x1f\
+    \n\x03key\x18\x02\x20\x01(\x0b2\r.common.EntryR\x03key\x12$\n\x0eto_oper\
+    ator_id\x18\x03\x20\x01(\rR\x0ctoOperatorId\x12!\n\x04data\x18\x05\x20\
+    \x03(\x0b2\r.common.EntryR\x04data\x129\n\nevent_time\x18\x06\x20\x01(\
+    \x0b2\x1a.google.protobuf.TimestampR\teventTime\x12=\n\x0cprocess_time\
+    \x18\x07\x20\x01(\x0b2\x1a.google.protobuf.TimestampR\x0bprocessTime\x12\
+    (\n\x10from_operator_id\x18\x08\x20\x01(\rR\x0efromOperatorId\"P\n\x05En\
+    try\x121\n\tdata_type\x18\x01\x20\x01(\x0e2\x14.common.DataTypeEnumR\x08\
+    dataType\x12\x14\n\x05value\x18\x02\x20\x01(\x0cR\x05valueBB\n\"tableflo\
+    w.alpha.proto.common.eventZ\x1ctableflow/alpha/common/eventJ\x96\x06\n\
+    \x06\x12\x04\0\0\x15\x01\n\x08\n\x01\x0c\x12\x03\0\0\x12\n\x08\n\x01\x02\
+    \x12\x03\x02\0\x0f\n\t\n\x02\x03\0\x12\x03\x03\0\x1d\n\t\n\x02\x03\x01\
+    \x12\x03\x04\0)\n\x08\n\x01\x08\x12\x03\x05\03\n\t\n\x02\x08\x0b\x12\x03\
+    \x05\03\n\x08\n\x01\x08\x12\x03\x06\0;\n\t\n\x02\x08\x01\x12\x03\x06\0;\
+    \n\n\n\x02\x04\0\x12\x04\x08\0\x10\x01\n\n\n\x03\x04\0\x01\x12\x03\x08\
+    \x08\x16\n\x18\n\x04\x04\0\x02\0\x12\x03\t\x02\x1f\"\x0b\x20source\x20id\
+    \n\n\x0c\n\x05\x04\0\x02\0\x06\x12\x03\t\x02\x13\n\x0c\n\x05\x04\0\x02\0\
+    \x01\x12\x03\t\x14\x1a\n\x0c\n\x05\x04\0\x02\0\x03\x12\x03\t\x1d\x1e\n\
+    \x20\n\x04\x04\0\x02\x01\x12\x03\n\x02\x17\"\x13\x20key\x20of\x20data\
+    \x20event\n\n\x0c\n\x05\x04\0\x02\x01\x06\x12\x03\n\x02\x0e\n\x0c\n\x05\
+    \x04\0\x02\x01\x01\x12\x03\n\x0f\x12\n\x0c\n\x05\x04\0\x02\x01\x03\x12\
+    \x03\n\x15\x16\n2\n\x04\x04\0\x02\x02\x12\x03\x0b\x02\x1c\"%\x20operator\
+    _id\x20this\x20event\x20will\x20be\x20sent\n\n\x0c\n\x05\x04\0\x02\x02\
+    \x05\x12\x03\x0b\x02\x08\n\x0c\n\x05\x04\0\x02\x02\x01\x12\x03\x0b\t\x17\
+    \n\x0c\n\x05\x04\0\x02\x02\x03\x12\x03\x0b\x1a\x1b\n\x18\n\x04\x04\0\x02\
+    \x03\x12\x03\x0c\x02!\"\x0b\x20mandatory\n\n\x0c\n\x05\x04\0\x02\x03\x04\
+    \x12\x03\x0c\x02\n\n\x0c\n\x05\x04\0\x02\x03\x06\x12\x03\x0c\x0b\x17\n\
+    \x0c\n\x05\x04\0\x02\x03\x01\x12\x03\x0c\x18\x1c\n\x0c\n\x05\x04\0\x02\
+    \x03\x03\x12\x03\x0c\x1f\x20\n\x0b\n\x04\x04\0\x02\x04\x12\x03\r\x02+\n\
+    \x0c\n\x05\x04\0\x02\x04\x06\x12\x03\r\x02\x1b\n\x0c\n\x05\x04\0\x02\x04\
+    \x01\x12\x03\r\x1c&\n\x0c\n\x05\x04\0\x02\x04\x03\x12\x03\r)*\n\x0b\n\
+    \x04\x04\0\x02\x05\x12\x03\x0e\x02-\n\x0c\n\x05\x04\0\x02\x05\x06\x12\
+    \x03\x0e\x02\x1b\n\x0c\n\x05\x04\0\x02\x05\x01\x12\x03\x0e\x1c(\n\x0c\n\
+    \x05\x04\0\x02\x05\x03\x12\x03\x0e+,\n3\n\x04\x04\0\x02\x06\x12\x03\x0f\
+    \x02\x1e\"&\x20operator_id\x20this\x20event\x20where\x20be\x20sent\n\n\
+    \x0c\n\x05\x04\0\x02\x06\x05\x12\x03\x0f\x02\x08\n\x0c\n\x05\x04\0\x02\
+    \x06\x01\x12\x03\x0f\t\x19\n\x0c\n\x05\x04\0\x02\x06\x03\x12\x03\x0f\x1c\
+    \x1d\n\n\n\x02\x04\x01\x12\x04\x12\0\x15\x01\n\n\n\x03\x04\x01\x01\x12\
+    \x03\x12\x08\r\n\x0b\n\x04\x04\x01\x02\0\x12\x03\x13\x02\x1d\n\x0c\n\x05\
+    \x04\x01\x02\0\x06\x12\x03\x13\x02\x0e\n\x0c\n\x05\x04\x01\x02\0\x01\x12\
+    \x03\x13\x0f\x18\n\x0c\n\x05\x04\x01\x02\0\x03\x12\x03\x13\x1b\x1c\n\x1a\
+    \n\x04\x04\x01\x02\x01\x12\x03\x14\x02\x12\"\r\x20entry\x20value\n\n\x0c\
+    \n\x05\x04\x01\x02\x01\x05\x12\x03\x14\x02\x07\n\x0c\n\x05\x04\x01\x02\
+    \x01\x01\x12\x03\x14\x08\r\n\x0c\n\x05\x04\x01\x02\x01\x03\x12\x03\x14\
+    \x10\x11b\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

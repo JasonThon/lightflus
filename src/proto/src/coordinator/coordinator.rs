@@ -19,14 +19,14 @@
 #![allow(unused_results)]
 //! Generated file from `coordinator/coordinator.proto`
 
-use crate::common::{common, stream};
-
 /// Generated files are compatible only with the same version
 /// of protobuf runtime.
 // const _PROTOBUF_VERSION_CHECK: () = ::protobuf::VERSION_2_27_1;
 
+use crate::common::{stream, common};
+
 #[derive(PartialEq,Clone,Default)]
-pub struct CreateStreamGraphResponse {
+pub struct CreateDataflowResponse {
     // message fields
     pub status: stream::DataflowStatus,
     // special fields
@@ -34,14 +34,14 @@ pub struct CreateStreamGraphResponse {
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a CreateStreamGraphResponse {
-    fn default() -> &'a CreateStreamGraphResponse {
-        <CreateStreamGraphResponse as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a CreateDataflowResponse {
+    fn default() -> &'a CreateDataflowResponse {
+        <CreateDataflowResponse as ::protobuf::Message>::default_instance()
     }
 }
 
-impl CreateStreamGraphResponse {
-    pub fn new() -> CreateStreamGraphResponse {
+impl CreateDataflowResponse {
+    pub fn new() -> CreateDataflowResponse {
         ::std::default::Default::default()
     }
 
@@ -61,7 +61,7 @@ impl CreateStreamGraphResponse {
     }
 }
 
-impl ::protobuf::Message for CreateStreamGraphResponse {
+impl ::protobuf::Message for CreateDataflowResponse {
     fn is_initialized(&self) -> bool {
         true
     }
@@ -127,8 +127,8 @@ impl ::protobuf::Message for CreateStreamGraphResponse {
         Self::descriptor_static()
     }
 
-    fn new() -> CreateStreamGraphResponse {
-        CreateStreamGraphResponse::new()
+    fn new() -> CreateDataflowResponse {
+        CreateDataflowResponse::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -137,37 +137,37 @@ impl ::protobuf::Message for CreateStreamGraphResponse {
             let mut fields = ::std::vec::Vec::new();
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<stream::DataflowStatus>>(
                 "status",
-                |m: &CreateStreamGraphResponse| { &m.status },
-                |m: &mut CreateStreamGraphResponse| { &mut m.status },
+                |m: &CreateDataflowResponse| { &m.status },
+                |m: &mut CreateDataflowResponse| { &mut m.status },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<CreateStreamGraphResponse>(
-                "CreateStreamGraphResponse",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<CreateDataflowResponse>(
+                "CreateDataflowResponse",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static CreateStreamGraphResponse {
-        static instance: ::protobuf::rt::LazyV2<CreateStreamGraphResponse> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(CreateStreamGraphResponse::new)
+    fn default_instance() -> &'static CreateDataflowResponse {
+        static instance: ::protobuf::rt::LazyV2<CreateDataflowResponse> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(CreateDataflowResponse::new)
     }
 }
 
-impl ::protobuf::Clear for CreateStreamGraphResponse {
+impl ::protobuf::Clear for CreateDataflowResponse {
     fn clear(&mut self) {
         self.status = stream::DataflowStatus::INITIALIZED;
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for CreateStreamGraphResponse {
+impl ::std::fmt::Debug for CreateDataflowResponse {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for CreateStreamGraphResponse {
+impl ::protobuf::reflect::ProtobufValue for CreateDataflowResponse {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -176,7 +176,7 @@ impl ::protobuf::reflect::ProtobufValue for CreateStreamGraphResponse {
 #[derive(PartialEq,Clone,Default)]
 pub struct TerminateDataflowRequest {
     // message fields
-    pub job_id: ::protobuf::SingularPtrField<common::JobId>,
+    pub job_id: ::protobuf::SingularPtrField<common::ResourceId>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
@@ -193,11 +193,11 @@ impl TerminateDataflowRequest {
         ::std::default::Default::default()
     }
 
-    // .common.JobId job_id = 1;
+    // .common.ResourceId job_id = 1;
 
 
-    pub fn get_job_id(&self) -> &common::JobId {
-        self.job_id.as_ref().unwrap_or_else(|| <common::JobId as ::protobuf::Message>::default_instance())
+    pub fn get_job_id(&self) -> &common::ResourceId {
+        self.job_id.as_ref().unwrap_or_else(|| <common::ResourceId as ::protobuf::Message>::default_instance())
     }
     pub fn clear_job_id(&mut self) {
         self.job_id.clear();
@@ -208,13 +208,13 @@ impl TerminateDataflowRequest {
     }
 
     // Param is passed by value, moved
-    pub fn set_job_id(&mut self, v: common::JobId) {
+    pub fn set_job_id(&mut self, v: common::ResourceId) {
         self.job_id = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_job_id(&mut self) -> &mut common::JobId {
+    pub fn mut_job_id(&mut self) -> &mut common::ResourceId {
         if self.job_id.is_none() {
             self.job_id.set_default();
         }
@@ -222,8 +222,8 @@ impl TerminateDataflowRequest {
     }
 
     // Take field
-    pub fn take_job_id(&mut self) -> common::JobId {
-        self.job_id.take().unwrap_or_else(|| common::JobId::new())
+    pub fn take_job_id(&mut self) -> common::ResourceId {
+        self.job_id.take().unwrap_or_else(|| common::ResourceId::new())
     }
 }
 
@@ -309,7 +309,7 @@ impl ::protobuf::Message for TerminateDataflowRequest {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<common::JobId>>(
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<common::ResourceId>>(
                 "job_id",
                 |m: &TerminateDataflowRequest| { &m.job_id },
                 |m: &mut TerminateDataflowRequest| { &mut m.job_id },
@@ -498,7 +498,7 @@ impl ::protobuf::reflect::ProtobufValue for TerminateDataflowResponse {
 #[derive(PartialEq,Clone,Default)]
 pub struct GetDataflowRequest {
     // message fields
-    pub job_id: ::protobuf::SingularPtrField<common::JobId>,
+    pub job_id: ::protobuf::SingularPtrField<common::ResourceId>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
@@ -515,11 +515,11 @@ impl GetDataflowRequest {
         ::std::default::Default::default()
     }
 
-    // .common.JobId job_id = 1;
+    // .common.ResourceId job_id = 1;
 
 
-    pub fn get_job_id(&self) -> &common::JobId {
-        self.job_id.as_ref().unwrap_or_else(|| <common::JobId as ::protobuf::Message>::default_instance())
+    pub fn get_job_id(&self) -> &common::ResourceId {
+        self.job_id.as_ref().unwrap_or_else(|| <common::ResourceId as ::protobuf::Message>::default_instance())
     }
     pub fn clear_job_id(&mut self) {
         self.job_id.clear();
@@ -530,13 +530,13 @@ impl GetDataflowRequest {
     }
 
     // Param is passed by value, moved
-    pub fn set_job_id(&mut self, v: common::JobId) {
+    pub fn set_job_id(&mut self, v: common::ResourceId) {
         self.job_id = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_job_id(&mut self) -> &mut common::JobId {
+    pub fn mut_job_id(&mut self) -> &mut common::ResourceId {
         if self.job_id.is_none() {
             self.job_id.set_default();
         }
@@ -544,8 +544,8 @@ impl GetDataflowRequest {
     }
 
     // Take field
-    pub fn take_job_id(&mut self) -> common::JobId {
-        self.job_id.take().unwrap_or_else(|| common::JobId::new())
+    pub fn take_job_id(&mut self) -> common::ResourceId {
+        self.job_id.take().unwrap_or_else(|| common::ResourceId::new())
     }
 }
 
@@ -631,7 +631,7 @@ impl ::protobuf::Message for GetDataflowRequest {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<common::JobId>>(
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<common::ResourceId>>(
                 "job_id",
                 |m: &GetDataflowRequest| { &m.job_id },
                 |m: &mut GetDataflowRequest| { &mut m.job_id },
@@ -875,59 +875,59 @@ impl ::protobuf::reflect::ProtobufValue for GetDataflowResponse {
 }
 
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x1dcoordinator/coordinator.proto\x12\x0bcoordinator\x1a\x12common/pro\
-    be.proto\x1a\x13common/stream.proto\x1a\x13common/common.proto\"K\n\x19C\
-    reateStreamGraphResponse\x12.\n\x06status\x18\x01\x20\x01(\x0e2\x16.comm\
-    on.DataflowStatusR\x06status\"@\n\x18TerminateDataflowRequest\x12$\n\x06\
-    job_id\x18\x01\x20\x01(\x0b2\r.common.JobIdR\x05jobId\"K\n\x19TerminateD\
+    \n\x1dcoordinator/coordinator.proto\x12\x05proto\x1a\x12common/probe.pro\
+    to\x1a\x13common/stream.proto\x1a\x13common/common.proto\"H\n\x16CreateD\
     ataflowResponse\x12.\n\x06status\x18\x01\x20\x01(\x0e2\x16.common.Datafl\
-    owStatusR\x06status\":\n\x12GetDataflowRequest\x12$\n\x06job_id\x18\x01\
-    \x20\x01(\x0b2\r.common.JobIdR\x05jobId\"m\n\x13GetDataflowResponse\x12.\
-    \n\x06status\x18\x01\x20\x01(\x0e2\x16.common.DataflowStatusR\x06status\
-    \x12&\n\x05graph\x18\x02\x20\x01(\x0b2\x10.common.DataflowR\x05graph2\
-    \xd0\x02\n\x0eCoordinatorApi\x126\n\x05Probe\x12\x14.common.ProbeRequest\
-    \x1a\x15.common.ProbeResponse\"\0\x12L\n\x0eCreateDataflow\x12\x10.commo\
-    n.Dataflow\x1a&.coordinator.CreateStreamGraphResponse\"\0\x12d\n\x11Term\
-    inateDataflow\x12%.coordinator.TerminateDataflowRequest\x1a&.coordinator\
-    .TerminateDataflowResponse\"\0\x12R\n\x0bGetDataflow\x12\x1f.coordinator\
-    .GetDataflowRequest\x1a\x20.coordinator.GetDataflowResponse\"\0B\x07Z\
-    \x05protoJ\x88\x06\n\x06\x12\x04\0\0#\x01\n\x08\n\x01\x0c\x12\x03\0\0\
-    \x12\n\x08\n\x01\x02\x12\x03\x02\0\x14\n\t\n\x02\x03\0\x12\x03\x03\0\x1c\
+    owStatusR\x06status\"E\n\x18TerminateDataflowRequest\x12)\n\x06job_id\
+    \x18\x01\x20\x01(\x0b2\x12.common.ResourceIdR\x05jobId\"K\n\x19Terminate\
+    DataflowResponse\x12.\n\x06status\x18\x01\x20\x01(\x0e2\x16.common.Dataf\
+    lowStatusR\x06status\"?\n\x12GetDataflowRequest\x12)\n\x06job_id\x18\x01\
+    \x20\x01(\x0b2\x12.common.ResourceIdR\x05jobId\"m\n\x13GetDataflowRespon\
+    se\x12.\n\x06status\x18\x01\x20\x01(\x0e2\x16.common.DataflowStatusR\x06\
+    status\x12&\n\x05graph\x18\x02\x20\x01(\x0b2\x10.common.DataflowR\x05gra\
+    ph2\xaf\x02\n\x0eCoordinatorApi\x126\n\x05Probe\x12\x14.common.ProbeRequ\
+    est\x1a\x15.common.ProbeResponse\"\0\x12C\n\x0eCreateDataflow\x12\x10.co\
+    mmon.Dataflow\x1a\x1d.proto.CreateDataflowResponse\"\0\x12X\n\x11Termina\
+    teDataflow\x12\x1f.proto.TerminateDataflowRequest\x1a\x20.proto.Terminat\
+    eDataflowResponse\"\0\x12F\n\x0bGetDataflow\x12\x19.proto.GetDataflowReq\
+    uest\x1a\x1a.proto.GetDataflowResponse\"\0B\x1fZ\x1dtableflow/alpha/runt\
+    ime/protoJ\x88\x06\n\x06\x12\x04\0\0#\x01\n\x08\n\x01\x0c\x12\x03\0\0\
+    \x12\n\x08\n\x01\x02\x12\x03\x02\0\x0e\n\t\n\x02\x03\0\x12\x03\x03\0\x1c\
     \n\t\n\x02\x03\x01\x12\x03\x04\0\x1d\n\t\n\x02\x03\x02\x12\x03\x05\0\x1d\
-    \n\x08\n\x01\x08\x12\x03\x07\0\x1c\n\t\n\x02\x08\x0b\x12\x03\x07\0\x1c\n\
-    \n\n\x02\x06\0\x12\x04\t\0\x0e\x01\n\n\n\x03\x06\0\x01\x12\x03\t\x08\x16\
-    \n\x0b\n\x04\x06\0\x02\0\x12\x03\n\x02B\n\x0c\n\x05\x06\0\x02\0\x01\x12\
+    \n\x08\n\x01\x08\x12\x03\x07\04\n\t\n\x02\x08\x0b\x12\x03\x07\04\n\n\n\
+    \x02\x06\0\x12\x04\t\0\x0e\x01\n\n\n\x03\x06\0\x01\x12\x03\t\x08\x16\n\
+    \x0b\n\x04\x06\0\x02\0\x12\x03\n\x02B\n\x0c\n\x05\x06\0\x02\0\x01\x12\
     \x03\n\x06\x0b\n\x0c\n\x05\x06\0\x02\0\x02\x12\x03\n\x0c\x1f\n\x0c\n\x05\
-    \x06\0\x02\0\x03\x12\x03\n*>\n\x0b\n\x04\x06\0\x02\x01\x12\x03\x0b\x02L\
+    \x06\0\x02\0\x03\x12\x03\n*>\n\x0b\n\x04\x06\0\x02\x01\x12\x03\x0b\x02I\
     \n\x0c\n\x05\x06\0\x02\x01\x01\x12\x03\x0b\x06\x14\n\x0c\n\x05\x06\0\x02\
-    \x01\x02\x12\x03\x0b\x15$\n\x0c\n\x05\x06\0\x02\x01\x03\x12\x03\x0b/H\n\
+    \x01\x02\x12\x03\x0b\x15$\n\x0c\n\x05\x06\0\x02\x01\x03\x12\x03\x0b/E\n\
     \x0b\n\x04\x06\0\x02\x02\x12\x03\x0c\x02X\n\x0c\n\x05\x06\0\x02\x02\x01\
     \x12\x03\x0c\x06\x17\n\x0c\n\x05\x06\0\x02\x02\x02\x12\x03\x0c\x180\n\
     \x0c\n\x05\x06\0\x02\x02\x03\x12\x03\x0c;T\n\x0b\n\x04\x06\0\x02\x03\x12\
     \x03\r\x02F\n\x0c\n\x05\x06\0\x02\x03\x01\x12\x03\r\x06\x11\n\x0c\n\x05\
     \x06\0\x02\x03\x02\x12\x03\r\x12$\n\x0c\n\x05\x06\0\x02\x03\x03\x12\x03\
     \r/B\n\n\n\x02\x04\0\x12\x04\x10\0\x12\x01\n\n\n\x03\x04\0\x01\x12\x03\
-    \x10\x08!\n\x0b\n\x04\x04\0\x02\0\x12\x03\x11\x02#\n\x0c\n\x05\x04\0\x02\
-    \0\x06\x12\x03\x11\x02\x17\n\x0c\n\x05\x04\0\x02\0\x01\x12\x03\x11\x18\
-    \x1e\n\x0c\n\x05\x04\0\x02\0\x03\x12\x03\x11!\"\n\n\n\x02\x04\x01\x12\
-    \x04\x14\0\x16\x01\n\n\n\x03\x04\x01\x01\x12\x03\x14\x08\x20\n\x0b\n\x04\
-    \x04\x01\x02\0\x12\x03\x15\x02\x1a\n\x0c\n\x05\x04\x01\x02\0\x06\x12\x03\
-    \x15\x02\x0e\n\x0c\n\x05\x04\x01\x02\0\x01\x12\x03\x15\x0f\x15\n\x0c\n\
-    \x05\x04\x01\x02\0\x03\x12\x03\x15\x18\x19\n\n\n\x02\x04\x02\x12\x04\x18\
-    \0\x1a\x01\n\n\n\x03\x04\x02\x01\x12\x03\x18\x08!\n\x0b\n\x04\x04\x02\
-    \x02\0\x12\x03\x19\x02#\n\x0c\n\x05\x04\x02\x02\0\x06\x12\x03\x19\x02\
-    \x17\n\x0c\n\x05\x04\x02\x02\0\x01\x12\x03\x19\x18\x1e\n\x0c\n\x05\x04\
-    \x02\x02\0\x03\x12\x03\x19!\"\n\n\n\x02\x04\x03\x12\x04\x1c\0\x1e\x01\n\
-    \n\n\x03\x04\x03\x01\x12\x03\x1c\x08\x1a\n\x0b\n\x04\x04\x03\x02\0\x12\
-    \x03\x1d\x02\x1a\n\x0c\n\x05\x04\x03\x02\0\x06\x12\x03\x1d\x02\x0e\n\x0c\
-    \n\x05\x04\x03\x02\0\x01\x12\x03\x1d\x0f\x15\n\x0c\n\x05\x04\x03\x02\0\
-    \x03\x12\x03\x1d\x18\x19\n\n\n\x02\x04\x04\x12\x04\x20\0#\x01\n\n\n\x03\
-    \x04\x04\x01\x12\x03\x20\x08\x1b\n\x0b\n\x04\x04\x04\x02\0\x12\x03!\x02#\
-    \n\x0c\n\x05\x04\x04\x02\0\x06\x12\x03!\x02\x17\n\x0c\n\x05\x04\x04\x02\
-    \0\x01\x12\x03!\x18\x1e\n\x0c\n\x05\x04\x04\x02\0\x03\x12\x03!!\"\n\x0b\
-    \n\x04\x04\x04\x02\x01\x12\x03\"\x02\x1c\n\x0c\n\x05\x04\x04\x02\x01\x06\
-    \x12\x03\"\x02\x11\n\x0c\n\x05\x04\x04\x02\x01\x01\x12\x03\"\x12\x17\n\
-    \x0c\n\x05\x04\x04\x02\x01\x03\x12\x03\"\x1a\x1bb\x06proto3\
+    \x10\x08\x1e\n\x0b\n\x04\x04\0\x02\0\x12\x03\x11\x02#\n\x0c\n\x05\x04\0\
+    \x02\0\x06\x12\x03\x11\x02\x17\n\x0c\n\x05\x04\0\x02\0\x01\x12\x03\x11\
+    \x18\x1e\n\x0c\n\x05\x04\0\x02\0\x03\x12\x03\x11!\"\n\n\n\x02\x04\x01\
+    \x12\x04\x14\0\x16\x01\n\n\n\x03\x04\x01\x01\x12\x03\x14\x08\x20\n\x0b\n\
+    \x04\x04\x01\x02\0\x12\x03\x15\x02\x1f\n\x0c\n\x05\x04\x01\x02\0\x06\x12\
+    \x03\x15\x02\x13\n\x0c\n\x05\x04\x01\x02\0\x01\x12\x03\x15\x14\x1a\n\x0c\
+    \n\x05\x04\x01\x02\0\x03\x12\x03\x15\x1d\x1e\n\n\n\x02\x04\x02\x12\x04\
+    \x18\0\x1a\x01\n\n\n\x03\x04\x02\x01\x12\x03\x18\x08!\n\x0b\n\x04\x04\
+    \x02\x02\0\x12\x03\x19\x02#\n\x0c\n\x05\x04\x02\x02\0\x06\x12\x03\x19\
+    \x02\x17\n\x0c\n\x05\x04\x02\x02\0\x01\x12\x03\x19\x18\x1e\n\x0c\n\x05\
+    \x04\x02\x02\0\x03\x12\x03\x19!\"\n\n\n\x02\x04\x03\x12\x04\x1c\0\x1e\
+    \x01\n\n\n\x03\x04\x03\x01\x12\x03\x1c\x08\x1a\n\x0b\n\x04\x04\x03\x02\0\
+    \x12\x03\x1d\x02\x1f\n\x0c\n\x05\x04\x03\x02\0\x06\x12\x03\x1d\x02\x13\n\
+    \x0c\n\x05\x04\x03\x02\0\x01\x12\x03\x1d\x14\x1a\n\x0c\n\x05\x04\x03\x02\
+    \0\x03\x12\x03\x1d\x1d\x1e\n\n\n\x02\x04\x04\x12\x04\x20\0#\x01\n\n\n\
+    \x03\x04\x04\x01\x12\x03\x20\x08\x1b\n\x0b\n\x04\x04\x04\x02\0\x12\x03!\
+    \x02#\n\x0c\n\x05\x04\x04\x02\0\x06\x12\x03!\x02\x17\n\x0c\n\x05\x04\x04\
+    \x02\0\x01\x12\x03!\x18\x1e\n\x0c\n\x05\x04\x04\x02\0\x03\x12\x03!!\"\n\
+    \x0b\n\x04\x04\x04\x02\x01\x12\x03\"\x02\x1c\n\x0c\n\x05\x04\x04\x02\x01\
+    \x06\x12\x03\"\x02\x11\n\x0c\n\x05\x04\x04\x02\x01\x01\x12\x03\"\x12\x17\
+    \n\x0c\n\x05\x04\x04\x02\x01\x03\x12\x03\"\x1a\x1bb\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

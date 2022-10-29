@@ -5,7 +5,7 @@ use proto::common::probe;
 use proto::common::probe::{ProbeRequest, ProbeResponse};
 use proto::common::stream::{Dataflow, DataflowStatus};
 use proto::coordinator::coordinator::{
-    CreateStreamGraphResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest,
+    CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest,
     TerminateDataflowResponse,
 };
 use proto::coordinator::coordinator_grpc::CoordinatorApi;
@@ -55,11 +55,11 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &mut self,
         _ctx: RpcContext,
         req: Dataflow,
-        sink: UnarySink<CreateStreamGraphResponse>,
+        sink: UnarySink<CreateDataflowResponse>,
     ) {
         match self.coordinator.create_dataflow(req) {
             Ok(_) => {
-                let ref mut resp = CreateStreamGraphResponse::default();
+                let ref mut resp = CreateDataflowResponse::default();
                 resp.set_status(DataflowStatus::RUNNING);
                 sink.success(resp.clone());
             }

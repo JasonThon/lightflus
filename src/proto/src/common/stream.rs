@@ -220,8 +220,6 @@ impl ::protobuf::reflect::ProtobufValue for DataflowMeta {
 pub struct OperatorInfo {
     // message fields
     pub operator_id: u32,
-    pub op_type: OperatorType,
-    pub values: ::protobuf::RepeatedField<ConstOp>,
     pub host_addr: ::protobuf::SingularPtrField<super::common::HostAddr>,
     pub config: ::protobuf::SingularPtrField<StreamConfig>,
     pub upstreams: ::std::vec::Vec<u32>,
@@ -242,7 +240,11 @@ impl<'a> ::std::default::Default for &'a OperatorInfo {
 pub enum OperatorInfo_oneof_details {
     source(Source),
     sink(Sink),
-    select(SelectRef),
+    mapper(Mapper),
+    filter(Filter),
+    key_by(KeyBy),
+    reducer(Reducer),
+    flat_map(FlatMap),
 }
 
 impl OperatorInfo {
@@ -265,47 +267,7 @@ impl OperatorInfo {
         self.operator_id = v;
     }
 
-    // .common.OperatorType op_type = 2;
-
-
-    pub fn get_op_type(&self) -> OperatorType {
-        self.op_type
-    }
-    pub fn clear_op_type(&mut self) {
-        self.op_type = OperatorType::REFERENCE;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_op_type(&mut self, v: OperatorType) {
-        self.op_type = v;
-    }
-
-    // repeated .common.ConstOp values = 3;
-
-
-    pub fn get_values(&self) -> &[ConstOp] {
-        &self.values
-    }
-    pub fn clear_values(&mut self) {
-        self.values.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_values(&mut self, v: ::protobuf::RepeatedField<ConstOp>) {
-        self.values = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_values(&mut self) -> &mut ::protobuf::RepeatedField<ConstOp> {
-        &mut self.values
-    }
-
-    // Take field
-    pub fn take_values(&mut self) -> ::protobuf::RepeatedField<ConstOp> {
-        ::std::mem::replace(&mut self.values, ::protobuf::RepeatedField::new())
-    }
-
-    // .common.HostAddr host_addr = 4;
+    // .common.HostAddr host_addr = 2;
 
 
     pub fn get_host_addr(&self) -> &super::common::HostAddr {
@@ -338,7 +300,7 @@ impl OperatorInfo {
         self.host_addr.take().unwrap_or_else(|| super::common::HostAddr::new())
     }
 
-    // .common.StreamConfig config = 5;
+    // .common.StreamConfig config = 3;
 
 
     pub fn get_config(&self) -> &StreamConfig {
@@ -371,7 +333,7 @@ impl OperatorInfo {
         self.config.take().unwrap_or_else(|| StreamConfig::new())
     }
 
-    // repeated uint32 upstreams = 6;
+    // repeated uint32 upstreams = 4;
 
 
     pub fn get_upstreams(&self) -> &[u32] {
@@ -396,7 +358,7 @@ impl OperatorInfo {
         ::std::mem::replace(&mut self.upstreams, ::std::vec::Vec::new())
     }
 
-    // .common.Source source = 7;
+    // .common.Source source = 5;
 
 
     pub fn get_source(&self) -> &Source {
@@ -445,7 +407,7 @@ impl OperatorInfo {
         }
     }
 
-    // .common.Sink sink = 8;
+    // .common.Sink sink = 6;
 
 
     pub fn get_sink(&self) -> &Sink {
@@ -494,63 +456,254 @@ impl OperatorInfo {
         }
     }
 
-    // .common.SelectRef select = 9;
+    // .common.Mapper mapper = 7;
 
 
-    pub fn get_select(&self) -> &SelectRef {
+    pub fn get_mapper(&self) -> &Mapper {
         match self.details {
-            ::std::option::Option::Some(OperatorInfo_oneof_details::select(ref v)) => v,
-            _ => <SelectRef as ::protobuf::Message>::default_instance(),
+            ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(ref v)) => v,
+            _ => <Mapper as ::protobuf::Message>::default_instance(),
         }
     }
-    pub fn clear_select(&mut self) {
+    pub fn clear_mapper(&mut self) {
         self.details = ::std::option::Option::None;
     }
 
-    pub fn has_select(&self) -> bool {
+    pub fn has_mapper(&self) -> bool {
         match self.details {
-            ::std::option::Option::Some(OperatorInfo_oneof_details::select(..)) => true,
+            ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(..)) => true,
             _ => false,
         }
     }
 
     // Param is passed by value, moved
-    pub fn set_select(&mut self, v: SelectRef) {
-        self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::select(v))
+    pub fn set_mapper(&mut self, v: Mapper) {
+        self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(v))
     }
 
     // Mutable pointer to the field.
-    pub fn mut_select(&mut self) -> &mut SelectRef {
-        if let ::std::option::Option::Some(OperatorInfo_oneof_details::select(_)) = self.details {
+    pub fn mut_mapper(&mut self) -> &mut Mapper {
+        if let ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(_)) = self.details {
         } else {
-            self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::select(SelectRef::new()));
+            self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(Mapper::new()));
         }
         match self.details {
-            ::std::option::Option::Some(OperatorInfo_oneof_details::select(ref mut v)) => v,
+            ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(ref mut v)) => v,
             _ => panic!(),
         }
     }
 
     // Take field
-    pub fn take_select(&mut self) -> SelectRef {
-        if self.has_select() {
+    pub fn take_mapper(&mut self) -> Mapper {
+        if self.has_mapper() {
             match self.details.take() {
-                ::std::option::Option::Some(OperatorInfo_oneof_details::select(v)) => v,
+                ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(v)) => v,
                 _ => panic!(),
             }
         } else {
-            SelectRef::new()
+            Mapper::new()
+        }
+    }
+
+    // .common.Filter filter = 8;
+
+
+    pub fn get_filter(&self) -> &Filter {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::filter(ref v)) => v,
+            _ => <Filter as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_filter(&mut self) {
+        self.details = ::std::option::Option::None;
+    }
+
+    pub fn has_filter(&self) -> bool {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::filter(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_filter(&mut self, v: Filter) {
+        self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::filter(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_filter(&mut self) -> &mut Filter {
+        if let ::std::option::Option::Some(OperatorInfo_oneof_details::filter(_)) = self.details {
+        } else {
+            self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::filter(Filter::new()));
+        }
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::filter(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_filter(&mut self) -> Filter {
+        if self.has_filter() {
+            match self.details.take() {
+                ::std::option::Option::Some(OperatorInfo_oneof_details::filter(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Filter::new()
+        }
+    }
+
+    // .common.KeyBy key_by = 9;
+
+
+    pub fn get_key_by(&self) -> &KeyBy {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(ref v)) => v,
+            _ => <KeyBy as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_key_by(&mut self) {
+        self.details = ::std::option::Option::None;
+    }
+
+    pub fn has_key_by(&self) -> bool {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_key_by(&mut self, v: KeyBy) {
+        self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_key_by(&mut self) -> &mut KeyBy {
+        if let ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(_)) = self.details {
+        } else {
+            self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(KeyBy::new()));
+        }
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_key_by(&mut self) -> KeyBy {
+        if self.has_key_by() {
+            match self.details.take() {
+                ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            KeyBy::new()
+        }
+    }
+
+    // .common.Reducer reducer = 10;
+
+
+    pub fn get_reducer(&self) -> &Reducer {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(ref v)) => v,
+            _ => <Reducer as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_reducer(&mut self) {
+        self.details = ::std::option::Option::None;
+    }
+
+    pub fn has_reducer(&self) -> bool {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_reducer(&mut self, v: Reducer) {
+        self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_reducer(&mut self) -> &mut Reducer {
+        if let ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(_)) = self.details {
+        } else {
+            self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(Reducer::new()));
+        }
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_reducer(&mut self) -> Reducer {
+        if self.has_reducer() {
+            match self.details.take() {
+                ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Reducer::new()
+        }
+    }
+
+    // .common.FlatMap flat_map = 11;
+
+
+    pub fn get_flat_map(&self) -> &FlatMap {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(ref v)) => v,
+            _ => <FlatMap as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_flat_map(&mut self) {
+        self.details = ::std::option::Option::None;
+    }
+
+    pub fn has_flat_map(&self) -> bool {
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_flat_map(&mut self, v: FlatMap) {
+        self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_flat_map(&mut self) -> &mut FlatMap {
+        if let ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(_)) = self.details {
+        } else {
+            self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(FlatMap::new()));
+        }
+        match self.details {
+            ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_flat_map(&mut self) -> FlatMap {
+        if self.has_flat_map() {
+            match self.details.take() {
+                ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            FlatMap::new()
         }
     }
 }
 
 impl ::protobuf::Message for OperatorInfo {
     fn is_initialized(&self) -> bool {
-        for v in &self.values {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
         for v in &self.host_addr {
             if !v.is_initialized() {
                 return false;
@@ -571,7 +724,27 @@ impl ::protobuf::Message for OperatorInfo {
                 return false;
             }
         }
-        if let Some(OperatorInfo_oneof_details::select(ref v)) = self.details {
+        if let Some(OperatorInfo_oneof_details::mapper(ref v)) = self.details {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(OperatorInfo_oneof_details::filter(ref v)) = self.details {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(OperatorInfo_oneof_details::key_by(ref v)) = self.details {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(OperatorInfo_oneof_details::reducer(ref v)) = self.details {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(OperatorInfo_oneof_details::flat_map(ref v)) = self.details {
             if !v.is_initialized() {
                 return false;
             }
@@ -591,37 +764,55 @@ impl ::protobuf::Message for OperatorInfo {
                     self.operator_id = tmp;
                 },
                 2 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.op_type, 2, &mut self.unknown_fields)?
-                },
-                3 => {
-                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.values)?;
-                },
-                4 => {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.host_addr)?;
                 },
-                5 => {
+                3 => {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.config)?;
                 },
-                6 => {
+                4 => {
                     ::protobuf::rt::read_repeated_uint32_into(wire_type, is, &mut self.upstreams)?;
                 },
-                7 => {
+                5 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::source(is.read_message()?));
                 },
-                8 => {
+                6 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
                     self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::sink(is.read_message()?));
                 },
+                7 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::mapper(is.read_message()?));
+                },
+                8 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::filter(is.read_message()?));
+                },
                 9 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::select(is.read_message()?));
+                    self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::key_by(is.read_message()?));
+                },
+                10 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::reducer(is.read_message()?));
+                },
+                11 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.details = ::std::option::Option::Some(OperatorInfo_oneof_details::flat_map(is.read_message()?));
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -638,13 +829,6 @@ impl ::protobuf::Message for OperatorInfo {
         if self.operator_id != 0 {
             my_size += ::protobuf::rt::value_size(1, self.operator_id, ::protobuf::wire_format::WireTypeVarint);
         }
-        if self.op_type != OperatorType::REFERENCE {
-            my_size += ::protobuf::rt::enum_size(2, self.op_type);
-        }
-        for value in &self.values {
-            let len = value.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        };
         if let Some(ref v) = self.host_addr.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
@@ -654,7 +838,7 @@ impl ::protobuf::Message for OperatorInfo {
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
         for value in &self.upstreams {
-            my_size += ::protobuf::rt::value_size(6, *value, ::protobuf::wire_format::WireTypeVarint);
+            my_size += ::protobuf::rt::value_size(4, *value, ::protobuf::wire_format::WireTypeVarint);
         };
         if let ::std::option::Option::Some(ref v) = self.details {
             match v {
@@ -666,7 +850,23 @@ impl ::protobuf::Message for OperatorInfo {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
-                &OperatorInfo_oneof_details::select(ref v) => {
+                &OperatorInfo_oneof_details::mapper(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &OperatorInfo_oneof_details::filter(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &OperatorInfo_oneof_details::key_by(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &OperatorInfo_oneof_details::reducer(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &OperatorInfo_oneof_details::flat_map(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
@@ -681,41 +881,53 @@ impl ::protobuf::Message for OperatorInfo {
         if self.operator_id != 0 {
             os.write_uint32(1, self.operator_id)?;
         }
-        if self.op_type != OperatorType::REFERENCE {
-            os.write_enum(2, ::protobuf::ProtobufEnum::value(&self.op_type))?;
-        }
-        for v in &self.values {
-            os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        };
         if let Some(ref v) = self.host_addr.as_ref() {
-            os.write_tag(4, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
         if let Some(ref v) = self.config.as_ref() {
-            os.write_tag(5, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
         }
         for v in &self.upstreams {
-            os.write_uint32(6, *v)?;
+            os.write_uint32(4, *v)?;
         };
         if let ::std::option::Option::Some(ref v) = self.details {
             match v {
                 &OperatorInfo_oneof_details::source(ref v) => {
-                    os.write_tag(7, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_tag(5, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
                 &OperatorInfo_oneof_details::sink(ref v) => {
+                    os.write_tag(6, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &OperatorInfo_oneof_details::mapper(ref v) => {
+                    os.write_tag(7, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &OperatorInfo_oneof_details::filter(ref v) => {
                     os.write_tag(8, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
-                &OperatorInfo_oneof_details::select(ref v) => {
+                &OperatorInfo_oneof_details::key_by(ref v) => {
                     os.write_tag(9, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &OperatorInfo_oneof_details::reducer(ref v) => {
+                    os.write_tag(10, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &OperatorInfo_oneof_details::flat_map(ref v) => {
+                    os.write_tag(11, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
@@ -764,16 +976,6 @@ impl ::protobuf::Message for OperatorInfo {
                 |m: &OperatorInfo| { &m.operator_id },
                 |m: &mut OperatorInfo| { &mut m.operator_id },
             ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<OperatorType>>(
-                "op_type",
-                |m: &OperatorInfo| { &m.op_type },
-                |m: &mut OperatorInfo| { &mut m.op_type },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ConstOp>>(
-                "values",
-                |m: &OperatorInfo| { &m.values },
-                |m: &mut OperatorInfo| { &mut m.values },
-            ));
             fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::HostAddr>>(
                 "host_addr",
                 |m: &OperatorInfo| { &m.host_addr },
@@ -799,10 +1001,30 @@ impl ::protobuf::Message for OperatorInfo {
                 OperatorInfo::has_sink,
                 OperatorInfo::get_sink,
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, SelectRef>(
-                "select",
-                OperatorInfo::has_select,
-                OperatorInfo::get_select,
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Mapper>(
+                "mapper",
+                OperatorInfo::has_mapper,
+                OperatorInfo::get_mapper,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Filter>(
+                "filter",
+                OperatorInfo::has_filter,
+                OperatorInfo::get_filter,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, KeyBy>(
+                "key_by",
+                OperatorInfo::has_key_by,
+                OperatorInfo::get_key_by,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Reducer>(
+                "reducer",
+                OperatorInfo::has_reducer,
+                OperatorInfo::get_reducer,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, FlatMap>(
+                "flat_map",
+                OperatorInfo::has_flat_map,
+                OperatorInfo::get_flat_map,
             ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<OperatorInfo>(
                 "OperatorInfo",
@@ -821,11 +1043,13 @@ impl ::protobuf::Message for OperatorInfo {
 impl ::protobuf::Clear for OperatorInfo {
     fn clear(&mut self) {
         self.operator_id = 0;
-        self.op_type = OperatorType::REFERENCE;
-        self.values.clear();
         self.host_addr.clear();
         self.config.clear();
         self.upstreams.clear();
+        self.details = ::std::option::Option::None;
+        self.details = ::std::option::Option::None;
+        self.details = ::std::option::Option::None;
+        self.details = ::std::option::Option::None;
         self.details = ::std::option::Option::None;
         self.details = ::std::option::Option::None;
         self.details = ::std::option::Option::None;
@@ -846,291 +1070,87 @@ impl ::protobuf::reflect::ProtobufValue for OperatorInfo {
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct SelectRef {
-    // message fields
-    pub column_refs: ::std::collections::HashMap<u32, ColumnRef>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a SelectRef {
-    fn default() -> &'a SelectRef {
-        <SelectRef as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl SelectRef {
-    pub fn new() -> SelectRef {
-        ::std::default::Default::default()
-    }
-
-    // repeated .common.SelectRef.ColumnRefsEntry column_refs = 1;
-
-
-    pub fn get_column_refs(&self) -> &::std::collections::HashMap<u32, ColumnRef> {
-        &self.column_refs
-    }
-    pub fn clear_column_refs(&mut self) {
-        self.column_refs.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_column_refs(&mut self, v: ::std::collections::HashMap<u32, ColumnRef>) {
-        self.column_refs = v;
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_column_refs(&mut self) -> &mut ::std::collections::HashMap<u32, ColumnRef> {
-        &mut self.column_refs
-    }
-
-    // Take field
-    pub fn take_column_refs(&mut self) -> ::std::collections::HashMap<u32, ColumnRef> {
-        ::std::mem::replace(&mut self.column_refs, ::std::collections::HashMap::new())
-    }
-}
-
-impl ::protobuf::Message for SelectRef {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_map_into::<::protobuf::types::ProtobufTypeUint32, ::protobuf::types::ProtobufTypeMessage<ColumnRef>>(wire_type, is, &mut self.column_refs)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        my_size += ::protobuf::rt::compute_map_size::<::protobuf::types::ProtobufTypeUint32, ::protobuf::types::ProtobufTypeMessage<ColumnRef>>(1, &self.column_refs);
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        ::protobuf::rt::write_map_with_cached_sizes::<::protobuf::types::ProtobufTypeUint32, ::protobuf::types::ProtobufTypeMessage<ColumnRef>>(1, &self.column_refs, os)?;
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> SelectRef {
-        SelectRef::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_map_accessor::<_, ::protobuf::types::ProtobufTypeUint32, ::protobuf::types::ProtobufTypeMessage<ColumnRef>>(
-                "column_refs",
-                |m: &SelectRef| { &m.column_refs },
-                |m: &mut SelectRef| { &mut m.column_refs },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<SelectRef>(
-                "SelectRef",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static SelectRef {
-        static instance: ::protobuf::rt::LazyV2<SelectRef> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(SelectRef::new)
-    }
-}
-
-impl ::protobuf::Clear for SelectRef {
-    fn clear(&mut self) {
-        self.column_refs.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for SelectRef {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SelectRef {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct ColumnRef {
-    // message fields
-    pub table: ::std::string::String,
-    pub field: ::std::string::String,
+pub struct Reducer {
     // message oneof groups
-    pub alias: ::std::option::Option<ColumnRef_oneof_alias>,
+    pub value: ::std::option::Option<Reducer_oneof_value>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a ColumnRef {
-    fn default() -> &'a ColumnRef {
-        <ColumnRef as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a Reducer {
+    fn default() -> &'a Reducer {
+        <Reducer as ::protobuf::Message>::default_instance()
     }
 }
 
 #[derive(Clone,PartialEq,Debug)]
-pub enum ColumnRef_oneof_alias {
-    value(::std::string::String),
+pub enum Reducer_oneof_value {
+    func(Func),
 }
 
-impl ColumnRef {
-    pub fn new() -> ColumnRef {
+impl Reducer {
+    pub fn new() -> Reducer {
         ::std::default::Default::default()
     }
 
-    // string table = 1;
+    // .common.Func func = 1;
 
 
-    pub fn get_table(&self) -> &str {
-        &self.table
-    }
-    pub fn clear_table(&mut self) {
-        self.table.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_table(&mut self, v: ::std::string::String) {
-        self.table = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_table(&mut self) -> &mut ::std::string::String {
-        &mut self.table
-    }
-
-    // Take field
-    pub fn take_table(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.table, ::std::string::String::new())
-    }
-
-    // string field = 2;
-
-
-    pub fn get_field(&self) -> &str {
-        &self.field
-    }
-    pub fn clear_field(&mut self) {
-        self.field.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_field(&mut self, v: ::std::string::String) {
-        self.field = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_field(&mut self) -> &mut ::std::string::String {
-        &mut self.field
-    }
-
-    // Take field
-    pub fn take_field(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.field, ::std::string::String::new())
-    }
-
-    // string value = 3;
-
-
-    pub fn get_value(&self) -> &str {
-        match self.alias {
-            ::std::option::Option::Some(ColumnRef_oneof_alias::value(ref v)) => v,
-            _ => "",
+    pub fn get_func(&self) -> &Func {
+        match self.value {
+            ::std::option::Option::Some(Reducer_oneof_value::func(ref v)) => v,
+            _ => <Func as ::protobuf::Message>::default_instance(),
         }
     }
-    pub fn clear_value(&mut self) {
-        self.alias = ::std::option::Option::None;
+    pub fn clear_func(&mut self) {
+        self.value = ::std::option::Option::None;
     }
 
-    pub fn has_value(&self) -> bool {
-        match self.alias {
-            ::std::option::Option::Some(ColumnRef_oneof_alias::value(..)) => true,
+    pub fn has_func(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(Reducer_oneof_value::func(..)) => true,
             _ => false,
         }
     }
 
     // Param is passed by value, moved
-    pub fn set_value(&mut self, v: ::std::string::String) {
-        self.alias = ::std::option::Option::Some(ColumnRef_oneof_alias::value(v))
+    pub fn set_func(&mut self, v: Func) {
+        self.value = ::std::option::Option::Some(Reducer_oneof_value::func(v))
     }
 
     // Mutable pointer to the field.
-    pub fn mut_value(&mut self) -> &mut ::std::string::String {
-        if let ::std::option::Option::Some(ColumnRef_oneof_alias::value(_)) = self.alias {
+    pub fn mut_func(&mut self) -> &mut Func {
+        if let ::std::option::Option::Some(Reducer_oneof_value::func(_)) = self.value {
         } else {
-            self.alias = ::std::option::Option::Some(ColumnRef_oneof_alias::value(::std::string::String::new()));
+            self.value = ::std::option::Option::Some(Reducer_oneof_value::func(Func::new()));
         }
-        match self.alias {
-            ::std::option::Option::Some(ColumnRef_oneof_alias::value(ref mut v)) => v,
+        match self.value {
+            ::std::option::Option::Some(Reducer_oneof_value::func(ref mut v)) => v,
             _ => panic!(),
         }
     }
 
     // Take field
-    pub fn take_value(&mut self) -> ::std::string::String {
-        if self.has_value() {
-            match self.alias.take() {
-                ::std::option::Option::Some(ColumnRef_oneof_alias::value(v)) => v,
+    pub fn take_func(&mut self) -> Func {
+        if self.has_func() {
+            match self.value.take() {
+                ::std::option::Option::Some(Reducer_oneof_value::func(v)) => v,
                 _ => panic!(),
             }
         } else {
-            ::std::string::String::new()
+            Func::new()
         }
     }
 }
 
-impl ::protobuf::Message for ColumnRef {
+impl ::protobuf::Message for Reducer {
     fn is_initialized(&self) -> bool {
+        if let Some(Reducer_oneof_value::func(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
         true
     }
 
@@ -1139,16 +1159,10 @@ impl ::protobuf::Message for ColumnRef {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.table)?;
-                },
-                2 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.field)?;
-                },
-                3 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    self.alias = ::std::option::Option::Some(ColumnRef_oneof_alias::value(is.read_string()?));
+                    self.value = ::std::option::Option::Some(Reducer_oneof_value::func(is.read_message()?));
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -1162,16 +1176,11 @@ impl ::protobuf::Message for ColumnRef {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if !self.table.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.table);
-        }
-        if !self.field.is_empty() {
-            my_size += ::protobuf::rt::string_size(2, &self.field);
-        }
-        if let ::std::option::Option::Some(ref v) = self.alias {
+        if let ::std::option::Option::Some(ref v) = self.value {
             match v {
-                &ColumnRef_oneof_alias::value(ref v) => {
-                    my_size += ::protobuf::rt::string_size(3, &v);
+                &Reducer_oneof_value::func(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
             };
         }
@@ -1181,16 +1190,12 @@ impl ::protobuf::Message for ColumnRef {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if !self.table.is_empty() {
-            os.write_string(1, &self.table)?;
-        }
-        if !self.field.is_empty() {
-            os.write_string(2, &self.field)?;
-        }
-        if let ::std::option::Option::Some(ref v) = self.alias {
+        if let ::std::option::Option::Some(ref v) = self.value {
             match v {
-                &ColumnRef_oneof_alias::value(ref v) => {
-                    os.write_string(3, v)?;
+                &Reducer_oneof_value::func(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
                 },
             };
         }
@@ -1224,137 +1229,537 @@ impl ::protobuf::Message for ColumnRef {
         Self::descriptor_static()
     }
 
-    fn new() -> ColumnRef {
-        ColumnRef::new()
+    fn new() -> Reducer {
+        Reducer::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                "table",
-                |m: &ColumnRef| { &m.table },
-                |m: &mut ColumnRef| { &mut m.table },
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Func>(
+                "func",
+                Reducer::has_func,
+                Reducer::get_func,
             ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                "field",
-                |m: &ColumnRef| { &m.field },
-                |m: &mut ColumnRef| { &mut m.field },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_string_accessor::<_>(
-                "value",
-                ColumnRef::has_value,
-                ColumnRef::get_value,
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ColumnRef>(
-                "ColumnRef",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Reducer>(
+                "Reducer",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static ColumnRef {
-        static instance: ::protobuf::rt::LazyV2<ColumnRef> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(ColumnRef::new)
+    fn default_instance() -> &'static Reducer {
+        static instance: ::protobuf::rt::LazyV2<Reducer> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Reducer::new)
     }
 }
 
-impl ::protobuf::Clear for ColumnRef {
+impl ::protobuf::Clear for Reducer {
     fn clear(&mut self) {
-        self.table.clear();
-        self.field.clear();
-        self.alias = ::std::option::Option::None;
+        self.value = ::std::option::Option::None;
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for ColumnRef {
+impl ::std::fmt::Debug for Reducer {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for ColumnRef {
+impl ::protobuf::reflect::ProtobufValue for Reducer {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct Sink {
-    // message fields
-    pub field_type: SinkTypeEnum,
-    pub sink: ::protobuf::SingularPtrField<SinkDesc>,
+pub struct FlatMap {
+    // message oneof groups
+    pub value: ::std::option::Option<FlatMap_oneof_value>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a Sink {
-    fn default() -> &'a Sink {
-        <Sink as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a FlatMap {
+    fn default() -> &'a FlatMap {
+        <FlatMap as ::protobuf::Message>::default_instance()
     }
 }
 
-impl Sink {
-    pub fn new() -> Sink {
+#[derive(Clone,PartialEq,Debug)]
+pub enum FlatMap_oneof_value {
+    func(Func),
+}
+
+impl FlatMap {
+    pub fn new() -> FlatMap {
         ::std::default::Default::default()
     }
 
-    // .common.SinkTypeEnum type = 1;
+    // .common.Func func = 1;
 
 
-    pub fn get_field_type(&self) -> SinkTypeEnum {
-        self.field_type
+    pub fn get_func(&self) -> &Func {
+        match self.value {
+            ::std::option::Option::Some(FlatMap_oneof_value::func(ref v)) => v,
+            _ => <Func as ::protobuf::Message>::default_instance(),
+        }
     }
-    pub fn clear_field_type(&mut self) {
-        self.field_type = SinkTypeEnum::QUERY_ENGINE;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_field_type(&mut self, v: SinkTypeEnum) {
-        self.field_type = v;
+    pub fn clear_func(&mut self) {
+        self.value = ::std::option::Option::None;
     }
 
-    // .common.SinkDesc sink = 2;
-
-
-    pub fn get_sink(&self) -> &SinkDesc {
-        self.sink.as_ref().unwrap_or_else(|| <SinkDesc as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_sink(&mut self) {
-        self.sink.clear();
-    }
-
-    pub fn has_sink(&self) -> bool {
-        self.sink.is_some()
+    pub fn has_func(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(FlatMap_oneof_value::func(..)) => true,
+            _ => false,
+        }
     }
 
     // Param is passed by value, moved
-    pub fn set_sink(&mut self, v: SinkDesc) {
-        self.sink = ::protobuf::SingularPtrField::some(v);
+    pub fn set_func(&mut self, v: Func) {
+        self.value = ::std::option::Option::Some(FlatMap_oneof_value::func(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_func(&mut self) -> &mut Func {
+        if let ::std::option::Option::Some(FlatMap_oneof_value::func(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(FlatMap_oneof_value::func(Func::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(FlatMap_oneof_value::func(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_func(&mut self) -> Func {
+        if self.has_func() {
+            match self.value.take() {
+                ::std::option::Option::Some(FlatMap_oneof_value::func(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Func::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for FlatMap {
+    fn is_initialized(&self) -> bool {
+        if let Some(FlatMap_oneof_value::func(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(FlatMap_oneof_value::func(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &FlatMap_oneof_value::func(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &FlatMap_oneof_value::func(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> FlatMap {
+        FlatMap::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Func>(
+                "func",
+                FlatMap::has_func,
+                FlatMap::get_func,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<FlatMap>(
+                "FlatMap",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static FlatMap {
+        static instance: ::protobuf::rt::LazyV2<FlatMap> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(FlatMap::new)
+    }
+}
+
+impl ::protobuf::Clear for FlatMap {
+    fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for FlatMap {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for FlatMap {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Join {
+    // message oneof groups
+    pub value: ::std::option::Option<Join_oneof_value>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Join {
+    fn default() -> &'a Join {
+        <Join as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum Join_oneof_value {
+    stream_join(Join_StreamJoin),
+}
+
+impl Join {
+    pub fn new() -> Join {
+        ::std::default::Default::default()
+    }
+
+    // .common.Join.StreamJoin stream_join = 1;
+
+
+    pub fn get_stream_join(&self) -> &Join_StreamJoin {
+        match self.value {
+            ::std::option::Option::Some(Join_oneof_value::stream_join(ref v)) => v,
+            _ => <Join_StreamJoin as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_stream_join(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_stream_join(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(Join_oneof_value::stream_join(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_stream_join(&mut self, v: Join_StreamJoin) {
+        self.value = ::std::option::Option::Some(Join_oneof_value::stream_join(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_stream_join(&mut self) -> &mut Join_StreamJoin {
+        if let ::std::option::Option::Some(Join_oneof_value::stream_join(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(Join_oneof_value::stream_join(Join_StreamJoin::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(Join_oneof_value::stream_join(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_stream_join(&mut self) -> Join_StreamJoin {
+        if self.has_stream_join() {
+            match self.value.take() {
+                ::std::option::Option::Some(Join_oneof_value::stream_join(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Join_StreamJoin::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for Join {
+    fn is_initialized(&self) -> bool {
+        if let Some(Join_oneof_value::stream_join(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(Join_oneof_value::stream_join(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Join_oneof_value::stream_join(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Join_oneof_value::stream_join(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Join {
+        Join::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Join_StreamJoin>(
+                "stream_join",
+                Join::has_stream_join,
+                Join::get_stream_join,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Join>(
+                "Join",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Join {
+        static instance: ::protobuf::rt::LazyV2<Join> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Join::new)
+    }
+}
+
+impl ::protobuf::Clear for Join {
+    fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Join {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Join {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Join_StreamJoin {
+    // message fields
+    pub operator_id: u32,
+    pub func: ::protobuf::SingularPtrField<Func>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Join_StreamJoin {
+    fn default() -> &'a Join_StreamJoin {
+        <Join_StreamJoin as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Join_StreamJoin {
+    pub fn new() -> Join_StreamJoin {
+        ::std::default::Default::default()
+    }
+
+    // uint32 operator_id = 1;
+
+
+    pub fn get_operator_id(&self) -> u32 {
+        self.operator_id
+    }
+    pub fn clear_operator_id(&mut self) {
+        self.operator_id = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_operator_id(&mut self, v: u32) {
+        self.operator_id = v;
+    }
+
+    // .common.Func func = 2;
+
+
+    pub fn get_func(&self) -> &Func {
+        self.func.as_ref().unwrap_or_else(|| <Func as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_func(&mut self) {
+        self.func.clear();
+    }
+
+    pub fn has_func(&self) -> bool {
+        self.func.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_func(&mut self, v: Func) {
+        self.func = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_sink(&mut self) -> &mut SinkDesc {
-        if self.sink.is_none() {
-            self.sink.set_default();
+    pub fn mut_func(&mut self) -> &mut Func {
+        if self.func.is_none() {
+            self.func.set_default();
         }
-        self.sink.as_mut().unwrap()
+        self.func.as_mut().unwrap()
     }
 
     // Take field
-    pub fn take_sink(&mut self) -> SinkDesc {
-        self.sink.take().unwrap_or_else(|| SinkDesc::new())
+    pub fn take_func(&mut self) -> Func {
+        self.func.take().unwrap_or_else(|| Func::new())
     }
 }
 
-impl ::protobuf::Message for Sink {
+impl ::protobuf::Message for Join_StreamJoin {
     fn is_initialized(&self) -> bool {
-        for v in &self.sink {
+        for v in &self.func {
             if !v.is_initialized() {
                 return false;
             }
@@ -1367,10 +1772,14 @@ impl ::protobuf::Message for Sink {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.field_type, 1, &mut self.unknown_fields)?
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.operator_id = tmp;
                 },
                 2 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.sink)?;
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.func)?;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -1384,10 +1793,10 @@ impl ::protobuf::Message for Sink {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.field_type != SinkTypeEnum::QUERY_ENGINE {
-            my_size += ::protobuf::rt::enum_size(1, self.field_type);
+        if self.operator_id != 0 {
+            my_size += ::protobuf::rt::value_size(1, self.operator_id, ::protobuf::wire_format::WireTypeVarint);
         }
-        if let Some(ref v) = self.sink.as_ref() {
+        if let Some(ref v) = self.func.as_ref() {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
@@ -1397,13 +1806,1142 @@ impl ::protobuf::Message for Sink {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.field_type != SinkTypeEnum::QUERY_ENGINE {
-            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.field_type))?;
+        if self.operator_id != 0 {
+            os.write_uint32(1, self.operator_id)?;
         }
-        if let Some(ref v) = self.sink.as_ref() {
+        if let Some(ref v) = self.func.as_ref() {
             os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Join_StreamJoin {
+        Join_StreamJoin::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "operator_id",
+                |m: &Join_StreamJoin| { &m.operator_id },
+                |m: &mut Join_StreamJoin| { &mut m.operator_id },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Func>>(
+                "func",
+                |m: &Join_StreamJoin| { &m.func },
+                |m: &mut Join_StreamJoin| { &mut m.func },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Join_StreamJoin>(
+                "Join.StreamJoin",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Join_StreamJoin {
+        static instance: ::protobuf::rt::LazyV2<Join_StreamJoin> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Join_StreamJoin::new)
+    }
+}
+
+impl ::protobuf::Clear for Join_StreamJoin {
+    fn clear(&mut self) {
+        self.operator_id = 0;
+        self.func.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Join_StreamJoin {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Join_StreamJoin {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Mapper {
+    // message oneof groups
+    pub value: ::std::option::Option<Mapper_oneof_value>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Mapper {
+    fn default() -> &'a Mapper {
+        <Mapper as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum Mapper_oneof_value {
+    func(Func),
+}
+
+impl Mapper {
+    pub fn new() -> Mapper {
+        ::std::default::Default::default()
+    }
+
+    // .common.Func func = 1;
+
+
+    pub fn get_func(&self) -> &Func {
+        match self.value {
+            ::std::option::Option::Some(Mapper_oneof_value::func(ref v)) => v,
+            _ => <Func as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_func(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_func(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(Mapper_oneof_value::func(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_func(&mut self, v: Func) {
+        self.value = ::std::option::Option::Some(Mapper_oneof_value::func(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_func(&mut self) -> &mut Func {
+        if let ::std::option::Option::Some(Mapper_oneof_value::func(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(Mapper_oneof_value::func(Func::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(Mapper_oneof_value::func(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_func(&mut self) -> Func {
+        if self.has_func() {
+            match self.value.take() {
+                ::std::option::Option::Some(Mapper_oneof_value::func(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Func::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for Mapper {
+    fn is_initialized(&self) -> bool {
+        if let Some(Mapper_oneof_value::func(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(Mapper_oneof_value::func(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Mapper_oneof_value::func(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Mapper_oneof_value::func(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Mapper {
+        Mapper::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Func>(
+                "func",
+                Mapper::has_func,
+                Mapper::get_func,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Mapper>(
+                "Mapper",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Mapper {
+        static instance: ::protobuf::rt::LazyV2<Mapper> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Mapper::new)
+    }
+}
+
+impl ::protobuf::Clear for Mapper {
+    fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Mapper {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Mapper {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Func {
+    // message fields
+    pub function: ::std::string::String,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Func {
+    fn default() -> &'a Func {
+        <Func as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Func {
+    pub fn new() -> Func {
+        ::std::default::Default::default()
+    }
+
+    // string function = 1;
+
+
+    pub fn get_function(&self) -> &str {
+        &self.function
+    }
+    pub fn clear_function(&mut self) {
+        self.function.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_function(&mut self, v: ::std::string::String) {
+        self.function = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_function(&mut self) -> &mut ::std::string::String {
+        &mut self.function
+    }
+
+    // Take field
+    pub fn take_function(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.function, ::std::string::String::new())
+    }
+}
+
+impl ::protobuf::Message for Func {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.function)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if !self.function.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.function);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if !self.function.is_empty() {
+            os.write_string(1, &self.function)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Func {
+        Func::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "function",
+                |m: &Func| { &m.function },
+                |m: &mut Func| { &mut m.function },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Func>(
+                "Func",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Func {
+        static instance: ::protobuf::rt::LazyV2<Func> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Func::new)
+    }
+}
+
+impl ::protobuf::Clear for Func {
+    fn clear(&mut self) {
+        self.function.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Func {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Func {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Filter {
+    // message oneof groups
+    pub value: ::std::option::Option<Filter_oneof_value>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Filter {
+    fn default() -> &'a Filter {
+        <Filter as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum Filter_oneof_value {
+    func(Func),
+}
+
+impl Filter {
+    pub fn new() -> Filter {
+        ::std::default::Default::default()
+    }
+
+    // .common.Func func = 1;
+
+
+    pub fn get_func(&self) -> &Func {
+        match self.value {
+            ::std::option::Option::Some(Filter_oneof_value::func(ref v)) => v,
+            _ => <Func as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_func(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_func(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(Filter_oneof_value::func(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_func(&mut self, v: Func) {
+        self.value = ::std::option::Option::Some(Filter_oneof_value::func(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_func(&mut self) -> &mut Func {
+        if let ::std::option::Option::Some(Filter_oneof_value::func(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(Filter_oneof_value::func(Func::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(Filter_oneof_value::func(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_func(&mut self) -> Func {
+        if self.has_func() {
+            match self.value.take() {
+                ::std::option::Option::Some(Filter_oneof_value::func(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Func::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for Filter {
+    fn is_initialized(&self) -> bool {
+        if let Some(Filter_oneof_value::func(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(Filter_oneof_value::func(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Filter_oneof_value::func(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Filter_oneof_value::func(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Filter {
+        Filter::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Func>(
+                "func",
+                Filter::has_func,
+                Filter::get_func,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Filter>(
+                "Filter",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Filter {
+        static instance: ::protobuf::rt::LazyV2<Filter> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Filter::new)
+    }
+}
+
+impl ::protobuf::Clear for Filter {
+    fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Filter {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Filter {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct KeyBy {
+    // message oneof groups
+    pub value: ::std::option::Option<KeyBy_oneof_value>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a KeyBy {
+    fn default() -> &'a KeyBy {
+        <KeyBy as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum KeyBy_oneof_value {
+    func(Func),
+}
+
+impl KeyBy {
+    pub fn new() -> KeyBy {
+        ::std::default::Default::default()
+    }
+
+    // .common.Func func = 1;
+
+
+    pub fn get_func(&self) -> &Func {
+        match self.value {
+            ::std::option::Option::Some(KeyBy_oneof_value::func(ref v)) => v,
+            _ => <Func as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_func(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_func(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(KeyBy_oneof_value::func(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_func(&mut self, v: Func) {
+        self.value = ::std::option::Option::Some(KeyBy_oneof_value::func(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_func(&mut self) -> &mut Func {
+        if let ::std::option::Option::Some(KeyBy_oneof_value::func(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(KeyBy_oneof_value::func(Func::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(KeyBy_oneof_value::func(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_func(&mut self) -> Func {
+        if self.has_func() {
+            match self.value.take() {
+                ::std::option::Option::Some(KeyBy_oneof_value::func(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Func::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for KeyBy {
+    fn is_initialized(&self) -> bool {
+        if let Some(KeyBy_oneof_value::func(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(KeyBy_oneof_value::func(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &KeyBy_oneof_value::func(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &KeyBy_oneof_value::func(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> KeyBy {
+        KeyBy::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Func>(
+                "func",
+                KeyBy::has_func,
+                KeyBy::get_func,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<KeyBy>(
+                "KeyBy",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static KeyBy {
+        static instance: ::protobuf::rt::LazyV2<KeyBy> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(KeyBy::new)
+    }
+}
+
+impl ::protobuf::Clear for KeyBy {
+    fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for KeyBy {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for KeyBy {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Sink {
+    // message oneof groups
+    pub desc: ::std::option::Option<Sink_oneof_desc>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Sink {
+    fn default() -> &'a Sink {
+        <Sink as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum Sink_oneof_desc {
+    kafka(KafkaDesc),
+    mysql(MysqlDesc),
+    redis(RedisDesc),
+}
+
+impl Sink {
+    pub fn new() -> Sink {
+        ::std::default::Default::default()
+    }
+
+    // .common.KafkaDesc kafka = 1;
+
+
+    pub fn get_kafka(&self) -> &KafkaDesc {
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::kafka(ref v)) => v,
+            _ => <KafkaDesc as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_kafka(&mut self) {
+        self.desc = ::std::option::Option::None;
+    }
+
+    pub fn has_kafka(&self) -> bool {
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::kafka(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_kafka(&mut self, v: KafkaDesc) {
+        self.desc = ::std::option::Option::Some(Sink_oneof_desc::kafka(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_kafka(&mut self) -> &mut KafkaDesc {
+        if let ::std::option::Option::Some(Sink_oneof_desc::kafka(_)) = self.desc {
+        } else {
+            self.desc = ::std::option::Option::Some(Sink_oneof_desc::kafka(KafkaDesc::new()));
+        }
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::kafka(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_kafka(&mut self) -> KafkaDesc {
+        if self.has_kafka() {
+            match self.desc.take() {
+                ::std::option::Option::Some(Sink_oneof_desc::kafka(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            KafkaDesc::new()
+        }
+    }
+
+    // .common.MysqlDesc mysql = 2;
+
+
+    pub fn get_mysql(&self) -> &MysqlDesc {
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::mysql(ref v)) => v,
+            _ => <MysqlDesc as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_mysql(&mut self) {
+        self.desc = ::std::option::Option::None;
+    }
+
+    pub fn has_mysql(&self) -> bool {
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::mysql(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_mysql(&mut self, v: MysqlDesc) {
+        self.desc = ::std::option::Option::Some(Sink_oneof_desc::mysql(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_mysql(&mut self) -> &mut MysqlDesc {
+        if let ::std::option::Option::Some(Sink_oneof_desc::mysql(_)) = self.desc {
+        } else {
+            self.desc = ::std::option::Option::Some(Sink_oneof_desc::mysql(MysqlDesc::new()));
+        }
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::mysql(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_mysql(&mut self) -> MysqlDesc {
+        if self.has_mysql() {
+            match self.desc.take() {
+                ::std::option::Option::Some(Sink_oneof_desc::mysql(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            MysqlDesc::new()
+        }
+    }
+
+    // .common.RedisDesc redis = 3;
+
+
+    pub fn get_redis(&self) -> &RedisDesc {
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::redis(ref v)) => v,
+            _ => <RedisDesc as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_redis(&mut self) {
+        self.desc = ::std::option::Option::None;
+    }
+
+    pub fn has_redis(&self) -> bool {
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::redis(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_redis(&mut self, v: RedisDesc) {
+        self.desc = ::std::option::Option::Some(Sink_oneof_desc::redis(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_redis(&mut self) -> &mut RedisDesc {
+        if let ::std::option::Option::Some(Sink_oneof_desc::redis(_)) = self.desc {
+        } else {
+            self.desc = ::std::option::Option::Some(Sink_oneof_desc::redis(RedisDesc::new()));
+        }
+        match self.desc {
+            ::std::option::Option::Some(Sink_oneof_desc::redis(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_redis(&mut self) -> RedisDesc {
+        if self.has_redis() {
+            match self.desc.take() {
+                ::std::option::Option::Some(Sink_oneof_desc::redis(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            RedisDesc::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for Sink {
+    fn is_initialized(&self) -> bool {
+        if let Some(Sink_oneof_desc::kafka(ref v)) = self.desc {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(Sink_oneof_desc::mysql(ref v)) = self.desc {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        if let Some(Sink_oneof_desc::redis(ref v)) = self.desc {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.desc = ::std::option::Option::Some(Sink_oneof_desc::kafka(is.read_message()?));
+                },
+                2 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.desc = ::std::option::Option::Some(Sink_oneof_desc::mysql(is.read_message()?));
+                },
+                3 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.desc = ::std::option::Option::Some(Sink_oneof_desc::redis(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.desc {
+            match v {
+                &Sink_oneof_desc::kafka(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &Sink_oneof_desc::mysql(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+                &Sink_oneof_desc::redis(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.desc {
+            match v {
+                &Sink_oneof_desc::kafka(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &Sink_oneof_desc::mysql(ref v) => {
+                    os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &Sink_oneof_desc::redis(ref v) => {
+                    os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -1443,15 +2981,20 @@ impl ::protobuf::Message for Sink {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<SinkTypeEnum>>(
-                "type",
-                |m: &Sink| { &m.field_type },
-                |m: &mut Sink| { &mut m.field_type },
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, KafkaDesc>(
+                "kafka",
+                Sink::has_kafka,
+                Sink::get_kafka,
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<SinkDesc>>(
-                "sink",
-                |m: &Sink| { &m.sink },
-                |m: &mut Sink| { &mut m.sink },
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, MysqlDesc>(
+                "mysql",
+                Sink::has_mysql,
+                Sink::get_mysql,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, RedisDesc>(
+                "redis",
+                Sink::has_redis,
+                Sink::get_redis,
             ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<Sink>(
                 "Sink",
@@ -1469,8 +3012,9 @@ impl ::protobuf::Message for Sink {
 
 impl ::protobuf::Clear for Sink {
     fn clear(&mut self) {
-        self.field_type = SinkTypeEnum::QUERY_ENGINE;
-        self.sink.clear();
+        self.desc = ::std::option::Option::None;
+        self.desc = ::std::option::Option::None;
+        self.desc = ::std::option::Option::None;
         self.unknown_fields.clear();
     }
 }
@@ -1482,590 +3026,6 @@ impl ::std::fmt::Debug for Sink {
 }
 
 impl ::protobuf::reflect::ProtobufValue for Sink {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct SinkDesc {
-    // message oneof groups
-    pub desc: ::std::option::Option<SinkDesc_oneof_desc>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a SinkDesc {
-    fn default() -> &'a SinkDesc {
-        <SinkDesc as ::protobuf::Message>::default_instance()
-    }
-}
-
-#[derive(Clone,PartialEq,Debug)]
-pub enum SinkDesc_oneof_desc {
-    qe_desc(QueryEngineSinkDesc),
-}
-
-impl SinkDesc {
-    pub fn new() -> SinkDesc {
-        ::std::default::Default::default()
-    }
-
-    // .common.QueryEngineSinkDesc qe_desc = 1;
-
-
-    pub fn get_qe_desc(&self) -> &QueryEngineSinkDesc {
-        match self.desc {
-            ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(ref v)) => v,
-            _ => <QueryEngineSinkDesc as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_qe_desc(&mut self) {
-        self.desc = ::std::option::Option::None;
-    }
-
-    pub fn has_qe_desc(&self) -> bool {
-        match self.desc {
-            ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_qe_desc(&mut self, v: QueryEngineSinkDesc) {
-        self.desc = ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_qe_desc(&mut self) -> &mut QueryEngineSinkDesc {
-        if let ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(_)) = self.desc {
-        } else {
-            self.desc = ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(QueryEngineSinkDesc::new()));
-        }
-        match self.desc {
-            ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_qe_desc(&mut self) -> QueryEngineSinkDesc {
-        if self.has_qe_desc() {
-            match self.desc.take() {
-                ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            QueryEngineSinkDesc::new()
-        }
-    }
-}
-
-impl ::protobuf::Message for SinkDesc {
-    fn is_initialized(&self) -> bool {
-        if let Some(SinkDesc_oneof_desc::qe_desc(ref v)) = self.desc {
-            if !v.is_initialized() {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.desc = ::std::option::Option::Some(SinkDesc_oneof_desc::qe_desc(is.read_message()?));
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if let ::std::option::Option::Some(ref v) = self.desc {
-            match v {
-                &SinkDesc_oneof_desc::qe_desc(ref v) => {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-                },
-            };
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if let ::std::option::Option::Some(ref v) = self.desc {
-            match v {
-                &SinkDesc_oneof_desc::qe_desc(ref v) => {
-                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-                    os.write_raw_varint32(v.get_cached_size())?;
-                    v.write_to_with_cached_sizes(os)?;
-                },
-            };
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> SinkDesc {
-        SinkDesc::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, QueryEngineSinkDesc>(
-                "qe_desc",
-                SinkDesc::has_qe_desc,
-                SinkDesc::get_qe_desc,
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<SinkDesc>(
-                "SinkDesc",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static SinkDesc {
-        static instance: ::protobuf::rt::LazyV2<SinkDesc> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(SinkDesc::new)
-    }
-}
-
-impl ::protobuf::Clear for SinkDesc {
-    fn clear(&mut self) {
-        self.desc = ::std::option::Option::None;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for SinkDesc {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SinkDesc {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct QueryEngineSinkDesc {
-    // message fields
-    pub schema: ::protobuf::SingularPtrField<super::table::Schema>,
-    pub field_type: QueryEngineSinkTypeEnum,
-    pub qe_opts: ::protobuf::SingularPtrField<QueryEngineSinkOptions>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a QueryEngineSinkDesc {
-    fn default() -> &'a QueryEngineSinkDesc {
-        <QueryEngineSinkDesc as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl QueryEngineSinkDesc {
-    pub fn new() -> QueryEngineSinkDesc {
-        ::std::default::Default::default()
-    }
-
-    // .common.Schema schema = 1;
-
-
-    pub fn get_schema(&self) -> &super::table::Schema {
-        self.schema.as_ref().unwrap_or_else(|| <super::table::Schema as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_schema(&mut self) {
-        self.schema.clear();
-    }
-
-    pub fn has_schema(&self) -> bool {
-        self.schema.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_schema(&mut self, v: super::table::Schema) {
-        self.schema = ::protobuf::SingularPtrField::some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_schema(&mut self) -> &mut super::table::Schema {
-        if self.schema.is_none() {
-            self.schema.set_default();
-        }
-        self.schema.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_schema(&mut self) -> super::table::Schema {
-        self.schema.take().unwrap_or_else(|| super::table::Schema::new())
-    }
-
-    // .common.QueryEngineSinkTypeEnum type = 2;
-
-
-    pub fn get_field_type(&self) -> QueryEngineSinkTypeEnum {
-        self.field_type
-    }
-    pub fn clear_field_type(&mut self) {
-        self.field_type = QueryEngineSinkTypeEnum::QE_OVERRIDE;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_field_type(&mut self, v: QueryEngineSinkTypeEnum) {
-        self.field_type = v;
-    }
-
-    // .common.QueryEngineSinkOptions qe_opts = 3;
-
-
-    pub fn get_qe_opts(&self) -> &QueryEngineSinkOptions {
-        self.qe_opts.as_ref().unwrap_or_else(|| <QueryEngineSinkOptions as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_qe_opts(&mut self) {
-        self.qe_opts.clear();
-    }
-
-    pub fn has_qe_opts(&self) -> bool {
-        self.qe_opts.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_qe_opts(&mut self, v: QueryEngineSinkOptions) {
-        self.qe_opts = ::protobuf::SingularPtrField::some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_qe_opts(&mut self) -> &mut QueryEngineSinkOptions {
-        if self.qe_opts.is_none() {
-            self.qe_opts.set_default();
-        }
-        self.qe_opts.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_qe_opts(&mut self) -> QueryEngineSinkOptions {
-        self.qe_opts.take().unwrap_or_else(|| QueryEngineSinkOptions::new())
-    }
-}
-
-impl ::protobuf::Message for QueryEngineSinkDesc {
-    fn is_initialized(&self) -> bool {
-        for v in &self.schema {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.qe_opts {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.schema)?;
-                },
-                2 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.field_type, 2, &mut self.unknown_fields)?
-                },
-                3 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.qe_opts)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if let Some(ref v) = self.schema.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        }
-        if self.field_type != QueryEngineSinkTypeEnum::QE_OVERRIDE {
-            my_size += ::protobuf::rt::enum_size(2, self.field_type);
-        }
-        if let Some(ref v) = self.qe_opts.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if let Some(ref v) = self.schema.as_ref() {
-            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        }
-        if self.field_type != QueryEngineSinkTypeEnum::QE_OVERRIDE {
-            os.write_enum(2, ::protobuf::ProtobufEnum::value(&self.field_type))?;
-        }
-        if let Some(ref v) = self.qe_opts.as_ref() {
-            os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> QueryEngineSinkDesc {
-        QueryEngineSinkDesc::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::table::Schema>>(
-                "schema",
-                |m: &QueryEngineSinkDesc| { &m.schema },
-                |m: &mut QueryEngineSinkDesc| { &mut m.schema },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<QueryEngineSinkTypeEnum>>(
-                "type",
-                |m: &QueryEngineSinkDesc| { &m.field_type },
-                |m: &mut QueryEngineSinkDesc| { &mut m.field_type },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<QueryEngineSinkOptions>>(
-                "qe_opts",
-                |m: &QueryEngineSinkDesc| { &m.qe_opts },
-                |m: &mut QueryEngineSinkDesc| { &mut m.qe_opts },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<QueryEngineSinkDesc>(
-                "QueryEngineSinkDesc",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static QueryEngineSinkDesc {
-        static instance: ::protobuf::rt::LazyV2<QueryEngineSinkDesc> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(QueryEngineSinkDesc::new)
-    }
-}
-
-impl ::protobuf::Clear for QueryEngineSinkDesc {
-    fn clear(&mut self) {
-        self.schema.clear();
-        self.field_type = QueryEngineSinkTypeEnum::QE_OVERRIDE;
-        self.qe_opts.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for QueryEngineSinkDesc {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for QueryEngineSinkDesc {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct QueryEngineSinkOptions {
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a QueryEngineSinkOptions {
-    fn default() -> &'a QueryEngineSinkOptions {
-        <QueryEngineSinkOptions as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl QueryEngineSinkOptions {
-    pub fn new() -> QueryEngineSinkOptions {
-        ::std::default::Default::default()
-    }
-}
-
-impl ::protobuf::Message for QueryEngineSinkOptions {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> QueryEngineSinkOptions {
-        QueryEngineSinkOptions::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let fields = ::std::vec::Vec::new();
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<QueryEngineSinkOptions>(
-                "QueryEngineSinkOptions",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static QueryEngineSinkOptions {
-        static instance: ::protobuf::rt::LazyV2<QueryEngineSinkOptions> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(QueryEngineSinkOptions::new)
-    }
-}
-
-impl ::protobuf::Clear for QueryEngineSinkOptions {
-    fn clear(&mut self) {
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for QueryEngineSinkOptions {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for QueryEngineSinkOptions {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -2267,9 +3227,8 @@ impl ::protobuf::reflect::ProtobufValue for ConstOp {
 
 #[derive(PartialEq,Clone,Default)]
 pub struct Source {
-    // message fields
-    pub field_type: SourceTypeEnum,
-    pub source_desc: ::protobuf::SingularPtrField<SourceDesc>,
+    // message oneof groups
+    pub desc: ::std::option::Option<Source_oneof_desc>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
@@ -2281,67 +3240,73 @@ impl<'a> ::std::default::Default for &'a Source {
     }
 }
 
+#[derive(Clone,PartialEq,Debug)]
+pub enum Source_oneof_desc {
+    kafka(KafkaDesc),
+}
+
 impl Source {
     pub fn new() -> Source {
         ::std::default::Default::default()
     }
 
-    // .common.SourceTypeEnum type = 1;
+    // .common.KafkaDesc kafka = 3;
 
 
-    pub fn get_field_type(&self) -> SourceTypeEnum {
-        self.field_type
+    pub fn get_kafka(&self) -> &KafkaDesc {
+        match self.desc {
+            ::std::option::Option::Some(Source_oneof_desc::kafka(ref v)) => v,
+            _ => <KafkaDesc as ::protobuf::Message>::default_instance(),
+        }
     }
-    pub fn clear_field_type(&mut self) {
-        self.field_type = SourceTypeEnum::KAFKA;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_field_type(&mut self, v: SourceTypeEnum) {
-        self.field_type = v;
+    pub fn clear_kafka(&mut self) {
+        self.desc = ::std::option::Option::None;
     }
 
-    // .common.SourceDesc source_desc = 2;
-
-
-    pub fn get_source_desc(&self) -> &SourceDesc {
-        self.source_desc.as_ref().unwrap_or_else(|| <SourceDesc as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_source_desc(&mut self) {
-        self.source_desc.clear();
-    }
-
-    pub fn has_source_desc(&self) -> bool {
-        self.source_desc.is_some()
+    pub fn has_kafka(&self) -> bool {
+        match self.desc {
+            ::std::option::Option::Some(Source_oneof_desc::kafka(..)) => true,
+            _ => false,
+        }
     }
 
     // Param is passed by value, moved
-    pub fn set_source_desc(&mut self, v: SourceDesc) {
-        self.source_desc = ::protobuf::SingularPtrField::some(v);
+    pub fn set_kafka(&mut self, v: KafkaDesc) {
+        self.desc = ::std::option::Option::Some(Source_oneof_desc::kafka(v))
     }
 
     // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_source_desc(&mut self) -> &mut SourceDesc {
-        if self.source_desc.is_none() {
-            self.source_desc.set_default();
+    pub fn mut_kafka(&mut self) -> &mut KafkaDesc {
+        if let ::std::option::Option::Some(Source_oneof_desc::kafka(_)) = self.desc {
+        } else {
+            self.desc = ::std::option::Option::Some(Source_oneof_desc::kafka(KafkaDesc::new()));
         }
-        self.source_desc.as_mut().unwrap()
+        match self.desc {
+            ::std::option::Option::Some(Source_oneof_desc::kafka(ref mut v)) => v,
+            _ => panic!(),
+        }
     }
 
     // Take field
-    pub fn take_source_desc(&mut self) -> SourceDesc {
-        self.source_desc.take().unwrap_or_else(|| SourceDesc::new())
+    pub fn take_kafka(&mut self) -> KafkaDesc {
+        if self.has_kafka() {
+            match self.desc.take() {
+                ::std::option::Option::Some(Source_oneof_desc::kafka(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            KafkaDesc::new()
+        }
     }
 }
 
 impl ::protobuf::Message for Source {
     fn is_initialized(&self) -> bool {
-        for v in &self.source_desc {
+        if let Some(Source_oneof_desc::kafka(ref v)) = self.desc {
             if !v.is_initialized() {
                 return false;
             }
-        };
+        }
         true
     }
 
@@ -2349,11 +3314,11 @@ impl ::protobuf::Message for Source {
         while !is.eof()? {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
-                1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.field_type, 1, &mut self.unknown_fields)?
-                },
-                2 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.source_desc)?;
+                3 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.desc = ::std::option::Option::Some(Source_oneof_desc::kafka(is.read_message()?));
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -2367,12 +3332,13 @@ impl ::protobuf::Message for Source {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.field_type != SourceTypeEnum::KAFKA {
-            my_size += ::protobuf::rt::enum_size(1, self.field_type);
-        }
-        if let Some(ref v) = self.source_desc.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        if let ::std::option::Option::Some(ref v) = self.desc {
+            match v {
+                &Source_oneof_desc::kafka(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -2380,13 +3346,14 @@ impl ::protobuf::Message for Source {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.field_type != SourceTypeEnum::KAFKA {
-            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.field_type))?;
-        }
-        if let Some(ref v) = self.source_desc.as_ref() {
-            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
+        if let ::std::option::Option::Some(ref v) = self.desc {
+            match v {
+                &Source_oneof_desc::kafka(ref v) => {
+                    os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+            };
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -2426,15 +3393,10 @@ impl ::protobuf::Message for Source {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<SourceTypeEnum>>(
-                "type",
-                |m: &Source| { &m.field_type },
-                |m: &mut Source| { &mut m.field_type },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<SourceDesc>>(
-                "source_desc",
-                |m: &Source| { &m.source_desc },
-                |m: &mut Source| { &mut m.source_desc },
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, KafkaDesc>(
+                "kafka",
+                Source::has_kafka,
+                Source::get_kafka,
             ));
             ::protobuf::reflect::MessageDescriptor::new_pb_name::<Source>(
                 "Source",
@@ -2452,8 +3414,7 @@ impl ::protobuf::Message for Source {
 
 impl ::protobuf::Clear for Source {
     fn clear(&mut self) {
-        self.field_type = SourceTypeEnum::KAFKA;
-        self.source_desc.clear();
+        self.desc = ::std::option::Option::None;
         self.unknown_fields.clear();
     }
 }
@@ -2471,822 +3432,25 @@ impl ::protobuf::reflect::ProtobufValue for Source {
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct SourceDesc {
-    // message oneof groups
-    pub desc: ::std::option::Option<SourceDesc_oneof_desc>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a SourceDesc {
-    fn default() -> &'a SourceDesc {
-        <SourceDesc as ::protobuf::Message>::default_instance()
-    }
-}
-
-#[derive(Clone,PartialEq,Debug)]
-pub enum SourceDesc_oneof_desc {
-    batch_query(QueryEngineSource),
-    change_stream(ChangeStreamSource),
-    kafka(KafkaSource),
-}
-
-impl SourceDesc {
-    pub fn new() -> SourceDesc {
-        ::std::default::Default::default()
-    }
-
-    // .common.QueryEngineSource batch_query = 1;
-
-
-    pub fn get_batch_query(&self) -> &QueryEngineSource {
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(ref v)) => v,
-            _ => <QueryEngineSource as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_batch_query(&mut self) {
-        self.desc = ::std::option::Option::None;
-    }
-
-    pub fn has_batch_query(&self) -> bool {
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_batch_query(&mut self, v: QueryEngineSource) {
-        self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_batch_query(&mut self) -> &mut QueryEngineSource {
-        if let ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(_)) = self.desc {
-        } else {
-            self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(QueryEngineSource::new()));
-        }
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_batch_query(&mut self) -> QueryEngineSource {
-        if self.has_batch_query() {
-            match self.desc.take() {
-                ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            QueryEngineSource::new()
-        }
-    }
-
-    // .common.ChangeStreamSource change_stream = 2;
-
-
-    pub fn get_change_stream(&self) -> &ChangeStreamSource {
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(ref v)) => v,
-            _ => <ChangeStreamSource as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_change_stream(&mut self) {
-        self.desc = ::std::option::Option::None;
-    }
-
-    pub fn has_change_stream(&self) -> bool {
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_change_stream(&mut self, v: ChangeStreamSource) {
-        self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_change_stream(&mut self) -> &mut ChangeStreamSource {
-        if let ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(_)) = self.desc {
-        } else {
-            self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(ChangeStreamSource::new()));
-        }
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_change_stream(&mut self) -> ChangeStreamSource {
-        if self.has_change_stream() {
-            match self.desc.take() {
-                ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            ChangeStreamSource::new()
-        }
-    }
-
-    // .common.KafkaSource kafka = 3;
-
-
-    pub fn get_kafka(&self) -> &KafkaSource {
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(ref v)) => v,
-            _ => <KafkaSource as ::protobuf::Message>::default_instance(),
-        }
-    }
-    pub fn clear_kafka(&mut self) {
-        self.desc = ::std::option::Option::None;
-    }
-
-    pub fn has_kafka(&self) -> bool {
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_kafka(&mut self, v: KafkaSource) {
-        self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_kafka(&mut self) -> &mut KafkaSource {
-        if let ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(_)) = self.desc {
-        } else {
-            self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(KafkaSource::new()));
-        }
-        match self.desc {
-            ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_kafka(&mut self) -> KafkaSource {
-        if self.has_kafka() {
-            match self.desc.take() {
-                ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            KafkaSource::new()
-        }
-    }
-}
-
-impl ::protobuf::Message for SourceDesc {
-    fn is_initialized(&self) -> bool {
-        if let Some(SourceDesc_oneof_desc::batch_query(ref v)) = self.desc {
-            if !v.is_initialized() {
-                return false;
-            }
-        }
-        if let Some(SourceDesc_oneof_desc::change_stream(ref v)) = self.desc {
-            if !v.is_initialized() {
-                return false;
-            }
-        }
-        if let Some(SourceDesc_oneof_desc::kafka(ref v)) = self.desc {
-            if !v.is_initialized() {
-                return false;
-            }
-        }
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::batch_query(is.read_message()?));
-                },
-                2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::change_stream(is.read_message()?));
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.desc = ::std::option::Option::Some(SourceDesc_oneof_desc::kafka(is.read_message()?));
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if let ::std::option::Option::Some(ref v) = self.desc {
-            match v {
-                &SourceDesc_oneof_desc::batch_query(ref v) => {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-                },
-                &SourceDesc_oneof_desc::change_stream(ref v) => {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-                },
-                &SourceDesc_oneof_desc::kafka(ref v) => {
-                    let len = v.compute_size();
-                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-                },
-            };
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if let ::std::option::Option::Some(ref v) = self.desc {
-            match v {
-                &SourceDesc_oneof_desc::batch_query(ref v) => {
-                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-                    os.write_raw_varint32(v.get_cached_size())?;
-                    v.write_to_with_cached_sizes(os)?;
-                },
-                &SourceDesc_oneof_desc::change_stream(ref v) => {
-                    os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-                    os.write_raw_varint32(v.get_cached_size())?;
-                    v.write_to_with_cached_sizes(os)?;
-                },
-                &SourceDesc_oneof_desc::kafka(ref v) => {
-                    os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-                    os.write_raw_varint32(v.get_cached_size())?;
-                    v.write_to_with_cached_sizes(os)?;
-                },
-            };
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> SourceDesc {
-        SourceDesc::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, QueryEngineSource>(
-                "batch_query",
-                SourceDesc::has_batch_query,
-                SourceDesc::get_batch_query,
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, ChangeStreamSource>(
-                "change_stream",
-                SourceDesc::has_change_stream,
-                SourceDesc::get_change_stream,
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, KafkaSource>(
-                "kafka",
-                SourceDesc::has_kafka,
-                SourceDesc::get_kafka,
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<SourceDesc>(
-                "SourceDesc",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static SourceDesc {
-        static instance: ::protobuf::rt::LazyV2<SourceDesc> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(SourceDesc::new)
-    }
-}
-
-impl ::protobuf::Clear for SourceDesc {
-    fn clear(&mut self) {
-        self.desc = ::std::option::Option::None;
-        self.desc = ::std::option::Option::None;
-        self.desc = ::std::option::Option::None;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for SourceDesc {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SourceDesc {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct QueryEngineSource {
-    // message fields
-    pub schema: ::protobuf::SingularPtrField<super::table::Schema>,
-    pub opts: ::protobuf::SingularPtrField<BatchDataOptions>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a QueryEngineSource {
-    fn default() -> &'a QueryEngineSource {
-        <QueryEngineSource as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl QueryEngineSource {
-    pub fn new() -> QueryEngineSource {
-        ::std::default::Default::default()
-    }
-
-    // .common.Schema schema = 2;
-
-
-    pub fn get_schema(&self) -> &super::table::Schema {
-        self.schema.as_ref().unwrap_or_else(|| <super::table::Schema as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_schema(&mut self) {
-        self.schema.clear();
-    }
-
-    pub fn has_schema(&self) -> bool {
-        self.schema.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_schema(&mut self, v: super::table::Schema) {
-        self.schema = ::protobuf::SingularPtrField::some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_schema(&mut self) -> &mut super::table::Schema {
-        if self.schema.is_none() {
-            self.schema.set_default();
-        }
-        self.schema.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_schema(&mut self) -> super::table::Schema {
-        self.schema.take().unwrap_or_else(|| super::table::Schema::new())
-    }
-
-    // .common.BatchDataOptions opts = 4;
-
-
-    pub fn get_opts(&self) -> &BatchDataOptions {
-        self.opts.as_ref().unwrap_or_else(|| <BatchDataOptions as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_opts(&mut self) {
-        self.opts.clear();
-    }
-
-    pub fn has_opts(&self) -> bool {
-        self.opts.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_opts(&mut self, v: BatchDataOptions) {
-        self.opts = ::protobuf::SingularPtrField::some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_opts(&mut self) -> &mut BatchDataOptions {
-        if self.opts.is_none() {
-            self.opts.set_default();
-        }
-        self.opts.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_opts(&mut self) -> BatchDataOptions {
-        self.opts.take().unwrap_or_else(|| BatchDataOptions::new())
-    }
-}
-
-impl ::protobuf::Message for QueryEngineSource {
-    fn is_initialized(&self) -> bool {
-        for v in &self.schema {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        for v in &self.opts {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                2 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.schema)?;
-                },
-                4 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.opts)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if let Some(ref v) = self.schema.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        }
-        if let Some(ref v) = self.opts.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if let Some(ref v) = self.schema.as_ref() {
-            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        }
-        if let Some(ref v) = self.opts.as_ref() {
-            os.write_tag(4, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> QueryEngineSource {
-        QueryEngineSource::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::table::Schema>>(
-                "schema",
-                |m: &QueryEngineSource| { &m.schema },
-                |m: &mut QueryEngineSource| { &mut m.schema },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<BatchDataOptions>>(
-                "opts",
-                |m: &QueryEngineSource| { &m.opts },
-                |m: &mut QueryEngineSource| { &mut m.opts },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<QueryEngineSource>(
-                "QueryEngineSource",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static QueryEngineSource {
-        static instance: ::protobuf::rt::LazyV2<QueryEngineSource> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(QueryEngineSource::new)
-    }
-}
-
-impl ::protobuf::Clear for QueryEngineSource {
-    fn clear(&mut self) {
-        self.schema.clear();
-        self.opts.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for QueryEngineSource {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for QueryEngineSource {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct ChangeStreamSource {
-    // message fields
-    pub table_id: u32,
-    pub opts: ::protobuf::SingularPtrField<ChangeStreamOptions>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a ChangeStreamSource {
-    fn default() -> &'a ChangeStreamSource {
-        <ChangeStreamSource as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl ChangeStreamSource {
-    pub fn new() -> ChangeStreamSource {
-        ::std::default::Default::default()
-    }
-
-    // uint32 table_id = 1;
-
-
-    pub fn get_table_id(&self) -> u32 {
-        self.table_id
-    }
-    pub fn clear_table_id(&mut self) {
-        self.table_id = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_table_id(&mut self, v: u32) {
-        self.table_id = v;
-    }
-
-    // .common.ChangeStreamOptions opts = 2;
-
-
-    pub fn get_opts(&self) -> &ChangeStreamOptions {
-        self.opts.as_ref().unwrap_or_else(|| <ChangeStreamOptions as ::protobuf::Message>::default_instance())
-    }
-    pub fn clear_opts(&mut self) {
-        self.opts.clear();
-    }
-
-    pub fn has_opts(&self) -> bool {
-        self.opts.is_some()
-    }
-
-    // Param is passed by value, moved
-    pub fn set_opts(&mut self, v: ChangeStreamOptions) {
-        self.opts = ::protobuf::SingularPtrField::some(v);
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_opts(&mut self) -> &mut ChangeStreamOptions {
-        if self.opts.is_none() {
-            self.opts.set_default();
-        }
-        self.opts.as_mut().unwrap()
-    }
-
-    // Take field
-    pub fn take_opts(&mut self) -> ChangeStreamOptions {
-        self.opts.take().unwrap_or_else(|| ChangeStreamOptions::new())
-    }
-}
-
-impl ::protobuf::Message for ChangeStreamSource {
-    fn is_initialized(&self) -> bool {
-        for v in &self.opts {
-            if !v.is_initialized() {
-                return false;
-            }
-        };
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.table_id = tmp;
-                },
-                2 => {
-                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.opts)?;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if self.table_id != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.table_id, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if let Some(ref v) = self.opts.as_ref() {
-            let len = v.compute_size();
-            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.table_id != 0 {
-            os.write_uint32(1, self.table_id)?;
-        }
-        if let Some(ref v) = self.opts.as_ref() {
-            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
-            os.write_raw_varint32(v.get_cached_size())?;
-            v.write_to_with_cached_sizes(os)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> ChangeStreamSource {
-        ChangeStreamSource::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "table_id",
-                |m: &ChangeStreamSource| { &m.table_id },
-                |m: &mut ChangeStreamSource| { &mut m.table_id },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<ChangeStreamOptions>>(
-                "opts",
-                |m: &ChangeStreamSource| { &m.opts },
-                |m: &mut ChangeStreamSource| { &mut m.opts },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ChangeStreamSource>(
-                "ChangeStreamSource",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static ChangeStreamSource {
-        static instance: ::protobuf::rt::LazyV2<ChangeStreamSource> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(ChangeStreamSource::new)
-    }
-}
-
-impl ::protobuf::Clear for ChangeStreamSource {
-    fn clear(&mut self) {
-        self.table_id = 0;
-        self.opts.clear();
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for ChangeStreamSource {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for ChangeStreamSource {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct KafkaSource {
+pub struct KafkaDesc {
     // message fields
     pub brokers: ::protobuf::RepeatedField<::std::string::String>,
     pub topic: ::std::string::String,
-    pub opts: ::protobuf::SingularPtrField<KafkaOptions>,
+    pub opts: ::protobuf::SingularPtrField<KafkaDesc_KafkaOptions>,
+    pub data_type: super::common::DataTypeEnum,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a KafkaSource {
-    fn default() -> &'a KafkaSource {
-        <KafkaSource as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a KafkaDesc {
+    fn default() -> &'a KafkaDesc {
+        <KafkaDesc as ::protobuf::Message>::default_instance()
     }
 }
 
-impl KafkaSource {
-    pub fn new() -> KafkaSource {
+impl KafkaDesc {
+    pub fn new() -> KafkaDesc {
         ::std::default::Default::default()
     }
 
@@ -3341,11 +3505,11 @@ impl KafkaSource {
         ::std::mem::replace(&mut self.topic, ::std::string::String::new())
     }
 
-    // .common.KafkaOptions opts = 3;
+    // .common.KafkaDesc.KafkaOptions opts = 3;
 
 
-    pub fn get_opts(&self) -> &KafkaOptions {
-        self.opts.as_ref().unwrap_or_else(|| <KafkaOptions as ::protobuf::Message>::default_instance())
+    pub fn get_opts(&self) -> &KafkaDesc_KafkaOptions {
+        self.opts.as_ref().unwrap_or_else(|| <KafkaDesc_KafkaOptions as ::protobuf::Message>::default_instance())
     }
     pub fn clear_opts(&mut self) {
         self.opts.clear();
@@ -3356,13 +3520,13 @@ impl KafkaSource {
     }
 
     // Param is passed by value, moved
-    pub fn set_opts(&mut self, v: KafkaOptions) {
+    pub fn set_opts(&mut self, v: KafkaDesc_KafkaOptions) {
         self.opts = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_opts(&mut self) -> &mut KafkaOptions {
+    pub fn mut_opts(&mut self) -> &mut KafkaDesc_KafkaOptions {
         if self.opts.is_none() {
             self.opts.set_default();
         }
@@ -3370,12 +3534,27 @@ impl KafkaSource {
     }
 
     // Take field
-    pub fn take_opts(&mut self) -> KafkaOptions {
-        self.opts.take().unwrap_or_else(|| KafkaOptions::new())
+    pub fn take_opts(&mut self) -> KafkaDesc_KafkaOptions {
+        self.opts.take().unwrap_or_else(|| KafkaDesc_KafkaOptions::new())
+    }
+
+    // .common.DataTypeEnum data_type = 4;
+
+
+    pub fn get_data_type(&self) -> super::common::DataTypeEnum {
+        self.data_type
+    }
+    pub fn clear_data_type(&mut self) {
+        self.data_type = super::common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_data_type(&mut self, v: super::common::DataTypeEnum) {
+        self.data_type = v;
     }
 }
 
-impl ::protobuf::Message for KafkaSource {
+impl ::protobuf::Message for KafkaDesc {
     fn is_initialized(&self) -> bool {
         for v in &self.opts {
             if !v.is_initialized() {
@@ -3397,6 +3576,9 @@ impl ::protobuf::Message for KafkaSource {
                 },
                 3 => {
                     ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.opts)?;
+                },
+                4 => {
+                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.data_type, 4, &mut self.unknown_fields)?
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -3420,6 +3602,9 @@ impl ::protobuf::Message for KafkaSource {
             let len = v.compute_size();
             my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
+        if self.data_type != super::common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED {
+            my_size += ::protobuf::rt::enum_size(4, self.data_type);
+        }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
         my_size
@@ -3433,6 +3618,1463 @@ impl ::protobuf::Message for KafkaSource {
             os.write_string(2, &self.topic)?;
         }
         if let Some(ref v) = self.opts.as_ref() {
+            os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if self.data_type != super::common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED {
+            os.write_enum(4, ::protobuf::ProtobufEnum::value(&self.data_type))?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> KafkaDesc {
+        KafkaDesc::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "brokers",
+                |m: &KafkaDesc| { &m.brokers },
+                |m: &mut KafkaDesc| { &mut m.brokers },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "topic",
+                |m: &KafkaDesc| { &m.topic },
+                |m: &mut KafkaDesc| { &mut m.topic },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<KafkaDesc_KafkaOptions>>(
+                "opts",
+                |m: &KafkaDesc| { &m.opts },
+                |m: &mut KafkaDesc| { &mut m.opts },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<super::common::DataTypeEnum>>(
+                "data_type",
+                |m: &KafkaDesc| { &m.data_type },
+                |m: &mut KafkaDesc| { &mut m.data_type },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<KafkaDesc>(
+                "KafkaDesc",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static KafkaDesc {
+        static instance: ::protobuf::rt::LazyV2<KafkaDesc> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(KafkaDesc::new)
+    }
+}
+
+impl ::protobuf::Clear for KafkaDesc {
+    fn clear(&mut self) {
+        self.brokers.clear();
+        self.topic.clear();
+        self.opts.clear();
+        self.data_type = super::common::DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for KafkaDesc {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for KafkaDesc {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct KafkaDesc_KafkaOptions {
+    // message oneof groups
+    pub opt: ::std::option::Option<KafkaDesc_KafkaOptions_oneof_opt>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a KafkaDesc_KafkaOptions {
+    fn default() -> &'a KafkaDesc_KafkaOptions {
+        <KafkaDesc_KafkaOptions as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum KafkaDesc_KafkaOptions_oneof_opt {
+    group(::std::string::String),
+    partition(u32),
+}
+
+impl KafkaDesc_KafkaOptions {
+    pub fn new() -> KafkaDesc_KafkaOptions {
+        ::std::default::Default::default()
+    }
+
+    // string group = 1;
+
+
+    pub fn get_group(&self) -> &str {
+        match self.opt {
+            ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(ref v)) => v,
+            _ => "",
+        }
+    }
+    pub fn clear_group(&mut self) {
+        self.opt = ::std::option::Option::None;
+    }
+
+    pub fn has_group(&self) -> bool {
+        match self.opt {
+            ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_group(&mut self, v: ::std::string::String) {
+        self.opt = ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_group(&mut self) -> &mut ::std::string::String {
+        if let ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(_)) = self.opt {
+        } else {
+            self.opt = ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(::std::string::String::new()));
+        }
+        match self.opt {
+            ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_group(&mut self) -> ::std::string::String {
+        if self.has_group() {
+            match self.opt.take() {
+                ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            ::std::string::String::new()
+        }
+    }
+
+    // uint32 partition = 2;
+
+
+    pub fn get_partition(&self) -> u32 {
+        match self.opt {
+            ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::partition(v)) => v,
+            _ => 0,
+        }
+    }
+    pub fn clear_partition(&mut self) {
+        self.opt = ::std::option::Option::None;
+    }
+
+    pub fn has_partition(&self) -> bool {
+        match self.opt {
+            ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::partition(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_partition(&mut self, v: u32) {
+        self.opt = ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::partition(v))
+    }
+}
+
+impl ::protobuf::Message for KafkaDesc_KafkaOptions {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.opt = ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::group(is.read_string()?));
+                },
+                2 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.opt = ::std::option::Option::Some(KafkaDesc_KafkaOptions_oneof_opt::partition(is.read_uint32()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.opt {
+            match v {
+                &KafkaDesc_KafkaOptions_oneof_opt::group(ref v) => {
+                    my_size += ::protobuf::rt::string_size(1, &v);
+                },
+                &KafkaDesc_KafkaOptions_oneof_opt::partition(v) => {
+                    my_size += ::protobuf::rt::value_size(2, v, ::protobuf::wire_format::WireTypeVarint);
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.opt {
+            match v {
+                &KafkaDesc_KafkaOptions_oneof_opt::group(ref v) => {
+                    os.write_string(1, v)?;
+                },
+                &KafkaDesc_KafkaOptions_oneof_opt::partition(v) => {
+                    os.write_uint32(2, v)?;
+                },
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> KafkaDesc_KafkaOptions {
+        KafkaDesc_KafkaOptions::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_string_accessor::<_>(
+                "group",
+                KafkaDesc_KafkaOptions::has_group,
+                KafkaDesc_KafkaOptions::get_group,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_u32_accessor::<_>(
+                "partition",
+                KafkaDesc_KafkaOptions::has_partition,
+                KafkaDesc_KafkaOptions::get_partition,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<KafkaDesc_KafkaOptions>(
+                "KafkaDesc.KafkaOptions",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static KafkaDesc_KafkaOptions {
+        static instance: ::protobuf::rt::LazyV2<KafkaDesc_KafkaOptions> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(KafkaDesc_KafkaOptions::new)
+    }
+}
+
+impl ::protobuf::Clear for KafkaDesc_KafkaOptions {
+    fn clear(&mut self) {
+        self.opt = ::std::option::Option::None;
+        self.opt = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for KafkaDesc_KafkaOptions {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for KafkaDesc_KafkaOptions {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct MysqlDesc {
+    // message fields
+    pub connection_opts: ::protobuf::SingularPtrField<MysqlDesc_ConnectionOpts>,
+    pub statement: ::protobuf::SingularPtrField<MysqlDesc_Statement>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a MysqlDesc {
+    fn default() -> &'a MysqlDesc {
+        <MysqlDesc as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MysqlDesc {
+    pub fn new() -> MysqlDesc {
+        ::std::default::Default::default()
+    }
+
+    // .common.MysqlDesc.ConnectionOpts connection_opts = 1;
+
+
+    pub fn get_connection_opts(&self) -> &MysqlDesc_ConnectionOpts {
+        self.connection_opts.as_ref().unwrap_or_else(|| <MysqlDesc_ConnectionOpts as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_connection_opts(&mut self) {
+        self.connection_opts.clear();
+    }
+
+    pub fn has_connection_opts(&self) -> bool {
+        self.connection_opts.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_connection_opts(&mut self, v: MysqlDesc_ConnectionOpts) {
+        self.connection_opts = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_connection_opts(&mut self) -> &mut MysqlDesc_ConnectionOpts {
+        if self.connection_opts.is_none() {
+            self.connection_opts.set_default();
+        }
+        self.connection_opts.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_connection_opts(&mut self) -> MysqlDesc_ConnectionOpts {
+        self.connection_opts.take().unwrap_or_else(|| MysqlDesc_ConnectionOpts::new())
+    }
+
+    // .common.MysqlDesc.Statement statement = 2;
+
+
+    pub fn get_statement(&self) -> &MysqlDesc_Statement {
+        self.statement.as_ref().unwrap_or_else(|| <MysqlDesc_Statement as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_statement(&mut self) {
+        self.statement.clear();
+    }
+
+    pub fn has_statement(&self) -> bool {
+        self.statement.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_statement(&mut self, v: MysqlDesc_Statement) {
+        self.statement = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_statement(&mut self) -> &mut MysqlDesc_Statement {
+        if self.statement.is_none() {
+            self.statement.set_default();
+        }
+        self.statement.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_statement(&mut self) -> MysqlDesc_Statement {
+        self.statement.take().unwrap_or_else(|| MysqlDesc_Statement::new())
+    }
+}
+
+impl ::protobuf::Message for MysqlDesc {
+    fn is_initialized(&self) -> bool {
+        for v in &self.connection_opts {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.statement {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.connection_opts)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.statement)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let Some(ref v) = self.connection_opts.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        if let Some(ref v) = self.statement.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let Some(ref v) = self.connection_opts.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if let Some(ref v) = self.statement.as_ref() {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> MysqlDesc {
+        MysqlDesc::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<MysqlDesc_ConnectionOpts>>(
+                "connection_opts",
+                |m: &MysqlDesc| { &m.connection_opts },
+                |m: &mut MysqlDesc| { &mut m.connection_opts },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<MysqlDesc_Statement>>(
+                "statement",
+                |m: &MysqlDesc| { &m.statement },
+                |m: &mut MysqlDesc| { &mut m.statement },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<MysqlDesc>(
+                "MysqlDesc",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static MysqlDesc {
+        static instance: ::protobuf::rt::LazyV2<MysqlDesc> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(MysqlDesc::new)
+    }
+}
+
+impl ::protobuf::Clear for MysqlDesc {
+    fn clear(&mut self) {
+        self.connection_opts.clear();
+        self.statement.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for MysqlDesc {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MysqlDesc {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct MysqlDesc_ConnectionOpts {
+    // message fields
+    pub host: ::std::string::String,
+    pub username: ::std::string::String,
+    pub password: ::std::string::String,
+    pub database: ::std::string::String,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a MysqlDesc_ConnectionOpts {
+    fn default() -> &'a MysqlDesc_ConnectionOpts {
+        <MysqlDesc_ConnectionOpts as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MysqlDesc_ConnectionOpts {
+    pub fn new() -> MysqlDesc_ConnectionOpts {
+        ::std::default::Default::default()
+    }
+
+    // string host = 1;
+
+
+    pub fn get_host(&self) -> &str {
+        &self.host
+    }
+    pub fn clear_host(&mut self) {
+        self.host.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_host(&mut self, v: ::std::string::String) {
+        self.host = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_host(&mut self) -> &mut ::std::string::String {
+        &mut self.host
+    }
+
+    // Take field
+    pub fn take_host(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.host, ::std::string::String::new())
+    }
+
+    // string username = 2;
+
+
+    pub fn get_username(&self) -> &str {
+        &self.username
+    }
+    pub fn clear_username(&mut self) {
+        self.username.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_username(&mut self, v: ::std::string::String) {
+        self.username = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_username(&mut self) -> &mut ::std::string::String {
+        &mut self.username
+    }
+
+    // Take field
+    pub fn take_username(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.username, ::std::string::String::new())
+    }
+
+    // string password = 3;
+
+
+    pub fn get_password(&self) -> &str {
+        &self.password
+    }
+    pub fn clear_password(&mut self) {
+        self.password.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_password(&mut self, v: ::std::string::String) {
+        self.password = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_password(&mut self) -> &mut ::std::string::String {
+        &mut self.password
+    }
+
+    // Take field
+    pub fn take_password(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.password, ::std::string::String::new())
+    }
+
+    // string database = 4;
+
+
+    pub fn get_database(&self) -> &str {
+        &self.database
+    }
+    pub fn clear_database(&mut self) {
+        self.database.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_database(&mut self, v: ::std::string::String) {
+        self.database = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_database(&mut self) -> &mut ::std::string::String {
+        &mut self.database
+    }
+
+    // Take field
+    pub fn take_database(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.database, ::std::string::String::new())
+    }
+}
+
+impl ::protobuf::Message for MysqlDesc_ConnectionOpts {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.host)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.username)?;
+                },
+                3 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.password)?;
+                },
+                4 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.database)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if !self.host.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.host);
+        }
+        if !self.username.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.username);
+        }
+        if !self.password.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.password);
+        }
+        if !self.database.is_empty() {
+            my_size += ::protobuf::rt::string_size(4, &self.database);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if !self.host.is_empty() {
+            os.write_string(1, &self.host)?;
+        }
+        if !self.username.is_empty() {
+            os.write_string(2, &self.username)?;
+        }
+        if !self.password.is_empty() {
+            os.write_string(3, &self.password)?;
+        }
+        if !self.database.is_empty() {
+            os.write_string(4, &self.database)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> MysqlDesc_ConnectionOpts {
+        MysqlDesc_ConnectionOpts::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "host",
+                |m: &MysqlDesc_ConnectionOpts| { &m.host },
+                |m: &mut MysqlDesc_ConnectionOpts| { &mut m.host },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "username",
+                |m: &MysqlDesc_ConnectionOpts| { &m.username },
+                |m: &mut MysqlDesc_ConnectionOpts| { &mut m.username },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "password",
+                |m: &MysqlDesc_ConnectionOpts| { &m.password },
+                |m: &mut MysqlDesc_ConnectionOpts| { &mut m.password },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "database",
+                |m: &MysqlDesc_ConnectionOpts| { &m.database },
+                |m: &mut MysqlDesc_ConnectionOpts| { &mut m.database },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<MysqlDesc_ConnectionOpts>(
+                "MysqlDesc.ConnectionOpts",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static MysqlDesc_ConnectionOpts {
+        static instance: ::protobuf::rt::LazyV2<MysqlDesc_ConnectionOpts> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(MysqlDesc_ConnectionOpts::new)
+    }
+}
+
+impl ::protobuf::Clear for MysqlDesc_ConnectionOpts {
+    fn clear(&mut self) {
+        self.host.clear();
+        self.username.clear();
+        self.password.clear();
+        self.database.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for MysqlDesc_ConnectionOpts {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MysqlDesc_ConnectionOpts {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct MysqlDesc_Statement {
+    // message fields
+    pub statement: ::std::string::String,
+    pub extractors: ::protobuf::RepeatedField<MysqlDesc_Statement_Extractor>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a MysqlDesc_Statement {
+    fn default() -> &'a MysqlDesc_Statement {
+        <MysqlDesc_Statement as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MysqlDesc_Statement {
+    pub fn new() -> MysqlDesc_Statement {
+        ::std::default::Default::default()
+    }
+
+    // string statement = 1;
+
+
+    pub fn get_statement(&self) -> &str {
+        &self.statement
+    }
+    pub fn clear_statement(&mut self) {
+        self.statement.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_statement(&mut self, v: ::std::string::String) {
+        self.statement = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_statement(&mut self) -> &mut ::std::string::String {
+        &mut self.statement
+    }
+
+    // Take field
+    pub fn take_statement(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.statement, ::std::string::String::new())
+    }
+
+    // repeated .common.MysqlDesc.Statement.Extractor extractors = 2;
+
+
+    pub fn get_extractors(&self) -> &[MysqlDesc_Statement_Extractor] {
+        &self.extractors
+    }
+    pub fn clear_extractors(&mut self) {
+        self.extractors.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_extractors(&mut self, v: ::protobuf::RepeatedField<MysqlDesc_Statement_Extractor>) {
+        self.extractors = v;
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_extractors(&mut self) -> &mut ::protobuf::RepeatedField<MysqlDesc_Statement_Extractor> {
+        &mut self.extractors
+    }
+
+    // Take field
+    pub fn take_extractors(&mut self) -> ::protobuf::RepeatedField<MysqlDesc_Statement_Extractor> {
+        ::std::mem::replace(&mut self.extractors, ::protobuf::RepeatedField::new())
+    }
+}
+
+impl ::protobuf::Message for MysqlDesc_Statement {
+    fn is_initialized(&self) -> bool {
+        for v in &self.extractors {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.statement)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_repeated_message_into(wire_type, is, &mut self.extractors)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if !self.statement.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.statement);
+        }
+        for value in &self.extractors {
+            let len = value.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        };
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if !self.statement.is_empty() {
+            os.write_string(1, &self.statement)?;
+        }
+        for v in &self.extractors {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        };
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> MysqlDesc_Statement {
+        MysqlDesc_Statement::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "statement",
+                |m: &MysqlDesc_Statement| { &m.statement },
+                |m: &mut MysqlDesc_Statement| { &mut m.statement },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<MysqlDesc_Statement_Extractor>>(
+                "extractors",
+                |m: &MysqlDesc_Statement| { &m.extractors },
+                |m: &mut MysqlDesc_Statement| { &mut m.extractors },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<MysqlDesc_Statement>(
+                "MysqlDesc.Statement",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static MysqlDesc_Statement {
+        static instance: ::protobuf::rt::LazyV2<MysqlDesc_Statement> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(MysqlDesc_Statement::new)
+    }
+}
+
+impl ::protobuf::Clear for MysqlDesc_Statement {
+    fn clear(&mut self) {
+        self.statement.clear();
+        self.extractors.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for MysqlDesc_Statement {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MysqlDesc_Statement {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct MysqlDesc_Statement_Extractor {
+    // message fields
+    pub index: u32,
+    pub extractor: ::std::string::String,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a MysqlDesc_Statement_Extractor {
+    fn default() -> &'a MysqlDesc_Statement_Extractor {
+        <MysqlDesc_Statement_Extractor as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl MysqlDesc_Statement_Extractor {
+    pub fn new() -> MysqlDesc_Statement_Extractor {
+        ::std::default::Default::default()
+    }
+
+    // uint32 index = 1;
+
+
+    pub fn get_index(&self) -> u32 {
+        self.index
+    }
+    pub fn clear_index(&mut self) {
+        self.index = 0;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_index(&mut self, v: u32) {
+        self.index = v;
+    }
+
+    // string extractor = 2;
+
+
+    pub fn get_extractor(&self) -> &str {
+        &self.extractor
+    }
+    pub fn clear_extractor(&mut self) {
+        self.extractor.clear();
+    }
+
+    // Param is passed by value, moved
+    pub fn set_extractor(&mut self, v: ::std::string::String) {
+        self.extractor = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_extractor(&mut self) -> &mut ::std::string::String {
+        &mut self.extractor
+    }
+
+    // Take field
+    pub fn take_extractor(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.extractor, ::std::string::String::new())
+    }
+}
+
+impl ::protobuf::Message for MysqlDesc_Statement_Extractor {
+    fn is_initialized(&self) -> bool {
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_uint32()?;
+                    self.index = tmp;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.extractor)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if self.index != 0 {
+            my_size += ::protobuf::rt::value_size(1, self.index, ::protobuf::wire_format::WireTypeVarint);
+        }
+        if !self.extractor.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.extractor);
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if self.index != 0 {
+            os.write_uint32(1, self.index)?;
+        }
+        if !self.extractor.is_empty() {
+            os.write_string(2, &self.extractor)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> MysqlDesc_Statement_Extractor {
+        MysqlDesc_Statement_Extractor::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
+                "index",
+                |m: &MysqlDesc_Statement_Extractor| { &m.index },
+                |m: &mut MysqlDesc_Statement_Extractor| { &mut m.index },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "extractor",
+                |m: &MysqlDesc_Statement_Extractor| { &m.extractor },
+                |m: &mut MysqlDesc_Statement_Extractor| { &mut m.extractor },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<MysqlDesc_Statement_Extractor>(
+                "MysqlDesc.Statement.Extractor",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static MysqlDesc_Statement_Extractor {
+        static instance: ::protobuf::rt::LazyV2<MysqlDesc_Statement_Extractor> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(MysqlDesc_Statement_Extractor::new)
+    }
+}
+
+impl ::protobuf::Clear for MysqlDesc_Statement_Extractor {
+    fn clear(&mut self) {
+        self.index = 0;
+        self.extractor.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for MysqlDesc_Statement_Extractor {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for MysqlDesc_Statement_Extractor {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct RedisDesc {
+    // message fields
+    pub connection_opts: ::protobuf::SingularPtrField<RedisDesc_ConnectionOpts>,
+    pub key_extractor: ::protobuf::SingularPtrField<Func>,
+    pub value_extractor: ::protobuf::SingularPtrField<Func>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a RedisDesc {
+    fn default() -> &'a RedisDesc {
+        <RedisDesc as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl RedisDesc {
+    pub fn new() -> RedisDesc {
+        ::std::default::Default::default()
+    }
+
+    // .common.RedisDesc.ConnectionOpts connection_opts = 1;
+
+
+    pub fn get_connection_opts(&self) -> &RedisDesc_ConnectionOpts {
+        self.connection_opts.as_ref().unwrap_or_else(|| <RedisDesc_ConnectionOpts as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_connection_opts(&mut self) {
+        self.connection_opts.clear();
+    }
+
+    pub fn has_connection_opts(&self) -> bool {
+        self.connection_opts.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_connection_opts(&mut self, v: RedisDesc_ConnectionOpts) {
+        self.connection_opts = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_connection_opts(&mut self) -> &mut RedisDesc_ConnectionOpts {
+        if self.connection_opts.is_none() {
+            self.connection_opts.set_default();
+        }
+        self.connection_opts.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_connection_opts(&mut self) -> RedisDesc_ConnectionOpts {
+        self.connection_opts.take().unwrap_or_else(|| RedisDesc_ConnectionOpts::new())
+    }
+
+    // .common.Func key_extractor = 2;
+
+
+    pub fn get_key_extractor(&self) -> &Func {
+        self.key_extractor.as_ref().unwrap_or_else(|| <Func as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_key_extractor(&mut self) {
+        self.key_extractor.clear();
+    }
+
+    pub fn has_key_extractor(&self) -> bool {
+        self.key_extractor.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_key_extractor(&mut self, v: Func) {
+        self.key_extractor = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_key_extractor(&mut self) -> &mut Func {
+        if self.key_extractor.is_none() {
+            self.key_extractor.set_default();
+        }
+        self.key_extractor.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_key_extractor(&mut self) -> Func {
+        self.key_extractor.take().unwrap_or_else(|| Func::new())
+    }
+
+    // .common.Func value_extractor = 3;
+
+
+    pub fn get_value_extractor(&self) -> &Func {
+        self.value_extractor.as_ref().unwrap_or_else(|| <Func as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_value_extractor(&mut self) {
+        self.value_extractor.clear();
+    }
+
+    pub fn has_value_extractor(&self) -> bool {
+        self.value_extractor.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_value_extractor(&mut self, v: Func) {
+        self.value_extractor = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_value_extractor(&mut self) -> &mut Func {
+        if self.value_extractor.is_none() {
+            self.value_extractor.set_default();
+        }
+        self.value_extractor.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_value_extractor(&mut self) -> Func {
+        self.value_extractor.take().unwrap_or_else(|| Func::new())
+    }
+}
+
+impl ::protobuf::Message for RedisDesc {
+    fn is_initialized(&self) -> bool {
+        for v in &self.connection_opts {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.key_extractor {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.value_extractor {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.connection_opts)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.key_extractor)?;
+                },
+                3 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.value_extractor)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let Some(ref v) = self.connection_opts.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        if let Some(ref v) = self.key_extractor.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        if let Some(ref v) = self.value_extractor.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let Some(ref v) = self.connection_opts.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if let Some(ref v) = self.key_extractor.as_ref() {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if let Some(ref v) = self.value_extractor.as_ref() {
             os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
             os.write_raw_varint32(v.get_cached_size())?;
             v.write_to_with_cached_sizes(os)?;
@@ -3467,579 +5109,182 @@ impl ::protobuf::Message for KafkaSource {
         Self::descriptor_static()
     }
 
-    fn new() -> KafkaSource {
-        KafkaSource::new()
+    fn new() -> RedisDesc {
+        RedisDesc::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_repeated_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                "brokers",
-                |m: &KafkaSource| { &m.brokers },
-                |m: &mut KafkaSource| { &mut m.brokers },
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<RedisDesc_ConnectionOpts>>(
+                "connection_opts",
+                |m: &RedisDesc| { &m.connection_opts },
+                |m: &mut RedisDesc| { &mut m.connection_opts },
             ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                "topic",
-                |m: &KafkaSource| { &m.topic },
-                |m: &mut KafkaSource| { &mut m.topic },
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Func>>(
+                "key_extractor",
+                |m: &RedisDesc| { &m.key_extractor },
+                |m: &mut RedisDesc| { &mut m.key_extractor },
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<KafkaOptions>>(
-                "opts",
-                |m: &KafkaSource| { &m.opts },
-                |m: &mut KafkaSource| { &mut m.opts },
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Func>>(
+                "value_extractor",
+                |m: &RedisDesc| { &m.value_extractor },
+                |m: &mut RedisDesc| { &mut m.value_extractor },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<KafkaSource>(
-                "KafkaSource",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<RedisDesc>(
+                "RedisDesc",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static KafkaSource {
-        static instance: ::protobuf::rt::LazyV2<KafkaSource> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(KafkaSource::new)
+    fn default_instance() -> &'static RedisDesc {
+        static instance: ::protobuf::rt::LazyV2<RedisDesc> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(RedisDesc::new)
     }
 }
 
-impl ::protobuf::Clear for KafkaSource {
+impl ::protobuf::Clear for RedisDesc {
     fn clear(&mut self) {
-        self.brokers.clear();
-        self.topic.clear();
-        self.opts.clear();
+        self.connection_opts.clear();
+        self.key_extractor.clear();
+        self.value_extractor.clear();
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for KafkaSource {
+impl ::std::fmt::Debug for RedisDesc {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for KafkaSource {
+impl ::protobuf::reflect::ProtobufValue for RedisDesc {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct BatchDataOptions {
+pub struct RedisDesc_ConnectionOpts {
     // message fields
-    pub interval: u32,
-    pub batch_size: u32,
-    // message oneof groups
-    pub incremental_key: ::std::option::Option<BatchDataOptions_oneof_incremental_key>,
+    pub host: ::std::string::String,
+    pub password: ::std::string::String,
+    pub database: ::std::string::String,
+    pub tls: bool,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a BatchDataOptions {
-    fn default() -> &'a BatchDataOptions {
-        <BatchDataOptions as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a RedisDesc_ConnectionOpts {
+    fn default() -> &'a RedisDesc_ConnectionOpts {
+        <RedisDesc_ConnectionOpts as ::protobuf::Message>::default_instance()
     }
 }
 
-#[derive(Clone,PartialEq,Debug)]
-pub enum BatchDataOptions_oneof_incremental_key {
-    value(::std::string::String),
-}
-
-impl BatchDataOptions {
-    pub fn new() -> BatchDataOptions {
+impl RedisDesc_ConnectionOpts {
+    pub fn new() -> RedisDesc_ConnectionOpts {
         ::std::default::Default::default()
     }
 
-    // uint32 interval = 1;
+    // string host = 1;
 
 
-    pub fn get_interval(&self) -> u32 {
-        self.interval
+    pub fn get_host(&self) -> &str {
+        &self.host
     }
-    pub fn clear_interval(&mut self) {
-        self.interval = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_interval(&mut self, v: u32) {
-        self.interval = v;
-    }
-
-    // uint32 batch_size = 2;
-
-
-    pub fn get_batch_size(&self) -> u32 {
-        self.batch_size
-    }
-    pub fn clear_batch_size(&mut self) {
-        self.batch_size = 0;
+    pub fn clear_host(&mut self) {
+        self.host.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_batch_size(&mut self, v: u32) {
-        self.batch_size = v;
-    }
-
-    // string value = 3;
-
-
-    pub fn get_value(&self) -> &str {
-        match self.incremental_key {
-            ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(ref v)) => v,
-            _ => "",
-        }
-    }
-    pub fn clear_value(&mut self) {
-        self.incremental_key = ::std::option::Option::None;
-    }
-
-    pub fn has_value(&self) -> bool {
-        match self.incremental_key {
-            ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(..)) => true,
-            _ => false,
-        }
-    }
-
-    // Param is passed by value, moved
-    pub fn set_value(&mut self, v: ::std::string::String) {
-        self.incremental_key = ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(v))
-    }
-
-    // Mutable pointer to the field.
-    pub fn mut_value(&mut self) -> &mut ::std::string::String {
-        if let ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(_)) = self.incremental_key {
-        } else {
-            self.incremental_key = ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(::std::string::String::new()));
-        }
-        match self.incremental_key {
-            ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(ref mut v)) => v,
-            _ => panic!(),
-        }
-    }
-
-    // Take field
-    pub fn take_value(&mut self) -> ::std::string::String {
-        if self.has_value() {
-            match self.incremental_key.take() {
-                ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            ::std::string::String::new()
-        }
-    }
-}
-
-impl ::protobuf::Message for BatchDataOptions {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.interval = tmp;
-                },
-                2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.batch_size = tmp;
-                },
-                3 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.incremental_key = ::std::option::Option::Some(BatchDataOptions_oneof_incremental_key::value(is.read_string()?));
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if self.interval != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.interval, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if self.batch_size != 0 {
-            my_size += ::protobuf::rt::value_size(2, self.batch_size, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if let ::std::option::Option::Some(ref v) = self.incremental_key {
-            match v {
-                &BatchDataOptions_oneof_incremental_key::value(ref v) => {
-                    my_size += ::protobuf::rt::string_size(3, &v);
-                },
-            };
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.interval != 0 {
-            os.write_uint32(1, self.interval)?;
-        }
-        if self.batch_size != 0 {
-            os.write_uint32(2, self.batch_size)?;
-        }
-        if let ::std::option::Option::Some(ref v) = self.incremental_key {
-            match v {
-                &BatchDataOptions_oneof_incremental_key::value(ref v) => {
-                    os.write_string(3, v)?;
-                },
-            };
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> BatchDataOptions {
-        BatchDataOptions::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "interval",
-                |m: &BatchDataOptions| { &m.interval },
-                |m: &mut BatchDataOptions| { &mut m.interval },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "batch_size",
-                |m: &BatchDataOptions| { &m.batch_size },
-                |m: &mut BatchDataOptions| { &mut m.batch_size },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_string_accessor::<_>(
-                "value",
-                BatchDataOptions::has_value,
-                BatchDataOptions::get_value,
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<BatchDataOptions>(
-                "BatchDataOptions",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static BatchDataOptions {
-        static instance: ::protobuf::rt::LazyV2<BatchDataOptions> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(BatchDataOptions::new)
-    }
-}
-
-impl ::protobuf::Clear for BatchDataOptions {
-    fn clear(&mut self) {
-        self.interval = 0;
-        self.batch_size = 0;
-        self.incremental_key = ::std::option::Option::None;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for BatchDataOptions {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for BatchDataOptions {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct ChangeStreamOptions {
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a ChangeStreamOptions {
-    fn default() -> &'a ChangeStreamOptions {
-        <ChangeStreamOptions as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl ChangeStreamOptions {
-    pub fn new() -> ChangeStreamOptions {
-        ::std::default::Default::default()
-    }
-}
-
-impl ::protobuf::Message for ChangeStreamOptions {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> ChangeStreamOptions {
-        ChangeStreamOptions::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let fields = ::std::vec::Vec::new();
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<ChangeStreamOptions>(
-                "ChangeStreamOptions",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static ChangeStreamOptions {
-        static instance: ::protobuf::rt::LazyV2<ChangeStreamOptions> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(ChangeStreamOptions::new)
-    }
-}
-
-impl ::protobuf::Clear for ChangeStreamOptions {
-    fn clear(&mut self) {
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for ChangeStreamOptions {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for ChangeStreamOptions {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct KafkaOptions {
-    // message fields
-    pub topic: ::std::string::String,
-    // message oneof groups
-    pub opt: ::std::option::Option<KafkaOptions_oneof_opt>,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a KafkaOptions {
-    fn default() -> &'a KafkaOptions {
-        <KafkaOptions as ::protobuf::Message>::default_instance()
-    }
-}
-
-#[derive(Clone,PartialEq,Debug)]
-pub enum KafkaOptions_oneof_opt {
-    group(::std::string::String),
-    partition(u32),
-}
-
-impl KafkaOptions {
-    pub fn new() -> KafkaOptions {
-        ::std::default::Default::default()
-    }
-
-    // string topic = 1;
-
-
-    pub fn get_topic(&self) -> &str {
-        &self.topic
-    }
-    pub fn clear_topic(&mut self) {
-        self.topic.clear();
-    }
-
-    // Param is passed by value, moved
-    pub fn set_topic(&mut self, v: ::std::string::String) {
-        self.topic = v;
+    pub fn set_host(&mut self, v: ::std::string::String) {
+        self.host = v;
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_topic(&mut self) -> &mut ::std::string::String {
-        &mut self.topic
+    pub fn mut_host(&mut self) -> &mut ::std::string::String {
+        &mut self.host
     }
 
     // Take field
-    pub fn take_topic(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.topic, ::std::string::String::new())
+    pub fn take_host(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.host, ::std::string::String::new())
     }
 
-    // string group = 2;
+    // string password = 2;
 
 
-    pub fn get_group(&self) -> &str {
-        match self.opt {
-            ::std::option::Option::Some(KafkaOptions_oneof_opt::group(ref v)) => v,
-            _ => "",
-        }
+    pub fn get_password(&self) -> &str {
+        &self.password
     }
-    pub fn clear_group(&mut self) {
-        self.opt = ::std::option::Option::None;
-    }
-
-    pub fn has_group(&self) -> bool {
-        match self.opt {
-            ::std::option::Option::Some(KafkaOptions_oneof_opt::group(..)) => true,
-            _ => false,
-        }
+    pub fn clear_password(&mut self) {
+        self.password.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_group(&mut self, v: ::std::string::String) {
-        self.opt = ::std::option::Option::Some(KafkaOptions_oneof_opt::group(v))
+    pub fn set_password(&mut self, v: ::std::string::String) {
+        self.password = v;
     }
 
     // Mutable pointer to the field.
-    pub fn mut_group(&mut self) -> &mut ::std::string::String {
-        if let ::std::option::Option::Some(KafkaOptions_oneof_opt::group(_)) = self.opt {
-        } else {
-            self.opt = ::std::option::Option::Some(KafkaOptions_oneof_opt::group(::std::string::String::new()));
-        }
-        match self.opt {
-            ::std::option::Option::Some(KafkaOptions_oneof_opt::group(ref mut v)) => v,
-            _ => panic!(),
-        }
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_password(&mut self) -> &mut ::std::string::String {
+        &mut self.password
     }
 
     // Take field
-    pub fn take_group(&mut self) -> ::std::string::String {
-        if self.has_group() {
-            match self.opt.take() {
-                ::std::option::Option::Some(KafkaOptions_oneof_opt::group(v)) => v,
-                _ => panic!(),
-            }
-        } else {
-            ::std::string::String::new()
-        }
+    pub fn take_password(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.password, ::std::string::String::new())
     }
 
-    // uint32 partition = 3;
+    // string database = 3;
 
 
-    pub fn get_partition(&self) -> u32 {
-        match self.opt {
-            ::std::option::Option::Some(KafkaOptions_oneof_opt::partition(v)) => v,
-            _ => 0,
-        }
+    pub fn get_database(&self) -> &str {
+        &self.database
     }
-    pub fn clear_partition(&mut self) {
-        self.opt = ::std::option::Option::None;
-    }
-
-    pub fn has_partition(&self) -> bool {
-        match self.opt {
-            ::std::option::Option::Some(KafkaOptions_oneof_opt::partition(..)) => true,
-            _ => false,
-        }
+    pub fn clear_database(&mut self) {
+        self.database.clear();
     }
 
     // Param is passed by value, moved
-    pub fn set_partition(&mut self, v: u32) {
-        self.opt = ::std::option::Option::Some(KafkaOptions_oneof_opt::partition(v))
+    pub fn set_database(&mut self, v: ::std::string::String) {
+        self.database = v;
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_database(&mut self) -> &mut ::std::string::String {
+        &mut self.database
+    }
+
+    // Take field
+    pub fn take_database(&mut self) -> ::std::string::String {
+        ::std::mem::replace(&mut self.database, ::std::string::String::new())
+    }
+
+    // bool tls = 4;
+
+
+    pub fn get_tls(&self) -> bool {
+        self.tls
+    }
+    pub fn clear_tls(&mut self) {
+        self.tls = false;
+    }
+
+    // Param is passed by value, moved
+    pub fn set_tls(&mut self, v: bool) {
+        self.tls = v;
     }
 }
 
-impl ::protobuf::Message for KafkaOptions {
+impl ::protobuf::Message for RedisDesc_ConnectionOpts {
     fn is_initialized(&self) -> bool {
         true
     }
@@ -4049,19 +5294,20 @@ impl ::protobuf::Message for KafkaOptions {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.topic)?;
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.host)?;
                 },
                 2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.opt = ::std::option::Option::Some(KafkaOptions_oneof_opt::group(is.read_string()?));
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.password)?;
                 },
                 3 => {
+                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.database)?;
+                },
+                4 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    self.opt = ::std::option::Option::Some(KafkaOptions_oneof_opt::partition(is.read_uint32()?));
+                    let tmp = is.read_bool()?;
+                    self.tls = tmp;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -4075,18 +5321,17 @@ impl ::protobuf::Message for KafkaOptions {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if !self.topic.is_empty() {
-            my_size += ::protobuf::rt::string_size(1, &self.topic);
+        if !self.host.is_empty() {
+            my_size += ::protobuf::rt::string_size(1, &self.host);
         }
-        if let ::std::option::Option::Some(ref v) = self.opt {
-            match v {
-                &KafkaOptions_oneof_opt::group(ref v) => {
-                    my_size += ::protobuf::rt::string_size(2, &v);
-                },
-                &KafkaOptions_oneof_opt::partition(v) => {
-                    my_size += ::protobuf::rt::value_size(3, v, ::protobuf::wire_format::WireTypeVarint);
-                },
-            };
+        if !self.password.is_empty() {
+            my_size += ::protobuf::rt::string_size(2, &self.password);
+        }
+        if !self.database.is_empty() {
+            my_size += ::protobuf::rt::string_size(3, &self.database);
+        }
+        if self.tls != false {
+            my_size += 2;
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -4094,18 +5339,17 @@ impl ::protobuf::Message for KafkaOptions {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if !self.topic.is_empty() {
-            os.write_string(1, &self.topic)?;
+        if !self.host.is_empty() {
+            os.write_string(1, &self.host)?;
         }
-        if let ::std::option::Option::Some(ref v) = self.opt {
-            match v {
-                &KafkaOptions_oneof_opt::group(ref v) => {
-                    os.write_string(2, v)?;
-                },
-                &KafkaOptions_oneof_opt::partition(v) => {
-                    os.write_uint32(3, v)?;
-                },
-            };
+        if !self.password.is_empty() {
+            os.write_string(2, &self.password)?;
+        }
+        if !self.database.is_empty() {
+            os.write_string(3, &self.database)?;
+        }
+        if self.tls != false {
+            os.write_bool(4, self.tls)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -4137,8 +5381,8 @@ impl ::protobuf::Message for KafkaOptions {
         Self::descriptor_static()
     }
 
-    fn new() -> KafkaOptions {
-        KafkaOptions::new()
+    fn new() -> RedisDesc_ConnectionOpts {
+        RedisDesc_ConnectionOpts::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
@@ -4146,50 +5390,56 @@ impl ::protobuf::Message for KafkaOptions {
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
             fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
-                "topic",
-                |m: &KafkaOptions| { &m.topic },
-                |m: &mut KafkaOptions| { &mut m.topic },
+                "host",
+                |m: &RedisDesc_ConnectionOpts| { &m.host },
+                |m: &mut RedisDesc_ConnectionOpts| { &mut m.host },
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_string_accessor::<_>(
-                "group",
-                KafkaOptions::has_group,
-                KafkaOptions::get_group,
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "password",
+                |m: &RedisDesc_ConnectionOpts| { &m.password },
+                |m: &mut RedisDesc_ConnectionOpts| { &mut m.password },
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_u32_accessor::<_>(
-                "partition",
-                KafkaOptions::has_partition,
-                KafkaOptions::get_partition,
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+                "database",
+                |m: &RedisDesc_ConnectionOpts| { &m.database },
+                |m: &mut RedisDesc_ConnectionOpts| { &mut m.database },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<KafkaOptions>(
-                "KafkaOptions",
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeBool>(
+                "tls",
+                |m: &RedisDesc_ConnectionOpts| { &m.tls },
+                |m: &mut RedisDesc_ConnectionOpts| { &mut m.tls },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<RedisDesc_ConnectionOpts>(
+                "RedisDesc.ConnectionOpts",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static KafkaOptions {
-        static instance: ::protobuf::rt::LazyV2<KafkaOptions> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(KafkaOptions::new)
+    fn default_instance() -> &'static RedisDesc_ConnectionOpts {
+        static instance: ::protobuf::rt::LazyV2<RedisDesc_ConnectionOpts> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(RedisDesc_ConnectionOpts::new)
     }
 }
 
-impl ::protobuf::Clear for KafkaOptions {
+impl ::protobuf::Clear for RedisDesc_ConnectionOpts {
     fn clear(&mut self) {
-        self.topic.clear();
-        self.opt = ::std::option::Option::None;
-        self.opt = ::std::option::Option::None;
+        self.host.clear();
+        self.password.clear();
+        self.database.clear();
+        self.tls = false;
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for KafkaOptions {
+impl ::std::fmt::Debug for RedisDesc_ConnectionOpts {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for KafkaOptions {
+impl ::protobuf::reflect::ProtobufValue for RedisDesc_ConnectionOpts {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
@@ -4198,7 +5448,7 @@ impl ::protobuf::reflect::ProtobufValue for KafkaOptions {
 #[derive(PartialEq,Clone,Default)]
 pub struct Dataflow {
     // message fields
-    pub job_id: ::protobuf::SingularPtrField<super::common::JobId>,
+    pub job_id: ::protobuf::SingularPtrField<super::common::ResourceId>,
     pub meta: ::protobuf::RepeatedField<DataflowMeta>,
     pub nodes: ::std::collections::HashMap<u32, OperatorInfo>,
     // special fields
@@ -4217,11 +5467,11 @@ impl Dataflow {
         ::std::default::Default::default()
     }
 
-    // .common.JobId job_id = 1;
+    // .common.ResourceId job_id = 1;
 
 
-    pub fn get_job_id(&self) -> &super::common::JobId {
-        self.job_id.as_ref().unwrap_or_else(|| <super::common::JobId as ::protobuf::Message>::default_instance())
+    pub fn get_job_id(&self) -> &super::common::ResourceId {
+        self.job_id.as_ref().unwrap_or_else(|| <super::common::ResourceId as ::protobuf::Message>::default_instance())
     }
     pub fn clear_job_id(&mut self) {
         self.job_id.clear();
@@ -4232,13 +5482,13 @@ impl Dataflow {
     }
 
     // Param is passed by value, moved
-    pub fn set_job_id(&mut self, v: super::common::JobId) {
+    pub fn set_job_id(&mut self, v: super::common::ResourceId) {
         self.job_id = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_job_id(&mut self) -> &mut super::common::JobId {
+    pub fn mut_job_id(&mut self) -> &mut super::common::ResourceId {
         if self.job_id.is_none() {
             self.job_id.set_default();
         }
@@ -4246,8 +5496,8 @@ impl Dataflow {
     }
 
     // Take field
-    pub fn take_job_id(&mut self) -> super::common::JobId {
-        self.job_id.take().unwrap_or_else(|| super::common::JobId::new())
+    pub fn take_job_id(&mut self) -> super::common::ResourceId {
+        self.job_id.take().unwrap_or_else(|| super::common::ResourceId::new())
     }
 
     // repeated .common.DataflowMeta meta = 2;
@@ -4405,7 +5655,7 @@ impl ::protobuf::Message for Dataflow {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::JobId>>(
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::ResourceId>>(
                 "job_id",
                 |m: &Dataflow| { &m.job_id },
                 |m: &mut Dataflow| { &mut m.job_id },
@@ -4458,8 +5708,8 @@ impl ::protobuf::reflect::ProtobufValue for Dataflow {
 #[derive(PartialEq,Clone,Default)]
 pub struct StreamConfig {
     // message fields
-    pub window: ::protobuf::SingularPtrField<WindowConfig>,
-    pub trigger: ::protobuf::SingularPtrField<TriggerConfig>,
+    pub window: ::protobuf::SingularPtrField<Window>,
+    pub trigger: ::protobuf::SingularPtrField<Trigger>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
@@ -4476,11 +5726,11 @@ impl StreamConfig {
         ::std::default::Default::default()
     }
 
-    // .common.WindowConfig window = 1;
+    // .common.Window window = 1;
 
 
-    pub fn get_window(&self) -> &WindowConfig {
-        self.window.as_ref().unwrap_or_else(|| <WindowConfig as ::protobuf::Message>::default_instance())
+    pub fn get_window(&self) -> &Window {
+        self.window.as_ref().unwrap_or_else(|| <Window as ::protobuf::Message>::default_instance())
     }
     pub fn clear_window(&mut self) {
         self.window.clear();
@@ -4491,13 +5741,13 @@ impl StreamConfig {
     }
 
     // Param is passed by value, moved
-    pub fn set_window(&mut self, v: WindowConfig) {
+    pub fn set_window(&mut self, v: Window) {
         self.window = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_window(&mut self) -> &mut WindowConfig {
+    pub fn mut_window(&mut self) -> &mut Window {
         if self.window.is_none() {
             self.window.set_default();
         }
@@ -4505,15 +5755,15 @@ impl StreamConfig {
     }
 
     // Take field
-    pub fn take_window(&mut self) -> WindowConfig {
-        self.window.take().unwrap_or_else(|| WindowConfig::new())
+    pub fn take_window(&mut self) -> Window {
+        self.window.take().unwrap_or_else(|| Window::new())
     }
 
-    // .common.TriggerConfig trigger = 2;
+    // .common.Trigger trigger = 2;
 
 
-    pub fn get_trigger(&self) -> &TriggerConfig {
-        self.trigger.as_ref().unwrap_or_else(|| <TriggerConfig as ::protobuf::Message>::default_instance())
+    pub fn get_trigger(&self) -> &Trigger {
+        self.trigger.as_ref().unwrap_or_else(|| <Trigger as ::protobuf::Message>::default_instance())
     }
     pub fn clear_trigger(&mut self) {
         self.trigger.clear();
@@ -4524,13 +5774,13 @@ impl StreamConfig {
     }
 
     // Param is passed by value, moved
-    pub fn set_trigger(&mut self, v: TriggerConfig) {
+    pub fn set_trigger(&mut self, v: Trigger) {
         self.trigger = ::protobuf::SingularPtrField::some(v);
     }
 
     // Mutable pointer to the field.
     // If field is not initialized, it is initialized with default value first.
-    pub fn mut_trigger(&mut self) -> &mut TriggerConfig {
+    pub fn mut_trigger(&mut self) -> &mut Trigger {
         if self.trigger.is_none() {
             self.trigger.set_default();
         }
@@ -4538,8 +5788,8 @@ impl StreamConfig {
     }
 
     // Take field
-    pub fn take_trigger(&mut self) -> TriggerConfig {
-        self.trigger.take().unwrap_or_else(|| TriggerConfig::new())
+    pub fn take_trigger(&mut self) -> Trigger {
+        self.trigger.take().unwrap_or_else(|| Trigger::new())
     }
 }
 
@@ -4642,12 +5892,12 @@ impl ::protobuf::Message for StreamConfig {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<WindowConfig>>(
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Window>>(
                 "window",
                 |m: &StreamConfig| { &m.window },
                 |m: &mut StreamConfig| { &mut m.window },
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<TriggerConfig>>(
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<Trigger>>(
                 "trigger",
                 |m: &StreamConfig| { &m.trigger },
                 |m: &mut StreamConfig| { &mut m.trigger },
@@ -4687,226 +5937,193 @@ impl ::protobuf::reflect::ProtobufValue for StreamConfig {
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct WindowConfig {
-    // message fields
-    pub window_type: WindowType,
-    pub field_id: i32,
+pub struct Window {
     // message oneof groups
-    pub window: ::std::option::Option<WindowConfig_oneof_window>,
+    pub value: ::std::option::Option<Window_oneof_value>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a WindowConfig {
-    fn default() -> &'a WindowConfig {
-        <WindowConfig as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a Window {
+    fn default() -> &'a Window {
+        <Window as ::protobuf::Message>::default_instance()
     }
 }
 
 #[derive(Clone,PartialEq,Debug)]
-pub enum WindowConfig_oneof_window {
-    fixed(FixedWindowConfig),
-    slide(SlidingWindowConfig),
-    session(SessionWindowConfig),
+pub enum Window_oneof_value {
+    fixed(Window_FixedWindow),
+    slide(Window_SlidingWindow),
+    session(Window_SessionWindow),
 }
 
-impl WindowConfig {
-    pub fn new() -> WindowConfig {
+impl Window {
+    pub fn new() -> Window {
         ::std::default::Default::default()
     }
 
-    // .common.WindowType window_type = 1;
+    // .common.Window.FixedWindow fixed = 1;
 
 
-    pub fn get_window_type(&self) -> WindowType {
-        self.window_type
-    }
-    pub fn clear_window_type(&mut self) {
-        self.window_type = WindowType::FIXED;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_window_type(&mut self, v: WindowType) {
-        self.window_type = v;
-    }
-
-    // .common.FixedWindowConfig fixed = 2;
-
-
-    pub fn get_fixed(&self) -> &FixedWindowConfig {
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::fixed(ref v)) => v,
-            _ => <FixedWindowConfig as ::protobuf::Message>::default_instance(),
+    pub fn get_fixed(&self) -> &Window_FixedWindow {
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::fixed(ref v)) => v,
+            _ => <Window_FixedWindow as ::protobuf::Message>::default_instance(),
         }
     }
     pub fn clear_fixed(&mut self) {
-        self.window = ::std::option::Option::None;
+        self.value = ::std::option::Option::None;
     }
 
     pub fn has_fixed(&self) -> bool {
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::fixed(..)) => true,
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::fixed(..)) => true,
             _ => false,
         }
     }
 
     // Param is passed by value, moved
-    pub fn set_fixed(&mut self, v: FixedWindowConfig) {
-        self.window = ::std::option::Option::Some(WindowConfig_oneof_window::fixed(v))
+    pub fn set_fixed(&mut self, v: Window_FixedWindow) {
+        self.value = ::std::option::Option::Some(Window_oneof_value::fixed(v))
     }
 
     // Mutable pointer to the field.
-    pub fn mut_fixed(&mut self) -> &mut FixedWindowConfig {
-        if let ::std::option::Option::Some(WindowConfig_oneof_window::fixed(_)) = self.window {
+    pub fn mut_fixed(&mut self) -> &mut Window_FixedWindow {
+        if let ::std::option::Option::Some(Window_oneof_value::fixed(_)) = self.value {
         } else {
-            self.window = ::std::option::Option::Some(WindowConfig_oneof_window::fixed(FixedWindowConfig::new()));
+            self.value = ::std::option::Option::Some(Window_oneof_value::fixed(Window_FixedWindow::new()));
         }
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::fixed(ref mut v)) => v,
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::fixed(ref mut v)) => v,
             _ => panic!(),
         }
     }
 
     // Take field
-    pub fn take_fixed(&mut self) -> FixedWindowConfig {
+    pub fn take_fixed(&mut self) -> Window_FixedWindow {
         if self.has_fixed() {
-            match self.window.take() {
-                ::std::option::Option::Some(WindowConfig_oneof_window::fixed(v)) => v,
+            match self.value.take() {
+                ::std::option::Option::Some(Window_oneof_value::fixed(v)) => v,
                 _ => panic!(),
             }
         } else {
-            FixedWindowConfig::new()
+            Window_FixedWindow::new()
         }
     }
 
-    // .common.SlidingWindowConfig slide = 3;
+    // .common.Window.SlidingWindow slide = 2;
 
 
-    pub fn get_slide(&self) -> &SlidingWindowConfig {
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::slide(ref v)) => v,
-            _ => <SlidingWindowConfig as ::protobuf::Message>::default_instance(),
+    pub fn get_slide(&self) -> &Window_SlidingWindow {
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::slide(ref v)) => v,
+            _ => <Window_SlidingWindow as ::protobuf::Message>::default_instance(),
         }
     }
     pub fn clear_slide(&mut self) {
-        self.window = ::std::option::Option::None;
+        self.value = ::std::option::Option::None;
     }
 
     pub fn has_slide(&self) -> bool {
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::slide(..)) => true,
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::slide(..)) => true,
             _ => false,
         }
     }
 
     // Param is passed by value, moved
-    pub fn set_slide(&mut self, v: SlidingWindowConfig) {
-        self.window = ::std::option::Option::Some(WindowConfig_oneof_window::slide(v))
+    pub fn set_slide(&mut self, v: Window_SlidingWindow) {
+        self.value = ::std::option::Option::Some(Window_oneof_value::slide(v))
     }
 
     // Mutable pointer to the field.
-    pub fn mut_slide(&mut self) -> &mut SlidingWindowConfig {
-        if let ::std::option::Option::Some(WindowConfig_oneof_window::slide(_)) = self.window {
+    pub fn mut_slide(&mut self) -> &mut Window_SlidingWindow {
+        if let ::std::option::Option::Some(Window_oneof_value::slide(_)) = self.value {
         } else {
-            self.window = ::std::option::Option::Some(WindowConfig_oneof_window::slide(SlidingWindowConfig::new()));
+            self.value = ::std::option::Option::Some(Window_oneof_value::slide(Window_SlidingWindow::new()));
         }
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::slide(ref mut v)) => v,
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::slide(ref mut v)) => v,
             _ => panic!(),
         }
     }
 
     // Take field
-    pub fn take_slide(&mut self) -> SlidingWindowConfig {
+    pub fn take_slide(&mut self) -> Window_SlidingWindow {
         if self.has_slide() {
-            match self.window.take() {
-                ::std::option::Option::Some(WindowConfig_oneof_window::slide(v)) => v,
+            match self.value.take() {
+                ::std::option::Option::Some(Window_oneof_value::slide(v)) => v,
                 _ => panic!(),
             }
         } else {
-            SlidingWindowConfig::new()
+            Window_SlidingWindow::new()
         }
     }
 
-    // .common.SessionWindowConfig session = 4;
+    // .common.Window.SessionWindow session = 3;
 
 
-    pub fn get_session(&self) -> &SessionWindowConfig {
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::session(ref v)) => v,
-            _ => <SessionWindowConfig as ::protobuf::Message>::default_instance(),
+    pub fn get_session(&self) -> &Window_SessionWindow {
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::session(ref v)) => v,
+            _ => <Window_SessionWindow as ::protobuf::Message>::default_instance(),
         }
     }
     pub fn clear_session(&mut self) {
-        self.window = ::std::option::Option::None;
+        self.value = ::std::option::Option::None;
     }
 
     pub fn has_session(&self) -> bool {
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::session(..)) => true,
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::session(..)) => true,
             _ => false,
         }
     }
 
     // Param is passed by value, moved
-    pub fn set_session(&mut self, v: SessionWindowConfig) {
-        self.window = ::std::option::Option::Some(WindowConfig_oneof_window::session(v))
+    pub fn set_session(&mut self, v: Window_SessionWindow) {
+        self.value = ::std::option::Option::Some(Window_oneof_value::session(v))
     }
 
     // Mutable pointer to the field.
-    pub fn mut_session(&mut self) -> &mut SessionWindowConfig {
-        if let ::std::option::Option::Some(WindowConfig_oneof_window::session(_)) = self.window {
+    pub fn mut_session(&mut self) -> &mut Window_SessionWindow {
+        if let ::std::option::Option::Some(Window_oneof_value::session(_)) = self.value {
         } else {
-            self.window = ::std::option::Option::Some(WindowConfig_oneof_window::session(SessionWindowConfig::new()));
+            self.value = ::std::option::Option::Some(Window_oneof_value::session(Window_SessionWindow::new()));
         }
-        match self.window {
-            ::std::option::Option::Some(WindowConfig_oneof_window::session(ref mut v)) => v,
+        match self.value {
+            ::std::option::Option::Some(Window_oneof_value::session(ref mut v)) => v,
             _ => panic!(),
         }
     }
 
     // Take field
-    pub fn take_session(&mut self) -> SessionWindowConfig {
+    pub fn take_session(&mut self) -> Window_SessionWindow {
         if self.has_session() {
-            match self.window.take() {
-                ::std::option::Option::Some(WindowConfig_oneof_window::session(v)) => v,
+            match self.value.take() {
+                ::std::option::Option::Some(Window_oneof_value::session(v)) => v,
                 _ => panic!(),
             }
         } else {
-            SessionWindowConfig::new()
+            Window_SessionWindow::new()
         }
-    }
-
-    // int32 field_id = 5;
-
-
-    pub fn get_field_id(&self) -> i32 {
-        self.field_id
-    }
-    pub fn clear_field_id(&mut self) {
-        self.field_id = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_field_id(&mut self, v: i32) {
-        self.field_id = v;
     }
 }
 
-impl ::protobuf::Message for WindowConfig {
+impl ::protobuf::Message for Window {
     fn is_initialized(&self) -> bool {
-        if let Some(WindowConfig_oneof_window::fixed(ref v)) = self.window {
+        if let Some(Window_oneof_value::fixed(ref v)) = self.value {
             if !v.is_initialized() {
                 return false;
             }
         }
-        if let Some(WindowConfig_oneof_window::slide(ref v)) = self.window {
+        if let Some(Window_oneof_value::slide(ref v)) = self.value {
             if !v.is_initialized() {
                 return false;
             }
         }
-        if let Some(WindowConfig_oneof_window::session(ref v)) = self.window {
+        if let Some(Window_oneof_value::session(ref v)) = self.value {
             if !v.is_initialized() {
                 return false;
             }
@@ -4919,32 +6136,22 @@ impl ::protobuf::Message for WindowConfig {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.window_type, 1, &mut self.unknown_fields)?
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(Window_oneof_value::fixed(is.read_message()?));
                 },
                 2 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    self.window = ::std::option::Option::Some(WindowConfig_oneof_window::fixed(is.read_message()?));
+                    self.value = ::std::option::Option::Some(Window_oneof_value::slide(is.read_message()?));
                 },
                 3 => {
                     if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
                         return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
                     }
-                    self.window = ::std::option::Option::Some(WindowConfig_oneof_window::slide(is.read_message()?));
-                },
-                4 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    self.window = ::std::option::Option::Some(WindowConfig_oneof_window::session(is.read_message()?));
-                },
-                5 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_int32()?;
-                    self.field_id = tmp;
+                    self.value = ::std::option::Option::Some(Window_oneof_value::session(is.read_message()?));
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -4958,23 +6165,17 @@ impl ::protobuf::Message for WindowConfig {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.window_type != WindowType::FIXED {
-            my_size += ::protobuf::rt::enum_size(1, self.window_type);
-        }
-        if self.field_id != 0 {
-            my_size += ::protobuf::rt::value_size(5, self.field_id, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if let ::std::option::Option::Some(ref v) = self.window {
+        if let ::std::option::Option::Some(ref v) = self.value {
             match v {
-                &WindowConfig_oneof_window::fixed(ref v) => {
+                &Window_oneof_value::fixed(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
-                &WindowConfig_oneof_window::slide(ref v) => {
+                &Window_oneof_value::slide(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
-                &WindowConfig_oneof_window::session(ref v) => {
+                &Window_oneof_value::session(ref v) => {
                     let len = v.compute_size();
                     my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
                 },
@@ -4986,26 +6187,817 @@ impl ::protobuf::Message for WindowConfig {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.window_type != WindowType::FIXED {
-            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.window_type))?;
-        }
-        if self.field_id != 0 {
-            os.write_int32(5, self.field_id)?;
-        }
-        if let ::std::option::Option::Some(ref v) = self.window {
+        if let ::std::option::Option::Some(ref v) = self.value {
             match v {
-                &WindowConfig_oneof_window::fixed(ref v) => {
+                &Window_oneof_value::fixed(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+                    os.write_raw_varint32(v.get_cached_size())?;
+                    v.write_to_with_cached_sizes(os)?;
+                },
+                &Window_oneof_value::slide(ref v) => {
                     os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
-                &WindowConfig_oneof_window::slide(ref v) => {
+                &Window_oneof_value::session(ref v) => {
                     os.write_tag(3, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
-                &WindowConfig_oneof_window::session(ref v) => {
-                    os.write_tag(4, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            };
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Window {
+        Window::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Window_FixedWindow>(
+                "fixed",
+                Window::has_fixed,
+                Window::get_fixed,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Window_SlidingWindow>(
+                "slide",
+                Window::has_slide,
+                Window::get_slide,
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Window_SessionWindow>(
+                "session",
+                Window::has_session,
+                Window::get_session,
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Window>(
+                "Window",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Window {
+        static instance: ::protobuf::rt::LazyV2<Window> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Window::new)
+    }
+}
+
+impl ::protobuf::Clear for Window {
+    fn clear(&mut self) {
+        self.value = ::std::option::Option::None;
+        self.value = ::std::option::Option::None;
+        self.value = ::std::option::Option::None;
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Window {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Window {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Window_FixedWindow {
+    // message fields
+    pub size: ::protobuf::SingularPtrField<super::common::Time>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Window_FixedWindow {
+    fn default() -> &'a Window_FixedWindow {
+        <Window_FixedWindow as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Window_FixedWindow {
+    pub fn new() -> Window_FixedWindow {
+        ::std::default::Default::default()
+    }
+
+    // .common.Time size = 1;
+
+
+    pub fn get_size(&self) -> &super::common::Time {
+        self.size.as_ref().unwrap_or_else(|| <super::common::Time as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_size(&mut self) {
+        self.size.clear();
+    }
+
+    pub fn has_size(&self) -> bool {
+        self.size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_size(&mut self, v: super::common::Time) {
+        self.size = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_size(&mut self) -> &mut super::common::Time {
+        if self.size.is_none() {
+            self.size.set_default();
+        }
+        self.size.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_size(&mut self) -> super::common::Time {
+        self.size.take().unwrap_or_else(|| super::common::Time::new())
+    }
+}
+
+impl ::protobuf::Message for Window_FixedWindow {
+    fn is_initialized(&self) -> bool {
+        for v in &self.size {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.size)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let Some(ref v) = self.size.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let Some(ref v) = self.size.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Window_FixedWindow {
+        Window_FixedWindow::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::Time>>(
+                "size",
+                |m: &Window_FixedWindow| { &m.size },
+                |m: &mut Window_FixedWindow| { &mut m.size },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Window_FixedWindow>(
+                "Window.FixedWindow",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Window_FixedWindow {
+        static instance: ::protobuf::rt::LazyV2<Window_FixedWindow> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Window_FixedWindow::new)
+    }
+}
+
+impl ::protobuf::Clear for Window_FixedWindow {
+    fn clear(&mut self) {
+        self.size.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Window_FixedWindow {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Window_FixedWindow {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Window_SlidingWindow {
+    // message fields
+    pub size: ::protobuf::SingularPtrField<super::common::Time>,
+    pub period: ::protobuf::SingularPtrField<super::common::Time>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Window_SlidingWindow {
+    fn default() -> &'a Window_SlidingWindow {
+        <Window_SlidingWindow as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Window_SlidingWindow {
+    pub fn new() -> Window_SlidingWindow {
+        ::std::default::Default::default()
+    }
+
+    // .common.Time size = 1;
+
+
+    pub fn get_size(&self) -> &super::common::Time {
+        self.size.as_ref().unwrap_or_else(|| <super::common::Time as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_size(&mut self) {
+        self.size.clear();
+    }
+
+    pub fn has_size(&self) -> bool {
+        self.size.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_size(&mut self, v: super::common::Time) {
+        self.size = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_size(&mut self) -> &mut super::common::Time {
+        if self.size.is_none() {
+            self.size.set_default();
+        }
+        self.size.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_size(&mut self) -> super::common::Time {
+        self.size.take().unwrap_or_else(|| super::common::Time::new())
+    }
+
+    // .common.Time period = 2;
+
+
+    pub fn get_period(&self) -> &super::common::Time {
+        self.period.as_ref().unwrap_or_else(|| <super::common::Time as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_period(&mut self) {
+        self.period.clear();
+    }
+
+    pub fn has_period(&self) -> bool {
+        self.period.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_period(&mut self, v: super::common::Time) {
+        self.period = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_period(&mut self) -> &mut super::common::Time {
+        if self.period.is_none() {
+            self.period.set_default();
+        }
+        self.period.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_period(&mut self) -> super::common::Time {
+        self.period.take().unwrap_or_else(|| super::common::Time::new())
+    }
+}
+
+impl ::protobuf::Message for Window_SlidingWindow {
+    fn is_initialized(&self) -> bool {
+        for v in &self.size {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        for v in &self.period {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.size)?;
+                },
+                2 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.period)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let Some(ref v) = self.size.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        if let Some(ref v) = self.period.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let Some(ref v) = self.size.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        if let Some(ref v) = self.period.as_ref() {
+            os.write_tag(2, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Window_SlidingWindow {
+        Window_SlidingWindow::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::Time>>(
+                "size",
+                |m: &Window_SlidingWindow| { &m.size },
+                |m: &mut Window_SlidingWindow| { &mut m.size },
+            ));
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::Time>>(
+                "period",
+                |m: &Window_SlidingWindow| { &m.period },
+                |m: &mut Window_SlidingWindow| { &mut m.period },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Window_SlidingWindow>(
+                "Window.SlidingWindow",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Window_SlidingWindow {
+        static instance: ::protobuf::rt::LazyV2<Window_SlidingWindow> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Window_SlidingWindow::new)
+    }
+}
+
+impl ::protobuf::Clear for Window_SlidingWindow {
+    fn clear(&mut self) {
+        self.size.clear();
+        self.period.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Window_SlidingWindow {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Window_SlidingWindow {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Window_SessionWindow {
+    // message fields
+    pub timeout: ::protobuf::SingularPtrField<super::common::Time>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Window_SessionWindow {
+    fn default() -> &'a Window_SessionWindow {
+        <Window_SessionWindow as ::protobuf::Message>::default_instance()
+    }
+}
+
+impl Window_SessionWindow {
+    pub fn new() -> Window_SessionWindow {
+        ::std::default::Default::default()
+    }
+
+    // .common.Time timeout = 1;
+
+
+    pub fn get_timeout(&self) -> &super::common::Time {
+        self.timeout.as_ref().unwrap_or_else(|| <super::common::Time as ::protobuf::Message>::default_instance())
+    }
+    pub fn clear_timeout(&mut self) {
+        self.timeout.clear();
+    }
+
+    pub fn has_timeout(&self) -> bool {
+        self.timeout.is_some()
+    }
+
+    // Param is passed by value, moved
+    pub fn set_timeout(&mut self, v: super::common::Time) {
+        self.timeout = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_timeout(&mut self) -> &mut super::common::Time {
+        if self.timeout.is_none() {
+            self.timeout.set_default();
+        }
+        self.timeout.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_timeout(&mut self) -> super::common::Time {
+        self.timeout.take().unwrap_or_else(|| super::common::Time::new())
+    }
+}
+
+impl ::protobuf::Message for Window_SessionWindow {
+    fn is_initialized(&self) -> bool {
+        for v in &self.timeout {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.timeout)?;
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let Some(ref v) = self.timeout.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let Some(ref v) = self.timeout.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
+        }
+        os.write_unknown_fields(self.get_unknown_fields())?;
+        ::std::result::Result::Ok(())
+    }
+
+    fn get_cached_size(&self) -> u32 {
+        self.cached_size.get()
+    }
+
+    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
+        &self.unknown_fields
+    }
+
+    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
+        &mut self.unknown_fields
+    }
+
+    fn as_any(&self) -> &dyn (::std::any::Any) {
+        self as &dyn (::std::any::Any)
+    }
+    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
+        self as &mut dyn (::std::any::Any)
+    }
+    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
+        self
+    }
+
+    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
+        Self::descriptor_static()
+    }
+
+    fn new() -> Window_SessionWindow {
+        Window_SessionWindow::new()
+    }
+
+    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
+        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
+        descriptor.get(|| {
+            let mut fields = ::std::vec::Vec::new();
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::Time>>(
+                "timeout",
+                |m: &Window_SessionWindow| { &m.timeout },
+                |m: &mut Window_SessionWindow| { &mut m.timeout },
+            ));
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Window_SessionWindow>(
+                "Window.SessionWindow",
+                fields,
+                file_descriptor_proto()
+            )
+        })
+    }
+
+    fn default_instance() -> &'static Window_SessionWindow {
+        static instance: ::protobuf::rt::LazyV2<Window_SessionWindow> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Window_SessionWindow::new)
+    }
+}
+
+impl ::protobuf::Clear for Window_SessionWindow {
+    fn clear(&mut self) {
+        self.timeout.clear();
+        self.unknown_fields.clear();
+    }
+}
+
+impl ::std::fmt::Debug for Window_SessionWindow {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+        ::protobuf::text_format::fmt(self, f)
+    }
+}
+
+impl ::protobuf::reflect::ProtobufValue for Window_SessionWindow {
+    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
+        ::protobuf::reflect::ReflectValueRef::Message(self)
+    }
+}
+
+#[derive(PartialEq,Clone,Default)]
+pub struct Trigger {
+    // message oneof groups
+    pub value: ::std::option::Option<Trigger_oneof_value>,
+    // special fields
+    pub unknown_fields: ::protobuf::UnknownFields,
+    pub cached_size: ::protobuf::CachedSize,
+}
+
+impl<'a> ::std::default::Default for &'a Trigger {
+    fn default() -> &'a Trigger {
+        <Trigger as ::protobuf::Message>::default_instance()
+    }
+}
+
+#[derive(Clone,PartialEq,Debug)]
+pub enum Trigger_oneof_value {
+    watermark(Trigger_Watermark),
+}
+
+impl Trigger {
+    pub fn new() -> Trigger {
+        ::std::default::Default::default()
+    }
+
+    // .common.Trigger.Watermark watermark = 1;
+
+
+    pub fn get_watermark(&self) -> &Trigger_Watermark {
+        match self.value {
+            ::std::option::Option::Some(Trigger_oneof_value::watermark(ref v)) => v,
+            _ => <Trigger_Watermark as ::protobuf::Message>::default_instance(),
+        }
+    }
+    pub fn clear_watermark(&mut self) {
+        self.value = ::std::option::Option::None;
+    }
+
+    pub fn has_watermark(&self) -> bool {
+        match self.value {
+            ::std::option::Option::Some(Trigger_oneof_value::watermark(..)) => true,
+            _ => false,
+        }
+    }
+
+    // Param is passed by value, moved
+    pub fn set_watermark(&mut self, v: Trigger_Watermark) {
+        self.value = ::std::option::Option::Some(Trigger_oneof_value::watermark(v))
+    }
+
+    // Mutable pointer to the field.
+    pub fn mut_watermark(&mut self) -> &mut Trigger_Watermark {
+        if let ::std::option::Option::Some(Trigger_oneof_value::watermark(_)) = self.value {
+        } else {
+            self.value = ::std::option::Option::Some(Trigger_oneof_value::watermark(Trigger_Watermark::new()));
+        }
+        match self.value {
+            ::std::option::Option::Some(Trigger_oneof_value::watermark(ref mut v)) => v,
+            _ => panic!(),
+        }
+    }
+
+    // Take field
+    pub fn take_watermark(&mut self) -> Trigger_Watermark {
+        if self.has_watermark() {
+            match self.value.take() {
+                ::std::option::Option::Some(Trigger_oneof_value::watermark(v)) => v,
+                _ => panic!(),
+            }
+        } else {
+            Trigger_Watermark::new()
+        }
+    }
+}
+
+impl ::protobuf::Message for Trigger {
+    fn is_initialized(&self) -> bool {
+        if let Some(Trigger_oneof_value::watermark(ref v)) = self.value {
+            if !v.is_initialized() {
+                return false;
+            }
+        }
+        true
+    }
+
+    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        while !is.eof()? {
+            let (field_number, wire_type) = is.read_tag_unpack()?;
+            match field_number {
+                1 => {
+                    if wire_type != ::protobuf::wire_format::WireTypeLengthDelimited {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    self.value = ::std::option::Option::Some(Trigger_oneof_value::watermark(is.read_message()?));
+                },
+                _ => {
+                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
+                },
+            };
+        }
+        ::std::result::Result::Ok(())
+    }
+
+    // Compute sizes of nested messages
+    #[allow(unused_variables)]
+    fn compute_size(&self) -> u32 {
+        let mut my_size = 0;
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Trigger_oneof_value::watermark(ref v) => {
+                    let len = v.compute_size();
+                    my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
+                },
+            };
+        }
+        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
+        self.cached_size.set(my_size);
+        my_size
+    }
+
+    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
+        if let ::std::option::Option::Some(ref v) = self.value {
+            match v {
+                &Trigger_oneof_value::watermark(ref v) => {
+                    os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
                     os.write_raw_varint32(v.get_cached_size())?;
                     v.write_to_with_cached_sizes(os)?;
                 },
@@ -5041,114 +7033,113 @@ impl ::protobuf::Message for WindowConfig {
         Self::descriptor_static()
     }
 
-    fn new() -> WindowConfig {
-        WindowConfig::new()
+    fn new() -> Trigger {
+        Trigger::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<WindowType>>(
-                "window_type",
-                |m: &WindowConfig| { &m.window_type },
-                |m: &mut WindowConfig| { &mut m.window_type },
+            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, Trigger_Watermark>(
+                "watermark",
+                Trigger::has_watermark,
+                Trigger::get_watermark,
             ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, FixedWindowConfig>(
-                "fixed",
-                WindowConfig::has_fixed,
-                WindowConfig::get_fixed,
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, SlidingWindowConfig>(
-                "slide",
-                WindowConfig::has_slide,
-                WindowConfig::get_slide,
-            ));
-            fields.push(::protobuf::reflect::accessor::make_singular_message_accessor::<_, SessionWindowConfig>(
-                "session",
-                WindowConfig::has_session,
-                WindowConfig::get_session,
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt32>(
-                "field_id",
-                |m: &WindowConfig| { &m.field_id },
-                |m: &mut WindowConfig| { &mut m.field_id },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<WindowConfig>(
-                "WindowConfig",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Trigger>(
+                "Trigger",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static WindowConfig {
-        static instance: ::protobuf::rt::LazyV2<WindowConfig> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(WindowConfig::new)
+    fn default_instance() -> &'static Trigger {
+        static instance: ::protobuf::rt::LazyV2<Trigger> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Trigger::new)
     }
 }
 
-impl ::protobuf::Clear for WindowConfig {
+impl ::protobuf::Clear for Trigger {
     fn clear(&mut self) {
-        self.window_type = WindowType::FIXED;
-        self.window = ::std::option::Option::None;
-        self.window = ::std::option::Option::None;
-        self.window = ::std::option::Option::None;
-        self.field_id = 0;
+        self.value = ::std::option::Option::None;
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for WindowConfig {
+impl ::std::fmt::Debug for Trigger {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for WindowConfig {
+impl ::protobuf::reflect::ProtobufValue for Trigger {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
     }
 }
 
 #[derive(PartialEq,Clone,Default)]
-pub struct FixedWindowConfig {
+pub struct Trigger_Watermark {
     // message fields
-    pub size: u32,
+    pub mark_time: ::protobuf::SingularPtrField<super::common::Time>,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
     pub cached_size: ::protobuf::CachedSize,
 }
 
-impl<'a> ::std::default::Default for &'a FixedWindowConfig {
-    fn default() -> &'a FixedWindowConfig {
-        <FixedWindowConfig as ::protobuf::Message>::default_instance()
+impl<'a> ::std::default::Default for &'a Trigger_Watermark {
+    fn default() -> &'a Trigger_Watermark {
+        <Trigger_Watermark as ::protobuf::Message>::default_instance()
     }
 }
 
-impl FixedWindowConfig {
-    pub fn new() -> FixedWindowConfig {
+impl Trigger_Watermark {
+    pub fn new() -> Trigger_Watermark {
         ::std::default::Default::default()
     }
 
-    // uint32 size = 1;
+    // .common.Time mark_time = 1;
 
 
-    pub fn get_size(&self) -> u32 {
-        self.size
+    pub fn get_mark_time(&self) -> &super::common::Time {
+        self.mark_time.as_ref().unwrap_or_else(|| <super::common::Time as ::protobuf::Message>::default_instance())
     }
-    pub fn clear_size(&mut self) {
-        self.size = 0;
+    pub fn clear_mark_time(&mut self) {
+        self.mark_time.clear();
+    }
+
+    pub fn has_mark_time(&self) -> bool {
+        self.mark_time.is_some()
     }
 
     // Param is passed by value, moved
-    pub fn set_size(&mut self, v: u32) {
-        self.size = v;
+    pub fn set_mark_time(&mut self, v: super::common::Time) {
+        self.mark_time = ::protobuf::SingularPtrField::some(v);
+    }
+
+    // Mutable pointer to the field.
+    // If field is not initialized, it is initialized with default value first.
+    pub fn mut_mark_time(&mut self) -> &mut super::common::Time {
+        if self.mark_time.is_none() {
+            self.mark_time.set_default();
+        }
+        self.mark_time.as_mut().unwrap()
+    }
+
+    // Take field
+    pub fn take_mark_time(&mut self) -> super::common::Time {
+        self.mark_time.take().unwrap_or_else(|| super::common::Time::new())
     }
 }
 
-impl ::protobuf::Message for FixedWindowConfig {
+impl ::protobuf::Message for Trigger_Watermark {
     fn is_initialized(&self) -> bool {
+        for v in &self.mark_time {
+            if !v.is_initialized() {
+                return false;
+            }
+        };
         true
     }
 
@@ -5157,11 +7148,7 @@ impl ::protobuf::Message for FixedWindowConfig {
             let (field_number, wire_type) = is.read_tag_unpack()?;
             match field_number {
                 1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.size = tmp;
+                    ::protobuf::rt::read_singular_message_into(wire_type, is, &mut self.mark_time)?;
                 },
                 _ => {
                     ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
@@ -5175,8 +7162,9 @@ impl ::protobuf::Message for FixedWindowConfig {
     #[allow(unused_variables)]
     fn compute_size(&self) -> u32 {
         let mut my_size = 0;
-        if self.size != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.size, ::protobuf::wire_format::WireTypeVarint);
+        if let Some(ref v) = self.mark_time.as_ref() {
+            let len = v.compute_size();
+            my_size += 1 + ::protobuf::rt::compute_raw_varint32_size(len) + len;
         }
         my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
         self.cached_size.set(my_size);
@@ -5184,8 +7172,10 @@ impl ::protobuf::Message for FixedWindowConfig {
     }
 
     fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.size != 0 {
-            os.write_uint32(1, self.size)?;
+        if let Some(ref v) = self.mark_time.as_ref() {
+            os.write_tag(1, ::protobuf::wire_format::WireTypeLengthDelimited)?;
+            os.write_raw_varint32(v.get_cached_size())?;
+            v.write_to_with_cached_sizes(os)?;
         }
         os.write_unknown_fields(self.get_unknown_fields())?;
         ::std::result::Result::Ok(())
@@ -5217,805 +7207,49 @@ impl ::protobuf::Message for FixedWindowConfig {
         Self::descriptor_static()
     }
 
-    fn new() -> FixedWindowConfig {
-        FixedWindowConfig::new()
+    fn new() -> Trigger_Watermark {
+        Trigger_Watermark::new()
     }
 
     fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
         static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
         descriptor.get(|| {
             let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "size",
-                |m: &FixedWindowConfig| { &m.size },
-                |m: &mut FixedWindowConfig| { &mut m.size },
+            fields.push(::protobuf::reflect::accessor::make_singular_ptr_field_accessor::<_, ::protobuf::types::ProtobufTypeMessage<super::common::Time>>(
+                "mark_time",
+                |m: &Trigger_Watermark| { &m.mark_time },
+                |m: &mut Trigger_Watermark| { &mut m.mark_time },
             ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<FixedWindowConfig>(
-                "FixedWindowConfig",
+            ::protobuf::reflect::MessageDescriptor::new_pb_name::<Trigger_Watermark>(
+                "Trigger.Watermark",
                 fields,
                 file_descriptor_proto()
             )
         })
     }
 
-    fn default_instance() -> &'static FixedWindowConfig {
-        static instance: ::protobuf::rt::LazyV2<FixedWindowConfig> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(FixedWindowConfig::new)
+    fn default_instance() -> &'static Trigger_Watermark {
+        static instance: ::protobuf::rt::LazyV2<Trigger_Watermark> = ::protobuf::rt::LazyV2::INIT;
+        instance.get(Trigger_Watermark::new)
     }
 }
 
-impl ::protobuf::Clear for FixedWindowConfig {
+impl ::protobuf::Clear for Trigger_Watermark {
     fn clear(&mut self) {
-        self.size = 0;
+        self.mark_time.clear();
         self.unknown_fields.clear();
     }
 }
 
-impl ::std::fmt::Debug for FixedWindowConfig {
+impl ::std::fmt::Debug for Trigger_Watermark {
     fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
         ::protobuf::text_format::fmt(self, f)
     }
 }
 
-impl ::protobuf::reflect::ProtobufValue for FixedWindowConfig {
+impl ::protobuf::reflect::ProtobufValue for Trigger_Watermark {
     fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
         ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct SlidingWindowConfig {
-    // message fields
-    pub size: u32,
-    pub period: u32,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a SlidingWindowConfig {
-    fn default() -> &'a SlidingWindowConfig {
-        <SlidingWindowConfig as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl SlidingWindowConfig {
-    pub fn new() -> SlidingWindowConfig {
-        ::std::default::Default::default()
-    }
-
-    // uint32 size = 1;
-
-
-    pub fn get_size(&self) -> u32 {
-        self.size
-    }
-    pub fn clear_size(&mut self) {
-        self.size = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_size(&mut self, v: u32) {
-        self.size = v;
-    }
-
-    // uint32 period = 2;
-
-
-    pub fn get_period(&self) -> u32 {
-        self.period
-    }
-    pub fn clear_period(&mut self) {
-        self.period = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_period(&mut self, v: u32) {
-        self.period = v;
-    }
-}
-
-impl ::protobuf::Message for SlidingWindowConfig {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.size = tmp;
-                },
-                2 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.period = tmp;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if self.size != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.size, ::protobuf::wire_format::WireTypeVarint);
-        }
-        if self.period != 0 {
-            my_size += ::protobuf::rt::value_size(2, self.period, ::protobuf::wire_format::WireTypeVarint);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.size != 0 {
-            os.write_uint32(1, self.size)?;
-        }
-        if self.period != 0 {
-            os.write_uint32(2, self.period)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> SlidingWindowConfig {
-        SlidingWindowConfig::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "size",
-                |m: &SlidingWindowConfig| { &m.size },
-                |m: &mut SlidingWindowConfig| { &mut m.size },
-            ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "period",
-                |m: &SlidingWindowConfig| { &m.period },
-                |m: &mut SlidingWindowConfig| { &mut m.period },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<SlidingWindowConfig>(
-                "SlidingWindowConfig",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static SlidingWindowConfig {
-        static instance: ::protobuf::rt::LazyV2<SlidingWindowConfig> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(SlidingWindowConfig::new)
-    }
-}
-
-impl ::protobuf::Clear for SlidingWindowConfig {
-    fn clear(&mut self) {
-        self.size = 0;
-        self.period = 0;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for SlidingWindowConfig {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SlidingWindowConfig {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct SessionWindowConfig {
-    // message fields
-    pub timeout: u32,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a SessionWindowConfig {
-    fn default() -> &'a SessionWindowConfig {
-        <SessionWindowConfig as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl SessionWindowConfig {
-    pub fn new() -> SessionWindowConfig {
-        ::std::default::Default::default()
-    }
-
-    // uint32 timeout = 1;
-
-
-    pub fn get_timeout(&self) -> u32 {
-        self.timeout
-    }
-    pub fn clear_timeout(&mut self) {
-        self.timeout = 0;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_timeout(&mut self, v: u32) {
-        self.timeout = v;
-    }
-}
-
-impl ::protobuf::Message for SessionWindowConfig {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
-                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
-                    }
-                    let tmp = is.read_uint32()?;
-                    self.timeout = tmp;
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if self.timeout != 0 {
-            my_size += ::protobuf::rt::value_size(1, self.timeout, ::protobuf::wire_format::WireTypeVarint);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.timeout != 0 {
-            os.write_uint32(1, self.timeout)?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> SessionWindowConfig {
-        SessionWindowConfig::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeUint32>(
-                "timeout",
-                |m: &SessionWindowConfig| { &m.timeout },
-                |m: &mut SessionWindowConfig| { &mut m.timeout },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<SessionWindowConfig>(
-                "SessionWindowConfig",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static SessionWindowConfig {
-        static instance: ::protobuf::rt::LazyV2<SessionWindowConfig> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(SessionWindowConfig::new)
-    }
-}
-
-impl ::protobuf::Clear for SessionWindowConfig {
-    fn clear(&mut self) {
-        self.timeout = 0;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for SessionWindowConfig {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SessionWindowConfig {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(PartialEq,Clone,Default)]
-pub struct TriggerConfig {
-    // message fields
-    pub trigger_type: TriggerType,
-    // special fields
-    pub unknown_fields: ::protobuf::UnknownFields,
-    pub cached_size: ::protobuf::CachedSize,
-}
-
-impl<'a> ::std::default::Default for &'a TriggerConfig {
-    fn default() -> &'a TriggerConfig {
-        <TriggerConfig as ::protobuf::Message>::default_instance()
-    }
-}
-
-impl TriggerConfig {
-    pub fn new() -> TriggerConfig {
-        ::std::default::Default::default()
-    }
-
-    // .common.TriggerType trigger_type = 1;
-
-
-    pub fn get_trigger_type(&self) -> TriggerType {
-        self.trigger_type
-    }
-    pub fn clear_trigger_type(&mut self) {
-        self.trigger_type = TriggerType::WATERMARK;
-    }
-
-    // Param is passed by value, moved
-    pub fn set_trigger_type(&mut self, v: TriggerType) {
-        self.trigger_type = v;
-    }
-}
-
-impl ::protobuf::Message for TriggerConfig {
-    fn is_initialized(&self) -> bool {
-        true
-    }
-
-    fn merge_from(&mut self, is: &mut ::protobuf::CodedInputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        while !is.eof()? {
-            let (field_number, wire_type) = is.read_tag_unpack()?;
-            match field_number {
-                1 => {
-                    ::protobuf::rt::read_proto3_enum_with_unknown_fields_into(wire_type, is, &mut self.trigger_type, 1, &mut self.unknown_fields)?
-                },
-                _ => {
-                    ::protobuf::rt::read_unknown_or_skip_group(field_number, wire_type, is, self.mut_unknown_fields())?;
-                },
-            };
-        }
-        ::std::result::Result::Ok(())
-    }
-
-    // Compute sizes of nested messages
-    #[allow(unused_variables)]
-    fn compute_size(&self) -> u32 {
-        let mut my_size = 0;
-        if self.trigger_type != TriggerType::WATERMARK {
-            my_size += ::protobuf::rt::enum_size(1, self.trigger_type);
-        }
-        my_size += ::protobuf::rt::unknown_fields_size(self.get_unknown_fields());
-        self.cached_size.set(my_size);
-        my_size
-    }
-
-    fn write_to_with_cached_sizes(&self, os: &mut ::protobuf::CodedOutputStream<'_>) -> ::protobuf::ProtobufResult<()> {
-        if self.trigger_type != TriggerType::WATERMARK {
-            os.write_enum(1, ::protobuf::ProtobufEnum::value(&self.trigger_type))?;
-        }
-        os.write_unknown_fields(self.get_unknown_fields())?;
-        ::std::result::Result::Ok(())
-    }
-
-    fn get_cached_size(&self) -> u32 {
-        self.cached_size.get()
-    }
-
-    fn get_unknown_fields(&self) -> &::protobuf::UnknownFields {
-        &self.unknown_fields
-    }
-
-    fn mut_unknown_fields(&mut self) -> &mut ::protobuf::UnknownFields {
-        &mut self.unknown_fields
-    }
-
-    fn as_any(&self) -> &dyn (::std::any::Any) {
-        self as &dyn (::std::any::Any)
-    }
-    fn as_any_mut(&mut self) -> &mut dyn (::std::any::Any) {
-        self as &mut dyn (::std::any::Any)
-    }
-    fn into_any(self: ::std::boxed::Box<Self>) -> ::std::boxed::Box<dyn (::std::any::Any)> {
-        self
-    }
-
-    fn descriptor(&self) -> &'static ::protobuf::reflect::MessageDescriptor {
-        Self::descriptor_static()
-    }
-
-    fn new() -> TriggerConfig {
-        TriggerConfig::new()
-    }
-
-    fn descriptor_static() -> &'static ::protobuf::reflect::MessageDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::MessageDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            let mut fields = ::std::vec::Vec::new();
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeEnum<TriggerType>>(
-                "trigger_type",
-                |m: &TriggerConfig| { &m.trigger_type },
-                |m: &mut TriggerConfig| { &mut m.trigger_type },
-            ));
-            ::protobuf::reflect::MessageDescriptor::new_pb_name::<TriggerConfig>(
-                "TriggerConfig",
-                fields,
-                file_descriptor_proto()
-            )
-        })
-    }
-
-    fn default_instance() -> &'static TriggerConfig {
-        static instance: ::protobuf::rt::LazyV2<TriggerConfig> = ::protobuf::rt::LazyV2::INIT;
-        instance.get(TriggerConfig::new)
-    }
-}
-
-impl ::protobuf::Clear for TriggerConfig {
-    fn clear(&mut self) {
-        self.trigger_type = TriggerType::WATERMARK;
-        self.unknown_fields.clear();
-    }
-}
-
-impl ::std::fmt::Debug for TriggerConfig {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
-        ::protobuf::text_format::fmt(self, f)
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for TriggerConfig {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Message(self)
-    }
-}
-
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum SinkTypeEnum {
-    QUERY_ENGINE = 0,
-}
-
-impl ::protobuf::ProtobufEnum for SinkTypeEnum {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<SinkTypeEnum> {
-        match value {
-            0 => ::std::option::Option::Some(SinkTypeEnum::QUERY_ENGINE),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [SinkTypeEnum] = &[
-            SinkTypeEnum::QUERY_ENGINE,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<SinkTypeEnum>("SinkTypeEnum", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for SinkTypeEnum {
-}
-
-impl ::std::default::Default for SinkTypeEnum {
-    fn default() -> Self {
-        SinkTypeEnum::QUERY_ENGINE
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SinkTypeEnum {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
-    }
-}
-
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum QueryEngineSinkTypeEnum {
-    QE_OVERRIDE = 0,
-    QE_APPEND = 1,
-    QE_UPDATE = 2,
-}
-
-impl ::protobuf::ProtobufEnum for QueryEngineSinkTypeEnum {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<QueryEngineSinkTypeEnum> {
-        match value {
-            0 => ::std::option::Option::Some(QueryEngineSinkTypeEnum::QE_OVERRIDE),
-            1 => ::std::option::Option::Some(QueryEngineSinkTypeEnum::QE_APPEND),
-            2 => ::std::option::Option::Some(QueryEngineSinkTypeEnum::QE_UPDATE),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [QueryEngineSinkTypeEnum] = &[
-            QueryEngineSinkTypeEnum::QE_OVERRIDE,
-            QueryEngineSinkTypeEnum::QE_APPEND,
-            QueryEngineSinkTypeEnum::QE_UPDATE,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<QueryEngineSinkTypeEnum>("QueryEngineSinkTypeEnum", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for QueryEngineSinkTypeEnum {
-}
-
-impl ::std::default::Default for QueryEngineSinkTypeEnum {
-    fn default() -> Self {
-        QueryEngineSinkTypeEnum::QE_OVERRIDE
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for QueryEngineSinkTypeEnum {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
-    }
-}
-
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum SourceTypeEnum {
-    KAFKA = 0,
-    QE = 1,
-}
-
-impl ::protobuf::ProtobufEnum for SourceTypeEnum {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<SourceTypeEnum> {
-        match value {
-            0 => ::std::option::Option::Some(SourceTypeEnum::KAFKA),
-            1 => ::std::option::Option::Some(SourceTypeEnum::QE),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [SourceTypeEnum] = &[
-            SourceTypeEnum::KAFKA,
-            SourceTypeEnum::QE,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<SourceTypeEnum>("SourceTypeEnum", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for SourceTypeEnum {
-}
-
-impl ::std::default::Default for SourceTypeEnum {
-    fn default() -> Self {
-        SourceTypeEnum::KAFKA
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for SourceTypeEnum {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
-    }
-}
-
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum OperatorType {
-    REFERENCE = 0,
-    ADD = 1,
-    SUM = 2,
-    SUMIF = 3,
-    COUNTIF = 4,
-    COUNT = 5,
-    AVG = 6,
-    GROUP = 7,
-    GROUPIF = 8,
-    MAX = 9,
-    MAXIF = 10,
-    MIN = 11,
-    MINIF = 12,
-    SUB = 13,
-    MUL = 14,
-    DIV = 15,
-    EQ = 16,
-    NEQ = 17,
-    LT = 18,
-    GT = 19,
-    LTE = 20,
-    GTE = 21,
-    SOURCE = 22,
-    SINK = 23,
-    SELECT = 24,
-}
-
-impl ::protobuf::ProtobufEnum for OperatorType {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<OperatorType> {
-        match value {
-            0 => ::std::option::Option::Some(OperatorType::REFERENCE),
-            1 => ::std::option::Option::Some(OperatorType::ADD),
-            2 => ::std::option::Option::Some(OperatorType::SUM),
-            3 => ::std::option::Option::Some(OperatorType::SUMIF),
-            4 => ::std::option::Option::Some(OperatorType::COUNTIF),
-            5 => ::std::option::Option::Some(OperatorType::COUNT),
-            6 => ::std::option::Option::Some(OperatorType::AVG),
-            7 => ::std::option::Option::Some(OperatorType::GROUP),
-            8 => ::std::option::Option::Some(OperatorType::GROUPIF),
-            9 => ::std::option::Option::Some(OperatorType::MAX),
-            10 => ::std::option::Option::Some(OperatorType::MAXIF),
-            11 => ::std::option::Option::Some(OperatorType::MIN),
-            12 => ::std::option::Option::Some(OperatorType::MINIF),
-            13 => ::std::option::Option::Some(OperatorType::SUB),
-            14 => ::std::option::Option::Some(OperatorType::MUL),
-            15 => ::std::option::Option::Some(OperatorType::DIV),
-            16 => ::std::option::Option::Some(OperatorType::EQ),
-            17 => ::std::option::Option::Some(OperatorType::NEQ),
-            18 => ::std::option::Option::Some(OperatorType::LT),
-            19 => ::std::option::Option::Some(OperatorType::GT),
-            20 => ::std::option::Option::Some(OperatorType::LTE),
-            21 => ::std::option::Option::Some(OperatorType::GTE),
-            22 => ::std::option::Option::Some(OperatorType::SOURCE),
-            23 => ::std::option::Option::Some(OperatorType::SINK),
-            24 => ::std::option::Option::Some(OperatorType::SELECT),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [OperatorType] = &[
-            OperatorType::REFERENCE,
-            OperatorType::ADD,
-            OperatorType::SUM,
-            OperatorType::SUMIF,
-            OperatorType::COUNTIF,
-            OperatorType::COUNT,
-            OperatorType::AVG,
-            OperatorType::GROUP,
-            OperatorType::GROUPIF,
-            OperatorType::MAX,
-            OperatorType::MAXIF,
-            OperatorType::MIN,
-            OperatorType::MINIF,
-            OperatorType::SUB,
-            OperatorType::MUL,
-            OperatorType::DIV,
-            OperatorType::EQ,
-            OperatorType::NEQ,
-            OperatorType::LT,
-            OperatorType::GT,
-            OperatorType::LTE,
-            OperatorType::GTE,
-            OperatorType::SOURCE,
-            OperatorType::SINK,
-            OperatorType::SELECT,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<OperatorType>("OperatorType", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for OperatorType {
-}
-
-impl ::std::default::Default for OperatorType {
-    fn default() -> Self {
-        OperatorType::REFERENCE
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for OperatorType {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
     }
 }
 
@@ -6075,503 +7309,356 @@ impl ::protobuf::reflect::ProtobufValue for DataflowStatus {
     }
 }
 
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum WindowType {
-    FIXED = 0,
-    SLIDING = 1,
-    SESSION = 2,
-}
-
-impl ::protobuf::ProtobufEnum for WindowType {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<WindowType> {
-        match value {
-            0 => ::std::option::Option::Some(WindowType::FIXED),
-            1 => ::std::option::Option::Some(WindowType::SLIDING),
-            2 => ::std::option::Option::Some(WindowType::SESSION),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [WindowType] = &[
-            WindowType::FIXED,
-            WindowType::SLIDING,
-            WindowType::SESSION,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<WindowType>("WindowType", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for WindowType {
-}
-
-impl ::std::default::Default for WindowType {
-    fn default() -> Self {
-        WindowType::FIXED
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for WindowType {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
-    }
-}
-
-#[derive(Clone,PartialEq,Eq,Debug,Hash)]
-pub enum TriggerType {
-    WATERMARK = 0,
-}
-
-impl ::protobuf::ProtobufEnum for TriggerType {
-    fn value(&self) -> i32 {
-        *self as i32
-    }
-
-    fn from_i32(value: i32) -> ::std::option::Option<TriggerType> {
-        match value {
-            0 => ::std::option::Option::Some(TriggerType::WATERMARK),
-            _ => ::std::option::Option::None
-        }
-    }
-
-    fn values() -> &'static [Self] {
-        static values: &'static [TriggerType] = &[
-            TriggerType::WATERMARK,
-        ];
-        values
-    }
-
-    fn enum_descriptor_static() -> &'static ::protobuf::reflect::EnumDescriptor {
-        static descriptor: ::protobuf::rt::LazyV2<::protobuf::reflect::EnumDescriptor> = ::protobuf::rt::LazyV2::INIT;
-        descriptor.get(|| {
-            ::protobuf::reflect::EnumDescriptor::new_pb_name::<TriggerType>("TriggerType", file_descriptor_proto())
-        })
-    }
-}
-
-impl ::std::marker::Copy for TriggerType {
-}
-
-impl ::std::default::Default for TriggerType {
-    fn default() -> Self {
-        TriggerType::WATERMARK
-    }
-}
-
-impl ::protobuf::reflect::ProtobufValue for TriggerType {
-    fn as_ref(&self) -> ::protobuf::reflect::ReflectValueRef {
-        ::protobuf::reflect::ReflectValueRef::Enum(::protobuf::ProtobufEnum::descriptor(self))
-    }
-}
-
 static file_descriptor_proto_data: &'static [u8] = b"\
-    \n\x13common/stream.proto\x12\x06common\x1a\x13common/common.proto\x1a\
-    \x12common/table.proto\"D\n\x0cDataflowMeta\x12\x16\n\x06center\x18\x01\
-    \x20\x01(\rR\x06center\x12\x1c\n\tneighbors\x18\x02\x20\x03(\rR\tneighbo\
-    rs\"\x88\x03\n\x0cOperatorInfo\x12\x1f\n\x0boperator_id\x18\x01\x20\x01(\
-    \rR\noperatorId\x12-\n\x07op_type\x18\x02\x20\x01(\x0e2\x14.common.Opera\
-    torTypeR\x06opType\x12'\n\x06values\x18\x03\x20\x03(\x0b2\x0f.common.Con\
-    stOpR\x06values\x12-\n\thost_addr\x18\x04\x20\x01(\x0b2\x10.common.HostA\
-    ddrR\x08hostAddr\x12,\n\x06config\x18\x05\x20\x01(\x0b2\x14.common.Strea\
-    mConfigR\x06config\x12\x1c\n\tupstreams\x18\x06\x20\x03(\rR\tupstreams\
-    \x12(\n\x06source\x18\x07\x20\x01(\x0b2\x0e.common.SourceH\0R\x06source\
-    \x12\"\n\x04sink\x18\x08\x20\x01(\x0b2\x0c.common.SinkH\0R\x04sink\x12+\
-    \n\x06select\x18\t\x20\x01(\x0b2\x11.common.SelectRefH\0R\x06selectB\t\n\
-    \x07details\"\xa1\x01\n\tSelectRef\x12B\n\x0bcolumn_refs\x18\x01\x20\x03\
-    (\x0b2!.common.SelectRef.ColumnRefsEntryR\ncolumnRefs\x1aP\n\x0fColumnRe\
-    fsEntry\x12\x10\n\x03key\x18\x01\x20\x01(\rR\x03key\x12'\n\x05value\x18\
-    \x02\x20\x01(\x0b2\x11.common.ColumnRefR\x05value:\x028\x01\"X\n\tColumn\
-    Ref\x12\x14\n\x05table\x18\x01\x20\x01(\tR\x05table\x12\x14\n\x05field\
-    \x18\x02\x20\x01(\tR\x05field\x12\x16\n\x05value\x18\x03\x20\x01(\tH\0R\
-    \x05valueB\x07\n\x05alias\"V\n\x04Sink\x12(\n\x04type\x18\x01\x20\x01(\
-    \x0e2\x14.common.SinkTypeEnumR\x04type\x12$\n\x04sink\x18\x02\x20\x01(\
-    \x0b2\x10.common.SinkDescR\x04sink\"J\n\x08SinkDesc\x126\n\x07qe_desc\
-    \x18\x01\x20\x01(\x0b2\x1b.common.QueryEngineSinkDescH\0R\x06qeDescB\x06\
-    \n\x04desc\"\xab\x01\n\x13QueryEngineSinkDesc\x12&\n\x06schema\x18\x01\
-    \x20\x01(\x0b2\x0e.common.SchemaR\x06schema\x123\n\x04type\x18\x02\x20\
-    \x01(\x0e2\x1f.common.QueryEngineSinkTypeEnumR\x04type\x127\n\x07qe_opts\
-    \x18\x03\x20\x01(\x0b2\x1e.common.QueryEngineSinkOptionsR\x06qeOpts\"\
-    \x18\n\x16QueryEngineSinkOptions\"@\n\x07ConstOp\x12\x14\n\x05value\x18\
-    \x01\x20\x01(\x0cR\x05value\x12\x1f\n\x0boperator_id\x18\x02\x20\x01(\rR\
-    \noperatorId\"i\n\x06Source\x12*\n\x04type\x18\x01\x20\x01(\x0e2\x16.com\
-    mon.SourceTypeEnumR\x04type\x123\n\x0bsource_desc\x18\x02\x20\x01(\x0b2\
-    \x12.common.SourceDescR\nsourceDesc\"\xc2\x01\n\nSourceDesc\x12<\n\x0bba\
-    tch_query\x18\x01\x20\x01(\x0b2\x19.common.QueryEngineSourceH\0R\nbatchQ\
-    uery\x12A\n\rchange_stream\x18\x02\x20\x01(\x0b2\x1a.common.ChangeStream\
-    SourceH\0R\x0cchangeStream\x12+\n\x05kafka\x18\x03\x20\x01(\x0b2\x13.com\
-    mon.KafkaSourceH\0R\x05kafkaB\x06\n\x04desc\"i\n\x11QueryEngineSource\
-    \x12&\n\x06schema\x18\x02\x20\x01(\x0b2\x0e.common.SchemaR\x06schema\x12\
-    ,\n\x04opts\x18\x04\x20\x01(\x0b2\x18.common.BatchDataOptionsR\x04opts\"\
-    `\n\x12ChangeStreamSource\x12\x19\n\x08table_id\x18\x01\x20\x01(\rR\x07t\
-    ableId\x12/\n\x04opts\x18\x02\x20\x01(\x0b2\x1b.common.ChangeStreamOptio\
-    nsR\x04opts\"g\n\x0bKafkaSource\x12\x18\n\x07brokers\x18\x01\x20\x03(\tR\
-    \x07brokers\x12\x14\n\x05topic\x18\x02\x20\x01(\tR\x05topic\x12(\n\x04op\
-    ts\x18\x03\x20\x01(\x0b2\x14.common.KafkaOptionsR\x04opts\"x\n\x10BatchD\
-    ataOptions\x12\x1a\n\x08interval\x18\x01\x20\x01(\rR\x08interval\x12\x1d\
-    \n\nbatch_size\x18\x02\x20\x01(\rR\tbatchSize\x12\x16\n\x05value\x18\x03\
-    \x20\x01(\tH\0R\x05valueB\x11\n\x0fincremental_key\"\x15\n\x13ChangeStre\
-    amOptions\"c\n\x0cKafkaOptions\x12\x14\n\x05topic\x18\x01\x20\x01(\tR\
-    \x05topic\x12\x16\n\x05group\x18\x02\x20\x01(\tH\0R\x05group\x12\x1e\n\t\
-    partition\x18\x03\x20\x01(\rH\0R\tpartitionB\x05\n\x03opt\"\xdd\x01\n\
-    \x08Dataflow\x12$\n\x06job_id\x18\x01\x20\x01(\x0b2\r.common.JobIdR\x05j\
-    obId\x12(\n\x04meta\x18\x02\x20\x03(\x0b2\x14.common.DataflowMetaR\x04me\
-    ta\x121\n\x05nodes\x18\x03\x20\x03(\x0b2\x1b.common.Dataflow.NodesEntryR\
-    \x05nodes\x1aN\n\nNodesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\rR\x03key\
-    \x12*\n\x05value\x18\x02\x20\x01(\x0b2\x14.common.OperatorInfoR\x05value\
-    :\x028\x01\"m\n\x0cStreamConfig\x12,\n\x06window\x18\x01\x20\x01(\x0b2\
-    \x14.common.WindowConfigR\x06window\x12/\n\x07trigger\x18\x02\x20\x01(\
-    \x0b2\x15.common.TriggerConfigR\x07trigger\"\x89\x02\n\x0cWindowConfig\
-    \x123\n\x0bwindow_type\x18\x01\x20\x01(\x0e2\x12.common.WindowTypeR\nwin\
-    dowType\x121\n\x05fixed\x18\x02\x20\x01(\x0b2\x19.common.FixedWindowConf\
-    igH\0R\x05fixed\x123\n\x05slide\x18\x03\x20\x01(\x0b2\x1b.common.Sliding\
-    WindowConfigH\0R\x05slide\x127\n\x07session\x18\x04\x20\x01(\x0b2\x1b.co\
-    mmon.SessionWindowConfigH\0R\x07session\x12\x19\n\x08field_id\x18\x05\
-    \x20\x01(\x05R\x07fieldIdB\x08\n\x06window\"'\n\x11FixedWindowConfig\x12\
-    \x12\n\x04size\x18\x01\x20\x01(\rR\x04size\"A\n\x13SlidingWindowConfig\
-    \x12\x12\n\x04size\x18\x01\x20\x01(\rR\x04size\x12\x16\n\x06period\x18\
-    \x02\x20\x01(\rR\x06period\"/\n\x13SessionWindowConfig\x12\x18\n\x07time\
-    out\x18\x01\x20\x01(\rR\x07timeout\"G\n\rTriggerConfig\x126\n\x0ctrigger\
-    _type\x18\x01\x20\x01(\x0e2\x13.common.TriggerTypeR\x0btriggerType*\x20\
-    \n\x0cSinkTypeEnum\x12\x10\n\x0cQUERY_ENGINE\x10\0*H\n\x17QueryEngineSin\
-    kTypeEnum\x12\x0f\n\x0bQE_OVERRIDE\x10\0\x12\r\n\tQE_APPEND\x10\x01\x12\
-    \r\n\tQE_UPDATE\x10\x02*#\n\x0eSourceTypeEnum\x12\t\n\x05KAFKA\x10\0\x12\
-    \x06\n\x02QE\x10\x01*\x8b\x02\n\x0cOperatorType\x12\r\n\tREFERENCE\x10\0\
-    \x12\x07\n\x03ADD\x10\x01\x12\x07\n\x03SUM\x10\x02\x12\t\n\x05SUMIF\x10\
-    \x03\x12\x0b\n\x07COUNTIF\x10\x04\x12\t\n\x05COUNT\x10\x05\x12\x07\n\x03\
-    AVG\x10\x06\x12\t\n\x05GROUP\x10\x07\x12\x0b\n\x07GROUPIF\x10\x08\x12\
-    \x07\n\x03MAX\x10\t\x12\t\n\x05MAXIF\x10\n\x12\x07\n\x03MIN\x10\x0b\x12\
-    \t\n\x05MINIF\x10\x0c\x12\x07\n\x03SUB\x10\r\x12\x07\n\x03MUL\x10\x0e\
-    \x12\x07\n\x03DIV\x10\x0f\x12\x06\n\x02EQ\x10\x10\x12\x07\n\x03NEQ\x10\
-    \x11\x12\x06\n\x02LT\x10\x12\x12\x06\n\x02GT\x10\x13\x12\x07\n\x03LTE\
-    \x10\x14\x12\x07\n\x03GTE\x10\x15\x12\n\n\x06SOURCE\x10\x16\x12\x08\n\
-    \x04SINK\x10\x17\x12\n\n\x06SELECT\x10\x18*G\n\x0eDataflowStatus\x12\x0f\
-    \n\x0bINITIALIZED\x10\0\x12\x0b\n\x07RUNNING\x10\x01\x12\x0b\n\x07CLOSIN\
-    G\x10\x02\x12\n\n\x06CLOSED\x10\x03*1\n\nWindowType\x12\t\n\x05FIXED\x10\
-    \0\x12\x0b\n\x07SLIDING\x10\x01\x12\x0b\n\x07SESSION\x10\x02*\x1c\n\x0bT\
-    riggerType\x12\r\n\tWATERMARK\x10\0B\x1fZ\x1dtableflow/alpha/common/stre\
-    amJ\x956\n\x07\x12\x05\0\0\xe3\x01\x01\n\x08\n\x01\x0c\x12\x03\0\0\x12\n\
-    \x08\n\x01\x02\x12\x03\x02\0\x0f\n\t\n\x02\x03\0\x12\x03\x03\0\x1d\n\t\n\
-    \x02\x03\x01\x12\x03\x04\0\x1c\n\x08\n\x01\x08\x12\x03\x05\04\n\t\n\x02\
-    \x08\x0b\x12\x03\x05\04\n[\n\x02\x04\0\x12\x04\n\0\r\x01\x1aO*\nStreamGr\
-    aph\x20metadata,\x20it\x20stores\x20the\x20structural\x20information\x20\
-    of\x20a\x20stream\x20graph\n\n\n\n\x03\x04\0\x01\x12\x03\n\x08\x14\n\x1d\
-    \n\x04\x04\0\x02\0\x12\x03\x0b\x02\x14\"\x10\x20center\x20node\x20id\n\n\
-    \x0c\n\x05\x04\0\x02\0\x05\x12\x03\x0b\x02\x08\n\x0c\n\x05\x04\0\x02\0\
-    \x01\x12\x03\x0b\t\x0f\n\x0c\n\x05\x04\0\x02\0\x03\x12\x03\x0b\x12\x13\n\
-    !\n\x04\x04\0\x02\x01\x12\x03\x0c\x02\x20\"\x14\x20center's\x20neighbors\
-    \n\n\x0c\n\x05\x04\0\x02\x01\x04\x12\x03\x0c\x02\n\n\x0c\n\x05\x04\0\x02\
-    \x01\x05\x12\x03\x0c\x0b\x11\n\x0c\n\x05\x04\0\x02\x01\x01\x12\x03\x0c\
-    \x12\x1b\n\x0c\n\x05\x04\0\x02\x01\x03\x12\x03\x0c\x1e\x1f\nE\n\x02\x04\
-    \x01\x12\x04\x12\0\x20\x01\x1a9*\nOperatorInfo,\x20stores\x20detail\x20i\
-    nformation\x20of\x20an\x20operator\n\n\n\n\x03\x04\x01\x01\x12\x03\x12\
-    \x08\x14\n\x0b\n\x04\x04\x01\x02\0\x12\x03\x13\x02\x19\n\x0c\n\x05\x04\
-    \x01\x02\0\x05\x12\x03\x13\x02\x08\n\x0c\n\x05\x04\x01\x02\0\x01\x12\x03\
-    \x13\t\x14\n\x0c\n\x05\x04\x01\x02\0\x03\x12\x03\x13\x17\x18\n\x13\n\x04\
-    \x04\x01\x02\x01\x12\x03\x14\x02\x1b\"\x06\x20type\n\n\x0c\n\x05\x04\x01\
-    \x02\x01\x06\x12\x03\x14\x02\x0e\n\x0c\n\x05\x04\x01\x02\x01\x01\x12\x03\
-    \x14\x0f\x16\n\x0c\n\x05\x04\x01\x02\x01\x03\x12\x03\x14\x19\x1a\n\x1d\n\
-    \x04\x04\x01\x02\x02\x12\x03\x15\x02\x1e\"\x10\x20constant\x20value\n\n\
-    \x0c\n\x05\x04\x01\x02\x02\x04\x12\x03\x15\x02\n\n\x0c\n\x05\x04\x01\x02\
-    \x02\x06\x12\x03\x15\x0b\x12\n\x0c\n\x05\x04\x01\x02\x02\x01\x12\x03\x15\
-    \x13\x19\n\x0c\n\x05\x04\x01\x02\x02\x03\x12\x03\x15\x1c\x1d\n\x20\n\x04\
-    \x04\x01\x02\x03\x12\x03\x16\x02\x20\"\x13\x20host\x20addr\x20configs\n\
-    \n\x0c\n\x05\x04\x01\x02\x03\x06\x12\x03\x16\x02\x11\n\x0c\n\x05\x04\x01\
-    \x02\x03\x01\x12\x03\x16\x12\x1b\n\x0c\n\x05\x04\x01\x02\x03\x03\x12\x03\
-    \x16\x1e\x1f\n)\n\x04\x04\x01\x02\x04\x12\x03\x17\x02\x1a\"\x1c\x20strea\
-    m\x20config\x20for\x20operator\n\n\x0c\n\x05\x04\x01\x02\x04\x06\x12\x03\
-    \x17\x02\x0e\n\x0c\n\x05\x04\x01\x02\x04\x01\x12\x03\x17\x0f\x15\n\x0c\n\
-    \x05\x04\x01\x02\x04\x03\x12\x03\x17\x18\x19\n$\n\x04\x04\x01\x02\x05\
-    \x12\x03\x18\x02\x20\"\x17\x20upstreams\x20operator_id\n\n\x0c\n\x05\x04\
-    \x01\x02\x05\x04\x12\x03\x18\x02\n\n\x0c\n\x05\x04\x01\x02\x05\x05\x12\
-    \x03\x18\x0b\x11\n\x0c\n\x05\x04\x01\x02\x05\x01\x12\x03\x18\x12\x1b\n\
-    \x0c\n\x05\x04\x01\x02\x05\x03\x12\x03\x18\x1e\x1f\n4\n\x04\x04\x01\x08\
-    \0\x12\x04\x1b\x02\x1f\x03\x1a&\x20optional\x20for\x20different\x20opera\
-    tor\x20type\n\n\x0c\n\x05\x04\x01\x08\0\x01\x12\x03\x1b\x08\x0f\n\x19\n\
-    \x04\x04\x01\x02\x06\x12\x03\x1c\x04\x16\"\x0c\x20for\x20source\n\n\x0c\
-    \n\x05\x04\x01\x02\x06\x06\x12\x03\x1c\x04\n\n\x0c\n\x05\x04\x01\x02\x06\
-    \x01\x12\x03\x1c\x0b\x11\n\x0c\n\x05\x04\x01\x02\x06\x03\x12\x03\x1c\x14\
-    \x15\n\x17\n\x04\x04\x01\x02\x07\x12\x03\x1d\x04\x12\"\n\x20for\x20sink\
-    \n\n\x0c\n\x05\x04\x01\x02\x07\x06\x12\x03\x1d\x04\x08\n\x0c\n\x05\x04\
-    \x01\x02\x07\x01\x12\x03\x1d\t\r\n\x0c\n\x05\x04\x01\x02\x07\x03\x12\x03\
-    \x1d\x10\x11\n\x15\n\x04\x04\x01\x02\x08\x12\x03\x1e\x04\x19\"\x08\x20se\
-    lect\n\n\x0c\n\x05\x04\x01\x02\x08\x06\x12\x03\x1e\x04\r\n\x0c\n\x05\x04\
-    \x01\x02\x08\x01\x12\x03\x1e\x0e\x14\n\x0c\n\x05\x04\x01\x02\x08\x03\x12\
-    \x03\x1e\x17\x18\n\n\n\x02\x04\x02\x12\x04\"\0$\x01\n\n\n\x03\x04\x02\
-    \x01\x12\x03\"\x08\x11\n4\n\x04\x04\x02\x02\0\x12\x03#\x02)\"'\x20upstre\
-    ams\x20operator_id\x20map\x20column\x20refs\n\n\x0c\n\x05\x04\x02\x02\0\
-    \x06\x12\x03#\x02\x18\n\x0c\n\x05\x04\x02\x02\0\x01\x12\x03#\x19$\n\x0c\
-    \n\x05\x04\x02\x02\0\x03\x12\x03#'(\n\x20\n\x02\x04\x03\x12\x04'\0-\x01\
-    \x1a\x14\x20Field\x20Reference\x20Id\n\n\n\n\x03\x04\x03\x01\x12\x03'\
-    \x08\x11\n\x0b\n\x04\x04\x03\x02\0\x12\x03(\x02\x13\n\x0c\n\x05\x04\x03\
-    \x02\0\x05\x12\x03(\x02\x08\n\x0c\n\x05\x04\x03\x02\0\x01\x12\x03(\t\x0e\
-    \n\x0c\n\x05\x04\x03\x02\0\x03\x12\x03(\x11\x12\n\x0b\n\x04\x04\x03\x02\
-    \x01\x12\x03)\x02\x13\n\x0c\n\x05\x04\x03\x02\x01\x05\x12\x03)\x02\x08\n\
-    \x0c\n\x05\x04\x03\x02\x01\x01\x12\x03)\t\x0e\n\x0c\n\x05\x04\x03\x02\
-    \x01\x03\x12\x03)\x11\x12\n\x0c\n\x04\x04\x03\x08\0\x12\x04*\x02,\x03\n\
-    \x0c\n\x05\x04\x03\x08\0\x01\x12\x03*\x08\r\n\x1e\n\x04\x04\x03\x02\x02\
-    \x12\x03+\x04\x15\"\x11\x20reference\x20alias\n\n\x0c\n\x05\x04\x03\x02\
-    \x02\x05\x12\x03+\x04\n\n\x0c\n\x05\x04\x03\x02\x02\x01\x12\x03+\x0b\x10\
-    \n\x0c\n\x05\x04\x03\x02\x02\x03\x12\x03+\x13\x14\n\n\n\x02\x04\x04\x12\
-    \x04/\02\x01\n\n\n\x03\x04\x04\x01\x12\x03/\x08\x0c\n\x0b\n\x04\x04\x04\
-    \x02\0\x12\x030\x02\x18\n\x0c\n\x05\x04\x04\x02\0\x06\x12\x030\x02\x0e\n\
-    \x0c\n\x05\x04\x04\x02\0\x01\x12\x030\x0f\x13\n\x0c\n\x05\x04\x04\x02\0\
-    \x03\x12\x030\x16\x17\n\x0b\n\x04\x04\x04\x02\x01\x12\x031\x02\x14\n\x0c\
-    \n\x05\x04\x04\x02\x01\x06\x12\x031\x02\n\n\x0c\n\x05\x04\x04\x02\x01\
-    \x01\x12\x031\x0b\x0f\n\x0c\n\x05\x04\x04\x02\x01\x03\x12\x031\x12\x13\n\
-    \n\n\x02\x04\x05\x12\x044\08\x01\n\n\n\x03\x04\x05\x01\x12\x034\x08\x10\
-    \n\x0c\n\x04\x04\x05\x08\0\x12\x045\x027\x03\n\x0c\n\x05\x04\x05\x08\0\
-    \x01\x12\x035\x08\x0c\n\x0b\n\x04\x04\x05\x02\0\x12\x036\x04$\n\x0c\n\
-    \x05\x04\x05\x02\0\x06\x12\x036\x04\x17\n\x0c\n\x05\x04\x05\x02\0\x01\
-    \x12\x036\x18\x1f\n\x0c\n\x05\x04\x05\x02\0\x03\x12\x036\"#\n\n\n\x02\
-    \x04\x06\x12\x04:\0>\x01\n\n\n\x03\x04\x06\x01\x12\x03:\x08\x1b\n\x0b\n\
-    \x04\x04\x06\x02\0\x12\x03;\x02\x1b\n\x0c\n\x05\x04\x06\x02\0\x06\x12\
-    \x03;\x02\x0f\n\x0c\n\x05\x04\x06\x02\0\x01\x12\x03;\x10\x16\n\x0c\n\x05\
-    \x04\x06\x02\0\x03\x12\x03;\x19\x1a\n\x0b\n\x04\x04\x06\x02\x01\x12\x03<\
-    \x02#\n\x0c\n\x05\x04\x06\x02\x01\x06\x12\x03<\x02\x19\n\x0c\n\x05\x04\
-    \x06\x02\x01\x01\x12\x03<\x1a\x1e\n\x0c\n\x05\x04\x06\x02\x01\x03\x12\
-    \x03<!\"\n\x0b\n\x04\x04\x06\x02\x02\x12\x03=\x02%\n\x0c\n\x05\x04\x06\
-    \x02\x02\x06\x12\x03=\x02\x18\n\x0c\n\x05\x04\x06\x02\x02\x01\x12\x03=\
-    \x19\x20\n\x0c\n\x05\x04\x06\x02\x02\x03\x12\x03=#$\n\n\n\x02\x05\0\x12\
-    \x04@\0B\x01\n\n\n\x03\x05\0\x01\x12\x03@\x05\x11\n\x0b\n\x04\x05\0\x02\
-    \0\x12\x03A\x02\x13\n\x0c\n\x05\x05\0\x02\0\x01\x12\x03A\x02\x0e\n\x0c\n\
-    \x05\x05\0\x02\0\x02\x12\x03A\x11\x12\n\n\n\x02\x04\x07\x12\x04D\0F\x01\
-    \n\n\n\x03\x04\x07\x01\x12\x03D\x08\x1e\n\n\n\x02\x05\x01\x12\x04H\0L\
-    \x01\n\n\n\x03\x05\x01\x01\x12\x03H\x05\x1c\n\x0b\n\x04\x05\x01\x02\0\
-    \x12\x03I\x02\x12\n\x0c\n\x05\x05\x01\x02\0\x01\x12\x03I\x02\r\n\x0c\n\
-    \x05\x05\x01\x02\0\x02\x12\x03I\x10\x11\n\x0b\n\x04\x05\x01\x02\x01\x12\
-    \x03J\x02\x10\n\x0c\n\x05\x05\x01\x02\x01\x01\x12\x03J\x02\x0b\n\x0c\n\
-    \x05\x05\x01\x02\x01\x02\x12\x03J\x0e\x0f\n\x0b\n\x04\x05\x01\x02\x02\
-    \x12\x03K\x02\x10\n\x0c\n\x05\x05\x01\x02\x02\x01\x12\x03K\x02\x0b\n\x0c\
-    \n\x05\x05\x01\x02\x02\x02\x12\x03K\x0e\x0f\n\x20\n\x02\x04\x08\x12\x04Q\
-    \0T\x01\x1a\x14*\nConstant\x20operator\n\n\n\n\x03\x04\x08\x01\x12\x03Q\
-    \x08\x0f\nE\n\x04\x04\x08\x02\0\x12\x03R\x02\x12\"8\x20value\x20of\x20co\
-    nstant,\x20format:\x20[<flag\x20byte>,\x20<data\x20bytes>]\n\n\x0c\n\x05\
-    \x04\x08\x02\0\x05\x12\x03R\x02\x07\n\x0c\n\x05\x04\x08\x02\0\x01\x12\
-    \x03R\x08\r\n\x0c\n\x05\x04\x08\x02\0\x03\x12\x03R\x10\x11\n\x1a\n\x04\
-    \x04\x08\x02\x01\x12\x03S\x02\x19\"\r\x20operator\x20id\n\n\x0c\n\x05\
-    \x04\x08\x02\x01\x05\x12\x03S\x02\x08\n\x0c\n\x05\x04\x08\x02\x01\x01\
-    \x12\x03S\t\x14\n\x0c\n\x05\x04\x08\x02\x01\x03\x12\x03S\x17\x18\n\n\n\
-    \x02\x04\t\x12\x04V\0Y\x01\n\n\n\x03\x04\t\x01\x12\x03V\x08\x0e\n\x0b\n\
-    \x04\x04\t\x02\0\x12\x03W\x02\x1a\n\x0c\n\x05\x04\t\x02\0\x06\x12\x03W\
-    \x02\x10\n\x0c\n\x05\x04\t\x02\0\x01\x12\x03W\x11\x15\n\x0c\n\x05\x04\t\
-    \x02\0\x03\x12\x03W\x18\x19\n\x0b\n\x04\x04\t\x02\x01\x12\x03X\x02\x1d\n\
-    \x0c\n\x05\x04\t\x02\x01\x06\x12\x03X\x02\x0c\n\x0c\n\x05\x04\t\x02\x01\
-    \x01\x12\x03X\r\x18\n\x0c\n\x05\x04\t\x02\x01\x03\x12\x03X\x1b\x1c\n\n\n\
-    \x02\x04\n\x12\x04[\0a\x01\n\n\n\x03\x04\n\x01\x12\x03[\x08\x12\n\x0c\n\
-    \x04\x04\n\x08\0\x12\x04\\\x02`\x03\n\x0c\n\x05\x04\n\x08\0\x01\x12\x03\
-    \\\x08\x0c\n\x0b\n\x04\x04\n\x02\0\x12\x03]\x04&\n\x0c\n\x05\x04\n\x02\0\
-    \x06\x12\x03]\x04\x15\n\x0c\n\x05\x04\n\x02\0\x01\x12\x03]\x16!\n\x0c\n\
-    \x05\x04\n\x02\0\x03\x12\x03]$%\n\x0b\n\x04\x04\n\x02\x01\x12\x03^\x04)\
-    \n\x0c\n\x05\x04\n\x02\x01\x06\x12\x03^\x04\x16\n\x0c\n\x05\x04\n\x02\
-    \x01\x01\x12\x03^\x17$\n\x0c\n\x05\x04\n\x02\x01\x03\x12\x03^'(\n\x0b\n\
-    \x04\x04\n\x02\x02\x12\x03_\x04\x1a\n\x0c\n\x05\x04\n\x02\x02\x06\x12\
-    \x03_\x04\x0f\n\x0c\n\x05\x04\n\x02\x02\x01\x12\x03_\x10\x15\n\x0c\n\x05\
-    \x04\n\x02\x02\x03\x12\x03_\x18\x19\n\n\n\x02\x04\x0b\x12\x04c\0f\x01\n\
-    \n\n\x03\x04\x0b\x01\x12\x03c\x08\x19\n\x0b\n\x04\x04\x0b\x02\0\x12\x03d\
-    \x02\x1b\n\x0c\n\x05\x04\x0b\x02\0\x06\x12\x03d\x02\x0f\n\x0c\n\x05\x04\
-    \x0b\x02\0\x01\x12\x03d\x10\x16\n\x0c\n\x05\x04\x0b\x02\0\x03\x12\x03d\
-    \x19\x1a\n\x0b\n\x04\x04\x0b\x02\x01\x12\x03e\x02\x1c\n\x0c\n\x05\x04\
-    \x0b\x02\x01\x06\x12\x03e\x02\x12\n\x0c\n\x05\x04\x0b\x02\x01\x01\x12\
-    \x03e\x13\x17\n\x0c\n\x05\x04\x0b\x02\x01\x03\x12\x03e\x1a\x1b\n\n\n\x02\
-    \x04\x0c\x12\x04h\0k\x01\n\n\n\x03\x04\x0c\x01\x12\x03h\x08\x1a\n\x0b\n\
-    \x04\x04\x0c\x02\0\x12\x03i\x02\x16\n\x0c\n\x05\x04\x0c\x02\0\x05\x12\
-    \x03i\x02\x08\n\x0c\n\x05\x04\x0c\x02\0\x01\x12\x03i\t\x11\n\x0c\n\x05\
-    \x04\x0c\x02\0\x03\x12\x03i\x14\x15\n\x0b\n\x04\x04\x0c\x02\x01\x12\x03j\
-    \x02\x1f\n\x0c\n\x05\x04\x0c\x02\x01\x06\x12\x03j\x02\x15\n\x0c\n\x05\
-    \x04\x0c\x02\x01\x01\x12\x03j\x16\x1a\n\x0c\n\x05\x04\x0c\x02\x01\x03\
-    \x12\x03j\x1d\x1e\n\n\n\x02\x04\r\x12\x04m\0q\x01\n\n\n\x03\x04\r\x01\
-    \x12\x03m\x08\x13\n\x0b\n\x04\x04\r\x02\0\x12\x03n\x02\x1e\n\x0c\n\x05\
-    \x04\r\x02\0\x04\x12\x03n\x02\n\n\x0c\n\x05\x04\r\x02\0\x05\x12\x03n\x0b\
-    \x11\n\x0c\n\x05\x04\r\x02\0\x01\x12\x03n\x12\x19\n\x0c\n\x05\x04\r\x02\
-    \0\x03\x12\x03n\x1c\x1d\n\x0b\n\x04\x04\r\x02\x01\x12\x03o\x02\x13\n\x0c\
-    \n\x05\x04\r\x02\x01\x05\x12\x03o\x02\x08\n\x0c\n\x05\x04\r\x02\x01\x01\
-    \x12\x03o\t\x0e\n\x0c\n\x05\x04\r\x02\x01\x03\x12\x03o\x11\x12\n\x0b\n\
-    \x04\x04\r\x02\x02\x12\x03p\x02\x18\n\x0c\n\x05\x04\r\x02\x02\x06\x12\
-    \x03p\x02\x0e\n\x0c\n\x05\x04\r\x02\x02\x01\x12\x03p\x0f\x13\n\x0c\n\x05\
-    \x04\r\x02\x02\x03\x12\x03p\x16\x17\n\n\n\x02\x05\x02\x12\x04s\0v\x01\n\
-    \n\n\x03\x05\x02\x01\x12\x03s\x05\x13\n\x0b\n\x04\x05\x02\x02\0\x12\x03t\
-    \x02\x0c\n\x0c\n\x05\x05\x02\x02\0\x01\x12\x03t\x02\x07\n\x0c\n\x05\x05\
-    \x02\x02\0\x02\x12\x03t\n\x0b\n\x0b\n\x04\x05\x02\x02\x01\x12\x03u\x02\t\
-    \n\x0c\n\x05\x05\x02\x02\x01\x01\x12\x03u\x02\x04\n\x0c\n\x05\x05\x02\
-    \x02\x01\x02\x12\x03u\x07\x08\n\n\n\x02\x04\x0e\x12\x04x\0~\x01\n\n\n\
-    \x03\x04\x0e\x01\x12\x03x\x08\x18\n\x0b\n\x04\x04\x0e\x02\0\x12\x03y\x02\
-    \x16\n\x0c\n\x05\x04\x0e\x02\0\x05\x12\x03y\x02\x08\n\x0c\n\x05\x04\x0e\
-    \x02\0\x01\x12\x03y\t\x11\n\x0c\n\x05\x04\x0e\x02\0\x03\x12\x03y\x14\x15\
-    \n\x0b\n\x04\x04\x0e\x02\x01\x12\x03z\x02\x18\n\x0c\n\x05\x04\x0e\x02\
-    \x01\x05\x12\x03z\x02\x08\n\x0c\n\x05\x04\x0e\x02\x01\x01\x12\x03z\t\x13\
-    \n\x0c\n\x05\x04\x0e\x02\x01\x03\x12\x03z\x16\x17\n\x0c\n\x04\x04\x0e\
-    \x08\0\x12\x04{\x02}\x03\n\x0c\n\x05\x04\x0e\x08\0\x01\x12\x03{\x08\x17\
-    \nC\n\x04\x04\x0e\x02\x02\x12\x03|\x04\x15\"6\x20if\x20null,\x20primary\
-    \x20key\x20will\x20be\x20used\x20as\x20incremental\x20key\n\n\x0c\n\x05\
-    \x04\x0e\x02\x02\x05\x12\x03|\x04\n\n\x0c\n\x05\x04\x0e\x02\x02\x01\x12\
-    \x03|\x0b\x10\n\x0c\n\x05\x04\x0e\x02\x02\x03\x12\x03|\x13\x14\n\x0c\n\
-    \x02\x04\x0f\x12\x06\x80\x01\0\x81\x01\x01\n\x0b\n\x03\x04\x0f\x01\x12\
-    \x04\x80\x01\x08\x1b\n\x0c\n\x02\x04\x10\x12\x06\x83\x01\0\x89\x01\x01\n\
-    \x0b\n\x03\x04\x10\x01\x12\x04\x83\x01\x08\x14\n\x0c\n\x04\x04\x10\x02\0\
-    \x12\x04\x84\x01\x02\x13\n\r\n\x05\x04\x10\x02\0\x05\x12\x04\x84\x01\x02\
-    \x08\n\r\n\x05\x04\x10\x02\0\x01\x12\x04\x84\x01\t\x0e\n\r\n\x05\x04\x10\
-    \x02\0\x03\x12\x04\x84\x01\x11\x12\n\x0e\n\x04\x04\x10\x08\0\x12\x06\x85\
-    \x01\x02\x88\x01\x03\n\r\n\x05\x04\x10\x08\0\x01\x12\x04\x85\x01\x08\x0b\
-    \n\x0c\n\x04\x04\x10\x02\x01\x12\x04\x86\x01\x04\x15\n\r\n\x05\x04\x10\
-    \x02\x01\x05\x12\x04\x86\x01\x04\n\n\r\n\x05\x04\x10\x02\x01\x01\x12\x04\
-    \x86\x01\x0b\x10\n\r\n\x05\x04\x10\x02\x01\x03\x12\x04\x86\x01\x13\x14\n\
-    \x0c\n\x04\x04\x10\x02\x02\x12\x04\x87\x01\x04\x19\n\r\n\x05\x04\x10\x02\
-    \x02\x05\x12\x04\x87\x01\x04\n\n\r\n\x05\x04\x10\x02\x02\x01\x12\x04\x87\
-    \x01\x0b\x14\n\r\n\x05\x04\x10\x02\x02\x03\x12\x04\x87\x01\x17\x18\n\x1e\
-    \n\x02\x05\x03\x12\x06\x8e\x01\0\xa8\x01\x01\x1a\x10*\nOperator\x20Type\
-    \n\n\x0b\n\x03\x05\x03\x01\x12\x04\x8e\x01\x05\x11\n\x0c\n\x04\x05\x03\
-    \x02\0\x12\x04\x8f\x01\x02\x10\n\r\n\x05\x05\x03\x02\0\x01\x12\x04\x8f\
-    \x01\x02\x0b\n\r\n\x05\x05\x03\x02\0\x02\x12\x04\x8f\x01\x0e\x0f\n\x0c\n\
-    \x04\x05\x03\x02\x01\x12\x04\x90\x01\x02\n\n\r\n\x05\x05\x03\x02\x01\x01\
-    \x12\x04\x90\x01\x02\x05\n\r\n\x05\x05\x03\x02\x01\x02\x12\x04\x90\x01\
-    \x08\t\n\x0c\n\x04\x05\x03\x02\x02\x12\x04\x91\x01\x02\n\n\r\n\x05\x05\
-    \x03\x02\x02\x01\x12\x04\x91\x01\x02\x05\n\r\n\x05\x05\x03\x02\x02\x02\
-    \x12\x04\x91\x01\x08\t\n\x0c\n\x04\x05\x03\x02\x03\x12\x04\x92\x01\x02\
-    \x0c\n\r\n\x05\x05\x03\x02\x03\x01\x12\x04\x92\x01\x02\x07\n\r\n\x05\x05\
-    \x03\x02\x03\x02\x12\x04\x92\x01\n\x0b\n\x0c\n\x04\x05\x03\x02\x04\x12\
-    \x04\x93\x01\x02\x0e\n\r\n\x05\x05\x03\x02\x04\x01\x12\x04\x93\x01\x02\t\
-    \n\r\n\x05\x05\x03\x02\x04\x02\x12\x04\x93\x01\x0c\r\n\x0c\n\x04\x05\x03\
-    \x02\x05\x12\x04\x94\x01\x02\x0c\n\r\n\x05\x05\x03\x02\x05\x01\x12\x04\
-    \x94\x01\x02\x07\n\r\n\x05\x05\x03\x02\x05\x02\x12\x04\x94\x01\n\x0b\n\
-    \x0c\n\x04\x05\x03\x02\x06\x12\x04\x95\x01\x02\n\n\r\n\x05\x05\x03\x02\
-    \x06\x01\x12\x04\x95\x01\x02\x05\n\r\n\x05\x05\x03\x02\x06\x02\x12\x04\
-    \x95\x01\x08\t\n\x0c\n\x04\x05\x03\x02\x07\x12\x04\x96\x01\x02\x0c\n\r\n\
-    \x05\x05\x03\x02\x07\x01\x12\x04\x96\x01\x02\x07\n\r\n\x05\x05\x03\x02\
-    \x07\x02\x12\x04\x96\x01\n\x0b\n\x0c\n\x04\x05\x03\x02\x08\x12\x04\x97\
-    \x01\x02\x0e\n\r\n\x05\x05\x03\x02\x08\x01\x12\x04\x97\x01\x02\t\n\r\n\
-    \x05\x05\x03\x02\x08\x02\x12\x04\x97\x01\x0c\r\n\x0c\n\x04\x05\x03\x02\t\
-    \x12\x04\x98\x01\x02\n\n\r\n\x05\x05\x03\x02\t\x01\x12\x04\x98\x01\x02\
-    \x05\n\r\n\x05\x05\x03\x02\t\x02\x12\x04\x98\x01\x08\t\n\x0c\n\x04\x05\
-    \x03\x02\n\x12\x04\x99\x01\x02\r\n\r\n\x05\x05\x03\x02\n\x01\x12\x04\x99\
-    \x01\x02\x07\n\r\n\x05\x05\x03\x02\n\x02\x12\x04\x99\x01\n\x0c\n\x0c\n\
-    \x04\x05\x03\x02\x0b\x12\x04\x9a\x01\x02\x0b\n\r\n\x05\x05\x03\x02\x0b\
-    \x01\x12\x04\x9a\x01\x02\x05\n\r\n\x05\x05\x03\x02\x0b\x02\x12\x04\x9a\
-    \x01\x08\n\n\x0c\n\x04\x05\x03\x02\x0c\x12\x04\x9b\x01\x02\r\n\r\n\x05\
-    \x05\x03\x02\x0c\x01\x12\x04\x9b\x01\x02\x07\n\r\n\x05\x05\x03\x02\x0c\
-    \x02\x12\x04\x9b\x01\n\x0c\n\x0c\n\x04\x05\x03\x02\r\x12\x04\x9c\x01\x02\
-    \x0b\n\r\n\x05\x05\x03\x02\r\x01\x12\x04\x9c\x01\x02\x05\n\r\n\x05\x05\
-    \x03\x02\r\x02\x12\x04\x9c\x01\x08\n\n\x0c\n\x04\x05\x03\x02\x0e\x12\x04\
-    \x9d\x01\x02\x0b\n\r\n\x05\x05\x03\x02\x0e\x01\x12\x04\x9d\x01\x02\x05\n\
-    \r\n\x05\x05\x03\x02\x0e\x02\x12\x04\x9d\x01\x08\n\n\x0c\n\x04\x05\x03\
-    \x02\x0f\x12\x04\x9e\x01\x02\x0b\n\r\n\x05\x05\x03\x02\x0f\x01\x12\x04\
-    \x9e\x01\x02\x05\n\r\n\x05\x05\x03\x02\x0f\x02\x12\x04\x9e\x01\x08\n\n\
-    \x0c\n\x04\x05\x03\x02\x10\x12\x04\x9f\x01\x02\n\n\r\n\x05\x05\x03\x02\
-    \x10\x01\x12\x04\x9f\x01\x02\x04\n\r\n\x05\x05\x03\x02\x10\x02\x12\x04\
-    \x9f\x01\x07\t\n\x0c\n\x04\x05\x03\x02\x11\x12\x04\xa0\x01\x02\x0b\n\r\n\
-    \x05\x05\x03\x02\x11\x01\x12\x04\xa0\x01\x02\x05\n\r\n\x05\x05\x03\x02\
-    \x11\x02\x12\x04\xa0\x01\x08\n\n\x0c\n\x04\x05\x03\x02\x12\x12\x04\xa1\
-    \x01\x02\n\n\r\n\x05\x05\x03\x02\x12\x01\x12\x04\xa1\x01\x02\x04\n\r\n\
-    \x05\x05\x03\x02\x12\x02\x12\x04\xa1\x01\x07\t\n\x0c\n\x04\x05\x03\x02\
-    \x13\x12\x04\xa2\x01\x02\n\n\r\n\x05\x05\x03\x02\x13\x01\x12\x04\xa2\x01\
-    \x02\x04\n\r\n\x05\x05\x03\x02\x13\x02\x12\x04\xa2\x01\x07\t\n\x0c\n\x04\
-    \x05\x03\x02\x14\x12\x04\xa3\x01\x02\x0b\n\r\n\x05\x05\x03\x02\x14\x01\
-    \x12\x04\xa3\x01\x02\x05\n\r\n\x05\x05\x03\x02\x14\x02\x12\x04\xa3\x01\
-    \x08\n\n\x0c\n\x04\x05\x03\x02\x15\x12\x04\xa4\x01\x02\x0b\n\r\n\x05\x05\
-    \x03\x02\x15\x01\x12\x04\xa4\x01\x02\x05\n\r\n\x05\x05\x03\x02\x15\x02\
-    \x12\x04\xa4\x01\x08\n\n\x0c\n\x04\x05\x03\x02\x16\x12\x04\xa5\x01\x02\
-    \x0e\n\r\n\x05\x05\x03\x02\x16\x01\x12\x04\xa5\x01\x02\x08\n\r\n\x05\x05\
-    \x03\x02\x16\x02\x12\x04\xa5\x01\x0b\r\n\x0c\n\x04\x05\x03\x02\x17\x12\
-    \x04\xa6\x01\x02\x0c\n\r\n\x05\x05\x03\x02\x17\x01\x12\x04\xa6\x01\x02\
-    \x06\n\r\n\x05\x05\x03\x02\x17\x02\x12\x04\xa6\x01\t\x0b\n\x0c\n\x04\x05\
-    \x03\x02\x18\x12\x04\xa7\x01\x02\x0e\n\r\n\x05\x05\x03\x02\x18\x01\x12\
-    \x04\xa7\x01\x02\x08\n\r\n\x05\x05\x03\x02\x18\x02\x12\x04\xa7\x01\x0b\r\
-    \nP\n\x02\x05\x04\x12\x06\xad\x01\0\xb2\x01\x01\x1aB*\nStream\x20Graph\
-    \x20Status.\x20It\x20shows\x20which\x20status\x20a\x20stream\x20job\x20i\
-    s\x20now.\n\n\x0b\n\x03\x05\x04\x01\x12\x04\xad\x01\x05\x13\n\x0c\n\x04\
-    \x05\x04\x02\0\x12\x04\xae\x01\x02\x12\n\r\n\x05\x05\x04\x02\0\x01\x12\
-    \x04\xae\x01\x02\r\n\r\n\x05\x05\x04\x02\0\x02\x12\x04\xae\x01\x10\x11\n\
-    \x0c\n\x04\x05\x04\x02\x01\x12\x04\xaf\x01\x02\x0e\n\r\n\x05\x05\x04\x02\
-    \x01\x01\x12\x04\xaf\x01\x02\t\n\r\n\x05\x05\x04\x02\x01\x02\x12\x04\xaf\
-    \x01\x0c\r\n\x0c\n\x04\x05\x04\x02\x02\x12\x04\xb0\x01\x02\x0e\n\r\n\x05\
-    \x05\x04\x02\x02\x01\x12\x04\xb0\x01\x02\t\n\r\n\x05\x05\x04\x02\x02\x02\
-    \x12\x04\xb0\x01\x0c\r\n\x0c\n\x04\x05\x04\x02\x03\x12\x04\xb1\x01\x02\r\
-    \n\r\n\x05\x05\x04\x02\x03\x01\x12\x04\xb1\x01\x02\x08\n\r\n\x05\x05\x04\
-    \x02\x03\x02\x12\x04\xb1\x01\x0b\x0c\n\x0c\n\x02\x04\x11\x12\x06\xb4\x01\
-    \0\xb8\x01\x01\n\x0b\n\x03\x04\x11\x01\x12\x04\xb4\x01\x08\x10\nS\n\x04\
-    \x04\x11\x02\0\x12\x04\xb5\x01\x02\x1a\"E\x20job\x20id,\x20for\x20now\
-    \x20it\x20is\x20which\x20table\x20the\x20stream\x20graph\x20output\x20wi\
-    ll\x20sink\n\n\r\n\x05\x04\x11\x02\0\x06\x12\x04\xb5\x01\x02\x0e\n\r\n\
-    \x05\x04\x11\x02\0\x01\x12\x04\xb5\x01\x0f\x15\n\r\n\x05\x04\x11\x02\0\
-    \x03\x12\x04\xb5\x01\x18\x19\n\x1f\n\x04\x04\x11\x02\x01\x12\x04\xb6\x01\
-    \x02(\"\x11\x20graph\x20structure\n\n\r\n\x05\x04\x11\x02\x01\x04\x12\
-    \x04\xb6\x01\x02\n\n\r\n\x05\x04\x11\x02\x01\x06\x12\x04\xb6\x01\x0b\x1e\
-    \n\r\n\x05\x04\x11\x02\x01\x01\x12\x04\xb6\x01\x1f#\n\r\n\x05\x04\x11\
-    \x02\x01\x03\x12\x04\xb6\x01&'\n\x20\n\x04\x04\x11\x02\x02\x12\x04\xb7\
-    \x01\x02-\"\x12\x20details\x20of\x20nodes\n\n\r\n\x05\x04\x11\x02\x02\
-    \x06\x12\x04\xb7\x01\x02\"\n\r\n\x05\x04\x11\x02\x02\x01\x12\x04\xb7\x01\
-    #(\n\r\n\x05\x04\x11\x02\x02\x03\x12\x04\xb7\x01+,\n\x0c\n\x02\x04\x12\
-    \x12\x06\xba\x01\0\xbd\x01\x01\n\x0b\n\x03\x04\x12\x01\x12\x04\xba\x01\
-    \x08\x14\n\x1d\n\x04\x04\x12\x02\0\x12\x04\xbb\x01\x02\x1a\"\x0f\x20wind\
-    ow\x20config\n\n\r\n\x05\x04\x12\x02\0\x06\x12\x04\xbb\x01\x02\x0e\n\r\n\
-    \x05\x04\x12\x02\0\x01\x12\x04\xbb\x01\x0f\x15\n\r\n\x05\x04\x12\x02\0\
-    \x03\x12\x04\xbb\x01\x18\x19\n\x1e\n\x04\x04\x12\x02\x01\x12\x04\xbc\x01\
-    \x02\x1c\"\x10\x20trigger\x20config\n\n\r\n\x05\x04\x12\x02\x01\x06\x12\
-    \x04\xbc\x01\x02\x0f\n\r\n\x05\x04\x12\x02\x01\x01\x12\x04\xbc\x01\x10\
-    \x17\n\r\n\x05\x04\x12\x02\x01\x03\x12\x04\xbc\x01\x1a\x1b\n\x0c\n\x02\
-    \x04\x13\x12\x06\xbf\x01\0\xc8\x01\x01\n\x0b\n\x03\x04\x13\x01\x12\x04\
-    \xbf\x01\x08\x14\n\x1e\n\x04\x04\x13\x02\0\x12\x04\xc0\x01\x02\x1d\"\x10\
-    \x20type\x20of\x20window\n\n\r\n\x05\x04\x13\x02\0\x06\x12\x04\xc0\x01\
-    \x02\x0c\n\r\n\x05\x04\x13\x02\0\x01\x12\x04\xc0\x01\r\x18\n\r\n\x05\x04\
-    \x13\x02\0\x03\x12\x04\xc0\x01\x1b\x1c\n\x0e\n\x04\x04\x13\x08\0\x12\x06\
-    \xc1\x01\x02\xc5\x01\x03\n\r\n\x05\x04\x13\x08\0\x01\x12\x04\xc1\x01\x08\
-    \x0e\n\x0c\n\x04\x04\x13\x02\x01\x12\x04\xc2\x01\x04\x20\n\r\n\x05\x04\
-    \x13\x02\x01\x06\x12\x04\xc2\x01\x04\x15\n\r\n\x05\x04\x13\x02\x01\x01\
-    \x12\x04\xc2\x01\x16\x1b\n\r\n\x05\x04\x13\x02\x01\x03\x12\x04\xc2\x01\
-    \x1e\x1f\n\x0c\n\x04\x04\x13\x02\x02\x12\x04\xc3\x01\x04\"\n\r\n\x05\x04\
-    \x13\x02\x02\x06\x12\x04\xc3\x01\x04\x17\n\r\n\x05\x04\x13\x02\x02\x01\
-    \x12\x04\xc3\x01\x18\x1d\n\r\n\x05\x04\x13\x02\x02\x03\x12\x04\xc3\x01\
-    \x20!\n\x0c\n\x04\x04\x13\x02\x03\x12\x04\xc4\x01\x04$\n\r\n\x05\x04\x13\
-    \x02\x03\x06\x12\x04\xc4\x01\x04\x17\n\r\n\x05\x04\x13\x02\x03\x01\x12\
-    \x04\xc4\x01\x18\x1f\n\r\n\x05\x04\x13\x02\x03\x03\x12\x04\xc4\x01\"#\nA\
-    \n\x04\x04\x13\x02\x04\x12\x04\xc7\x01\x02\x15\"3\x20field_id\x20=\x20-1\
-    \x20if\x20Window\x20is\x20not\x20for\x20specific\x20field\n\n\r\n\x05\
-    \x04\x13\x02\x04\x05\x12\x04\xc7\x01\x02\x07\n\r\n\x05\x04\x13\x02\x04\
-    \x01\x12\x04\xc7\x01\x08\x10\n\r\n\x05\x04\x13\x02\x04\x03\x12\x04\xc7\
-    \x01\x13\x14\n\x0c\n\x02\x05\x05\x12\x06\xca\x01\0\xce\x01\x01\n\x0b\n\
-    \x03\x05\x05\x01\x12\x04\xca\x01\x05\x0f\n\x0c\n\x04\x05\x05\x02\0\x12\
-    \x04\xcb\x01\x02\x0c\n\r\n\x05\x05\x05\x02\0\x01\x12\x04\xcb\x01\x02\x07\
-    \n\r\n\x05\x05\x05\x02\0\x02\x12\x04\xcb\x01\n\x0b\n\x0c\n\x04\x05\x05\
-    \x02\x01\x12\x04\xcc\x01\x02\x0e\n\r\n\x05\x05\x05\x02\x01\x01\x12\x04\
-    \xcc\x01\x02\t\n\r\n\x05\x05\x05\x02\x01\x02\x12\x04\xcc\x01\x0c\r\n\x0c\
-    \n\x04\x05\x05\x02\x02\x12\x04\xcd\x01\x02\x0e\n\r\n\x05\x05\x05\x02\x02\
-    \x01\x12\x04\xcd\x01\x02\t\n\r\n\x05\x05\x05\x02\x02\x02\x12\x04\xcd\x01\
-    \x0c\r\n\x0c\n\x02\x04\x14\x12\x06\xd0\x01\0\xd2\x01\x01\n\x0b\n\x03\x04\
-    \x14\x01\x12\x04\xd0\x01\x08\x19\n/\n\x04\x04\x14\x02\0\x12\x04\xd1\x01\
-    \x02\x12\"!\x20Only\x20for\x20sliding\x20&\x20fixed\x20window\n\n\r\n\
-    \x05\x04\x14\x02\0\x05\x12\x04\xd1\x01\x02\x08\n\r\n\x05\x04\x14\x02\0\
-    \x01\x12\x04\xd1\x01\t\r\n\r\n\x05\x04\x14\x02\0\x03\x12\x04\xd1\x01\x10\
-    \x11\n\x0c\n\x02\x04\x15\x12\x06\xd4\x01\0\xd7\x01\x01\n\x0b\n\x03\x04\
-    \x15\x01\x12\x04\xd4\x01\x08\x1b\n\x0c\n\x04\x04\x15\x02\0\x12\x04\xd5\
-    \x01\x02\x12\n\r\n\x05\x04\x15\x02\0\x05\x12\x04\xd5\x01\x02\x08\n\r\n\
-    \x05\x04\x15\x02\0\x01\x12\x04\xd5\x01\t\r\n\r\n\x05\x04\x15\x02\0\x03\
-    \x12\x04\xd5\x01\x10\x11\n\x0c\n\x04\x04\x15\x02\x01\x12\x04\xd6\x01\x02\
-    \x14\n\r\n\x05\x04\x15\x02\x01\x05\x12\x04\xd6\x01\x02\x08\n\r\n\x05\x04\
-    \x15\x02\x01\x01\x12\x04\xd6\x01\t\x0f\n\r\n\x05\x04\x15\x02\x01\x03\x12\
-    \x04\xd6\x01\x12\x13\n\x0c\n\x02\x04\x16\x12\x06\xd9\x01\0\xdb\x01\x01\n\
-    \x0b\n\x03\x04\x16\x01\x12\x04\xd9\x01\x08\x1b\n'\n\x04\x04\x16\x02\0\
-    \x12\x04\xda\x01\x02\x15\"\x19\x20Only\x20for\x20Session\x20Window\n\n\r\
-    \n\x05\x04\x16\x02\0\x05\x12\x04\xda\x01\x02\x08\n\r\n\x05\x04\x16\x02\0\
-    \x01\x12\x04\xda\x01\t\x10\n\r\n\x05\x04\x16\x02\0\x03\x12\x04\xda\x01\
-    \x13\x14\n\x0c\n\x02\x04\x17\x12\x06\xdd\x01\0\xdf\x01\x01\n\x0b\n\x03\
-    \x04\x17\x01\x12\x04\xdd\x01\x08\x15\n\x0c\n\x04\x04\x17\x02\0\x12\x04\
-    \xde\x01\x02\x1f\n\r\n\x05\x04\x17\x02\0\x06\x12\x04\xde\x01\x02\r\n\r\n\
-    \x05\x04\x17\x02\0\x01\x12\x04\xde\x01\x0e\x1a\n\r\n\x05\x04\x17\x02\0\
-    \x03\x12\x04\xde\x01\x1d\x1e\n\x0c\n\x02\x05\x06\x12\x06\xe1\x01\0\xe3\
-    \x01\x01\n\x0b\n\x03\x05\x06\x01\x12\x04\xe1\x01\x05\x10\n\x0c\n\x04\x05\
-    \x06\x02\0\x12\x04\xe2\x01\x02\x10\n\r\n\x05\x05\x06\x02\0\x01\x12\x04\
-    \xe2\x01\x02\x0b\n\r\n\x05\x05\x06\x02\0\x02\x12\x04\xe2\x01\x0e\x0fb\
-    \x06proto3\
+    \n\x13common/stream.proto\x12\x06common\x1a\x13common/common.proto\"D\n\
+    \x0cDataflowMeta\x12\x16\n\x06center\x18\x01\x20\x01(\rR\x06center\x12\
+    \x1c\n\tneighbors\x18\x02\x20\x03(\rR\tneighbors\"\xda\x03\n\x0cOperator\
+    Info\x12\x1f\n\x0boperator_id\x18\x01\x20\x01(\rR\noperatorId\x12-\n\tho\
+    st_addr\x18\x02\x20\x01(\x0b2\x10.common.HostAddrR\x08hostAddr\x12,\n\
+    \x06config\x18\x03\x20\x01(\x0b2\x14.common.StreamConfigR\x06config\x12\
+    \x1c\n\tupstreams\x18\x04\x20\x03(\rR\tupstreams\x12(\n\x06source\x18\
+    \x05\x20\x01(\x0b2\x0e.common.SourceH\0R\x06source\x12\"\n\x04sink\x18\
+    \x06\x20\x01(\x0b2\x0c.common.SinkH\0R\x04sink\x12(\n\x06mapper\x18\x07\
+    \x20\x01(\x0b2\x0e.common.MapperH\0R\x06mapper\x12(\n\x06filter\x18\x08\
+    \x20\x01(\x0b2\x0e.common.FilterH\0R\x06filter\x12&\n\x06key_by\x18\t\
+    \x20\x01(\x0b2\r.common.KeyByH\0R\x05keyBy\x12+\n\x07reducer\x18\n\x20\
+    \x01(\x0b2\x0f.common.ReducerH\0R\x07reducer\x12,\n\x08flat_map\x18\x0b\
+    \x20\x01(\x0b2\x0f.common.FlatMapH\0R\x07flatMapB\t\n\x07details\"6\n\
+    \x07Reducer\x12\"\n\x04func\x18\x01\x20\x01(\x0b2\x0c.common.FuncH\0R\
+    \x04funcB\x07\n\x05value\"6\n\x07FlatMap\x12\"\n\x04func\x18\x01\x20\x01\
+    (\x0b2\x0c.common.FuncH\0R\x04funcB\x07\n\x05value\"\x9c\x01\n\x04Join\
+    \x12:\n\x0bstream_join\x18\x01\x20\x01(\x0b2\x17.common.Join.StreamJoinH\
+    \0R\nstreamJoin\x1aO\n\nStreamJoin\x12\x1f\n\x0boperator_id\x18\x01\x20\
+    \x01(\rR\noperatorId\x12\x20\n\x04func\x18\x02\x20\x01(\x0b2\x0c.common.\
+    FuncR\x04funcB\x07\n\x05value\"5\n\x06Mapper\x12\"\n\x04func\x18\x01\x20\
+    \x01(\x0b2\x0c.common.FuncH\0R\x04funcB\x07\n\x05value\"\"\n\x04Func\x12\
+    \x1a\n\x08function\x18\x01\x20\x01(\tR\x08function\"5\n\x06Filter\x12\"\
+    \n\x04func\x18\x01\x20\x01(\x0b2\x0c.common.FuncH\0R\x04funcB\x07\n\x05v\
+    alue\"4\n\x05KeyBy\x12\"\n\x04func\x18\x01\x20\x01(\x0b2\x0c.common.Func\
+    H\0R\x04funcB\x07\n\x05value\"\x8f\x01\n\x04Sink\x12)\n\x05kafka\x18\x01\
+    \x20\x01(\x0b2\x11.common.KafkaDescH\0R\x05kafka\x12)\n\x05mysql\x18\x02\
+    \x20\x01(\x0b2\x11.common.MysqlDescH\0R\x05mysql\x12)\n\x05redis\x18\x03\
+    \x20\x01(\x0b2\x11.common.RedisDescH\0R\x05redisB\x06\n\x04desc\"@\n\x07\
+    ConstOp\x12\x14\n\x05value\x18\x01\x20\x01(\x0cR\x05value\x12\x1f\n\x0bo\
+    perator_id\x18\x02\x20\x01(\rR\noperatorId\";\n\x06Source\x12)\n\x05kafk\
+    a\x18\x03\x20\x01(\x0b2\x11.common.KafkaDescH\0R\x05kafkaB\x06\n\x04desc\
+    \"\xf1\x01\n\tKafkaDesc\x12\x18\n\x07brokers\x18\x01\x20\x03(\tR\x07brok\
+    ers\x12\x14\n\x05topic\x18\x02\x20\x01(\tR\x05topic\x122\n\x04opts\x18\
+    \x03\x20\x01(\x0b2\x1e.common.KafkaDesc.KafkaOptionsR\x04opts\x121\n\tda\
+    ta_type\x18\x04\x20\x01(\x0e2\x14.common.DataTypeEnumR\x08dataType\x1aM\
+    \n\x0cKafkaOptions\x12\x16\n\x05group\x18\x01\x20\x01(\tH\0R\x05group\
+    \x12\x1e\n\tpartition\x18\x02\x20\x01(\rH\0R\tpartitionB\x05\n\x03opt\"\
+    \xbf\x03\n\tMysqlDesc\x12I\n\x0fconnection_opts\x18\x01\x20\x01(\x0b2\
+    \x20.common.MysqlDesc.ConnectionOptsR\x0econnectionOpts\x129\n\tstatemen\
+    t\x18\x02\x20\x01(\x0b2\x1b.common.MysqlDesc.StatementR\tstatement\x1ax\
+    \n\x0eConnectionOpts\x12\x12\n\x04host\x18\x01\x20\x01(\tR\x04host\x12\
+    \x1a\n\x08username\x18\x02\x20\x01(\tR\x08username\x12\x1a\n\x08password\
+    \x18\x03\x20\x01(\tR\x08password\x12\x1a\n\x08database\x18\x04\x20\x01(\
+    \tR\x08database\x1a\xb1\x01\n\tStatement\x12\x1c\n\tstatement\x18\x01\
+    \x20\x01(\tR\tstatement\x12E\n\nextractors\x18\x02\x20\x03(\x0b2%.common\
+    .MysqlDesc.Statement.ExtractorR\nextractors\x1a?\n\tExtractor\x12\x14\n\
+    \x05index\x18\x01\x20\x01(\rR\x05index\x12\x1c\n\textractor\x18\x02\x20\
+    \x01(\tR\textractor\"\xb0\x02\n\tRedisDesc\x12I\n\x0fconnection_opts\x18\
+    \x01\x20\x01(\x0b2\x20.common.RedisDesc.ConnectionOptsR\x0econnectionOpt\
+    s\x121\n\rkey_extractor\x18\x02\x20\x01(\x0b2\x0c.common.FuncR\x0ckeyExt\
+    ractor\x125\n\x0fvalue_extractor\x18\x03\x20\x01(\x0b2\x0c.common.FuncR\
+    \x0evalueExtractor\x1an\n\x0eConnectionOpts\x12\x12\n\x04host\x18\x01\
+    \x20\x01(\tR\x04host\x12\x1a\n\x08password\x18\x02\x20\x01(\tR\x08passwo\
+    rd\x12\x1a\n\x08database\x18\x03\x20\x01(\tR\x08database\x12\x10\n\x03tl\
+    s\x18\x04\x20\x01(\x08R\x03tls\"\xe2\x01\n\x08Dataflow\x12)\n\x06job_id\
+    \x18\x01\x20\x01(\x0b2\x12.common.ResourceIdR\x05jobId\x12(\n\x04meta\
+    \x18\x02\x20\x03(\x0b2\x14.common.DataflowMetaR\x04meta\x121\n\x05nodes\
+    \x18\x03\x20\x03(\x0b2\x1b.common.Dataflow.NodesEntryR\x05nodes\x1aN\n\n\
+    NodesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\rR\x03key\x12*\n\x05value\
+    \x18\x02\x20\x01(\x0b2\x14.common.OperatorInfoR\x05value:\x028\x01\"a\n\
+    \x0cStreamConfig\x12&\n\x06window\x18\x01\x20\x01(\x0b2\x0e.common.Windo\
+    wR\x06window\x12)\n\x07trigger\x18\x02\x20\x01(\x0b2\x0f.common.TriggerR\
+    \x07trigger\"\xf8\x02\n\x06Window\x122\n\x05fixed\x18\x01\x20\x01(\x0b2\
+    \x1a.common.Window.FixedWindowH\0R\x05fixed\x124\n\x05slide\x18\x02\x20\
+    \x01(\x0b2\x1c.common.Window.SlidingWindowH\0R\x05slide\x128\n\x07sessio\
+    n\x18\x03\x20\x01(\x0b2\x1c.common.Window.SessionWindowH\0R\x07session\
+    \x1a/\n\x0bFixedWindow\x12\x20\n\x04size\x18\x01\x20\x01(\x0b2\x0c.commo\
+    n.TimeR\x04size\x1aW\n\rSlidingWindow\x12\x20\n\x04size\x18\x01\x20\x01(\
+    \x0b2\x0c.common.TimeR\x04size\x12$\n\x06period\x18\x02\x20\x01(\x0b2\
+    \x0c.common.TimeR\x06period\x1a7\n\rSessionWindow\x12&\n\x07timeout\x18\
+    \x01\x20\x01(\x0b2\x0c.common.TimeR\x07timeoutB\x07\n\x05value\"\x85\x01\
+    \n\x07Trigger\x129\n\twatermark\x18\x01\x20\x01(\x0b2\x19.common.Trigger\
+    .WatermarkH\0R\twatermark\x1a6\n\tWatermark\x12)\n\tmark_time\x18\x01\
+    \x20\x01(\x0b2\x0c.common.TimeR\x08markTimeB\x07\n\x05value*G\n\x0eDataf\
+    lowStatus\x12\x0f\n\x0bINITIALIZED\x10\0\x12\x0b\n\x07RUNNING\x10\x01\
+    \x12\x0b\n\x07CLOSING\x10\x02\x12\n\n\x06CLOSED\x10\x03BD\n#tableflow.al\
+    pha.proto.common.streamZ\x1dtableflow/alpha/common/streamJ\x81/\n\x07\
+    \x12\x05\0\0\xca\x01\x01\n\x08\n\x01\x0c\x12\x03\0\0\x12\n\x08\n\x01\x02\
+    \x12\x03\x02\0\x0f\n\t\n\x02\x03\0\x12\x03\x03\0\x1d\n\x08\n\x01\x08\x12\
+    \x03\x04\04\n\t\n\x02\x08\x0b\x12\x03\x04\04\n\x08\n\x01\x08\x12\x03\x05\
+    \0<\n\t\n\x02\x08\x01\x12\x03\x05\0<\n[\n\x02\x04\0\x12\x04\n\0\r\x01\
+    \x1aO*\nStreamGraph\x20metadata,\x20it\x20stores\x20the\x20structural\
+    \x20information\x20of\x20a\x20stream\x20graph\n\n\n\n\x03\x04\0\x01\x12\
+    \x03\n\x08\x14\n\x1d\n\x04\x04\0\x02\0\x12\x03\x0b\x02\x14\"\x10\x20cent\
+    er\x20node\x20id\n\n\x0c\n\x05\x04\0\x02\0\x05\x12\x03\x0b\x02\x08\n\x0c\
+    \n\x05\x04\0\x02\0\x01\x12\x03\x0b\t\x0f\n\x0c\n\x05\x04\0\x02\0\x03\x12\
+    \x03\x0b\x12\x13\n!\n\x04\x04\0\x02\x01\x12\x03\x0c\x02\x20\"\x14\x20cen\
+    ter's\x20neighbors\n\n\x0c\n\x05\x04\0\x02\x01\x04\x12\x03\x0c\x02\n\n\
+    \x0c\n\x05\x04\0\x02\x01\x05\x12\x03\x0c\x0b\x11\n\x0c\n\x05\x04\0\x02\
+    \x01\x01\x12\x03\x0c\x12\x1b\n\x0c\n\x05\x04\0\x02\x01\x03\x12\x03\x0c\
+    \x1e\x1f\nE\n\x02\x04\x01\x12\x04\x12\0#\x01\x1a9*\nOperatorInfo,\x20sto\
+    res\x20detail\x20information\x20of\x20an\x20operator\n\n\n\n\x03\x04\x01\
+    \x01\x12\x03\x12\x08\x14\n\x0b\n\x04\x04\x01\x02\0\x12\x03\x13\x02\x19\n\
+    \x0c\n\x05\x04\x01\x02\0\x05\x12\x03\x13\x02\x08\n\x0c\n\x05\x04\x01\x02\
+    \0\x01\x12\x03\x13\t\x14\n\x0c\n\x05\x04\x01\x02\0\x03\x12\x03\x13\x17\
+    \x18\n\x20\n\x04\x04\x01\x02\x01\x12\x03\x14\x02\x20\"\x13\x20host\x20ad\
+    dr\x20configs\n\n\x0c\n\x05\x04\x01\x02\x01\x06\x12\x03\x14\x02\x11\n\
+    \x0c\n\x05\x04\x01\x02\x01\x01\x12\x03\x14\x12\x1b\n\x0c\n\x05\x04\x01\
+    \x02\x01\x03\x12\x03\x14\x1e\x1f\n)\n\x04\x04\x01\x02\x02\x12\x03\x15\
+    \x02\x1a\"\x1c\x20stream\x20config\x20for\x20operator\n\n\x0c\n\x05\x04\
+    \x01\x02\x02\x06\x12\x03\x15\x02\x0e\n\x0c\n\x05\x04\x01\x02\x02\x01\x12\
+    \x03\x15\x0f\x15\n\x0c\n\x05\x04\x01\x02\x02\x03\x12\x03\x15\x18\x19\n$\
+    \n\x04\x04\x01\x02\x03\x12\x03\x16\x02\x20\"\x17\x20upstreams\x20operato\
+    r_id\n\n\x0c\n\x05\x04\x01\x02\x03\x04\x12\x03\x16\x02\n\n\x0c\n\x05\x04\
+    \x01\x02\x03\x05\x12\x03\x16\x0b\x11\n\x0c\n\x05\x04\x01\x02\x03\x01\x12\
+    \x03\x16\x12\x1b\n\x0c\n\x05\x04\x01\x02\x03\x03\x12\x03\x16\x1e\x1f\n4\
+    \n\x04\x04\x01\x08\0\x12\x04\x19\x02\"\x03\x1a&\x20optional\x20for\x20di\
+    fferent\x20operator\x20type\n\n\x0c\n\x05\x04\x01\x08\0\x01\x12\x03\x19\
+    \x08\x0f\n\x19\n\x04\x04\x01\x02\x04\x12\x03\x1a\x04\x16\"\x0c\x20for\
+    \x20source\n\n\x0c\n\x05\x04\x01\x02\x04\x06\x12\x03\x1a\x04\n\n\x0c\n\
+    \x05\x04\x01\x02\x04\x01\x12\x03\x1a\x0b\x11\n\x0c\n\x05\x04\x01\x02\x04\
+    \x03\x12\x03\x1a\x14\x15\n\x17\n\x04\x04\x01\x02\x05\x12\x03\x1b\x04\x12\
+    \"\n\x20for\x20sink\n\n\x0c\n\x05\x04\x01\x02\x05\x06\x12\x03\x1b\x04\
+    \x08\n\x0c\n\x05\x04\x01\x02\x05\x01\x12\x03\x1b\t\r\n\x0c\n\x05\x04\x01\
+    \x02\x05\x03\x12\x03\x1b\x10\x11\n\x0b\n\x04\x04\x01\x02\x06\x12\x03\x1c\
+    \x04\x16\n\x0c\n\x05\x04\x01\x02\x06\x06\x12\x03\x1c\x04\n\n\x0c\n\x05\
+    \x04\x01\x02\x06\x01\x12\x03\x1c\x0b\x11\n\x0c\n\x05\x04\x01\x02\x06\x03\
+    \x12\x03\x1c\x14\x15\n\x0b\n\x04\x04\x01\x02\x07\x12\x03\x1d\x04\x16\n\
+    \x0c\n\x05\x04\x01\x02\x07\x06\x12\x03\x1d\x04\n\n\x0c\n\x05\x04\x01\x02\
+    \x07\x01\x12\x03\x1d\x0b\x11\n\x0c\n\x05\x04\x01\x02\x07\x03\x12\x03\x1d\
+    \x14\x15\n\x0b\n\x04\x04\x01\x02\x08\x12\x03\x1e\x04\x15\n\x0c\n\x05\x04\
+    \x01\x02\x08\x06\x12\x03\x1e\x04\t\n\x0c\n\x05\x04\x01\x02\x08\x01\x12\
+    \x03\x1e\n\x10\n\x0c\n\x05\x04\x01\x02\x08\x03\x12\x03\x1e\x13\x14\n\x0b\
+    \n\x04\x04\x01\x02\t\x12\x03\x1f\x04\x19\n\x0c\n\x05\x04\x01\x02\t\x06\
+    \x12\x03\x1f\x04\x0b\n\x0c\n\x05\x04\x01\x02\t\x01\x12\x03\x1f\x0c\x13\n\
+    \x0c\n\x05\x04\x01\x02\t\x03\x12\x03\x1f\x16\x18\n!\n\x04\x04\x01\x02\n\
+    \x12\x03\x20\x04\x1a\"\x14\x20\x20\x20\x20Join\x20join\x20=\x2011;\n\n\
+    \x0c\n\x05\x04\x01\x02\n\x06\x12\x03\x20\x04\x0b\n\x0c\n\x05\x04\x01\x02\
+    \n\x01\x12\x03\x20\x0c\x14\n\x0c\n\x05\x04\x01\x02\n\x03\x12\x03\x20\x17\
+    \x19\n\n\n\x02\x04\x02\x12\x04$\0(\x01\n\n\n\x03\x04\x02\x01\x12\x03$\
+    \x08\x0f\n\x0c\n\x04\x04\x02\x08\0\x12\x04%\x02'\x03\n\x0c\n\x05\x04\x02\
+    \x08\0\x01\x12\x03%\x08\r\n\x0b\n\x04\x04\x02\x02\0\x12\x03&\x04\x12\n\
+    \x0c\n\x05\x04\x02\x02\0\x06\x12\x03&\x04\x08\n\x0c\n\x05\x04\x02\x02\0\
+    \x01\x12\x03&\t\r\n\x0c\n\x05\x04\x02\x02\0\x03\x12\x03&\x10\x11\n\n\n\
+    \x02\x04\x03\x12\x04*\0.\x01\n\n\n\x03\x04\x03\x01\x12\x03*\x08\x0f\n\
+    \x0c\n\x04\x04\x03\x08\0\x12\x04+\x02-\x03\n\x0c\n\x05\x04\x03\x08\0\x01\
+    \x12\x03+\x08\r\n\x0b\n\x04\x04\x03\x02\0\x12\x03,\x04\x12\n\x0c\n\x05\
+    \x04\x03\x02\0\x06\x12\x03,\x04\x08\n\x0c\n\x05\x04\x03\x02\0\x01\x12\
+    \x03,\t\r\n\x0c\n\x05\x04\x03\x02\0\x03\x12\x03,\x10\x11\n\n\n\x02\x04\
+    \x04\x12\x040\09\x01\n\n\n\x03\x04\x04\x01\x12\x030\x08\x0c\n\x0c\n\x04\
+    \x04\x04\x08\0\x12\x041\x023\x03\n\x0c\n\x05\x04\x04\x08\0\x01\x12\x031\
+    \x08\r\n\x0b\n\x04\x04\x04\x02\0\x12\x032\x04\x1f\n\x0c\n\x05\x04\x04\
+    \x02\0\x06\x12\x032\x04\x0e\n\x0c\n\x05\x04\x04\x02\0\x01\x12\x032\x0f\
+    \x1a\n\x0c\n\x05\x04\x04\x02\0\x03\x12\x032\x1d\x1e\n\x0c\n\x04\x04\x04\
+    \x03\0\x12\x045\x028\x03\n\x0c\n\x05\x04\x04\x03\0\x01\x12\x035\n\x14\n\
+    \r\n\x06\x04\x04\x03\0\x02\0\x12\x036\x04\x1b\n\x0e\n\x07\x04\x04\x03\0\
+    \x02\0\x05\x12\x036\x04\n\n\x0e\n\x07\x04\x04\x03\0\x02\0\x01\x12\x036\
+    \x0b\x16\n\x0e\n\x07\x04\x04\x03\0\x02\0\x03\x12\x036\x19\x1a\n\r\n\x06\
+    \x04\x04\x03\0\x02\x01\x12\x037\x04\x12\n\x0e\n\x07\x04\x04\x03\0\x02\
+    \x01\x06\x12\x037\x04\x08\n\x0e\n\x07\x04\x04\x03\0\x02\x01\x01\x12\x037\
+    \t\r\n\x0e\n\x07\x04\x04\x03\0\x02\x01\x03\x12\x037\x10\x11\n\n\n\x02\
+    \x04\x05\x12\x04;\0?\x01\n\n\n\x03\x04\x05\x01\x12\x03;\x08\x0e\n\x0c\n\
+    \x04\x04\x05\x08\0\x12\x04<\x02>\x03\n\x0c\n\x05\x04\x05\x08\0\x01\x12\
+    \x03<\x08\r\n\x0b\n\x04\x04\x05\x02\0\x12\x03=\x04\x12\n\x0c\n\x05\x04\
+    \x05\x02\0\x06\x12\x03=\x04\x08\n\x0c\n\x05\x04\x05\x02\0\x01\x12\x03=\t\
+    \r\n\x0c\n\x05\x04\x05\x02\0\x03\x12\x03=\x10\x11\n\n\n\x02\x04\x06\x12\
+    \x04A\0C\x01\n\n\n\x03\x04\x06\x01\x12\x03A\x08\x0c\n\x0b\n\x04\x04\x06\
+    \x02\0\x12\x03B\x02\x16\n\x0c\n\x05\x04\x06\x02\0\x05\x12\x03B\x02\x08\n\
+    \x0c\n\x05\x04\x06\x02\0\x01\x12\x03B\t\x11\n\x0c\n\x05\x04\x06\x02\0\
+    \x03\x12\x03B\x14\x15\n\n\n\x02\x04\x07\x12\x04E\0I\x01\n\n\n\x03\x04\
+    \x07\x01\x12\x03E\x08\x0e\n\x0c\n\x04\x04\x07\x08\0\x12\x04F\x02H\x03\n\
+    \x0c\n\x05\x04\x07\x08\0\x01\x12\x03F\x08\r\n\x0b\n\x04\x04\x07\x02\0\
+    \x12\x03G\x04\x12\n\x0c\n\x05\x04\x07\x02\0\x06\x12\x03G\x04\x08\n\x0c\n\
+    \x05\x04\x07\x02\0\x01\x12\x03G\t\r\n\x0c\n\x05\x04\x07\x02\0\x03\x12\
+    \x03G\x10\x11\n\n\n\x02\x04\x08\x12\x04K\0O\x01\n\n\n\x03\x04\x08\x01\
+    \x12\x03K\x08\r\n\x0c\n\x04\x04\x08\x08\0\x12\x04L\x02N\x03\n\x0c\n\x05\
+    \x04\x08\x08\0\x01\x12\x03L\x08\r\n\x0b\n\x04\x04\x08\x02\0\x12\x03M\x04\
+    \x12\n\x0c\n\x05\x04\x08\x02\0\x06\x12\x03M\x04\x08\n\x0c\n\x05\x04\x08\
+    \x02\0\x01\x12\x03M\t\r\n\x0c\n\x05\x04\x08\x02\0\x03\x12\x03M\x10\x11\n\
+    \n\n\x02\x04\t\x12\x04Q\0W\x01\n\n\n\x03\x04\t\x01\x12\x03Q\x08\x0c\n\
+    \x0c\n\x04\x04\t\x08\0\x12\x04R\x02V\x03\n\x0c\n\x05\x04\t\x08\0\x01\x12\
+    \x03R\x08\x0c\n\x0b\n\x04\x04\t\x02\0\x12\x03S\x04\x18\n\x0c\n\x05\x04\t\
+    \x02\0\x06\x12\x03S\x04\r\n\x0c\n\x05\x04\t\x02\0\x01\x12\x03S\x0e\x13\n\
+    \x0c\n\x05\x04\t\x02\0\x03\x12\x03S\x16\x17\n\x0b\n\x04\x04\t\x02\x01\
+    \x12\x03T\x04\x18\n\x0c\n\x05\x04\t\x02\x01\x06\x12\x03T\x04\r\n\x0c\n\
+    \x05\x04\t\x02\x01\x01\x12\x03T\x0e\x13\n\x0c\n\x05\x04\t\x02\x01\x03\
+    \x12\x03T\x16\x17\n\x0b\n\x04\x04\t\x02\x02\x12\x03U\x04\x18\n\x0c\n\x05\
+    \x04\t\x02\x02\x06\x12\x03U\x04\r\n\x0c\n\x05\x04\t\x02\x02\x01\x12\x03U\
+    \x0e\x13\n\x0c\n\x05\x04\t\x02\x02\x03\x12\x03U\x16\x17\n\x20\n\x02\x04\
+    \n\x12\x04\\\0_\x01\x1a\x14*\nConstant\x20operator\n\n\n\n\x03\x04\n\x01\
+    \x12\x03\\\x08\x0f\nE\n\x04\x04\n\x02\0\x12\x03]\x02\x12\"8\x20value\x20\
+    of\x20constant,\x20format:\x20[<flag\x20byte>,\x20<data\x20bytes>]\n\n\
+    \x0c\n\x05\x04\n\x02\0\x05\x12\x03]\x02\x07\n\x0c\n\x05\x04\n\x02\0\x01\
+    \x12\x03]\x08\r\n\x0c\n\x05\x04\n\x02\0\x03\x12\x03]\x10\x11\n\x1a\n\x04\
+    \x04\n\x02\x01\x12\x03^\x02\x19\"\r\x20operator\x20id\n\n\x0c\n\x05\x04\
+    \n\x02\x01\x05\x12\x03^\x02\x08\n\x0c\n\x05\x04\n\x02\x01\x01\x12\x03^\t\
+    \x14\n\x0c\n\x05\x04\n\x02\x01\x03\x12\x03^\x17\x18\n\n\n\x02\x04\x0b\
+    \x12\x04a\0e\x01\n\n\n\x03\x04\x0b\x01\x12\x03a\x08\x0e\n\x0c\n\x04\x04\
+    \x0b\x08\0\x12\x04b\x02d\x03\n\x0c\n\x05\x04\x0b\x08\0\x01\x12\x03b\x08\
+    \x0c\n\x0b\n\x04\x04\x0b\x02\0\x12\x03c\x04\x18\n\x0c\n\x05\x04\x0b\x02\
+    \0\x06\x12\x03c\x04\r\n\x0c\n\x05\x04\x0b\x02\0\x01\x12\x03c\x0e\x13\n\
+    \x0c\n\x05\x04\x0b\x02\0\x03\x12\x03c\x16\x17\n\n\n\x02\x04\x0c\x12\x04g\
+    \0s\x01\n\n\n\x03\x04\x0c\x01\x12\x03g\x08\x11\n\x0b\n\x04\x04\x0c\x02\0\
+    \x12\x03h\x02\x1e\n\x0c\n\x05\x04\x0c\x02\0\x04\x12\x03h\x02\n\n\x0c\n\
+    \x05\x04\x0c\x02\0\x05\x12\x03h\x0b\x11\n\x0c\n\x05\x04\x0c\x02\0\x01\
+    \x12\x03h\x12\x19\n\x0c\n\x05\x04\x0c\x02\0\x03\x12\x03h\x1c\x1d\n\x0b\n\
+    \x04\x04\x0c\x02\x01\x12\x03i\x02\x13\n\x0c\n\x05\x04\x0c\x02\x01\x05\
+    \x12\x03i\x02\x08\n\x0c\n\x05\x04\x0c\x02\x01\x01\x12\x03i\t\x0e\n\x0c\n\
+    \x05\x04\x0c\x02\x01\x03\x12\x03i\x11\x12\n\x0b\n\x04\x04\x0c\x02\x02\
+    \x12\x03j\x02\x18\n\x0c\n\x05\x04\x0c\x02\x02\x06\x12\x03j\x02\x0e\n\x0c\
+    \n\x05\x04\x0c\x02\x02\x01\x12\x03j\x0f\x13\n\x0c\n\x05\x04\x0c\x02\x02\
+    \x03\x12\x03j\x16\x17\n\x0b\n\x04\x04\x0c\x02\x03\x12\x03k\x02\x1d\n\x0c\
+    \n\x05\x04\x0c\x02\x03\x06\x12\x03k\x02\x0e\n\x0c\n\x05\x04\x0c\x02\x03\
+    \x01\x12\x03k\x0f\x18\n\x0c\n\x05\x04\x0c\x02\x03\x03\x12\x03k\x1b\x1c\n\
+    \x0c\n\x04\x04\x0c\x03\0\x12\x04m\x02r\x03\n\x0c\n\x05\x04\x0c\x03\0\x01\
+    \x12\x03m\n\x16\n\x0e\n\x06\x04\x0c\x03\0\x08\0\x12\x04n\x04q\x05\n\x0e\
+    \n\x07\x04\x0c\x03\0\x08\0\x01\x12\x03n\n\r\n\r\n\x06\x04\x0c\x03\0\x02\
+    \0\x12\x03o\x06\x17\n\x0e\n\x07\x04\x0c\x03\0\x02\0\x05\x12\x03o\x06\x0c\
+    \n\x0e\n\x07\x04\x0c\x03\0\x02\0\x01\x12\x03o\r\x12\n\x0e\n\x07\x04\x0c\
+    \x03\0\x02\0\x03\x12\x03o\x15\x16\n\r\n\x06\x04\x0c\x03\0\x02\x01\x12\
+    \x03p\x06\x1b\n\x0e\n\x07\x04\x0c\x03\0\x02\x01\x05\x12\x03p\x06\x0c\n\
+    \x0e\n\x07\x04\x0c\x03\0\x02\x01\x01\x12\x03p\r\x16\n\x0e\n\x07\x04\x0c\
+    \x03\0\x02\x01\x03\x12\x03p\x19\x1a\n\x0b\n\x02\x04\r\x12\x05u\0\x89\x01\
+    \x01\n\n\n\x03\x04\r\x01\x12\x03u\x08\x11\n\x0c\n\x04\x04\r\x03\0\x12\
+    \x04v\x02{\x03\n\x0c\n\x05\x04\r\x03\0\x01\x12\x03v\n\x18\n\r\n\x06\x04\
+    \r\x03\0\x02\0\x12\x03w\x04\x14\n\x0e\n\x07\x04\r\x03\0\x02\0\x05\x12\
+    \x03w\x04\n\n\x0e\n\x07\x04\r\x03\0\x02\0\x01\x12\x03w\x0b\x0f\n\x0e\n\
+    \x07\x04\r\x03\0\x02\0\x03\x12\x03w\x12\x13\n\r\n\x06\x04\r\x03\0\x02\
+    \x01\x12\x03x\x04\x18\n\x0e\n\x07\x04\r\x03\0\x02\x01\x05\x12\x03x\x04\n\
+    \n\x0e\n\x07\x04\r\x03\0\x02\x01\x01\x12\x03x\x0b\x13\n\x0e\n\x07\x04\r\
+    \x03\0\x02\x01\x03\x12\x03x\x16\x17\n\r\n\x06\x04\r\x03\0\x02\x02\x12\
+    \x03y\x04\x18\n\x0e\n\x07\x04\r\x03\0\x02\x02\x05\x12\x03y\x04\n\n\x0e\n\
+    \x07\x04\r\x03\0\x02\x02\x01\x12\x03y\x0b\x13\n\x0e\n\x07\x04\r\x03\0\
+    \x02\x02\x03\x12\x03y\x16\x17\n\r\n\x06\x04\r\x03\0\x02\x03\x12\x03z\x04\
+    \x18\n\x0e\n\x07\x04\r\x03\0\x02\x03\x05\x12\x03z\x04\n\n\x0e\n\x07\x04\
+    \r\x03\0\x02\x03\x01\x12\x03z\x0b\x13\n\x0e\n\x07\x04\r\x03\0\x02\x03\
+    \x03\x12\x03z\x16\x17\n\r\n\x04\x04\r\x03\x01\x12\x05}\x02\x85\x01\x03\n\
+    \x0c\n\x05\x04\r\x03\x01\x01\x12\x03}\n\x13\n\r\n\x06\x04\r\x03\x01\x02\
+    \0\x12\x03~\x04\x19\n\x0e\n\x07\x04\r\x03\x01\x02\0\x05\x12\x03~\x04\n\n\
+    \x0e\n\x07\x04\r\x03\x01\x02\0\x01\x12\x03~\x0b\x14\n\x0e\n\x07\x04\r\
+    \x03\x01\x02\0\x03\x12\x03~\x17\x18\n\r\n\x06\x04\r\x03\x01\x02\x01\x12\
+    \x03\x7f\x04&\n\x0e\n\x07\x04\r\x03\x01\x02\x01\x04\x12\x03\x7f\x04\x0c\
+    \n\x0e\n\x07\x04\r\x03\x01\x02\x01\x06\x12\x03\x7f\r\x16\n\x0e\n\x07\x04\
+    \r\x03\x01\x02\x01\x01\x12\x03\x7f\x17!\n\x0e\n\x07\x04\r\x03\x01\x02\
+    \x01\x03\x12\x03\x7f$%\n\x10\n\x06\x04\r\x03\x01\x03\0\x12\x06\x81\x01\
+    \x04\x84\x01\x05\n\x0f\n\x07\x04\r\x03\x01\x03\0\x01\x12\x04\x81\x01\x0c\
+    \x15\n\x10\n\x08\x04\r\x03\x01\x03\0\x02\0\x12\x04\x82\x01\x06\x17\n\x11\
+    \n\t\x04\r\x03\x01\x03\0\x02\0\x05\x12\x04\x82\x01\x06\x0c\n\x11\n\t\x04\
+    \r\x03\x01\x03\0\x02\0\x01\x12\x04\x82\x01\r\x12\n\x11\n\t\x04\r\x03\x01\
+    \x03\0\x02\0\x03\x12\x04\x82\x01\x15\x16\n\x10\n\x08\x04\r\x03\x01\x03\0\
+    \x02\x01\x12\x04\x83\x01\x06\x1b\n\x11\n\t\x04\r\x03\x01\x03\0\x02\x01\
+    \x05\x12\x04\x83\x01\x06\x0c\n\x11\n\t\x04\r\x03\x01\x03\0\x02\x01\x01\
+    \x12\x04\x83\x01\r\x16\n\x11\n\t\x04\r\x03\x01\x03\0\x02\x01\x03\x12\x04\
+    \x83\x01\x19\x1a\n\x0c\n\x04\x04\r\x02\0\x12\x04\x87\x01\x02%\n\r\n\x05\
+    \x04\r\x02\0\x06\x12\x04\x87\x01\x02\x10\n\r\n\x05\x04\r\x02\0\x01\x12\
+    \x04\x87\x01\x11\x20\n\r\n\x05\x04\r\x02\0\x03\x12\x04\x87\x01#$\n\x0c\n\
+    \x04\x04\r\x02\x01\x12\x04\x88\x01\x02\x1a\n\r\n\x05\x04\r\x02\x01\x06\
+    \x12\x04\x88\x01\x02\x0b\n\r\n\x05\x04\r\x02\x01\x01\x12\x04\x88\x01\x0c\
+    \x15\n\r\n\x05\x04\r\x02\x01\x03\x12\x04\x88\x01\x18\x19\n\x0c\n\x02\x04\
+    \x0e\x12\x06\x8b\x01\0\x96\x01\x01\n\x0b\n\x03\x04\x0e\x01\x12\x04\x8b\
+    \x01\x08\x11\n\x0e\n\x04\x04\x0e\x03\0\x12\x06\x8c\x01\x02\x91\x01\x03\n\
+    \r\n\x05\x04\x0e\x03\0\x01\x12\x04\x8c\x01\n\x18\n\x0e\n\x06\x04\x0e\x03\
+    \0\x02\0\x12\x04\x8d\x01\x04\x14\n\x0f\n\x07\x04\x0e\x03\0\x02\0\x05\x12\
+    \x04\x8d\x01\x04\n\n\x0f\n\x07\x04\x0e\x03\0\x02\0\x01\x12\x04\x8d\x01\
+    \x0b\x0f\n\x0f\n\x07\x04\x0e\x03\0\x02\0\x03\x12\x04\x8d\x01\x12\x13\n\
+    \x0e\n\x06\x04\x0e\x03\0\x02\x01\x12\x04\x8e\x01\x04\x18\n\x0f\n\x07\x04\
+    \x0e\x03\0\x02\x01\x05\x12\x04\x8e\x01\x04\n\n\x0f\n\x07\x04\x0e\x03\0\
+    \x02\x01\x01\x12\x04\x8e\x01\x0b\x13\n\x0f\n\x07\x04\x0e\x03\0\x02\x01\
+    \x03\x12\x04\x8e\x01\x16\x17\n\x0e\n\x06\x04\x0e\x03\0\x02\x02\x12\x04\
+    \x8f\x01\x04\x18\n\x0f\n\x07\x04\x0e\x03\0\x02\x02\x05\x12\x04\x8f\x01\
+    \x04\n\n\x0f\n\x07\x04\x0e\x03\0\x02\x02\x01\x12\x04\x8f\x01\x0b\x13\n\
+    \x0f\n\x07\x04\x0e\x03\0\x02\x02\x03\x12\x04\x8f\x01\x16\x17\n\x0e\n\x06\
+    \x04\x0e\x03\0\x02\x03\x12\x04\x90\x01\x04\x11\n\x0f\n\x07\x04\x0e\x03\0\
+    \x02\x03\x05\x12\x04\x90\x01\x04\x08\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\
+    \x01\x12\x04\x90\x01\t\x0c\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x03\x12\x04\
+    \x90\x01\x0f\x10\n\x0c\n\x04\x04\x0e\x02\0\x12\x04\x93\x01\x02%\n\r\n\
+    \x05\x04\x0e\x02\0\x06\x12\x04\x93\x01\x02\x10\n\r\n\x05\x04\x0e\x02\0\
+    \x01\x12\x04\x93\x01\x11\x20\n\r\n\x05\x04\x0e\x02\0\x03\x12\x04\x93\x01\
+    #$\n\x0c\n\x04\x04\x0e\x02\x01\x12\x04\x94\x01\x02\x19\n\r\n\x05\x04\x0e\
+    \x02\x01\x06\x12\x04\x94\x01\x02\x06\n\r\n\x05\x04\x0e\x02\x01\x01\x12\
+    \x04\x94\x01\x07\x14\n\r\n\x05\x04\x0e\x02\x01\x03\x12\x04\x94\x01\x17\
+    \x18\n\x0c\n\x04\x04\x0e\x02\x02\x12\x04\x95\x01\x02\x1b\n\r\n\x05\x04\
+    \x0e\x02\x02\x06\x12\x04\x95\x01\x02\x06\n\r\n\x05\x04\x0e\x02\x02\x01\
+    \x12\x04\x95\x01\x07\x16\n\r\n\x05\x04\x0e\x02\x02\x03\x12\x04\x95\x01\
+    \x19\x1a\nP\n\x02\x05\0\x12\x06\x9b\x01\0\xa0\x01\x01\x1aB*\nStream\x20G\
+    raph\x20Status.\x20It\x20shows\x20which\x20status\x20a\x20stream\x20job\
+    \x20is\x20now.\n\n\x0b\n\x03\x05\0\x01\x12\x04\x9b\x01\x05\x13\n\x0c\n\
+    \x04\x05\0\x02\0\x12\x04\x9c\x01\x02\x12\n\r\n\x05\x05\0\x02\0\x01\x12\
+    \x04\x9c\x01\x02\r\n\r\n\x05\x05\0\x02\0\x02\x12\x04\x9c\x01\x10\x11\n\
+    \x0c\n\x04\x05\0\x02\x01\x12\x04\x9d\x01\x02\x0e\n\r\n\x05\x05\0\x02\x01\
+    \x01\x12\x04\x9d\x01\x02\t\n\r\n\x05\x05\0\x02\x01\x02\x12\x04\x9d\x01\
+    \x0c\r\n\x0c\n\x04\x05\0\x02\x02\x12\x04\x9e\x01\x02\x0e\n\r\n\x05\x05\0\
+    \x02\x02\x01\x12\x04\x9e\x01\x02\t\n\r\n\x05\x05\0\x02\x02\x02\x12\x04\
+    \x9e\x01\x0c\r\n\x0c\n\x04\x05\0\x02\x03\x12\x04\x9f\x01\x02\r\n\r\n\x05\
+    \x05\0\x02\x03\x01\x12\x04\x9f\x01\x02\x08\n\r\n\x05\x05\0\x02\x03\x02\
+    \x12\x04\x9f\x01\x0b\x0c\n\x0c\n\x02\x04\x0f\x12\x06\xa2\x01\0\xa6\x01\
+    \x01\n\x0b\n\x03\x04\x0f\x01\x12\x04\xa2\x01\x08\x10\nS\n\x04\x04\x0f\
+    \x02\0\x12\x04\xa3\x01\x02\x1f\"E\x20job\x20id,\x20for\x20now\x20it\x20i\
+    s\x20which\x20table\x20the\x20stream\x20graph\x20output\x20will\x20sink\
+    \n\n\r\n\x05\x04\x0f\x02\0\x06\x12\x04\xa3\x01\x02\x13\n\r\n\x05\x04\x0f\
+    \x02\0\x01\x12\x04\xa3\x01\x14\x1a\n\r\n\x05\x04\x0f\x02\0\x03\x12\x04\
+    \xa3\x01\x1d\x1e\n\x1f\n\x04\x04\x0f\x02\x01\x12\x04\xa4\x01\x02(\"\x11\
+    \x20graph\x20structure\n\n\r\n\x05\x04\x0f\x02\x01\x04\x12\x04\xa4\x01\
+    \x02\n\n\r\n\x05\x04\x0f\x02\x01\x06\x12\x04\xa4\x01\x0b\x1e\n\r\n\x05\
+    \x04\x0f\x02\x01\x01\x12\x04\xa4\x01\x1f#\n\r\n\x05\x04\x0f\x02\x01\x03\
+    \x12\x04\xa4\x01&'\n\x20\n\x04\x04\x0f\x02\x02\x12\x04\xa5\x01\x02-\"\
+    \x12\x20details\x20of\x20nodes\n\n\r\n\x05\x04\x0f\x02\x02\x06\x12\x04\
+    \xa5\x01\x02\"\n\r\n\x05\x04\x0f\x02\x02\x01\x12\x04\xa5\x01#(\n\r\n\x05\
+    \x04\x0f\x02\x02\x03\x12\x04\xa5\x01+,\n\x0c\n\x02\x04\x10\x12\x06\xa8\
+    \x01\0\xab\x01\x01\n\x0b\n\x03\x04\x10\x01\x12\x04\xa8\x01\x08\x14\n\x0c\
+    \n\x04\x04\x10\x02\0\x12\x04\xa9\x01\x02\x14\n\r\n\x05\x04\x10\x02\0\x06\
+    \x12\x04\xa9\x01\x02\x08\n\r\n\x05\x04\x10\x02\0\x01\x12\x04\xa9\x01\t\
+    \x0f\n\r\n\x05\x04\x10\x02\0\x03\x12\x04\xa9\x01\x12\x13\n\x0c\n\x04\x04\
+    \x10\x02\x01\x12\x04\xaa\x01\x02\x16\n\r\n\x05\x04\x10\x02\x01\x06\x12\
+    \x04\xaa\x01\x02\t\n\r\n\x05\x04\x10\x02\x01\x01\x12\x04\xaa\x01\n\x11\n\
+    \r\n\x05\x04\x10\x02\x01\x03\x12\x04\xaa\x01\x14\x15\n\x0c\n\x02\x04\x11\
+    \x12\x06\xad\x01\0\xc0\x01\x01\n\x0b\n\x03\x04\x11\x01\x12\x04\xad\x01\
+    \x08\x0e\n\x0e\n\x04\x04\x11\x08\0\x12\x06\xae\x01\x02\xb2\x01\x03\n\r\n\
+    \x05\x04\x11\x08\0\x01\x12\x04\xae\x01\x08\r\n\x0c\n\x04\x04\x11\x02\0\
+    \x12\x04\xaf\x01\x04\x1a\n\r\n\x05\x04\x11\x02\0\x06\x12\x04\xaf\x01\x04\
+    \x0f\n\r\n\x05\x04\x11\x02\0\x01\x12\x04\xaf\x01\x10\x15\n\r\n\x05\x04\
+    \x11\x02\0\x03\x12\x04\xaf\x01\x18\x19\n\x0c\n\x04\x04\x11\x02\x01\x12\
+    \x04\xb0\x01\x04\x1c\n\r\n\x05\x04\x11\x02\x01\x06\x12\x04\xb0\x01\x04\
+    \x11\n\r\n\x05\x04\x11\x02\x01\x01\x12\x04\xb0\x01\x12\x17\n\r\n\x05\x04\
+    \x11\x02\x01\x03\x12\x04\xb0\x01\x1a\x1b\n\x0c\n\x04\x04\x11\x02\x02\x12\
+    \x04\xb1\x01\x04\x1e\n\r\n\x05\x04\x11\x02\x02\x06\x12\x04\xb1\x01\x04\
+    \x11\n\r\n\x05\x04\x11\x02\x02\x01\x12\x04\xb1\x01\x12\x19\n\r\n\x05\x04\
+    \x11\x02\x02\x03\x12\x04\xb1\x01\x1c\x1d\n\x0e\n\x04\x04\x11\x03\0\x12\
+    \x06\xb4\x01\x02\xb6\x01\x03\n\r\n\x05\x04\x11\x03\0\x01\x12\x04\xb4\x01\
+    \n\x15\n1\n\x06\x04\x11\x03\0\x02\0\x12\x04\xb5\x01\x04\x19\"!\x20Only\
+    \x20for\x20sliding\x20&\x20fixed\x20window\n\n\x0f\n\x07\x04\x11\x03\0\
+    \x02\0\x06\x12\x04\xb5\x01\x04\x0f\n\x0f\n\x07\x04\x11\x03\0\x02\0\x01\
+    \x12\x04\xb5\x01\x10\x14\n\x0f\n\x07\x04\x11\x03\0\x02\0\x03\x12\x04\xb5\
+    \x01\x17\x18\n\x0e\n\x04\x04\x11\x03\x01\x12\x06\xb8\x01\x02\xbb\x01\x03\
+    \n\r\n\x05\x04\x11\x03\x01\x01\x12\x04\xb8\x01\n\x17\n\x0e\n\x06\x04\x11\
+    \x03\x01\x02\0\x12\x04\xb9\x01\x04\x19\n\x0f\n\x07\x04\x11\x03\x01\x02\0\
+    \x06\x12\x04\xb9\x01\x04\x0f\n\x0f\n\x07\x04\x11\x03\x01\x02\0\x01\x12\
+    \x04\xb9\x01\x10\x14\n\x0f\n\x07\x04\x11\x03\x01\x02\0\x03\x12\x04\xb9\
+    \x01\x17\x18\n\x0e\n\x06\x04\x11\x03\x01\x02\x01\x12\x04\xba\x01\x04\x1b\
+    \n\x0f\n\x07\x04\x11\x03\x01\x02\x01\x06\x12\x04\xba\x01\x04\x0f\n\x0f\n\
+    \x07\x04\x11\x03\x01\x02\x01\x01\x12\x04\xba\x01\x10\x16\n\x0f\n\x07\x04\
+    \x11\x03\x01\x02\x01\x03\x12\x04\xba\x01\x19\x1a\n\x0e\n\x04\x04\x11\x03\
+    \x02\x12\x06\xbd\x01\x02\xbf\x01\x03\n\r\n\x05\x04\x11\x03\x02\x01\x12\
+    \x04\xbd\x01\n\x17\n)\n\x06\x04\x11\x03\x02\x02\0\x12\x04\xbe\x01\x04\
+    \x1c\"\x19\x20Only\x20for\x20Session\x20Window\n\n\x0f\n\x07\x04\x11\x03\
+    \x02\x02\0\x06\x12\x04\xbe\x01\x04\x0f\n\x0f\n\x07\x04\x11\x03\x02\x02\0\
+    \x01\x12\x04\xbe\x01\x10\x17\n\x0f\n\x07\x04\x11\x03\x02\x02\0\x03\x12\
+    \x04\xbe\x01\x1a\x1b\n\x0c\n\x02\x04\x12\x12\x06\xc2\x01\0\xca\x01\x01\n\
+    \x0b\n\x03\x04\x12\x01\x12\x04\xc2\x01\x08\x0f\n\x0e\n\x04\x04\x12\x08\0\
+    \x12\x06\xc3\x01\x02\xc5\x01\x03\n\r\n\x05\x04\x12\x08\0\x01\x12\x04\xc3\
+    \x01\x08\r\n\x0c\n\x04\x04\x12\x02\0\x12\x04\xc4\x01\x04\x1c\n\r\n\x05\
+    \x04\x12\x02\0\x06\x12\x04\xc4\x01\x04\r\n\r\n\x05\x04\x12\x02\0\x01\x12\
+    \x04\xc4\x01\x0e\x17\n\r\n\x05\x04\x12\x02\0\x03\x12\x04\xc4\x01\x1a\x1b\
+    \n\x0e\n\x04\x04\x12\x03\0\x12\x06\xc7\x01\x02\xc9\x01\x03\n\r\n\x05\x04\
+    \x12\x03\0\x01\x12\x04\xc7\x01\n\x13\n\x0e\n\x06\x04\x12\x03\0\x02\0\x12\
+    \x04\xc8\x01\x04\x1e\n\x0f\n\x07\x04\x12\x03\0\x02\0\x06\x12\x04\xc8\x01\
+    \x04\x0f\n\x0f\n\x07\x04\x12\x03\0\x02\0\x01\x12\x04\xc8\x01\x10\x19\n\
+    \x0f\n\x07\x04\x12\x03\0\x02\0\x03\x12\x04\xc8\x01\x1c\x1db\x06proto3\
 ";
 
 static file_descriptor_proto_lazy: ::protobuf::rt::LazyV2<::protobuf::descriptor::FileDescriptorProto> = ::protobuf::rt::LazyV2::INIT;

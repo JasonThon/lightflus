@@ -1,4 +1,4 @@
-use proto::common::common::JobId;
+use proto::common::common::ResourceId;
 use proto::common::event::KeyedDataEvent;
 
 use crate::types;
@@ -11,6 +11,6 @@ pub trait KeyedEvent<K, V> {
 
 #[derive(Clone, Debug)]
 pub enum LocalEvent {
-    Terminate { job_id: JobId, to: types::SinkId },
+    Terminate { job_id: ResourceId, to: types::SinkId },
     KeyedDataStreamEvent(KeyedDataEvent),
 }

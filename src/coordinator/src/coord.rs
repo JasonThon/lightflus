@@ -148,7 +148,6 @@ impl DataflowStorageImpl {
 
         match self {
             Self::RocksDB(storage) => storage.save(dataflow),
-            _ => Ok(()),
         }
     }
 

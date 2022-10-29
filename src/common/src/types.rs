@@ -331,13 +331,13 @@ pub trait KeyedValue<K, V> {
 
 #[derive(Clone, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct HashedResourceId {
-    pub stream_id: u32,
+    pub stream_id: String,
 }
 
 impl From<ResourceId> for HashedResourceId {
     fn from(id: ResourceId) -> Self {
         Self {
-            stream_id: id.stream_id,
+            stream_id: id.resource_id,
         }
     }
 }

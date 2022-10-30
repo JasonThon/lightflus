@@ -15,47 +15,43 @@ pub(crate) const BOOLEAN_SYMBOL: &str = "boolean";
 pub(crate) const OBJECT_SYMBOL: &str = "object";
 pub(crate) const BIGINT_SYMBOL: &str = "bigint";
 
-macro_rules! typed_value_compare {
-    ($name:ident, $func:ident, $return_value:ident, $default:expr) => {
-        impl $name for TypedValue {
-            fn $func(&self, other: &Self) -> $return_value {
-                match self {
-                    TypedValue::String(value) => match other {
-                        TypedValue::String(other) => value.$func(other),
-                        _ => $default,
-                    },
-                    TypedValue::Number(value) => match other {
-                        TypedValue::Number(other) => value.$func(other),
-                        _ => $default,
-                    },
-                    TypedValue::Null => match other {
-                        TypedValue::Null => true,
-                        _ => $default,
-                    },
-                    TypedValue::Object(value) => match other {
-                        TypedValue::Object(other) => value.$func(other),
-                        _ => $default,
-                    },
-                    TypedValue::BigInt(value) => match other {
-                        TypedValue::Number(other) => (*value as f64).$func(other),
-                        TypedValue::BigInt(other) => value.$func(other),
-                        _ => $default,
-                    },
-                    TypedValue::Boolean(value) => match other {
-                        TypedValue::Boolean(other) => value.$func(other),
-                        _ => $default,
-                    },
-                    TypedValue::Invalid => match other {
-                        TypedValue::Invalid => true,
-                        _ => $default,
-                    },
-                }
-            }
+impl PartialEq for TypedValue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::String(l0), Self::String(r0)) => l0 == r0,
+            (Self::BigInt(l0), Self::BigInt(r0)) => l0 == r0,
+            (Self::Boolean(l0), Self::Boolean(r0)) => l0 == r0,
+            (Self::Number(l0), Self::Number(r0)) => l0 == r0,
+            (Self::Object(l0), Self::Object(r0)) => l0 == r0,
+            (Self::Null, Self::Null) => true,
+            (Self::Invalid, Self::Invalid) => true,
+            (Self::BigInt(l0), Self::Number(r0)) => (*l0 as f64) == *r0,
+            (Self::Number(l0), Self::BigInt(r0)) => *l0 == (*r0 as f64),
+            (Self::Null, Self::Invalid) => true,
+            (Self::Invalid, Self::Null) => true,
+            _ => false,
         }
-    };
+    }
 }
 
-typed_value_compare!(PartialEq, eq, bool, false);
+impl PartialOrd for TypedValue {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (Self::String(l0), Self::String(r0)) => l0.partial_cmp(r0),
+            (Self::BigInt(l0), Self::BigInt(r0)) => l0.partial_cmp(r0),
+            (Self::Boolean(l0), Self::Boolean(r0)) => l0.partial_cmp(r0),
+            (Self::Number(l0), Self::Number(r0)) => l0.partial_cmp(r0),
+            (Self::Object(l0), Self::Object(r0)) => l0.partial_cmp(r0),
+            (Self::Null, Self::Null) => Some(Ordering::Equal),
+            (Self::Invalid, Self::Invalid) => Some(Ordering::Equal),
+            (Self::BigInt(l0), Self::Number(r0)) => (*l0 as f64).partial_cmp(r0),
+            (Self::Number(l0), Self::BigInt(r0)) => l0.partial_cmp(&(*r0 as f64)),
+            (Self::Null, Self::Invalid) => Some(Ordering::Equal),
+            (Self::Invalid, Self::Null) => Some(Ordering::Equal),
+            _ => None,
+        }
+    }
+}
 
 // TODO fix float calculated with double precision loss problem
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
@@ -71,194 +67,72 @@ pub enum TypedValue {
 
 impl Eq for TypedValue {}
 
-// TODO refactor by macro in future
-impl PartialOrd for TypedValue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        match self {
-            TypedValue::String(value) => match other {
-                TypedValue::String(other) => value.partial_cmp(other),
-                _ => None,
-            },
-            TypedValue::Number(value) => match other {
-                TypedValue::Number(other) => value.partial_cmp(other),
-                TypedValue::BigInt(other) => value.partial_cmp(&(*other as f64)),
-                _ => None,
-            },
-            TypedValue::Object(value) => match other {
-                TypedValue::Object(other) => value.partial_cmp(other),
-                _ => None,
-            },
-            TypedValue::Null => match other {
-                TypedValue::Null => Some(Ordering::Equal),
-                _ => None,
-            },
-            TypedValue::BigInt(value) => match other {
-                TypedValue::Number(other) => (*value as f64).partial_cmp(other),
-                TypedValue::BigInt(other) => value.partial_cmp(other),
-                _ => None,
-            },
-            _ => None,
+macro_rules! ops_helper {
+    ($ops:ident, $func_name:ident) => {
+        impl ops::$ops for TypedValue {
+            type Output = TypedValue;
+
+            fn $func_name(self, rhs: Self) -> Self::Output {
+                match self {
+                    TypedValue::Number(value) => match rhs {
+                        TypedValue::Number(other) => TypedValue::Number(value.$func_name(other)),
+                        TypedValue::BigInt(other) => {
+                            TypedValue::Number(value.$func_name((other as f64)))
+                        }
+                        _ => TypedValue::Invalid,
+                    },
+                    TypedValue::Null => TypedValue::Null,
+                    TypedValue::BigInt(value) => match rhs {
+                        TypedValue::Number(other) => {
+                            TypedValue::Number((value as f64).$func_name(other))
+                        }
+                        TypedValue::BigInt(other) => TypedValue::BigInt(value.$func_name(other)),
+                        _ => TypedValue::Invalid,
+                    },
+                    _ => TypedValue::Invalid,
+                }
+            }
         }
-    }
+    };
 }
 
-// TODO refactor by macro in future
-impl ops::BitOr for TypedValue {
-    type Output = TypedValue;
+ops_helper!(Sub, sub);
+ops_helper!(Div, div);
+ops_helper!(Mul, mul);
+ops_helper!(Add, add);
 
-    fn bitor(self, rhs: Self) -> Self::Output {
-        todo!()
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::BitAnd for TypedValue {
-    type Output = TypedValue;
-
-    fn bitand(self, rhs: Self) -> Self::Output {
-        todo!()
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::Sub for TypedValue {
-    type Output = TypedValue;
-
-    fn sub(self, rhs: Self) -> Self::Output {
-        match self {
-            TypedValue::Number(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number(value - other),
-                TypedValue::BigInt(other) => TypedValue::Number(value - (other as f64)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Null => TypedValue::Null,
-            TypedValue::BigInt(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number((value as f64) - other),
-                TypedValue::BigInt(other) => TypedValue::BigInt(value - other),
-                _ => TypedValue::Invalid,
-            },
-            _ => TypedValue::Invalid,
+macro_rules! ops_assign_helper {
+    ($ops_assign:ident, $func_name:ident) => {
+        impl ops::$ops_assign for TypedValue {
+            fn $func_name(&mut self, rhs: Self) {
+                match self {
+                    TypedValue::Number(value) => match rhs {
+                        TypedValue::Number(other) => value.$func_name(other),
+                        TypedValue::BigInt(other) => value.$func_name(other as f64),
+                        _ => {}
+                    },
+                    TypedValue::BigInt(value) => match rhs {
+                        TypedValue::BigInt(other) => value.$func_name(other),
+                        TypedValue::Number(other) => (*value as f64).$func_name(other),
+                        _ => {}
+                    },
+                    _ => {}
+                }
+            }
         }
-    }
+    };
 }
 
-// TODO refactor by macro in future
-impl ops::Div for TypedValue {
-    type Output = TypedValue;
-
-    fn div(self, rhs: Self) -> Self::Output {
-        match self {
-            TypedValue::Number(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number(value / other),
-                TypedValue::BigInt(other) => TypedValue::Number(value / (other as f64)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Null => TypedValue::Null,
-            TypedValue::BigInt(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number((value as f64) / other),
-                TypedValue::BigInt(other) => TypedValue::Number((value as f64) / (other as f64)),
-                _ => TypedValue::Invalid,
-            },
-            _ => TypedValue::Invalid,
-        }
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::MulAssign for TypedValue {
-    fn mul_assign(&mut self, rhs: Self) {
-        todo!()
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::SubAssign for TypedValue {
-    fn sub_assign(&mut self, rhs: Self) {
-        todo!()
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::DivAssign for TypedValue {
-    fn div_assign(&mut self, rhs: Self) {
-        todo!()
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::Mul for TypedValue {
-    type Output = TypedValue;
-
-    fn mul(self, rhs: Self) -> Self::Output {
-        match self {
-            TypedValue::Number(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number(other * value),
-                TypedValue::BigInt(other) => TypedValue::Number(other as f64 * value),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Null => TypedValue::Null,
-            TypedValue::BigInt(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number(other * value as f64),
-                TypedValue::BigInt(other) => TypedValue::BigInt(other * value),
-                _ => TypedValue::Invalid,
-            },
-            _ => TypedValue::Invalid,
-        }
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::Add for TypedValue {
-    type Output = TypedValue;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        match self {
-            TypedValue::String(value) => match rhs {
-                TypedValue::String(other) => TypedValue::String(value.add(other.as_str())),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Number(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number(value.add(other)),
-                TypedValue::BigInt(other) => TypedValue::Number(value.add(other as f64)),
-                _ => TypedValue::Invalid,
-            },
-            TypedValue::Null => self,
-            TypedValue::BigInt(value) => match rhs {
-                TypedValue::Number(other) => TypedValue::Number((value as f64) + other),
-                TypedValue::BigInt(other) => TypedValue::BigInt(value + other),
-                _ => TypedValue::Invalid,
-            },
-            _ => TypedValue::Invalid,
-        }
-    }
-}
-
-// TODO refactor by macro in future
-impl ops::AddAssign for TypedValue {
-    fn add_assign(&mut self, rhs: Self) {
-        match self {
-            TypedValue::String(value) => match rhs {
-                TypedValue::String(other) => value.push_str(other.as_str()),
-                TypedValue::Number(other) => value.push_str(other.to_string().as_str()),
-                TypedValue::BigInt(other) => value.push_str(other.to_string().as_str()),
-                _ => {}
-            },
-            TypedValue::Number(value) => match rhs {
-                TypedValue::Number(other) => value.add_assign(other),
-                _ => {}
-            },
-            TypedValue::BigInt(value) => match rhs {
-                TypedValue::BigInt(other) => value.add_assign(other),
-                _ => {}
-            },
-            _ => {}
-        }
-    }
-}
+ops_assign_helper!(MulAssign, mul_assign);
+ops_assign_helper!(SubAssign, sub_assign);
+ops_assign_helper!(DivAssign, div_assign);
+ops_assign_helper!(AddAssign, add_assign);
 
 impl TypedValue {
     pub fn get_data(&self) -> Vec<u8> {
-        match self {
+        let data_type = self.get_type();
+        let mut result = vec![data_type as u8];
+        let ref mut raw_data = match self {
             TypedValue::String(value) => value.as_bytes().to_vec(),
             TypedValue::Number(value) => value.to_be_bytes().to_vec(),
             TypedValue::BigInt(value) => value.to_be_bytes().to_vec(),
@@ -267,7 +141,10 @@ impl TypedValue {
                 vec![data]
             }
             _ => vec![],
-        }
+        };
+        result.append(raw_data);
+
+        result
     }
 
     pub fn from_vec(data: &Vec<u8>) -> Self {

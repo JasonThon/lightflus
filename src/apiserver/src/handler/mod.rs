@@ -1,3 +1,3 @@
 pub mod resources;
 
-pub const resources_handler_root: &str = "/resources";
+pub const RESOURCES_HANDLER_ROOT: &str = "/resources";

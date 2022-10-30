@@ -15,6 +15,48 @@ pub(crate) const BOOLEAN_SYMBOL: &str = "boolean";
 pub(crate) const OBJECT_SYMBOL: &str = "object";
 pub(crate) const BIGINT_SYMBOL: &str = "bigint";
 
+macro_rules! typed_value_compare {
+    ($name:ident, $func:ident, $return_value:ident, $default:expr) => {
+        impl $name for TypedValue {
+            fn $func(&self, other: &Self) -> $return_value {
+                match self {
+                    TypedValue::String(value) => match other {
+                        TypedValue::String(other) => value.$func(other),
+                        _ => $default,
+                    },
+                    TypedValue::Number(value) => match other {
+                        TypedValue::Number(other) => value.$func(other),
+                        _ => $default,
+                    },
+                    TypedValue::Null => match other {
+                        TypedValue::Null => true,
+                        _ => $default,
+                    },
+                    TypedValue::Object(value) => match other {
+                        TypedValue::Object(other) => value.$func(other),
+                        _ => $default,
+                    },
+                    TypedValue::BigInt(value) => match other {
+                        TypedValue::Number(other) => (*value as f64).$func(other),
+                        TypedValue::BigInt(other) => value.$func(other),
+                        _ => $default,
+                    },
+                    TypedValue::Boolean(value) => match other {
+                        TypedValue::Boolean(other) => value.$func(other),
+                        _ => $default,
+                    },
+                    TypedValue::Invalid => match other {
+                        TypedValue::Invalid => true,
+                        _ => $default,
+                    },
+                }
+            }
+        }
+    };
+}
+
+typed_value_compare!(PartialEq, eq, bool, false);
+
 // TODO fix float calculated with double precision loss problem
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum TypedValue {
@@ -28,43 +70,6 @@ pub enum TypedValue {
 }
 
 impl Eq for TypedValue {}
-
-// TODO refactor by macro in future
-impl PartialEq for TypedValue {
-    fn eq(&self, other: &Self) -> bool {
-        match self {
-            TypedValue::String(value) => match other {
-                TypedValue::String(other) => value == other,
-                _ => false,
-            },
-            TypedValue::Number(value) => match other {
-                TypedValue::Number(other) => value.eq(other),
-                _ => false,
-            },
-            TypedValue::Null => match other {
-                TypedValue::Null => true,
-                _ => false,
-            },
-            TypedValue::Object(value) => match other {
-                TypedValue::Object(other) => value.eq(other),
-                _ => false,
-            },
-            TypedValue::BigInt(value) => match other {
-                TypedValue::Number(other) => (*value as f64).eq(other),
-                TypedValue::BigInt(other) => value == other,
-                _ => false,
-            },
-            TypedValue::Boolean(value) => match other {
-                TypedValue::Boolean(other) => value == other,
-                _ => false,
-            },
-            TypedValue::Invalid => match other {
-                TypedValue::Invalid => true,
-                _ => false,
-            },
-        }
-    }
-}
 
 // TODO refactor by macro in future
 impl PartialOrd for TypedValue {

@@ -2,16 +2,14 @@ name: lightflus-runtime cicd
 
 on:
   push:
-    branches: [ master ]
+    branches: [master]
   pull_request:
-    branches: [ master, release ]
+    branches: [master, release]
   release:
-    types: [ published ]
+    types: [published]
 
 jobs:
-
   test_and_build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -26,12 +24,13 @@ jobs:
         run: cargo check --manifest-path src/coordinator/Cargo.toml
       - name: Check Worker
         run: cargo check --manifest-path src/worker/Cargo.toml
+      - name: Check ApiService
+        run: cargo check --manifest-path src/apiserver/Cargo.toml
 
   build_docker_image:
-
     if: ${{ github.event_name == 'release' }}
 
-    needs: [ test_and_build ]
+    needs: [test_and_build]
 
     runs-on: ubuntu-latest
 
@@ -49,3 +48,5 @@ jobs:
         run: docker push lightflus/runtime/worker:${{ github.event.release.tag_name }}
       - name: Publish coordinator docker image
         run: docker push lightflus/runtime/coordinator:${{ github.event.release.tag_name }}
+      - name: Publish apiserver docker image
+        run: docker push lightflus/runtime/apiserver:${{ github.event.release.tag_name }}

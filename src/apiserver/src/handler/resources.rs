@@ -1,10 +1,6 @@
-use std::vec;
-
 use actix_web::{
     error::{ErrorBadRequest, ErrorInternalServerError},
-    get, post,
-    web::{self, BytesMut},
-    HttpResponse,
+    get, post, web, HttpResponse,
 };
 use futures::StreamExt;
 use proto::{
@@ -13,14 +9,13 @@ use proto::{
         ResourceStatusEnum,
         ResourceTypeEnum::{self, RESOURCE_TYPE_ENUM_DATAFLOW},
     },
-    common::common::ResourceId,
     coordinator::{cli::new_coordinator_client, coordinator::GetDataflowRequest},
 };
 use protobuf::{CodedInputStream, Message, ProtobufEnum, ProtobufError};
 
 use crate::{
     types::{GetResourceArgs, ListResourcesArgs},
-    utils::{self, grpc_err_to_actix_err, pb_to_bytes_mut},
+    utils::{grpc_err_to_actix_err, pb_to_bytes_mut},
 };
 
 const COORDINATOR_URI_ENV: &str = "LIGHTFLUS_COORDINATOR_URI";
@@ -70,12 +65,13 @@ async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<Htt
             RESOURCE_TYPE_ENUM_DATAFLOW => {
                 let uri = common::utils::get_env(COORDINATOR_URI_ENV).unwrap();
                 let cli = new_coordinator_client(uri);
-                let mut req = GetDataflowRequest::default();
+                let ref mut req = GetDataflowRequest::default();
+                req.set_job_id(args.to_resource_id());
                 cli.get_dataflow(req)
                     .map_err(|err| grpc_err_to_actix_err(err))
                     .and_then(|resp| {
                         let mut response = GetResourceResponse::default();
-                        let resource = Resource::default();
+                        let mut resource = Resource::default();
                         resource.set_resource_id(resp.get_graph().get_job_id().clone());
                         resource.set_resource_type(*resource_type);
                         response.set_resource(resource);
@@ -83,14 +79,14 @@ async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<Htt
                     })
                     .map(|response| resp.body(pb_to_bytes_mut(response)))
             }
-            _ => Ok(resp),
+            _ => Ok(resp.finish()),
         }
     } else {
-        Ok(resp)
+        Ok(resp.finish())
     }
 }
 
 #[get("/list/{namespace}/{resource_type}")]
 async fn list_resources(args: web::Path<ListResourcesArgs>) -> actix_web::Result<HttpResponse> {
-    Ok(HttpResponse::Ok())
+    Ok(HttpResponse::Ok().finish())
 }

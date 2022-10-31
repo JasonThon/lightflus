@@ -3,13 +3,13 @@ use std::thread::JoinHandle;
 use common::err::ExecutionException;
 use common::event::LocalEvent;
 use common::types::SinkId;
-use proto::common::common::JobId;
+use proto::common::common::{JobId, ResourceId};
 use proto::common::event::{DataEvent, DataEventTypeEnum, KeyedDataEvent};
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use stream::actor::{DataflowContext, Sink, SinkImpl, SinkableMessageImpl};
 
 pub struct LocalExecutorManager {
-    pub job_id: JobId,
+    pub job_id: ResourceId,
     handlers: Vec<JoinHandle<()>>,
     inner_sinks: Vec<SinkImpl>,
 }

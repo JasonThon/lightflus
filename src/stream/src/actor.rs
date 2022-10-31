@@ -1,11 +1,11 @@
-use crate::dataflow::TaskContext;
+use crate::dataflow::TaskContainer;
 use crate::err::SinkException;
 use crate::state::new_state_mgt;
 use common::collections::lang;
 use common::event::LocalEvent;
 use common::types::{ExecutorId, SinkId, SourceId};
 use common::{err, utils};
-use proto::common::common::{HostAddr, JobId};
+use proto::common::common::{HostAddr, ResourceId};
 use proto::common::stream::{
     DataflowMeta, KafkaDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
 };
@@ -19,7 +19,7 @@ pub type EventSender<Input> = crossbeam_channel::Sender<Input>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DataflowContext {
-    pub job_id: JobId,
+    pub job_id: ResourceId,
     pub meta: Vec<DataflowMeta>,
     pub nodes: BTreeMap<ExecutorId, OperatorInfo>,
 }
@@ -30,7 +30,7 @@ impl DataflowContext {
     }
 
     pub fn new(
-        job_id: JobId,
+        job_id: ResourceId,
         meta: Vec<DataflowMeta>,
         nodes: BTreeMap<ExecutorId, OperatorInfo>,
     ) -> DataflowContext {
@@ -139,9 +139,8 @@ impl LocalExecutor {
 
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
-        let task = TaskContext::new(self.operator.clone(), new_state_mgt());
-
         spawn(move || 'outloop: loop {
+            let task = TaskContainer::new(self.operator.clone(), new_state_mgt());
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     SinkableMessageImpl::LocalMessage(message) => match message {

@@ -9,35 +9,35 @@ use proto::common::{
 };
 use protobuf::RepeatedField;
 
-use crate::{state, v8_runtime::V8RuntimeContext};
+use crate::{state, v8_runtime::RuntimeEngine};
+
+const MAP_FUNC_NAME: &str = "_operator_map_process";
 
 pub enum Window {
     Sliding { size: i32, period: i32 },
 }
 
-pub struct TaskContext<'s, S: state::StateManager> {
+pub struct TaskContainer<'s, S: state::StateManager> {
     state_manager: S,
     op_info: OperatorInfo,
-    runtime_ctx: Option<V8RuntimeContext<'s>>,
+    runtime_ctx: Option<RuntimeEngine<'s>>,
 }
 
-impl<'s, S: state::StateManager> TaskContext<'s, S> {
+impl<'s, S: state::StateManager> TaskContainer<'s, S> {
     pub fn new(op_info: OperatorInfo, state_manager: S) -> Self {
-        let Some(detail) = op_info.details;
-        let runtime_ctx = match detail {
-            mapper(map_func) => Some(V8RuntimeContext::new(map_func.get_func().get_function())),
-            filter(filter_fn) => Some(V8RuntimeContext::new(filter_fn.get_func().get_function())),
-            key_by(key_by_fn) => Some(V8RuntimeContext::new(key_by_fn.get_func().get_function())),
-            reducer(reduce_fn) => Some(V8RuntimeContext::new(reduce_fn.get_func().get_function())),
-            flat_map(flat_map_fn) => {
-                Some(V8RuntimeContext::new(flat_map_fn.get_func().get_function()))
-            }
-            _ => None,
-        };
         Self {
             state_manager,
-            op_info,
-            runtime_ctx,
+            op_info: op_info.clone(),
+            runtime_ctx: op_info.details.and_then(|detail| match detail {
+                mapper(map_func) => Some(RuntimeEngine::new(map_func.get_func().get_function())),
+                filter(filter_fn) => Some(RuntimeEngine::new(filter_fn.get_func().get_function())),
+                key_by(key_by_fn) => Some(RuntimeEngine::new(key_by_fn.get_func().get_function())),
+                reducer(reduce_fn) => Some(RuntimeEngine::new(reduce_fn.get_func().get_function())),
+                flat_map(flat_map_fn) => {
+                    Some(RuntimeEngine::new(flat_map_fn.get_func().get_function()))
+                }
+                _ => None,
+            }),
         }
     }
 
@@ -45,7 +45,7 @@ impl<'s, S: state::StateManager> TaskContext<'s, S> {
         &self,
         event: &KeyedDataEvent,
     ) -> Result<KeyedDataEvent, RunnableTaskError> {
-        self.op_info
+        self.op_info.clone()
             .details
             .map(|detail| match detail {
                 mapper(mapfn) => self.map_fn(event, mapfn),
@@ -55,7 +55,7 @@ impl<'s, S: state::StateManager> TaskContext<'s, S> {
                     },
                     None => Ok(KeyedDataEvent::default()),
                 },
-                key_by(_) => todo!(),
+                key_by(keybyfn) => todo!(),
                 reducer(_) => todo!(),
                 _ => Ok(KeyedDataEvent::default()),
             })
@@ -65,19 +65,19 @@ impl<'s, S: state::StateManager> TaskContext<'s, S> {
     fn map_fn(
         &self,
         event: &KeyedDataEvent,
-        mapper: Mapper,
+        mapfn: Mapper,
     ) -> Result<KeyedDataEvent, RunnableTaskError> {
-        match mapper.value {
+        match mapfn.value {
             Some(value) => match value {
                 Mapper_oneof_value::func(function) => {
-                    let ref mut runtime_ctx = V8RuntimeContext::new(function.get_function());
                     let results = event
                         .get_data()
                         .iter()
                         .map(|entry| TypedValue::from(entry))
                         .map(|typed_val| {
                             self.runtime_ctx
-                                .call_fn(self.get_map_fn_name(), typed_val)
+                                .unwrap()
+                                .call_fn(MAP_FUNC_NAME, typed_val)
                                 .unwrap_or(TypedValue::Invalid)
                         })
                         .map(|val| {
@@ -94,10 +94,6 @@ impl<'s, S: state::StateManager> TaskContext<'s, S> {
             },
             None => Ok(KeyedDataEvent::default()),
         }
-    }
-
-    fn get_map_fn_name(&self) -> &str {
-        format!("_Map_Fn_{}", self.op_info.get_operator_id()).as_str()
     }
 }
 

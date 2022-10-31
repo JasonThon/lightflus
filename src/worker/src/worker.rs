@@ -3,8 +3,8 @@ use std::sync;
 
 use common::collections::lang;
 use common::err::TaskWorkerError;
-use common::types::{ExecutorId, HashedJobId};
-use proto::common::common::JobId;
+use common::types::{ExecutorId, HashedResourceId};
+use proto::common::common::{JobId, ResourceId};
 use proto::common::event::KeyedDataEvent;
 use proto::common::stream::Dataflow;
 use proto::worker::worker;
@@ -12,7 +12,7 @@ use stream::actor::DataflowContext;
 
 use crate::manager::LocalExecutorManager;
 
-type DataflowCacheRef = sync::RwLock<BTreeMap<HashedJobId, LocalExecutorManager>>;
+type DataflowCacheRef = sync::RwLock<BTreeMap<HashedResourceId, LocalExecutorManager>>;
 
 pub struct TaskWorker {
     cache: DataflowCacheRef,
@@ -27,7 +27,7 @@ impl TaskWorker {
         }
     }
 
-    pub fn stop_dataflow(&self, job_id: JobId) -> Result<(), TaskWorkerError> {
+    pub fn stop_dataflow(&self, job_id: ResourceId) -> Result<(), TaskWorkerError> {
         let ref hashable_job_id = job_id.into();
         self.cache
             .try_write()
@@ -39,7 +39,7 @@ impl TaskWorker {
 
     pub fn create_dataflow(
         &self,
-        job_id: JobId,
+        job_id: ResourceId,
         dataflow: Dataflow,
     ) -> Result<(), TaskWorkerError> {
         let ctx = DataflowContext::new(

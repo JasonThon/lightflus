@@ -2,13 +2,13 @@ use common::types::TypedValue;
 use std::collections::BTreeMap;
 use v8::Local;
 
-pub struct V8RuntimeContext<'s> {
+pub struct RuntimeEngine<'s> {
     scope: &'s mut v8::ContextScope<'s, v8::HandleScope<'s>>,
     ctx: Local<'s, v8::Context>,
     script: v8::Local<'s, v8::Script>,
 }
 
-impl<'s> V8RuntimeContext<'s> {
+impl<'s> RuntimeEngine<'s> {
     pub fn new(source_code: &str) -> Self {
         let ref mut isolate = v8::Isolate::new(Default::default());
         let handle_scope = &mut v8::HandleScope::new(isolate);

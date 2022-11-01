@@ -7,7 +7,7 @@ use common::types::{ExecutorId, SinkId, SourceId};
 use common::{err, utils};
 use proto::common::common::{HostAddr, ResourceId};
 use proto::common::stream::{
-    DataflowMeta, KafkaDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
+    DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
 };
 use proto::worker::worker::DispatchDataEventStatusEnum;
 use std::collections::BTreeMap;
@@ -140,7 +140,9 @@ impl LocalExecutor {
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
         spawn(move || 'outloop: loop {
-            let task = TaskContainer::new(self.operator.clone(), new_state_mgt());
+            let ref mut isolate = v8::Isolate::new(Default::default());
+            let mut scope = v8::HandleScope::new(isolate);
+            let task = TaskContainer::new(self.operator.clone(), new_state_mgt(), &mut scope);
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     SinkableMessageImpl::LocalMessage(message) => match message {
@@ -149,8 +151,9 @@ impl Executor for LocalExecutor {
                                 Ok(result) => {
                                     let after_process = LocalEvent::KeyedDataStreamEvent(result);
                                     self.sinks.iter().for_each(|sink| {
-                                        let _ = sink
-                                            .sink(SinkableMessageImpl::LocalMessage(after_process));
+                                        let _ = sink.sink(SinkableMessageImpl::LocalMessage(
+                                            after_process.clone(),
+                                        ));
                                     });
                                 }
                                 Err(_) => {
@@ -289,7 +292,7 @@ impl SourceSinkManger {
             })
     }
 
-    fn create_external_sink(&self, executor_id: &ExecutorId, operator: &OperatorInfo) {
+    fn create_external_sink(&mut self, executor_id: &ExecutorId, operator: &OperatorInfo) {
         if self.sinks.contains_key(executor_id) {
             return;
         }
@@ -300,6 +303,13 @@ impl SourceSinkManger {
                     SinkImpl::Kafka(Kafka::with_config(*executor_id, kafka)),
                 );
             }
+            Sink_oneof_desc::mysql(mysql) => {
+                self.sinks.insert(
+                    *executor_id,
+                    SinkImpl::Mysql(Mysql::with_config(*executor_id, mysql)),
+                );
+            }
+            Sink_oneof_desc::redis(_) => todo!(),
         });
     }
 }
@@ -434,6 +444,7 @@ pub enum SinkImpl {
     Local(LocalSink),
     Remote(RemoteSink),
     Kafka(Kafka),
+    Mysql(Mysql),
 }
 
 impl Sink for SinkImpl {
@@ -442,6 +453,7 @@ impl Sink for SinkImpl {
             SinkImpl::Local(sink) => sink.sink_id(),
             SinkImpl::Remote(sink) => sink.sink_id(),
             SinkImpl::Kafka(kafka) => kafka.sink_id(),
+            SinkImpl::Mysql(mysql) => mysql.sink_id(),
         }
     }
 
@@ -450,6 +462,7 @@ impl Sink for SinkImpl {
             SinkImpl::Local(sink) => sink.sink(msg),
             SinkImpl::Remote(sink) => sink.sink(msg),
             SinkImpl::Kafka(sink) => sink.sink(msg),
+            SinkImpl::Mysql(sink) => sink.sink(msg),
         }
     }
 }
@@ -480,6 +493,30 @@ impl Source for Kafka {
 }
 
 impl Sink for Kafka {
+    fn sink_id(&self) -> SinkId {
+        self.connector_id
+    }
+
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+        todo!()
+    }
+}
+
+#[derive(Clone)]
+pub struct Mysql {
+    connector_id: SinkId,
+    conf: MysqlDesc,
+}
+impl Mysql {
+    fn with_config(connector_id: u32, conf: &MysqlDesc) -> Mysql {
+        Mysql {
+            connector_id,
+            conf: conf.clone(),
+        }
+    }
+}
+
+impl Sink for Mysql {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }

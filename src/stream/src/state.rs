@@ -33,7 +33,7 @@ impl RocksStateManager {
 
 impl StateManager for RocksStateManager {}
 
-enum StateMangerType {
+pub enum StateMangerType {
     RocksDB,
 }
 

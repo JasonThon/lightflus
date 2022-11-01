@@ -4,7 +4,7 @@ use std::sync;
 use common::collections::lang;
 use common::err::TaskWorkerError;
 use common::types::{ExecutorId, HashedResourceId};
-use proto::common::common::{JobId, ResourceId};
+use proto::common::common::ResourceId;
 use proto::common::event::KeyedDataEvent;
 use proto::common::stream::Dataflow;
 use proto::worker::worker;
@@ -71,7 +71,9 @@ impl TaskWorker {
         &self,
         events: Vec<KeyedDataEvent>,
     ) -> Result<HashMap<String, worker::DispatchDataEventStatusEnum>, TaskWorkerError> {
-        let group = lang::group(&events, |e| HashedJobId::from(e.job_id.clone().unwrap()));
+        let group = lang::group(&events, |e| {
+            HashedResourceId::from(e.job_id.clone().unwrap())
+        });
 
         group
             .iter()

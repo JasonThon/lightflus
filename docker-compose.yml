@@ -19,7 +19,7 @@ services:
     depends_on:
       - zookeeper
   coordinator:
-    image: tableflow/runtime/coordinator:latest
+    image: lightflus/runtime/coordinator:latest
     build:
       context: .
       dockerfile: docker/coordinator/Dockerfile
@@ -31,13 +31,20 @@ services:
     depends_on:
       - worker
     healthcheck:
-      test: [ "/tableflow/runtime/tools/healthcheck", "-TARGET localhost:8791", "-METHOD /proto.CoordinatorApi/Probe", "-SERVICE 0", "-PROBE 1" ]
-      interval: 3s  
+      test:
+        [
+          "/lightflus/runtime/tools/healthcheck",
+          "-TARGET localhost:8791",
+          "-METHOD /proto.CoordinatorApi/Probe",
+          "-SERVICE 0",
+          "-PROBE 1"
+        ]
+      interval: 3s
       timeout: 5s
       retries: 3
       start_period: 10s
   worker:
-    image: tableflow/runtime/worker:latest
+    image: lightflus/runtime/worker:latest
     hostname: worker-1
     build:
       context: .
@@ -48,8 +55,28 @@ services:
     ports:
       - "18090:18090"
     healthcheck:
-      test: [ "/tableflow/runtime/tools/healthcheck", "-TARGET localhost:18090", "-METHOD /proto.TaskWorkerApi/Probe", "-SERVICE 1", "-PROBE 0" ]
+      test:
+        [
+          "/lightflus/runtime/tools/healthcheck",
+          "-TARGET localhost:18090",
+          "-METHOD /proto.TaskWorkerApi/Probe",
+          "-SERVICE 1",
+          "-PROBE 0"
+        ]
       interval: 2s
       timeout: 1s
       retries: 3
       start_period: 5s
+  apiserver:
+    image: lightflus/runtime/apiserver:latest
+    hostname: apiserver-1
+    build:
+      context: .
+      dockerfile: docker/apiserver/Dockerfile
+    environment:
+      RUST_LOG: INFO
+      KAFKA_BROKERS: kafka:9002
+    ports:
+      - "18090:18090"
+    depends_on:
+      - coordinator

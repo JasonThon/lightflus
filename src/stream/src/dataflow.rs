@@ -12,8 +12,6 @@ use protobuf::RepeatedField;
 
 use crate::{state, v8_runtime::RuntimeEngine};
 
-const MAP_FUNC_NAME: &str = "_operator_{}_process";
-
 pub enum Window {
     Sliding { size: i32, period: i32 },
 }

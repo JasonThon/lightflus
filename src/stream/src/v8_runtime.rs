@@ -56,7 +56,10 @@ where
 
         match process_fn.call(try_catch, global, &[wrap_value(typed_val)]) {
             Some(v) => to_typed_value(v),
-            None => None,
+            None => {
+                try_catch_log(try_catch);
+                None
+            }
         }
     }
 
@@ -65,13 +68,7 @@ where
         let try_catch = &mut v8::TryCatch::new(handle_scope);
 
         if script.run(try_catch).is_none() {
-            let exception = try_catch.exception().unwrap();
-            let exception_string = exception
-                .to_string(try_catch)
-                .unwrap()
-                .to_rust_string_lossy(try_catch);
-
-            panic!("{}", exception_string);
+            try_catch_log(try_catch);
         }
     }
 }
@@ -86,6 +83,7 @@ fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
     let ctx = v8::Context::new(scope);
     let context_scope = &mut v8::ContextScope::new(scope, ctx);
     let handle_scope = &mut v8::HandleScope::new(context_scope);
+
     if local.is_big_int() {
         return local
             .to_big_int(handle_scope)
@@ -135,4 +133,13 @@ fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
         });
     }
     Some(TypedValue::Invalid)
+}
+
+fn try_catch_log(try_catch: &mut v8::TryCatch<v8::HandleScope>) {
+    let exception = try_catch.exception().unwrap();
+    let exception_string = exception
+        .to_string(try_catch)
+        .unwrap()
+        .to_rust_string_lossy(try_catch);
+    log::error!("{}", exception_string);
 }

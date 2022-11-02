@@ -368,5 +368,6 @@ mod tests {
             "process",
             isolated_scope,
         );
+        assert!(_rt_engine.process_fn.is_some())
     }
 }

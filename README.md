@@ -1,10 +1,18 @@
-# Lightflus-Runtime
-Lightflus is a stateful dataflow framework for common-purpose. This repository is its runtime engine.
+<div align="center">
+  <h1>Lightflus</h1>
+  <p>
+    <strong>Lightflus is a stateful dataflow framework for common-purpose. </strong>
+  </p>
+  <p>
 
-Lightflus is designed for most developer teams even no one is familiar with streaming computation. Any of your team member can write a dataflow task and deploy it on production. Lightflus can connect with any event source (Kafka, MQTT, etc) in your cloud infra and emit the output result into the storage sink (mysql, redis, etc) which is processed by user-defined Dataflow. 
+[![CI](https://github.com/Lady-Summer/lightflus-runtime/actions/workflows/workflow.yml/badge.svg)](https://github.com/Lady-Summer/lightflus-runtime/actions/workflows/workflow.yml)
+</p>
+</div>
 
 ## Design Philosophy
 **Typescript API + Rust Runtime**
+
+Lightflus is designed for most developer teams even no one is familiar with streaming computation. Any of your team member can write a dataflow task and deploy it on production. Lightflus can connect with any event source (Kafka, MQTT, etc) in your cloud infra and emit the output result into the storage sink (mysql, redis, etc) which is processed by user-defined Dataflow. 
 
 Lightflus is powered by [Deno](https://github.com/denoland/deno) and implemented in Rust which can ensure memory safe and real-time performance. We embed `v8` engine into Lightflus engine with minimum dependencies makes it light and fast; With the help of `Deno`, you can run `Typescript` user-defined functions or `WebAssembly` encoded bytes code (for better performance) in Lightflus with stream-like API; 
 

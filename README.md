@@ -1,4 +1,12 @@
-# Tableflow-Runtime
+# Lightflus-Runtime
+Lightflus is a stateful dataflow framework for common-purpose. This repository is its runtime engine.
+
+Lightflus is designed for most developer teams even no one is familiar with streaming computation. Any of your team member can write a dataflow task and deploy it on production. Lightflus can connect with any event source (Kafka, MQTT, etc) in your cloud infra and emit the output result into the storage sink (mysql, redis, etc) which is processed by user-defined Dataflow. 
+
+## Design Philosophy
+**Typescript API + Rust Runtime**
+
+Lightflus is powered by [Deno](https://github.com/denoland/deno) and implemented in Rust which can ensure memory safe and real-time performance. We embed `v8` engine into Lightflus engine with minimum dependencies makes it light and fast; With the help of `Deno`, you can run `Typescript` user-defined functions or `WebAssembly` encoded bytes code (for better performance) in Lightflus with stream-like API; 
 
 ## Preparation
 
@@ -41,9 +49,9 @@ $ docker-compose up
 
 ## For Contributor
 
-Welcome to Tableflow Team. Our mission is to create an advanced, high performance, scalable and stable streaming system which is based on Dataflow Model in the Cloud.
+Welcome to Lightflus Team. Our mission is to create an advanced, high performance, scalable and stable streaming system which is based on Dataflow Model in the Cloud.
 
-You can read following documents to know more about Tableflow. If you have no access, please contact with the admin.
+You can read following documents to know more about Lightflus. If you have no access, please contact with the admin.
 
 1. You can read the [Developer Guide](https://www.notion.so/Developer-Guide-bb6579a980844cff9b2702dd107e4ff3) to get more details for contribution.
 2. [Architecture Overview](https://www.notion.so/Architecture-Overview-be9b006c61884db58e40dbd00e00b77d) will help you to get familiar with Tableflow Architecture Design
@@ -59,4 +67,4 @@ You can read following documents to know more about Tableflow. If you have no ac
 * For production (master branch): ``prod.v{yyyyMMdd}.{version}``
 
 ### CICD pipeline
-After you release a new tag, cicd pipeline will be triggered.
+After you pull request / release a new tag, cicd pipeline will be triggered.

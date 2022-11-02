@@ -118,7 +118,7 @@ fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
             .key_conversion(v8::KeyConversionMode::ConvertToString)
             .build();
         return local.to_object(handle_scope).and_then(|obj| {
-            obj.get_property_names(handle_scope, args).map(|names| {
+            obj.get_own_property_names(handle_scope, args).map(|names| {
                 let mut map = BTreeMap::default();
                 let arr = &*names;
                 for index in 0..arr.length() {
@@ -142,4 +142,150 @@ fn try_catch_log(try_catch: &mut v8::TryCatch<v8::HandleScope>) {
         .unwrap()
         .to_rust_string_lossy(try_catch);
     log::error!("{}", exception_string);
+}
+
+mod tests {
+
+    fn setup() {
+        v8::V8::set_flags_from_string(
+      "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
+    );
+        v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
+        v8::V8::initialize();
+    }
+
+    #[test]
+    fn test_to_typed_value() {
+        use common::types::TypedValue;
+        use proto::common::common::DataTypeEnum;
+        setup();
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let ref mut scope = v8::HandleScope::new(isolate);
+
+        let ctx = v8::Context::new(scope);
+        let context_scope = &mut v8::ContextScope::new(scope, ctx);
+        let ref mut scope1 = v8::HandleScope::new(context_scope);
+        let l1 = v8::BigInt::new_from_i64(scope1, 123);
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let ref mut scope = v8::HandleScope::new(isolate);
+        let scope2 = &mut v8::HandleScope::new(scope);
+        let l2 = v8::Number::new(scope2, 78.9);
+        let l3 = v8::Local::<v8::BigInt>::try_from(l1).unwrap();
+        let l4 = v8::String::new(scope2, "test").unwrap();
+        let l5 = v8::null(scope2);
+        let l6 = v8::undefined(scope2);
+        let l7 = v8::Object::new(scope1);
+        let l8 = v8::Object::new(scope1);
+
+        let key = v8::String::new(scope2, "key").unwrap();
+        let value = v8::String::new(scope2, "value").unwrap();
+        l8.create_data_property(
+            scope1,
+            v8::Local::<v8::Name>::try_from(key).unwrap(),
+            v8::Local::<v8::Value>::try_from(value).unwrap(),
+        );
+
+        let number_l1 = v8::Local::<v8::Value>::try_from(l2).unwrap();
+        let bigint_l1 = v8::Local::<v8::Value>::try_from(l3).unwrap();
+        let string_l1 = v8::Local::<v8::Value>::try_from(l4).unwrap();
+        let null_l1 = v8::Local::<v8::Value>::try_from(l5).unwrap();
+        let undefined_l1 = v8::Local::<v8::Value>::try_from(l6).unwrap();
+        let object_l1 = v8::Local::<v8::Value>::try_from(l7).unwrap();
+        let object_l2 = v8::Local::<v8::Value>::try_from(l8).unwrap();
+
+        {
+            let value = super::to_typed_value(number_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_NUMBER
+            );
+            match unwrapped_val {
+                TypedValue::Number(v) => assert_eq!(v, 78.9),
+                _ => panic!("unexpected type"),
+            };
+        }
+
+        {
+            let value = super::to_typed_value(bigint_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_BIGINT
+            );
+            match unwrapped_val {
+                TypedValue::BigInt(v) => assert_eq!(v, 123),
+                _ => panic!("unexpected type"),
+            };
+        }
+
+        {
+            let value = super::to_typed_value(string_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_STRING
+            );
+            match unwrapped_val {
+                TypedValue::String(v) => assert_eq!(v, "test"),
+                _ => panic!("unexpected type"),
+            };
+        }
+
+        {
+            let value = super::to_typed_value(null_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+        }
+
+        {
+            let value = super::to_typed_value(undefined_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+            );
+        }
+
+        {
+            let value = super::to_typed_value(object_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+            );
+            match unwrapped_val {
+                TypedValue::Object(v) => assert!(v.is_empty()),
+                _ => panic!("unexpected type"),
+            }
+        }
+
+        {
+            let value = super::to_typed_value(object_l2);
+            assert!(value.is_some());
+            // let unwrapped_val = value.unwrap();
+            // assert_eq!(
+            //     unwrapped_val.get_type(),
+            //     DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+            // );
+            // match unwrapped_val {
+            //     TypedValue::Object(v) => {
+            //         assert!(!v.is_empty());
+            //         assert_eq!(
+            //             v.get(&"key".to_string()).map(|data| data.clone()),
+            //             Some(TypedValue::String("value".to_string()).get_data())
+            //         )
+            //     }
+            //     _ => panic!("unexpected type"),
+            // }
+        }
+    }
 }

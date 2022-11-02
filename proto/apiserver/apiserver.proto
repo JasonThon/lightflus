@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package apiserver;
+import "common/stream.proto";
+import "common/common.proto";
+
+option go_package = "lightflus/proto/apiserver";
+
+message CreateResourceRequest {
+  string namespace = 1; // namespace
+  ResourceTypeEnum resource_type = 2; // resource type to create
+  oneof options {
+    CreateDataflowOptions dataflow = 3;
+  }
+}
+
+message CreateResourceResponse {
+  ResourceStatusEnum status = 1;
+  common.ResourceId resource_id = 2;
+  string error_msg = 3;
+}
+
+enum ResourceTypeEnum {
+  RESOURCE_TYPE_ENUM_UNSPECIFIC = 0;
+  RESOURCE_TYPE_ENUM_DATAFLOW = 1;
+}
+
+enum ResourceStatusEnum {
+  RESOURCE_STATUS_ENUM_UNSPECIFIC = 0;
+  RESOURCE_STATUS_ENUM_STARTING = 1;
+  RESOURCE_STATUS_ENUM_RUNNING = 2;
+  RESOURCE_STATUS_ENUM_FAILURE = 3;
+  RESOURCE_STATUS_ENUM_STOPPING = 4;
+  RESOURCE_STATUS_ENUM_DELETED = 5;
+}
+
+message CreateDataflowOptions {
+  common.Dataflow dataflow = 1;
+}
+
+message ListResourcesRequest {
+  string namespace = 1; // namespace
+  ResourceTypeEnum resource_type = 2; // resource type to list
+}
+message ListResourcesResponse {
+  repeated Resource resources = 1;
+}
+
+message Resource {
+  common.ResourceId resource_id = 1;
+  string resource_name = 2;
+  ResourceTypeEnum resource_type = 3; // resource type
+  ResourceStatusEnum status = 4;
+}
+
+message GetResourceRequest {
+  common.ResourceId resource_id = 1;
+}
+
+message GetResourceResponse {
+  Resource resource = 1;
+}
+
+message DeleteResourceRequest{
+  common.ResourceId resource_id = 1;
+}
+
+message DeleteResourceResponse {
+  Resource resource = 1;
+}

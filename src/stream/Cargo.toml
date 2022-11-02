@@ -14,7 +14,7 @@ log = "0.4"
 serde = { version = "1.0", features = ["derive"] }
 crossbeam-channel = "0.5"
 rocksdb = { version = "0.19.0", features=["lz4"] }
-v8="0.51.0"
+v8 = "0.51.0"
 protobuf = "2.27.1"
 
 [dev-dependencies]

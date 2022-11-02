@@ -1,0 +1,41 @@
+syntax = "proto3";
+
+package common;
+option go_package = "lightflus/proto/common";
+option java_package = "lightflus.proto.common.common";
+
+/**
+JobId, represents a stream job.
+ */
+message ResourceId {
+  string resource_id = 1;
+  string namespace_id = 2;
+}
+
+// common Rpc Response
+message Response {
+  string status = 1;
+  string err_msg = 2;
+}
+
+message HostAddr {
+  string host = 1;
+  uint32 port = 2;
+}
+
+enum DataTypeEnum {
+  DATA_TYPE_ENUM_UNSPECIFIED = 0;
+  DATA_TYPE_ENUM_BIGINT = 1;
+  DATA_TYPE_ENUM_NUMBER = 2;
+  DATA_TYPE_ENUM_NULL = 3;
+  DATA_TYPE_ENUM_STRING = 4;
+  DATA_TYPE_ENUM_BOOLEAN = 5;
+  DATA_TYPE_ENUM_OBJECT = 6;
+}
+
+message Time {
+  uint64 millis = 1;
+  uint64 seconds = 2;
+  uint32 minutes = 3;
+  uint32 hours = 4;
+}

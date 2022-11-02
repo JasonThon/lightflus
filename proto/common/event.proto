@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package common;
+import "common/common.proto";
+import "google/protobuf/timestamp.proto";
+option go_package = "lightflus/proto/event";
+option java_package = "lightflus.proto.common.event";
+
+message KeyedDataEvent {
+  common.ResourceId job_id = 1; // source id
+  common.Entry key = 2; // key of data event
+  uint32 to_operator_id = 3; // operator_id this event will be sent
+  repeated common.Entry data = 5; // mandatory
+  google.protobuf.Timestamp event_time = 6;
+  google.protobuf.Timestamp process_time = 7;
+  uint32 from_operator_id = 8; // operator_id this event where be sent
+}
+
+message Entry {
+  DataTypeEnum data_type = 1;
+  bytes value = 2; // entry value
+}

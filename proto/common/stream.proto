@@ -1,0 +1,203 @@
+syntax = "proto3";
+
+package common;
+import "common/common.proto";
+option go_package = "lightflus/proto/stream";
+option java_package = "lightflus.proto.common.stream";
+
+/**
+StreamGraph metadata, it stores the structural information of a stream graph
+ */
+message DataflowMeta {
+  uint32 center = 1; // center node id
+  repeated uint32 neighbors = 2; // center's neighbors
+}
+
+/**
+OperatorInfo, stores detail information of an operator
+ */
+message OperatorInfo {
+  uint32 operator_id = 1;
+  common.HostAddr host_addr = 2; // host addr configs
+  StreamConfig config = 3; // stream config for operator
+  repeated uint32 upstreams = 4; // upstreams operator_id
+
+  // optional for different operator type
+  oneof details {
+    Source source = 5; // for source
+    Sink sink = 6; // for sink
+    Mapper mapper = 7;
+    Filter filter = 8;
+    KeyBy key_by = 9;
+    Reducer reducer = 10;
+    FlatMap flat_map = 11;
+    //    Join join = 11;
+  }
+}
+message Reducer {
+  oneof value {
+    Func func = 1;
+  }
+}
+
+message FlatMap {
+  oneof value {
+    Func func = 1;
+  }
+}
+
+message Join {
+  oneof value {
+    StreamJoin stream_join = 1;
+  }
+
+  message StreamJoin {
+    uint32 operator_id = 1;
+    Func func = 2;
+  }
+}
+
+message Mapper {
+  oneof value {
+    Func func = 1;
+  }
+}
+
+message Func {
+  string function = 1;
+}
+
+message Filter {
+  oneof value {
+    Func func = 1;
+  }
+}
+
+message KeyBy {
+  oneof value {
+    Func func = 1;
+  }
+}
+
+message Sink {
+  oneof desc {
+    KafkaDesc kafka = 1;
+    MysqlDesc mysql = 2;
+    RedisDesc redis = 3;
+  }
+}
+
+/**
+Constant operator
+ */
+message ConstOp {
+  bytes value = 1; // value of constant, format: [<flag byte>, <data bytes>]
+  uint32 operator_id = 2;  // operator id
+}
+
+message Source {
+  oneof desc {
+    KafkaDesc kafka = 3;
+  }
+}
+
+message KafkaDesc {
+  repeated string brokers = 1;
+  string topic = 2;
+  KafkaOptions opts = 3;
+  DataTypeEnum data_type = 4;
+
+  message KafkaOptions {
+    oneof opt {
+      string group = 1;
+      uint32 partition = 2;
+    }
+  }
+}
+
+message MysqlDesc {
+  message ConnectionOpts {
+    string host = 1;
+    string username = 2;
+    string password = 3;
+    string database = 4;
+  }
+
+  message Statement {
+    string statement = 1;
+    repeated Extractor extractors = 2;
+
+    message Extractor {
+      uint32 index = 1;
+      string extractor = 2;
+    }
+  }
+
+  ConnectionOpts connection_opts = 1;
+  Statement statement = 2;
+}
+
+message RedisDesc {
+  message ConnectionOpts {
+    string host = 1;
+    string password = 2;
+    string database = 3;
+    bool tls = 4;
+  }
+
+  ConnectionOpts connection_opts = 1;
+  Func key_extractor = 2;
+  Func value_extractor = 3;
+}
+
+/**
+Stream Graph Status. It shows which status a stream job is now.
+ */
+enum DataflowStatus {
+  INITIALIZED = 0;
+  RUNNING = 1;
+  CLOSING = 2;
+  CLOSED = 3;
+}
+
+message Dataflow {
+  common.ResourceId job_id = 1; // job id, for now it is which table the stream graph output will sink
+  repeated common.DataflowMeta meta = 2; // graph structure
+  map<uint32, common.OperatorInfo> nodes = 3; // details of nodes
+}
+
+message StreamConfig {
+  Window window = 1;
+  Trigger trigger = 2;
+}
+
+message Window {
+  oneof value {
+    FixedWindow fixed = 1;
+    SlidingWindow slide = 2;
+    SessionWindow session = 3;
+  }
+
+  message FixedWindow {
+    common.Time size = 1; // Only for sliding & fixed window
+  }
+
+  message SlidingWindow {
+    common.Time size = 1;
+    common.Time period = 2;
+  }
+
+  message SessionWindow {
+    common.Time timeout = 1; // Only for Session Window
+  }
+}
+
+message Trigger {
+  oneof value {
+    Watermark watermark = 1;
+  }
+
+  message Watermark {
+    common.Time mark_time = 1;
+  }
+}

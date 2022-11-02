@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package proto;
+import "common/probe.proto";
+import "common/stream.proto";
+import "common/common.proto";
+
+option go_package = "lightflus/runtime/proto";
+
+service CoordinatorApi {
+  rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
+  rpc CreateDataflow(common.Dataflow) returns (CreateDataflowResponse) {}
+  rpc TerminateDataflow(TerminateDataflowRequest) returns (TerminateDataflowResponse) {}
+  rpc GetDataflow(GetDataflowRequest) returns (GetDataflowResponse) {}
+}
+
+message CreateDataflowResponse {
+  common.DataflowStatus status = 1;
+}
+
+message TerminateDataflowRequest {
+  common.ResourceId job_id = 1;
+}
+
+message TerminateDataflowResponse {
+  common.DataflowStatus status = 1;
+}
+
+message GetDataflowRequest {
+  common.ResourceId job_id = 1;
+}
+
+message GetDataflowResponse{
+  common.DataflowStatus status = 1;
+  common.Dataflow graph = 2;
+}

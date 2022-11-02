@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package proto;
+import "common/probe.proto";
+import "common/event.proto";
+import "common/common.proto";
+import "common/stream.proto";
+
+option go_package = "lightflus/runtime/proto";
+
+service TaskWorkerApi {
+  rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
+  rpc DispatchDataEvents(DispatchDataEventsRequest) returns (DispatchDataEventsResponse){}
+  rpc StopDataflow(StopDataflowRequest) returns (StopDataflowResponse) {}
+  rpc CreateDataflow(CreateDataflowRequest) returns(CreateDataflowResponse) {}
+}
+
+message DispatchDataEventsRequest{
+  repeated common.KeyedDataEvent events = 1;
+}
+
+message DispatchDataEventsResponse {
+  map<string, DispatchDataEventStatusEnum> statusSet = 1;
+}
+
+enum DispatchDataEventStatusEnum {
+  DISPATCHING = 0;
+  DONE = 1;
+  FAILURE = 2;
+}
+
+message StopDataflowRequest {
+  common.ResourceId job_id = 1;
+}
+
+message StopDataflowResponse {
+  common.Response resp = 1;
+}
+
+message CreateDataflowRequest {
+  common.ResourceId job_id = 1;
+  common.Dataflow dataflow = 2;
+}
+
+message CreateDataflowResponse {
+  common.Response resp = 1;
+}

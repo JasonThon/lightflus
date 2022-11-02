@@ -27,19 +27,6 @@ jobs:
       - name: Check ApiService
         run: cargo check --manifest-path src/apiserver/Cargo.toml
 
-      - name: Set up Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: 1.17.7
-      - name: change work directory
-        run: cd cli-tool/
-      - name: Tidy mod
-        run: go mod tidy
-      - name: Run Tests
-        run: go test -v ./...
-      - name: Build Project
-        run: go build -v ./...
-
   build_docker_image:
     if: ${{ github.event_name == 'release' }}
 

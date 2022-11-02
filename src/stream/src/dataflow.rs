@@ -10,7 +10,10 @@ use proto::common::{
 };
 use protobuf::RepeatedField;
 
-use crate::{state, v8_runtime::RuntimeEngine};
+use crate::{
+    state,
+    v8_runtime::{wrap_value, RuntimeEngine},
+};
 
 pub enum Window {
     Sliding { size: i32, period: i32 },
@@ -83,6 +86,8 @@ where
     }
 
     fn call_fn(&self, event: &KeyedDataEvent) -> Result<KeyedDataEvent, RunnableTaskError> {
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let handle_scope = &mut v8::HandleScope::new(isolate);
         let results = event
             .get_data()
             .iter()
@@ -90,7 +95,7 @@ where
             .map(|typed_val| {
                 self.rt_engine
                     .borrow_mut()
-                    .call_fn(typed_val)
+                    .call_fn(&[wrap_value(&typed_val, handle_scope)])
                     .unwrap_or(TypedValue::Invalid)
             })
             .map(|val| {

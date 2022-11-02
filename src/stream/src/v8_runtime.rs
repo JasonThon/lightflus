@@ -48,16 +48,13 @@ where
         self_
     }
 
-    pub fn call_fn(&mut self, typed_val: TypedValue) -> Option<TypedValue> {
+    pub fn call_fn(&mut self, arg_vals: &[v8::Local<v8::Value>]) -> Option<TypedValue> {
         let scope = &mut v8::HandleScope::new(&mut self.context_scope);
         let ref mut try_catch = v8::TryCatch::new(scope);
         let global = self.ctx.global(try_catch).into();
         let process_fn = self.process_fn.as_mut().unwrap();
 
-        let isolate = &mut v8::Isolate::new(Default::default());
-        let ref mut handle_scope = v8::HandleScope::new(isolate);
-
-        match process_fn.call(try_catch, global, &[wrap_value(&typed_val, handle_scope)]) {
+        match process_fn.call(try_catch, global, arg_vals) {
             Some(v) => to_typed_value(v),
             None => {
                 try_catch_log(try_catch);
@@ -76,7 +73,7 @@ where
     }
 }
 
-fn wrap_value<'s>(
+pub fn wrap_value<'s>(
     typed_val: &'s TypedValue,
     scope: &'s mut HandleScope<()>,
 ) -> v8::Local<'s, v8::Value> {
@@ -133,7 +130,7 @@ fn wrap_value<'s>(
     }
 }
 
-fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
+pub fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
     let ref mut isolate = v8::Isolate::new(Default::default());
     let ref mut scope = v8::HandleScope::new(isolate);
     let ctx = v8::Context::new(scope);
@@ -369,5 +366,39 @@ mod tests {
             isolated_scope,
         );
         assert!(_rt_engine.process_fn.is_some())
+    }
+
+    #[test]
+    fn test_v8_runtime_call_fn() {
+        use super::RuntimeEngine;
+        use common::types::TypedValue;
+        use proto::common::common::DataTypeEnum;
+        let _setup_guard = setup();
+        let ref mut isolate = v8::Isolate::new(Default::default());
+        let ref mut isolated_scope = v8::HandleScope::new(isolate);
+        let mut _rt_engine = RuntimeEngine::new(
+            "function process(a, b) { return a+b }",
+            "process",
+            isolated_scope,
+        );
+
+        let ref mut isolate = v8::Isolate::new(Default::default());
+        let isolated_scope = &mut v8::HandleScope::new(isolate);
+
+        let ref mut isolate_1 = v8::Isolate::new(Default::default());
+        let isolated_scope_1 = &mut v8::HandleScope::new(isolate_1);
+        assert!(_rt_engine.process_fn.is_some());
+        let args = &[
+            super::wrap_value(&TypedValue::BigInt(1), isolated_scope),
+            super::wrap_value(&TypedValue::BigInt(1), isolated_scope_1),
+        ];
+        let val_opt = _rt_engine.call_fn(args);
+        assert!(val_opt.is_some());
+        let val = val_opt.unwrap();
+        assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+        match val {
+            TypedValue::BigInt(v) => assert_eq!(v, 2),
+            _ => panic!("unexpected type"),
+        }
     }
 }

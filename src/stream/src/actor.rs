@@ -1,4 +1,4 @@
-use crate::dataflow::TaskContainer;
+use crate::dataflow::DataflowTask;
 use crate::err::SinkException;
 use crate::state::new_state_mgt;
 use common::collections::lang;
@@ -142,7 +142,7 @@ impl Executor for LocalExecutor {
         spawn(move || 'outloop: loop {
             let ref mut isolate = v8::Isolate::new(Default::default());
             let mut scope = v8::HandleScope::new(isolate);
-            let task = TaskContainer::new(self.operator.clone(), new_state_mgt(), &mut scope);
+            let task = DataflowTask::new(self.operator.clone(), new_state_mgt(), &mut scope);
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     SinkableMessageImpl::LocalMessage(message) => match message {

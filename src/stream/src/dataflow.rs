@@ -19,7 +19,7 @@ pub enum Window {
     Sliding { size: i32, period: i32 },
 }
 
-pub struct TaskContainer<'s, 'i, S: state::StateManager>
+pub struct DataflowTask<'s, 'i, S: state::StateManager>
 where
     's: 'i,
 {
@@ -28,7 +28,7 @@ where
     rt_engine: RefCell<RuntimeEngine<'s, 'i>>,
 }
 
-impl<'s, 'i, S: state::StateManager> TaskContainer<'s, 'i, S>
+impl<'s, 'i, S: state::StateManager> DataflowTask<'s, 'i, S>
 where
     's: 'i,
 {

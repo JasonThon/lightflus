@@ -1,6 +1,6 @@
 use common::types::TypedValue;
 use std::collections::BTreeMap;
-use v8::Local;
+use v8::{HandleScope, Local};
 
 pub struct RuntimeEngine<'s, 'i> {
     context_scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
@@ -48,13 +48,16 @@ where
         self_
     }
 
-    pub(crate) fn call_fn(&mut self, typed_val: TypedValue) -> Option<TypedValue> {
+    pub fn call_fn(&mut self, typed_val: TypedValue) -> Option<TypedValue> {
         let scope = &mut v8::HandleScope::new(&mut self.context_scope);
         let ref mut try_catch = v8::TryCatch::new(scope);
         let global = self.ctx.global(try_catch).into();
         let process_fn = self.process_fn.as_mut().unwrap();
 
-        match process_fn.call(try_catch, global, &[wrap_value(typed_val)]) {
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let ref mut handle_scope = v8::HandleScope::new(isolate);
+
+        match process_fn.call(try_catch, global, &[wrap_value(&typed_val, handle_scope)]) {
             Some(v) => to_typed_value(v),
             None => {
                 try_catch_log(try_catch);
@@ -73,8 +76,61 @@ where
     }
 }
 
-fn wrap_value(typed_val: TypedValue) -> v8::Local<'static, v8::Value> {
-    todo!()
+fn wrap_value<'s>(
+    typed_val: &'s TypedValue,
+    scope: &'s mut HandleScope<()>,
+) -> v8::Local<'s, v8::Value> {
+    match typed_val {
+        TypedValue::String(value) => {
+            let v8_str = v8::String::new(scope, value.as_str()).unwrap();
+            v8::Local::<v8::Value>::from(v8_str)
+        }
+        TypedValue::BigInt(value) => {
+            let ctx = v8::Context::new(scope);
+            let context_scope = &mut v8::ContextScope::new(scope, ctx);
+
+            let v8_i64 = v8::BigInt::new_from_i64(context_scope, *value);
+            v8::Local::<v8::Value>::from(v8_i64)
+        }
+        TypedValue::Boolean(value) => {
+            let v8_bool = v8::Boolean::new(scope, *value);
+            v8::Local::<v8::Value>::from(v8_bool)
+        }
+        TypedValue::Number(value) => {
+            let v8_number = v8::Number::new(scope, *value);
+            v8::Local::<v8::Value>::from(v8_number)
+        }
+        TypedValue::Null => {
+            let v8_null = v8::null(scope);
+            v8::Local::<v8::Value>::from(v8_null)
+        }
+        TypedValue::Object(value) => {
+            let ctx = v8::Context::new(scope);
+            let context_scope = &mut v8::ContextScope::new(scope, ctx);
+
+            let v8_obj = v8::Object::new(context_scope);
+
+            let ref mut isolate = v8::Isolate::new(Default::default());
+            let ref mut isolated_scope = v8::HandleScope::new(isolate);
+            value.iter().for_each(|(key, value)| {
+                let key = v8::String::new(isolated_scope, key.as_str()).unwrap();
+
+                let value = TypedValue::from_vec(value);
+
+                let value = wrap_value(&value, isolated_scope);
+                v8_obj.create_data_property(
+                    context_scope,
+                    v8::Local::<v8::Name>::try_from(key).unwrap(),
+                    value,
+                );
+            });
+            v8::Local::<v8::Value>::from(v8_obj)
+        }
+        TypedValue::Invalid => {
+            let v8_undefined = v8::undefined(scope);
+            v8::Local::<v8::Value>::from(v8_undefined)
+        }
+    }
 }
 
 fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
@@ -145,6 +201,7 @@ fn try_catch_log(try_catch: &mut v8::TryCatch<v8::HandleScope>) {
 }
 
 mod tests {
+    use super::RuntimeEngine;
 
     fn setup() {
         v8::V8::set_flags_from_string(
@@ -166,26 +223,27 @@ mod tests {
         let ctx = v8::Context::new(scope);
         let context_scope = &mut v8::ContextScope::new(scope, ctx);
         let ref mut scope1 = v8::HandleScope::new(context_scope);
-        let l1 = v8::BigInt::new_from_i64(scope1, 123);
 
         let isolate = &mut v8::Isolate::new(Default::default());
         let ref mut scope = v8::HandleScope::new(isolate);
         let scope2 = &mut v8::HandleScope::new(scope);
+
+        let l1 = v8::BigInt::new_from_i64(scope1, 123);
         let l2 = v8::Number::new(scope2, 78.9);
         let l3 = v8::Local::<v8::BigInt>::try_from(l1).unwrap();
         let l4 = v8::String::new(scope2, "test").unwrap();
         let l5 = v8::null(scope2);
         let l6 = v8::undefined(scope2);
         let l7 = v8::Object::new(scope1);
-        let l8 = v8::Object::new(scope1);
+        // let l8 = v8::Object::new(scope1);
 
-        let key = v8::String::new(scope2, "key").unwrap();
-        let value = v8::String::new(scope2, "value").unwrap();
-        l8.create_data_property(
-            scope1,
-            v8::Local::<v8::Name>::try_from(key).unwrap(),
-            v8::Local::<v8::Value>::try_from(value).unwrap(),
-        );
+        // let key = v8::String::new(scope2, "key").unwrap();
+        // let value = v8::String::new(scope2, "value").unwrap();
+        // l8.create_data_property(
+        //     scope1,
+        //     v8::Local::<v8::Name>::try_from(key).unwrap(),
+        //     v8::Local::<v8::Value>::try_from(value).unwrap(),
+        // );
 
         let number_l1 = v8::Local::<v8::Value>::try_from(l2).unwrap();
         let bigint_l1 = v8::Local::<v8::Value>::try_from(l3).unwrap();
@@ -193,7 +251,7 @@ mod tests {
         let null_l1 = v8::Local::<v8::Value>::try_from(l5).unwrap();
         let undefined_l1 = v8::Local::<v8::Value>::try_from(l6).unwrap();
         let object_l1 = v8::Local::<v8::Value>::try_from(l7).unwrap();
-        let object_l2 = v8::Local::<v8::Value>::try_from(l8).unwrap();
+        // let object_l2 = v8::Local::<v8::Value>::try_from(l8).unwrap();
 
         {
             let value = super::to_typed_value(number_l1);
@@ -269,8 +327,8 @@ mod tests {
         }
 
         {
-            let value = super::to_typed_value(object_l2);
-            assert!(value.is_some());
+            // let value = super::to_typed_value(object_l2);
+            // assert!(value.is_some());
             // let unwrapped_val = value.unwrap();
             // assert_eq!(
             //     unwrapped_val.get_type(),
@@ -287,5 +345,17 @@ mod tests {
             //     _ => panic!("unexpected type"),
             // }
         }
+    }
+
+    #[test]
+    fn test_v8_runtime_new() {
+        setup();
+        let ref mut isolate = v8::Isolate::new(Default::default());
+        let ref mut isolated_scope = v8::HandleScope::new(isolate);
+        let _rt_engine = RuntimeEngine::new(
+            "function process(a, b) { return a+b }",
+            "process",
+            isolated_scope,
+        );
     }
 }

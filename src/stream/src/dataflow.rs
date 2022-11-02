@@ -114,9 +114,9 @@ fn get_function_name(op_info: OperatorInfo) -> String {
         Some(info) => match info {
             mapper(_) => format!("_operator_{}_process", "map"),
             filter(_) => format!("_operator_{}_process", "filter"),
-            key_by(_) => format!("_operator_{}_process", "filter"),
-            reducer(_) => format!("_operator_{}_process", "filter"),
-            flat_map(_) => format!("_operator_{}_process", "filter"),
+            key_by(_) => format!("_operator_{}_process", "keyBy"),
+            reducer(_) => format!("_operator_{}_process", "reduce"),
+            flat_map(_) => format!("_operator_{}_process", "flatMap"),
             _ => "".to_string(),
         },
         None => "".to_string(),

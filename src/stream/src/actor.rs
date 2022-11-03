@@ -4,7 +4,7 @@ use crate::state::new_state_mgt;
 use common::collections::lang;
 use common::event::LocalEvent;
 use common::types::{ExecutorId, SinkId, SourceId};
-use common::{err, utils};
+use common::utils;
 use proto::common::common::{HostAddr, ResourceId};
 use proto::common::stream::{
     DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
@@ -25,10 +25,6 @@ pub struct DataflowContext {
 }
 
 impl DataflowContext {
-    pub fn dispatch(&self) -> Result<(), err::CommonException> {
-        Ok(())
-    }
-
     pub fn new(
         job_id: ResourceId,
         meta: Vec<DataflowMeta>,
@@ -139,23 +135,23 @@ impl LocalExecutor {
 
 impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
+        use LocalEvent::KeyedDataStreamEvent;
+        use SinkableMessageImpl::LocalMessage;
         spawn(move || 'outloop: loop {
             let ref mut isolate = v8::Isolate::new(Default::default());
             let mut scope = v8::HandleScope::new(isolate);
             let task = DataflowTask::new(self.operator.clone(), new_state_mgt(), &mut scope);
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
-                    SinkableMessageImpl::LocalMessage(message) => match message {
-                        LocalEvent::KeyedDataStreamEvent(e) => {
+                    LocalMessage(message) => match message {
+                        KeyedDataStreamEvent(e) => {
                             match task.process(e) {
-                                Ok(result) => {
-                                    let after_process = LocalEvent::KeyedDataStreamEvent(result);
+                                Ok(results) => results.iter().for_each(|event| {
+                                    let after_process = KeyedDataStreamEvent(event.clone());
                                     self.sinks.iter().for_each(|sink| {
-                                        let _ = sink.sink(SinkableMessageImpl::LocalMessage(
-                                            after_process.clone(),
-                                        ));
+                                        let _ = sink.sink(LocalMessage(after_process.clone()));
                                     });
-                                }
+                                }),
                                 Err(_) => {
                                     // TODO fault tolerance
                                 }

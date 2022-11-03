@@ -66,6 +66,14 @@ pub enum TypedValue {
 }
 
 impl Eq for TypedValue {}
+impl Ord for TypedValue {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.partial_cmp(other) {
+            Some(order) => order,
+            None => Ordering::Equal,
+        }
+    }
+}
 
 macro_rules! ops_helper {
     ($ops:ident, $func_name:ident) => {

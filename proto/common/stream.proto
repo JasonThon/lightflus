@@ -19,8 +19,7 @@ OperatorInfo, stores detail information of an operator
 message OperatorInfo {
   uint32 operator_id = 1;
   common.HostAddr host_addr = 2; // host addr configs
-  StreamConfig config = 3; // stream config for operator
-  repeated uint32 upstreams = 4; // upstreams operator_id
+  repeated uint32 upstreams = 3; // upstreams operator_id
 
   // optional for different operator type
   oneof details {
@@ -31,6 +30,8 @@ message OperatorInfo {
     KeyBy key_by = 9;
     Reducer reducer = 10;
     FlatMap flat_map = 11;
+    Window window = 12;
+    Trigger trigger = 13;
     //    Join join = 11;
   }
 }
@@ -164,11 +165,6 @@ message Dataflow {
   common.ResourceId job_id = 1; // job id, for now it is which table the stream graph output will sink
   repeated common.DataflowMeta meta = 2; // graph structure
   map<uint32, common.OperatorInfo> nodes = 3; // details of nodes
-}
-
-message StreamConfig {
-  Window window = 1;
-  Trigger trigger = 2;
 }
 
 message Window {

@@ -3,12 +3,6 @@ use crossbeam_channel::SendError;
 use crate::actor::SinkableMessageImpl;
 
 #[derive(Debug, Clone)]
-pub struct PipelineError {
-    pub kind: ErrorKind,
-    pub msg: String,
-}
-
-#[derive(Debug, Clone)]
 pub enum ErrorKind {
     InvalidMessageType,
     MessageSendFailed,

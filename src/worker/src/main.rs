@@ -2,6 +2,7 @@ use common::utils;
 use proto::worker::worker_grpc;
 use std::fs;
 use std::sync;
+use stream::initialize_v8;
 
 mod api;
 pub mod manager;
@@ -9,6 +10,7 @@ pub mod worker;
 
 #[tokio::main]
 async fn main() {
+    initialize_v8();
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let result =

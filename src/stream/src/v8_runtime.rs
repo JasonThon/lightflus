@@ -159,7 +159,7 @@ pub fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
         return Some(TypedValue::Null);
     }
     if local.is_boolean() {
-        return Some(TypedValue::Boolean(local.boolean_value(handle_scope)));
+        return Some(TypedValue::Boolean(local.is_true()));
     }
     if local.is_string() {
         return local
@@ -206,8 +206,8 @@ mod tests {
     }
 
     fn setup() -> SetupGuard {
-        static START: std::sync::Once = std::sync::Once::new();
-        START.call_once(|| {
+        use crate::MOD_TEST_START;
+        MOD_TEST_START.call_once(|| {
             v8::V8::set_flags_from_string(
                 "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
               );
@@ -242,6 +242,8 @@ mod tests {
         let l5 = v8::null(scope2);
         let l6 = v8::undefined(scope2);
         let l7 = v8::Object::new(scope1);
+        let l9 = v8::Boolean::new(scope2, true);
+        let l10 = v8::Boolean::new(scope2, false);
         // let l8 = v8::Object::new(scope1);
 
         // let key = v8::String::new(scope2, "key").unwrap();
@@ -258,6 +260,8 @@ mod tests {
         let null_l1 = v8::Local::<v8::Value>::try_from(l5).unwrap();
         let undefined_l1 = v8::Local::<v8::Value>::try_from(l6).unwrap();
         let object_l1 = v8::Local::<v8::Value>::try_from(l7).unwrap();
+        let boolean_true_l1 = v8::Local::<v8::Value>::try_from(l9).unwrap();
+        let boolean_false_l1 = v8::Local::<v8::Value>::try_from(l10).unwrap();
         // let object_l2 = v8::Local::<v8::Value>::try_from(l8).unwrap();
 
         {
@@ -352,6 +356,34 @@ mod tests {
             //     _ => panic!("unexpected type"),
             // }
         }
+
+        {
+            let value = super::to_typed_value(boolean_true_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+            );
+            match unwrapped_val {
+                TypedValue::Boolean(v) => assert!(v),
+                _ => panic!("unexpected type"),
+            }
+        }
+
+        {
+            let value = super::to_typed_value(boolean_false_l1);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+            );
+            match unwrapped_val {
+                TypedValue::Boolean(v) => assert!(!v),
+                _ => panic!("unexpected type"),
+            }
+        }
     }
 
     #[test]
@@ -361,7 +393,7 @@ mod tests {
         let ref mut isolate = v8::Isolate::new(Default::default());
         let ref mut isolated_scope = v8::HandleScope::new(isolate);
         let _rt_engine = RuntimeEngine::new(
-            "function process(a, b) { return a+b }",
+            "function process(a) { return a+1 }",
             "process",
             isolated_scope,
         );
@@ -377,7 +409,7 @@ mod tests {
         let ref mut isolate = v8::Isolate::new(Default::default());
         let ref mut isolated_scope = v8::HandleScope::new(isolate);
         let mut _rt_engine = RuntimeEngine::new(
-            "function process(a, b) { return a+b }",
+            "function process(a) { return a+1 }",
             "process",
             isolated_scope,
         );
@@ -385,19 +417,16 @@ mod tests {
         let ref mut isolate = v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
 
-        let ref mut isolate_1 = v8::Isolate::new(Default::default());
-        let isolated_scope_1 = &mut v8::HandleScope::new(isolate_1);
+        // let ref mut isolate_1 = v8::Isolate::new(Default::default());
+        // let isolated_scope_1 = &mut v8::HandleScope::new(isolate_1);
         assert!(_rt_engine.process_fn.is_some());
-        let args = &[
-            super::wrap_value(&TypedValue::BigInt(1), isolated_scope),
-            super::wrap_value(&TypedValue::BigInt(1), isolated_scope_1),
-        ];
+        let args = &[super::wrap_value(&TypedValue::Number(1.0), isolated_scope)];
         let val_opt = _rt_engine.call_fn(args);
         assert!(val_opt.is_some());
         let val = val_opt.unwrap();
-        assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+        assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
         match val {
-            TypedValue::BigInt(v) => assert_eq!(v, 2),
+            TypedValue::Number(v) => assert_eq!(v, 2.0),
             _ => panic!("unexpected type"),
         }
     }

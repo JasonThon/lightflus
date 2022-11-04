@@ -1,4 +1,4 @@
-use bytes::{Buf, BufMut};
+use bytes::Buf;
 use proto::common::common::{DataTypeEnum, ResourceId};
 use proto::common::event::Entry;
 use protobuf::ProtobufEnum;
@@ -181,6 +181,32 @@ impl TypedValue {
         }
     }
 
+    pub fn from_slice(data: &[u8]) -> Self {
+        let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
+
+        match data_type {
+            DataTypeEnum::DATA_TYPE_ENUM_STRING => {
+                match String::from_utf8(data[1..data.len()].to_vec()) {
+                    Ok(val) => TypedValue::String(val),
+                    Err(_) => TypedValue::Invalid,
+                }
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_BIGINT => {
+                TypedValue::BigInt(data[1..data.len()].to_vec().as_slice().get_i64())
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_NUMBER => {
+                TypedValue::Number(data[1..data.len()].to_vec().as_slice().get_f64())
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN => TypedValue::Boolean(data[1] == 1),
+            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
+            DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
+            DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
+                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(data)
+                    .unwrap_or(Default::default()),
+            ),
+        }
+    }
+
     pub fn get_type(&self) -> DataTypeEnum {
         match self {
             TypedValue::String(_) => DataTypeEnum::DATA_TYPE_ENUM_STRING,
@@ -196,9 +222,8 @@ impl TypedValue {
 
 impl From<&Entry> for TypedValue {
     fn from(entry: &Entry) -> Self {
-        let symbol = entry.get_data_type().value() as u8;
-        let mut data = vec![symbol];
-        data.put_slice(entry.get_value());
+        let mut data = vec![];
+        data.extend_from_slice(entry.get_value());
         Self::from_vec(&data)
     }
 }

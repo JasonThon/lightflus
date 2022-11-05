@@ -5,7 +5,7 @@ use protobuf::ProtobufEnum;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::hash::Hash;
-use std::ops;
+use std::{ops, vec};
 
 pub(crate) const STRING_SYMBOL: &str = "string";
 pub(crate) const NUMBER_SYMBOL: &str = "number";
@@ -29,6 +29,7 @@ impl PartialEq for TypedValue {
             (Self::Number(l0), Self::BigInt(r0)) => *l0 == (*r0 as f64),
             (Self::Null, Self::Invalid) => true,
             (Self::Invalid, Self::Null) => true,
+            (Self::Array(l0), Self::Array(l1)) => l0 == l1,
             _ => false,
         }
     }
@@ -48,6 +49,7 @@ impl PartialOrd for TypedValue {
             (Self::Number(l0), Self::BigInt(r0)) => l0.partial_cmp(&(*r0 as f64)),
             (Self::Null, Self::Invalid) => Some(Ordering::Equal),
             (Self::Invalid, Self::Null) => Some(Ordering::Equal),
+            (Self::Array(l0), Self::Array(l1)) => l0.partial_cmp(l1),
             _ => None,
         }
     }
@@ -62,6 +64,7 @@ pub enum TypedValue {
     Number(f64),
     Null,
     Object(BTreeMap<String, Vec<u8>>),
+    Array(Vec<TypedValue>),
     Invalid,
 }
 
@@ -72,6 +75,12 @@ impl Ord for TypedValue {
             Some(order) => order,
             None => Ordering::Equal,
         }
+    }
+}
+
+impl Default for TypedValue {
+    fn default() -> Self {
+        Self::Invalid
     }
 }
 
@@ -148,6 +157,11 @@ impl TypedValue {
                 let data = if *value { 1 as u8 } else { 0 as u8 };
                 vec![data]
             }
+            TypedValue::Object(value) => serde_json::to_vec(value).unwrap_or_default(),
+            TypedValue::Array(value) => {
+                let result = Vec::from_iter(value.iter().map(|value| value.get_data()));
+                serde_json::to_vec(&result).unwrap_or_default()
+            }
             _ => vec![],
         };
         result.append(raw_data);
@@ -178,6 +192,13 @@ impl TypedValue {
                 serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(data.as_slice())
                     .unwrap_or(Default::default()),
             ),
+            DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
+                let val =
+                    serde_json::from_slice::<Vec<Vec<u8>>>(data.as_slice()).unwrap_or_default();
+                TypedValue::Array(Vec::from_iter(
+                    val.iter().map(|data| TypedValue::from_vec(data)),
+                ))
+            }
         }
     }
 
@@ -204,6 +225,12 @@ impl TypedValue {
                 serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(data)
                     .unwrap_or(Default::default()),
             ),
+            DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
+                let val = serde_json::from_slice::<Vec<Vec<u8>>>(data).unwrap_or_default();
+                TypedValue::Array(Vec::from_iter(
+                    val.iter().map(|data| TypedValue::from_vec(data)),
+                ))
+            }
         }
     }
 
@@ -215,6 +242,7 @@ impl TypedValue {
             TypedValue::Null => DataTypeEnum::DATA_TYPE_ENUM_NULL,
             TypedValue::Object(_) => DataTypeEnum::DATA_TYPE_ENUM_OBJECT,
             TypedValue::Boolean(_) => DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN,
+            TypedValue::Array(_) => DataTypeEnum::DATA_TYPE_ENUM_ARRAY,
             _ => DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED,
         }
     }

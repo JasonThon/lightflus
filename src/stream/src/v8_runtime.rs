@@ -1,4 +1,5 @@
 use common::types::TypedValue;
+
 use std::collections::BTreeMap;
 use v8::{HandleScope, Local};
 
@@ -55,7 +56,7 @@ where
         let process_fn = self.process_fn.as_mut().unwrap();
 
         match process_fn.call(try_catch, global, arg_vals) {
-            Some(v) => to_typed_value(v),
+            Some(v) => to_typed_value(v, try_catch),
             None => {
                 try_catch_log(try_catch);
                 None
@@ -127,16 +128,31 @@ pub fn wrap_value<'s>(
             let v8_undefined = v8::undefined(scope);
             v8::Local::<v8::Value>::from(v8_undefined)
         }
+        TypedValue::Array(values) => {
+            let ctx = v8::Context::new(scope);
+            let context_scope = &mut v8::ContextScope::new(scope, ctx);
+
+            let v8_array = v8::Array::new(context_scope, values.len() as i32);
+            let length = values.len();
+
+            let ref mut isolate = v8::Isolate::new(Default::default());
+            let ref mut isolated_scope = v8::HandleScope::new(isolate);
+            (0..length).for_each(|index| {
+                v8_array.set_index(
+                    context_scope,
+                    index as u32,
+                    wrap_value(&values[index], isolated_scope),
+                );
+            });
+            v8::Local::<v8::Value>::from(v8_array)
+        }
     }
 }
 
-pub fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
-    let ref mut isolate = v8::Isolate::new(Default::default());
-    let ref mut scope = v8::HandleScope::new(isolate);
-    let ctx = v8::Context::new(scope);
-    let context_scope = &mut v8::ContextScope::new(scope, ctx);
-    let handle_scope = &mut v8::HandleScope::new(context_scope);
-
+pub fn to_typed_value<'s>(
+    local: v8::Local<v8::Value>,
+    handle_scope: &'s mut v8::HandleScope,
+) -> Option<TypedValue> {
     if local.is_big_int() {
         return local
             .to_big_int(handle_scope)
@@ -166,18 +182,45 @@ pub fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
             .to_string(handle_scope)
             .map(|val| TypedValue::String(val.to_rust_string_lossy(handle_scope)));
     }
+
+    if local.is_array() {
+        return local.to_object(handle_scope).map(|obj| {
+            let mut arr = vec![];
+            let mut index = 0;
+            loop {
+                let has_index_opt = obj.has_index(handle_scope, index);
+                if has_index_opt.is_some() && !has_index_opt.unwrap() {
+                    break;
+                }
+                if has_index_opt.is_none() {
+                    break;
+                }
+
+                let value_opts = obj.get_index(handle_scope, index);
+                if value_opts.is_none() {
+                    break;
+                }
+
+                let val = value_opts.unwrap();
+                arr.push(to_typed_value(val, handle_scope).unwrap_or_default());
+                index = index + 1;
+            }
+
+            TypedValue::Array(arr)
+        });
+    }
+
     if local.is_object() {
-        let args = v8::GetPropertyNamesArgsBuilder::default()
-            .key_conversion(v8::KeyConversionMode::ConvertToString)
-            .build();
+        let args = v8::GetPropertyNamesArgsBuilder::default().build();
         return local.to_object(handle_scope).and_then(|obj| {
+            if obj.is_array() {}
             obj.get_own_property_names(handle_scope, args).map(|names| {
                 let mut map = BTreeMap::default();
                 let arr = &*names;
                 for index in 0..arr.length() {
                     arr.get_index(handle_scope, index).iter().for_each(|key| {
                         let value = obj.get(handle_scope, key.clone()).unwrap();
-                        let v = to_typed_value(value.clone()).unwrap();
+                        let v = to_typed_value(value.clone(), handle_scope).unwrap();
                         map.insert(key.to_rust_string_lossy(handle_scope), v.get_data());
                     })
                 }
@@ -185,6 +228,7 @@ pub fn to_typed_value(local: v8::Local<v8::Value>) -> Option<TypedValue> {
             })
         });
     }
+
     Some(TypedValue::Invalid)
 }
 
@@ -219,7 +263,7 @@ mod tests {
     }
 
     #[test]
-    fn test_to_typed_value() {
+    fn test_primitive_to_typed_value() {
         use common::types::TypedValue;
         use proto::common::common::DataTypeEnum;
         let _setup_guard = setup();
@@ -244,15 +288,6 @@ mod tests {
         let l7 = v8::Object::new(scope1);
         let l9 = v8::Boolean::new(scope2, true);
         let l10 = v8::Boolean::new(scope2, false);
-        // let l8 = v8::Object::new(scope1);
-
-        // let key = v8::String::new(scope2, "key").unwrap();
-        // let value = v8::String::new(scope2, "value").unwrap();
-        // l8.create_data_property(
-        //     scope1,
-        //     v8::Local::<v8::Name>::try_from(key).unwrap(),
-        //     v8::Local::<v8::Value>::try_from(value).unwrap(),
-        // );
 
         let number_l1 = v8::Local::<v8::Value>::try_from(l2).unwrap();
         let bigint_l1 = v8::Local::<v8::Value>::try_from(l3).unwrap();
@@ -262,10 +297,10 @@ mod tests {
         let object_l1 = v8::Local::<v8::Value>::try_from(l7).unwrap();
         let boolean_true_l1 = v8::Local::<v8::Value>::try_from(l9).unwrap();
         let boolean_false_l1 = v8::Local::<v8::Value>::try_from(l10).unwrap();
-        // let object_l2 = v8::Local::<v8::Value>::try_from(l8).unwrap();
 
         {
-            let value = super::to_typed_value(number_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(number_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -279,7 +314,8 @@ mod tests {
         }
 
         {
-            let value = super::to_typed_value(bigint_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(bigint_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -293,7 +329,8 @@ mod tests {
         }
 
         {
-            let value = super::to_typed_value(string_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(string_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -307,14 +344,16 @@ mod tests {
         }
 
         {
-            let value = super::to_typed_value(null_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(null_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(unwrapped_val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
         }
 
         {
-            let value = super::to_typed_value(undefined_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(undefined_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -324,7 +363,8 @@ mod tests {
         }
 
         {
-            let value = super::to_typed_value(object_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(object_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -338,27 +378,8 @@ mod tests {
         }
 
         {
-            // let value = super::to_typed_value(object_l2);
-            // assert!(value.is_some());
-            // let unwrapped_val = value.unwrap();
-            // assert_eq!(
-            //     unwrapped_val.get_type(),
-            //     DataTypeEnum::DATA_TYPE_ENUM_OBJECT
-            // );
-            // match unwrapped_val {
-            //     TypedValue::Object(v) => {
-            //         assert!(!v.is_empty());
-            //         assert_eq!(
-            //             v.get(&"key".to_string()).map(|data| data.clone()),
-            //             Some(TypedValue::String("value".to_string()).get_data())
-            //         )
-            //     }
-            //     _ => panic!("unexpected type"),
-            // }
-        }
-
-        {
-            let value = super::to_typed_value(boolean_true_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(boolean_true_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -372,7 +393,8 @@ mod tests {
         }
 
         {
-            let value = super::to_typed_value(boolean_false_l1);
+            let try_catch = &mut v8::TryCatch::new(scope1);
+            let value = super::to_typed_value(boolean_false_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
             assert_eq!(
@@ -428,6 +450,121 @@ mod tests {
         match val {
             TypedValue::Number(v) => assert_eq!(v, 2.0),
             _ => panic!("unexpected type"),
+        }
+    }
+
+    #[test]
+    fn test_object_to_typed_value() {
+        use common::types::TypedValue;
+        use proto::common::common::DataTypeEnum;
+
+        fn eval<'s>(
+            scope: &mut v8::HandleScope<'s>,
+            code: &str,
+        ) -> Option<v8::Local<'s, v8::Value>> {
+            let scope = &mut v8::EscapableHandleScope::new(scope);
+            let source = v8::String::new(scope, code).unwrap();
+            let script = v8::Script::compile(scope, source, None).unwrap();
+            let r = script.run(scope);
+            r.map(|v| scope.escape(v))
+        }
+
+        let _setup_guard = setup();
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let ref mut scope = v8::HandleScope::new(isolate);
+
+        let ctx = v8::Context::new(scope);
+        let context_scope = &mut v8::ContextScope::new(scope, ctx);
+        let ref mut scope = v8::HandleScope::new(context_scope);
+        eval(scope, "var a = {}");
+        let key = v8::String::new(scope, "a").unwrap();
+        let obj = ctx.global(scope).get(scope, key.into()).unwrap();
+
+        let obj = obj.to_object(scope).unwrap();
+
+        let key = v8::String::new(scope, "foo").unwrap();
+        let value = v8::String::new(scope, "bar").unwrap();
+        obj.set(
+            scope,
+            v8::Local::<v8::Value>::try_from(key).unwrap(),
+            v8::Local::<v8::Value>::try_from(value).unwrap(),
+        );
+
+        let object_l2 = v8::Local::<v8::Value>::try_from(obj).unwrap();
+
+        {
+            let scope = &mut v8::TryCatch::new(scope);
+
+            let value = super::to_typed_value(object_l2, scope);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(
+                unwrapped_val.get_type(),
+                DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+            );
+            match unwrapped_val {
+                TypedValue::Object(v) => {
+                    assert!(!v.is_empty());
+
+                    assert_eq!(
+                        v.get(&"foo".to_string())
+                            .map(|data| TypedValue::from_vec(data)),
+                        Some(TypedValue::String("bar".to_string()))
+                    )
+                }
+                _ => panic!("unexpected type"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_array_to_typed_value() {
+        use common::types::TypedValue;
+        use proto::common::common::DataTypeEnum;
+
+        fn eval<'s>(
+            scope: &mut v8::HandleScope<'s>,
+            code: &str,
+        ) -> Option<v8::Local<'s, v8::Value>> {
+            let scope = &mut v8::EscapableHandleScope::new(scope);
+            let source = v8::String::new(scope, code).unwrap();
+            let script = v8::Script::compile(scope, source, None).unwrap();
+            let r = script.run(scope);
+            r.map(|v| scope.escape(v))
+        }
+
+        let _setup_guard = setup();
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let ref mut scope = v8::HandleScope::new(isolate);
+
+        let ctx = v8::Context::new(scope);
+        let context_scope = &mut v8::ContextScope::new(scope, ctx);
+        let ref mut scope = v8::HandleScope::new(context_scope);
+        eval(scope, "var a = [1, 2, 3]");
+        let key = v8::String::new(scope, "a").unwrap();
+        let obj = ctx.global(scope).get(scope, key.into()).unwrap();
+
+        {
+            let scope = &mut v8::TryCatch::new(scope);
+
+            let value = super::to_typed_value(obj, scope);
+            assert!(value.is_some());
+            let unwrapped_val = value.unwrap();
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+            match unwrapped_val {
+                TypedValue::Array(v) => {
+                    assert!(!v.is_empty());
+                    assert_eq!(
+                        v,
+                        vec![
+                            TypedValue::Number(1.0),
+                            TypedValue::Number(2.0),
+                            TypedValue::Number(3.0)
+                        ]
+                    )
+                }
+                _ => panic!("unexpected type"),
+            }
         }
     }
 }

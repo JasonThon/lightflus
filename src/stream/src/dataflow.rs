@@ -531,5 +531,77 @@ mod tests {
     fn test_keyby_operator() {}
 
     #[test]
-    fn test_reduce_operator() {}
+    fn test_reduce_operator() {
+        use super::ReduceOperator;
+        use crate::dataflow::get_function_name;
+        use crate::dataflow::IOperator;
+        use crate::state::MemoryStateManager;
+        use crate::v8_runtime::RuntimeEngine;
+        use crate::{dataflow::get_operator_state_key, state::StateManager};
+        use common::types::TypedValue;
+        use proto::common::event::{Entry, KeyedDataEvent};
+        use proto::common::stream::Func;
+        use proto::common::stream::{OperatorInfo, Reducer};
+        use protobuf::RepeatedField;
+        use std::cell::RefCell;
+
+        let _setup_guard = setup();
+
+        let mut op_info = OperatorInfo::default();
+        let mut reduce_fn = Reducer::new();
+        let mut function = Func::new();
+        function.set_function(
+            "function _operator_reduce_process(accum, val) { return accum + val }".to_string(),
+        );
+        reduce_fn.set_func(function);
+        op_info.set_reducer(reduce_fn);
+        op_info.set_operator_id(1);
+
+        let state_manager = MemoryStateManager::new();
+        let operator = ReduceOperator::new(&op_info, state_manager);
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let isolated_scope = &mut v8::HandleScope::new(isolate);
+        let rt_engine = RefCell::new(RuntimeEngine::new(
+            "function _operator_reduce_process(accum, val) { return accum + val }",
+            get_function_name(op_info.clone()).as_str(),
+            isolated_scope,
+        ));
+
+        let mut event = KeyedDataEvent::default();
+        event.set_from_operator_id(0);
+
+        let mut entry = Entry::default();
+        let val = TypedValue::Number(1.0);
+        entry.set_data_type(val.get_type());
+        entry.set_value(val.get_data());
+
+        let mut entry_1 = entry.clone();
+        let val = TypedValue::Number(2.0);
+        entry_1.set_data_type(val.get_type());
+        entry_1.set_value(val.get_data());
+
+        event.set_data(RepeatedField::from_vec(vec![
+            entry.clone(),
+            entry.clone(),
+            entry_1,
+        ]));
+        let result = operator.call_fn(&event, &rt_engine);
+
+        {
+            assert!(result.is_ok());
+            let new_events = result.expect("");
+            assert_eq!(new_events.len(), 1);
+            let mut entry = Entry::default();
+            let val = TypedValue::Number(4.0);
+            entry.set_data_type(val.get_type());
+            entry.set_value(val.get_data());
+
+            assert_eq!(new_events[0].get_data(), &[entry]);
+            let state = operator
+                .state_manager
+                .get_keyed_state(&get_operator_state_key(operator.operator_id, "reduce"));
+            assert_eq!(TypedValue::from_vec(&state), val);
+        }
+    }
 }

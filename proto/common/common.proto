@@ -31,6 +31,7 @@ enum DataTypeEnum {
   DATA_TYPE_ENUM_STRING = 4;
   DATA_TYPE_ENUM_BOOLEAN = 5;
   DATA_TYPE_ENUM_OBJECT = 6;
+  DATA_TYPE_ENUM_ARRAY = 7;
 }
 
 message Time {

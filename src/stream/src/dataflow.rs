@@ -604,4 +604,68 @@ mod tests {
             assert_eq!(TypedValue::from_vec(&state), val);
         }
     }
+
+    #[test]
+    fn test_flatmap_operator() {
+        use super::FlatMapOperator;
+        use crate::dataflow::get_function_name;
+        use crate::dataflow::IOperator;
+        use crate::state::MemoryStateManager;
+        use crate::v8_runtime::RuntimeEngine;
+        use common::types::TypedValue;
+        use proto::common::event::{Entry, KeyedDataEvent};
+        use proto::common::stream::Func;
+        use proto::common::stream::{FlatMap, OperatorInfo};
+        use protobuf::RepeatedField;
+        use std::cell::RefCell;
+
+        let _setup_guard = setup();
+
+        let mut op_info = OperatorInfo::default();
+        let mut flatmap_fn = FlatMap::new();
+        let mut function = Func::new();
+        function
+            .set_function("function _operator_flatMap_process(v) { return [v, v, 2] }".to_string());
+        flatmap_fn.set_func(function);
+        op_info.set_flat_map(flatmap_fn);
+        op_info.set_operator_id(1);
+
+        let state_manager = MemoryStateManager::new();
+        let operator = FlatMapOperator::new(&op_info, state_manager);
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let isolated_scope = &mut v8::HandleScope::new(isolate);
+        let rt_engine = RefCell::new(RuntimeEngine::new(
+            "function _operator_flatMap_process(v) { return [v, v, 2] }",
+            get_function_name(op_info.clone()).as_str(),
+            isolated_scope,
+        ));
+
+        let mut event = KeyedDataEvent::default();
+        event.set_from_operator_id(0);
+
+        let mut entry = Entry::default();
+        let val = TypedValue::Number(1.0);
+        entry.set_data_type(val.get_type());
+        entry.set_value(val.get_data());
+
+        event.set_data(RepeatedField::from_vec(vec![entry.clone()]));
+        let result = operator.call_fn(&event, &rt_engine);
+
+        {
+            assert!(result.is_ok());
+            let new_events = result.expect("");
+            assert_eq!(new_events.len(), 1);
+            let mut entry = Entry::default();
+            let val = TypedValue::Array(vec![
+                TypedValue::Number(1.0),
+                TypedValue::Number(1.0),
+                TypedValue::Number(2.0),
+            ]);
+            entry.set_data_type(val.get_type());
+            entry.set_value(val.get_data());
+
+            assert_eq!(new_events[0].get_data(), &[entry]);
+        }
+    }
 }

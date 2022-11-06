@@ -10,6 +10,7 @@ use proto::common::stream::{
     DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
 };
 use proto::worker::worker::DispatchDataEventStatusEnum;
+
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
@@ -137,32 +138,35 @@ impl Executor for LocalExecutor {
     fn run(self) -> JoinHandle<()> {
         use LocalEvent::KeyedDataStreamEvent;
         use SinkableMessageImpl::LocalMessage;
-        spawn(move || 'outloop: loop {
-            let ref mut isolate = v8::Isolate::new(Default::default());
-            let mut scope = v8::HandleScope::new(isolate);
-            let task = DataflowTask::new(self.operator.clone(), new_state_mgt(), &mut scope);
-            while let Some(msg) = self.source.fetch_msg() {
-                match &msg {
-                    LocalMessage(message) => match message {
-                        KeyedDataStreamEvent(e) => {
-                            match task.process(e) {
-                                Ok(results) => results.iter().for_each(|event| {
-                                    let after_process = KeyedDataStreamEvent(event.clone());
-                                    self.sinks.iter().for_each(|sink| {
-                                        let _ = sink.sink(LocalMessage(after_process.clone()));
-                                    });
-                                }),
-                                Err(_) => {
-                                    // TODO fault tolerance
+
+        spawn(move || {
+            let isolate = &mut v8::Isolate::new(Default::default());
+            let scope = &mut v8::HandleScope::new(isolate);
+            let task = DataflowTask::new(self.operator.clone(), new_state_mgt(), scope);
+            'outside: loop {
+                while let Some(msg) = self.source.fetch_msg() {
+                    match &msg {
+                        LocalMessage(message) => match message {
+                            KeyedDataStreamEvent(e) => {
+                                match task.process(e) {
+                                    Ok(results) => results.iter().for_each(|event| {
+                                        let after_process = KeyedDataStreamEvent(event.clone());
+                                        self.sinks.iter().for_each(|sink| {
+                                            let _ = sink.sink(LocalMessage(after_process.clone()));
+                                        });
+                                    }),
+                                    Err(_) => {
+                                        // TODO fault tolerance
+                                    }
                                 }
+                                log::info!("nodeId: {}, msg: {:?}", &self.executor_id, e)
                             }
-                            log::info!("nodeId: {}, msg: {:?}", &self.executor_id, e)
-                        }
-                        LocalEvent::Terminate { job_id, to } => {
-                            log::info!("stopping {:?} at node id {}", job_id, to);
-                            break 'outloop;
-                        }
-                    },
+                            LocalEvent::Terminate { job_id, to } => {
+                                log::info!("stopping {:?} at node id {}", job_id, to);
+                                break 'outside;
+                            }
+                        },
+                    }
                 }
             }
         })

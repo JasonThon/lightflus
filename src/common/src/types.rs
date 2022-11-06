@@ -157,10 +157,14 @@ impl TypedValue {
                 let data = if *value { 1 as u8 } else { 0 as u8 };
                 vec![data]
             }
-            TypedValue::Object(value) => serde_json::to_vec(value).unwrap_or_default(),
+            TypedValue::Object(value) => serde_json::to_vec(value)
+                .map_err(|err| log::error!("serialize object failed: {}", err))
+                .unwrap_or_default(),
             TypedValue::Array(value) => {
                 let result = Vec::from_iter(value.iter().map(|value| value.get_data()));
-                serde_json::to_vec(&result).unwrap_or_default()
+                serde_json::to_vec(&result)
+                    .map_err(|err| log::error!("serialize array failed: {}", err))
+                    .unwrap_or_default()
             }
             _ => vec![],
         };
@@ -189,12 +193,14 @@ impl TypedValue {
             DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
             DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
             DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
-                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(data.as_slice())
-                    .unwrap_or(Default::default()),
+                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(&data[1..data.len()])
+                    .map_err(|err| log::error!("deserialize object failed: {}", err))
+                    .unwrap_or_default(),
             ),
             DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
-                let val =
-                    serde_json::from_slice::<Vec<Vec<u8>>>(data.as_slice()).unwrap_or_default();
+                let val = serde_json::from_slice::<Vec<Vec<u8>>>(&data[1..data.len()])
+                    .map_err(|err| log::error!("deserializ array failed:{}", err))
+                    .unwrap_or_default();
                 TypedValue::Array(Vec::from_iter(
                     val.iter().map(|data| TypedValue::from_vec(data)),
                 ))

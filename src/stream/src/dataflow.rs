@@ -9,11 +9,9 @@ use proto::common::{
     },
 };
 use protobuf::RepeatedField;
+use v8::HandleScope;
 
-use crate::{
-    state,
-    v8_runtime::{wrap_value, RuntimeEngine},
-};
+use crate::{state, v8_runtime::RuntimeEngine};
 
 pub struct DataflowTask<'s, 'i, S: state::StateManager>
 where
@@ -30,7 +28,7 @@ where
     pub fn new(
         op_info: OperatorInfo,
         state_manager: S,
-        isolated_scope: &'i mut v8::HandleScope<'s, ()>,
+        scope: &'i mut HandleScope<'s, ()>,
     ) -> Self {
         let (rt_engine, operator) = if op_info.clone().details.is_some() {
             let detail = op_info.clone().details.unwrap();
@@ -39,7 +37,7 @@ where
                     RefCell::new(RuntimeEngine::new(
                         map_func.get_func().get_function(),
                         get_function_name(op_info.clone()).as_str(),
-                        isolated_scope,
+                        scope,
                     )),
                     OperatorImpl::Map(MapOperator::new(&op_info, state_manager)),
                 ),
@@ -47,7 +45,7 @@ where
                     RefCell::new(RuntimeEngine::new(
                         filter_fn.get_func().get_function(),
                         get_function_name(op_info.clone()).as_str(),
-                        isolated_scope,
+                        scope,
                     )),
                     OperatorImpl::Filter(FilterOperator::new(&op_info, state_manager)),
                 ),
@@ -55,7 +53,7 @@ where
                     RefCell::new(RuntimeEngine::new(
                         key_by_fn.get_func().get_function(),
                         get_function_name(op_info.clone()).as_str(),
-                        isolated_scope,
+                        scope,
                     )),
                     OperatorImpl::KeyBy(KeyByOperator::new(&op_info, state_manager)),
                 ),
@@ -63,7 +61,7 @@ where
                     RefCell::new(RuntimeEngine::new(
                         reduce_fn.get_func().get_function(),
                         get_function_name(op_info.clone()).as_str(),
-                        isolated_scope,
+                        scope,
                     )),
                     OperatorImpl::Reduce(ReduceOperator::new(&op_info, state_manager)),
                 ),
@@ -71,22 +69,21 @@ where
                     RefCell::new(RuntimeEngine::new(
                         flat_map_fn.get_func().get_function(),
                         get_function_name(op_info.clone()).as_str(),
-                        isolated_scope,
+                        scope,
                     )),
                     OperatorImpl::FlatMap(FlatMapOperator::new(&op_info, state_manager)),
                 ),
                 _ => (
-                    RefCell::new(RuntimeEngine::new("", "", isolated_scope)),
+                    RefCell::new(RuntimeEngine::new("", "", scope)),
                     OperatorImpl::Empty,
                 ),
             }
         } else {
             (
-                RefCell::new(RuntimeEngine::new("", "", isolated_scope)),
+                RefCell::new(RuntimeEngine::new("", "", scope)),
                 OperatorImpl::Empty,
             )
         };
-
         Self {
             rt_engine,
             operator,
@@ -119,11 +116,13 @@ fn get_function_name(op_info: OperatorInfo) -> String {
 }
 
 pub(crate) trait IOperator {
-    fn call_fn<'s, 'i>(
+    fn call_fn<'p, 'i>(
         &self,
         event: &KeyedDataEvent,
-        rt_engine: &RefCell<RuntimeEngine<'s, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>;
+        rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
+    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    where
+        'p: 'i;
 }
 
 pub(crate) enum OperatorImpl<S: state::StateManager> {
@@ -136,11 +135,14 @@ pub(crate) enum OperatorImpl<S: state::StateManager> {
 }
 
 impl<S: state::StateManager> IOperator for OperatorImpl<S> {
-    fn call_fn<'s, 'i>(
+    fn call_fn<'p, 'i>(
         &self,
         event: &KeyedDataEvent,
-        rt_engine: &RefCell<RuntimeEngine<'s, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
+        rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
+    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    where
+        'p: 'i,
+    {
         match self {
             Self::Map(op) => op.call_fn(event, rt_engine),
             Self::Filter(op) => op.call_fn(event, rt_engine),
@@ -153,14 +155,15 @@ impl<S: state::StateManager> IOperator for OperatorImpl<S> {
 }
 
 impl<S: state::StateManager> IOperator for KeyByOperator<S> {
-    fn call_fn<'s, 'i>(
+    fn call_fn<'p, 'i>(
         &self,
         event: &KeyedDataEvent,
-        rt_engine: &RefCell<RuntimeEngine<'s, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
+        rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
+    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    where
+        'p: 'i,
+    {
         let mut new_events = BTreeMap::<TypedValue, KeyedDataEvent>::new();
-        let isolate = &mut v8::Isolate::new(Default::default());
-        let handle_scope = &mut v8::HandleScope::new(isolate);
 
         event
             .get_data()
@@ -170,7 +173,7 @@ impl<S: state::StateManager> IOperator for KeyByOperator<S> {
                 (
                     rt_engine
                         .borrow_mut()
-                        .call_fn(&[wrap_value(&typed_val, handle_scope)])
+                        .call_one_arg(&typed_val)
                         .unwrap_or(TypedValue::Invalid),
                     typed_val,
                 )
@@ -211,19 +214,16 @@ impl<S: state::StateManager> IOperator for KeyByOperator<S> {
 }
 
 impl<S: state::StateManager> IOperator for ReduceOperator<S> {
-    fn call_fn<'s, 'i>(
+    fn call_fn<'p, 'i>(
         &self,
         event: &KeyedDataEvent,
-        rt_engine: &RefCell<RuntimeEngine<'s, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
+        rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
+    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    where
+        'p: 'i,
+    {
         let key = get_operator_state_key(self.operator_id, "reduce");
         let state = self.state_manager.get_keyed_state(key.as_slice());
-
-        let isolate = &mut v8::Isolate::new(Default::default());
-        let handle_scope = &mut v8::HandleScope::new(isolate);
-
-        let isolate_1 = &mut v8::Isolate::new(Default::default());
-        let handle_scope_1 = &mut v8::HandleScope::new(isolate_1);
 
         let accum = if state.is_empty() {
             event
@@ -233,10 +233,7 @@ impl<S: state::StateManager> IOperator for ReduceOperator<S> {
                 .reduce(|prev, next| {
                     rt_engine
                         .borrow_mut()
-                        .call_fn(&[
-                            wrap_value(&prev, handle_scope),
-                            wrap_value(&next, handle_scope_1),
-                        ])
+                        .call_two_args((&prev, &next))
                         .unwrap_or(TypedValue::Invalid)
                 })
                 .unwrap_or(TypedValue::Invalid)
@@ -247,10 +244,7 @@ impl<S: state::StateManager> IOperator for ReduceOperator<S> {
                 let val = TypedValue::from_slice(entry.get_value());
                 rt_engine
                     .borrow_mut()
-                    .call_fn(&[
-                        wrap_value(&accum, handle_scope),
-                        wrap_value(&val, handle_scope_1),
-                    ])
+                    .call_two_args((&accum, &val))
                     .unwrap_or(TypedValue::Invalid)
             })
         };
@@ -268,13 +262,14 @@ impl<S: state::StateManager> IOperator for ReduceOperator<S> {
 }
 
 impl<S: state::StateManager> IOperator for FilterOperator<S> {
-    fn call_fn<'s, 'i>(
+    fn call_fn<'p, 'i>(
         &self,
         event: &KeyedDataEvent,
-        rt_engine: &RefCell<RuntimeEngine<'s, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
-        let isolate = &mut v8::Isolate::new(Default::default());
-        let handle_scope = &mut v8::HandleScope::new(isolate);
+        rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
+    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    where
+        'p: 'i,
+    {
         let filtered = event
             .get_data()
             .iter()
@@ -282,7 +277,7 @@ impl<S: state::StateManager> IOperator for FilterOperator<S> {
                 let val = TypedValue::from_slice(entry.get_value());
                 let result = rt_engine
                     .borrow_mut()
-                    .call_fn(&[wrap_value(&val, handle_scope)])
+                    .call_one_arg(&val)
                     .unwrap_or(TypedValue::Boolean(false));
                 match result {
                     TypedValue::Boolean(flag) => flag,
@@ -329,14 +324,15 @@ macro_rules! new_operator {
 macro_rules! stateless_operator {
     ($name: ident) => {
         impl<S: state::StateManager> IOperator for $name<S> {
-            fn call_fn<'s, 'i>(
+            fn call_fn<'p, 'i>(
                 &self,
                 event: &KeyedDataEvent,
-                rt_engine: &RefCell<RuntimeEngine<'s, 'i>>,
-            ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
+                rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
+            ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+            where
+                'p: 'i,
+            {
                 let mut new_event = event.clone();
-                let isolate = &mut v8::Isolate::new(Default::default());
-                let handle_scope = &mut v8::HandleScope::new(isolate);
 
                 let value_entry_results = event
                     .get_data()
@@ -345,7 +341,7 @@ macro_rules! stateless_operator {
                     .map(|typed_val| {
                         rt_engine
                             .borrow_mut()
-                            .call_fn(&[wrap_value(&typed_val, handle_scope)])
+                            .call_one_arg(&typed_val)
                             .unwrap_or(TypedValue::Invalid)
                     })
                     .map(|val| {
@@ -400,6 +396,7 @@ mod tests {
                   v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
                   v8::V8::initialize();
         });
+        std::env::set_var("RUST_LOG", "INFO");
 
         SetupGuard {}
     }
@@ -429,7 +426,6 @@ mod tests {
         op_info.set_operator_id(1);
 
         let state_manager = MemoryStateManager::new();
-        let operator = MapOperator::new(&op_info, state_manager);
 
         let isolate = &mut v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
@@ -439,6 +435,7 @@ mod tests {
             isolated_scope,
         ));
 
+        let operator = MapOperator::new(&op_info, state_manager);
         let mut event = KeyedDataEvent::default();
         event.set_from_operator_id(0);
 
@@ -487,7 +484,6 @@ mod tests {
         op_info.set_operator_id(1);
 
         let state_manager = MemoryStateManager::new();
-        let operator = FilterOperator::new(&op_info, state_manager);
 
         let isolate = &mut v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
@@ -497,6 +493,7 @@ mod tests {
             isolated_scope,
         ));
 
+        let operator = FilterOperator::new(&op_info, state_manager);
         let mut event = KeyedDataEvent::default();
         event.set_from_operator_id(0);
 
@@ -528,7 +525,97 @@ mod tests {
     }
 
     #[test]
-    fn test_keyby_operator() {}
+    fn test_keyby_operator() {
+        use std::collections::BTreeMap;
+
+        use super::KeyByOperator;
+        use crate::dataflow::get_function_name;
+        use crate::dataflow::IOperator;
+        use crate::state::MemoryStateManager;
+        use crate::v8_runtime::RuntimeEngine;
+        use common::collections::lang::any_match;
+        use common::types::TypedValue;
+        use proto::common::event::{Entry, KeyedDataEvent};
+        use proto::common::stream::Func;
+        use proto::common::stream::{KeyBy, OperatorInfo};
+        use protobuf::RepeatedField;
+        use std::cell::RefCell;
+
+        let _setup_guard = setup();
+
+        let mut op_info = OperatorInfo::default();
+        let mut keyby_fn = KeyBy::new();
+        let mut function = Func::new();
+        function.set_function("function _operator_keyBy_process(a) { return a.foo }".to_string());
+        keyby_fn.set_func(function);
+        op_info.set_key_by(keyby_fn);
+        op_info.set_operator_id(1);
+
+        let state_manager = MemoryStateManager::new();
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let isolated_scope = &mut v8::HandleScope::new(isolate);
+        let rt_engine = RefCell::new(RuntimeEngine::new(
+            op_info.get_key_by().get_func().get_function(),
+            get_function_name(op_info.clone()).as_str(),
+            isolated_scope,
+        ));
+        let operator = KeyByOperator::new(&op_info, state_manager);
+
+        let mut event = KeyedDataEvent::default();
+        event.set_from_operator_id(0);
+
+        let mut entry = Entry::default();
+        let mut val = BTreeMap::default();
+        val.insert(
+            "foo".to_string(),
+            TypedValue::String("bar".to_string()).get_data(),
+        );
+        val.insert(
+            "foo2".to_string(),
+            TypedValue::String("bar".to_string()).get_data(),
+        );
+
+        let val = TypedValue::Object(val);
+        entry.set_data_type(val.get_type());
+        entry.set_value(val.get_data());
+
+        let mut entry_1 = entry.clone();
+        let mut val = BTreeMap::default();
+        val.insert(
+            "foo".to_string(),
+            TypedValue::String("bar1".to_string()).get_data(),
+        );
+        val.insert(
+            "foo2".to_string(),
+            TypedValue::String("bar2".to_string()).get_data(),
+        );
+        let val = TypedValue::Object(val);
+
+        entry_1.set_data_type(val.get_type());
+        entry_1.set_value(val.get_data());
+
+        event.set_data(RepeatedField::from_vec(vec![
+            entry.clone(),
+            entry.clone(),
+            entry_1,
+        ]));
+
+        let result = operator.call_fn(&event, &rt_engine);
+        {
+            assert!(result.is_ok());
+            let events = result.unwrap();
+            assert_eq!(events.len(), 2);
+            assert!(any_match(&events, |event| {
+                event.has_key()
+                    && TypedValue::from(event.get_key()) == TypedValue::String("bar".to_string())
+            }));
+            assert!(any_match(&events, |event| {
+                event.has_key()
+                    && TypedValue::from(event.get_key()) == TypedValue::String("bar1".to_string())
+            }));
+        }
+    }
 
     #[test]
     fn test_reduce_operator() {
@@ -558,7 +645,6 @@ mod tests {
         op_info.set_operator_id(1);
 
         let state_manager = MemoryStateManager::new();
-        let operator = ReduceOperator::new(&op_info, state_manager);
 
         let isolate = &mut v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
@@ -568,6 +654,7 @@ mod tests {
             isolated_scope,
         ));
 
+        let operator = ReduceOperator::new(&op_info, state_manager);
         let mut event = KeyedDataEvent::default();
         event.set_from_operator_id(0);
 
@@ -631,7 +718,6 @@ mod tests {
         op_info.set_operator_id(1);
 
         let state_manager = MemoryStateManager::new();
-        let operator = FlatMapOperator::new(&op_info, state_manager);
 
         let isolate = &mut v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
@@ -640,6 +726,7 @@ mod tests {
             get_function_name(op_info.clone()).as_str(),
             isolated_scope,
         ));
+        let operator = FlatMapOperator::new(&op_info, state_manager);
 
         let mut event = KeyedDataEvent::default();
         event.set_from_operator_id(0);

@@ -11,7 +11,7 @@ use proto::common::{
 use protobuf::RepeatedField;
 use v8::HandleScope;
 
-use crate::{state, v8_runtime::RuntimeEngine};
+use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine};
 
 pub struct DataflowTask<'s, 'i, S: state::StateManager>
 where
@@ -97,9 +97,6 @@ where
         self.operator.call_fn(event, &self.rt_engine)
     }
 }
-
-#[derive(Debug)]
-pub struct RunnableTaskError {}
 
 fn get_function_name(op_info: OperatorInfo) -> String {
     match op_info.clone().details {

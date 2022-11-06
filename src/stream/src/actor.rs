@@ -1,9 +1,10 @@
 use crate::dataflow::DataflowTask;
 use crate::err::SinkException;
 use crate::state::new_state_mgt;
+use crate::v8_runtime::RuntimeEngine;
 use common::collections::lang;
 use common::event::LocalEvent;
-use common::types::{ExecutorId, SinkId, SourceId};
+use common::types::{ExecutorId, KeyedValue, SingleKV, SinkId, SourceId, TypedValue};
 use common::utils;
 use proto::common::common::{HostAddr, ResourceId};
 use proto::common::stream::{
@@ -11,7 +12,9 @@ use proto::common::stream::{
 };
 use proto::worker::worker::DispatchDataEventStatusEnum;
 
+use std::cell::RefCell;
 use std::collections::BTreeMap;
+use std::ops::Index;
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 
@@ -155,7 +158,8 @@ impl Executor for LocalExecutor {
                                             let _ = sink.sink(LocalMessage(after_process.clone()));
                                         });
                                     }),
-                                    Err(_) => {
+                                    Err(err) => {
+                                        log::error!("process msg failed: {:?}", err);
                                         // TODO fault tolerance
                                     }
                                 }
@@ -522,6 +526,47 @@ impl Sink for Mysql {
     }
 
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let scope = &mut v8::HandleScope::new(isolate);
+
+        let sql_arguments = self
+            .conf
+            .get_statement()
+            .get_extractors()
+            .iter()
+            .map(|extractor| match &msg {
+                SinkableMessageImpl::LocalMessage(event) => match event {
+                    LocalEvent::Terminate { .. } => SqlColumnArguments {
+                        index: extractor.get_index(),
+                        value: vec![],
+                    },
+                    LocalEvent::KeyedDataStreamEvent(e) => {
+                        let ref mut rt_engine =
+                            RuntimeEngine::new(extractor.get_extractor(), "mysql_extractor", scope);
+                        let columns = e.get_data().iter().map(|entry| {
+                            rt_engine
+                                .call_one_arg(&TypedValue::from_slice(entry.get_value()))
+                                .unwrap_or_default()
+                        });
+
+                        SqlColumnArguments {
+                            index: extractor.get_index(),
+                            value: Vec::from_iter(columns),
+                        }
+                    }
+                },
+            });
+
+
         todo!()
     }
+}
+
+struct SqlColumnArguments {
+    pub index: u32,
+    pub value: Vec<TypedValue>,
+}
+
+struct SqlRowArguments {
+    pub row: BTreeMap<u32, TypedValue>,
 }

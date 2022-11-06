@@ -31,3 +31,6 @@ impl SinkException {
         }
     }
 }
+
+#[derive(Debug)]
+pub struct RunnableTaskError {}

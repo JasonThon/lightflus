@@ -252,6 +252,63 @@ impl TypedValue {
             _ => DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED,
         }
     }
+
+    pub fn from_slice_with_type(mut data: &[u8], data_type: DataTypeEnum) -> Self {
+        match data_type {
+            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => Self::Invalid,
+            DataTypeEnum::DATA_TYPE_ENUM_BIGINT => Self::BigInt(data.get_i64()),
+            DataTypeEnum::DATA_TYPE_ENUM_NUMBER => Self::Number(data.get_f64()),
+            DataTypeEnum::DATA_TYPE_ENUM_NULL => Self::Null,
+            DataTypeEnum::DATA_TYPE_ENUM_STRING => {
+                Self::String(String::from_utf8_lossy(data).to_string())
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN => Self::Boolean(data[0] == 1),
+            DataTypeEnum::DATA_TYPE_ENUM_OBJECT => {
+                let value = serde_json::from_slice::<serde_json::Value>(data);
+                match value {
+                    Ok(val) => Self::from_json_value(val),
+                    Err(err) => {
+                        log::error!("deserialize json object failed: {}", err);
+                        Self::Object(Default::default())
+                    }
+                }
+            }
+            DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
+                let value = serde_json::from_slice::<serde_json::Value>(data);
+                match value {
+                    Ok(val) => Self::from_json_value(val),
+                    Err(err) => {
+                        log::error!("deserialize json array failed: {}", err);
+                        Self::Array(Default::default())
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn from_json_value(val: serde_json::Value) -> Self {
+        match val {
+            serde_json::Value::Null => Self::Null,
+            serde_json::Value::Bool(v) => Self::Boolean(v),
+            serde_json::Value::Number(v) => Self::Number(v.as_f64().unwrap_or_default()),
+            serde_json::Value::String(v) => Self::String(v),
+            serde_json::Value::Array(v) => Self::Array(
+                v.iter()
+                    .map(|value| Self::from_json_value(value.clone()))
+                    .collect(),
+            ),
+            serde_json::Value::Object(v) => Self::Object(
+                v.iter()
+                    .map(|entry| {
+                        (
+                            entry.0.clone(),
+                            Self::from_json_value(entry.1.clone()).get_data(),
+                        )
+                    })
+                    .collect(),
+            ),
+        }
+    }
 }
 
 impl From<&Entry> for TypedValue {

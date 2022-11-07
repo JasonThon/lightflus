@@ -1,4 +1,5 @@
 use crossbeam_channel::SendError;
+use rdkafka::error::KafkaError;
 
 use crate::actor::SinkableMessageImpl;
 
@@ -6,6 +7,7 @@ use crate::actor::SinkableMessageImpl;
 pub enum ErrorKind {
     InvalidMessageType,
     MessageSendFailed,
+    KafkaMessageSendFailed,
 }
 
 #[derive(Clone, Debug)]
@@ -28,6 +30,15 @@ impl SinkException {
         Self {
             kind: ErrorKind::InvalidMessageType,
             msg: "invalid message type".to_string(),
+        }
+    }
+}
+
+impl From<KafkaError> for SinkException {
+    fn from(err: KafkaError) -> Self {
+        Self {
+            kind: ErrorKind::KafkaMessageSendFailed,
+            msg: format!("message detail: {}", err),
         }
     }
 }

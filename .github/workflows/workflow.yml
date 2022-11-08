@@ -26,7 +26,7 @@ jobs:
         run: cargo check --manifest-path src/worker/Cargo.toml
       - name: Check ApiService
         run: cargo check --manifest-path src/apiserver/Cargo.toml
-  
+
   coverage:
     runs-on: ubuntu-latest
     container:

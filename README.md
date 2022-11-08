@@ -13,7 +13,7 @@
 
 1. Lightflus is in **preview** now, some features are still in development. If you want to try a better Lightflus, please wait for the demo version released.
 
-2. We welcome every one to comment on Lightflus, including design, features support and more;
+2. We will be very appreciate if you can give us any feedback, including design, features support and more;
 
 
 ## Scenarios for Lightflus

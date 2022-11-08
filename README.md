@@ -87,7 +87,7 @@ Welcome to Lightflus Team. Our mission is to create an advanced, high performanc
 You can read following documents to know more about Lightflus. If you have no access, please contact with the admin.
 
 1. You can read the [Developer Guide](https://www.notion.so/Developer-Guide-bb6579a980844cff9b2702dd107e4ff3) to get more details for contribution.
-2. [Architecture Overview](https://www.notion.so/Architecture-Overview-be9b006c61884db58e40dbd00e00b77d) will help you to get familiar with Tableflow Architecture Design
+2. [Architecture Overview](https://www.notion.so/Architecture-Overview-be9b006c61884db58e40dbd00e00b77d) will help you to get familiar with Lightflus Architecture Design
 3. [Product Design](https://www.notion.so/Product-Design-efa990263c4b4e80a677243efc95a2f2) will tell you more about why we
    decide to create a streaming system by ourselves, not fork open source projects like Flink.
 4. [Design Doc](https://www.notion.so/Design-282e33dc26a0416f9b25d20d78fe69d3) has the information of the historical design details of each version.

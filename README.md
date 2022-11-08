@@ -19,6 +19,10 @@ Lightflus is powered by [Deno](https://github.com/denoland/deno) and implemented
 ## Document
 You can read the [document](https://humorous-bream-e48.notion.site/Lightflus-Document-217eedc73610413ba2a4f0c374d66c77) for more details about Lightflus
 
+
+## Roadmap
+You can get Lightflus Roadmap in this [Jira Dashboard](https://lightflus.atlassian.net/jira/software/c/projects/LIG/boards/1/roadmap?shared=&atlOrigin=eyJpIjoiOWJhOTRiOGNkZTBlNDY5OWFkZWU4ZGQxYjRkYTg3MTkiLCJwIjoiaiJ9)
+
 ## Preparation
 
 1. Install Rust environment:

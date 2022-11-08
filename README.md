@@ -1,7 +1,7 @@
 <div align="center">
   <h1>Lightflus</h1>
   <p>
-    <strong>Lightflus is a stateful dataflow framework for common-purpose. </strong>
+    <strong>Lightflus is a cloud-native distributed stateful dataflow engine. </strong>
   </p>
   <p>
 
@@ -16,9 +16,11 @@
 2. We welcome every one to comment on Lightflus, including design, features support and more;
 
 
-## Community
+## Scenarios for Lightflus
 
-Welcome all to join [Slack](https://lightflus.slack.com/join/shared_invite/zt-1hqwryop3-jWOhWSuQ2B7wulhQM5~sHQ#/shared-invite/email) Community! 
+1. Large-scale real-time computation;
+2. CDC (Change Data Capture);
+3. Data Integration Pipeline;
 
 ## Design Philosophy
 **Typescript API + Rust Runtime**
@@ -27,12 +29,17 @@ Lightflus is designed for most developer teams even no one is familiar with stre
 
 Lightflus is powered by [Deno](https://github.com/denoland/deno) and implemented in Rust which can ensure memory safe and real-time performance. We embed `v8` engine into Lightflus engine with minimum dependencies makes it light and fast; With the help of `Deno`, you can run `Typescript` user-defined functions or `WebAssembly` encoded bytes code (for better performance) in Lightflus with stream-like API; 
 
+
 ## Document
 You can read the [document](https://humorous-bream-e48.notion.site/Lightflus-Document-217eedc73610413ba2a4f0c374d66c77) for more details about Lightflus
 
 
 ## Roadmap
 You can get Lightflus Roadmap in this [Jira Dashboard](https://lightflus.atlassian.net/jira/software/c/projects/LIG/boards/1/roadmap?shared=&atlOrigin=eyJpIjoiOWJhOTRiOGNkZTBlNDY5OWFkZWU4ZGQxYjRkYTg3MTkiLCJwIjoiaiJ9)
+
+## Community
+
+Welcome all to join [Slack](https://lightflus.slack.com/join/shared_invite/zt-1hqwryop3-jWOhWSuQ2B7wulhQM5~sHQ#/shared-invite/email) Community! 
 
 ## Preparation
 

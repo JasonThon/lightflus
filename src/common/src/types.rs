@@ -335,7 +335,7 @@ pub trait KeyedValue<K, V> {
     fn value(&self) -> V;
 }
 
-#[derive(Clone, Default, Eq, PartialEq, Hash, Ord, PartialOrd)]
+#[derive(Clone, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
 pub struct HashedResourceId {
     pub stream_id: String,
 }
@@ -344,6 +344,14 @@ impl From<ResourceId> for HashedResourceId {
     fn from(id: ResourceId) -> Self {
         Self {
             stream_id: id.resource_id,
+        }
+    }
+}
+
+impl From<&ResourceId> for HashedResourceId {
+    fn from(id: &ResourceId) -> Self {
+        Self {
+            stream_id: id.resource_id.clone(),
         }
     }
 }

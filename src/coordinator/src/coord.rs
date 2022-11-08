@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use common::err::ApiError;
@@ -6,6 +7,7 @@ use common::err::ErrorKind;
 use common::net::cluster;
 use common::net::status;
 
+use common::types::HashedResourceId;
 use proto::common::common::ResourceId;
 use proto::common::stream::Dataflow;
 use proto::common::stream::DataflowStatus;
@@ -17,7 +19,7 @@ pub(crate) trait DataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException>;
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow>;
     fn may_exists(&self, job_id: &ResourceId) -> bool;
-    fn delete(&self, job_id: &ResourceId) -> Result<(), CommonException>;
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException>;
 }
 
 #[derive(Clone, Debug)]
@@ -98,7 +100,7 @@ impl DataflowStorage for RocksDataflowStorage {
         }
     }
 
-    fn delete(&self, job_id: &ResourceId) -> Result<(), CommonException> {
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
         DB::open_default(self.dataflow_store_path.as_str())
             .map_err(|err| CommonException {
                 kind: ErrorKind::OpenDBFailed,
@@ -118,9 +120,38 @@ impl DataflowStorage for RocksDataflowStorage {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct MemDataflowStorage {
+    cache: BTreeMap<HashedResourceId, Dataflow>,
+}
+
+impl DataflowStorage for MemDataflowStorage {
+    fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
+        self.cache
+            .insert(HashedResourceId::from(dataflow.get_job_id()), dataflow);
+        Ok(())
+    }
+
+    fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
+        self.cache
+            .get(&HashedResourceId::from(job_id))
+            .map(|dataflow| dataflow.clone())
+    }
+
+    fn may_exists(&self, job_id: &ResourceId) -> bool {
+        self.cache.contains_key(&job_id.into())
+    }
+
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
+        self.cache.remove(&job_id.into());
+        Ok(())
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum DataflowStorageImpl {
     RocksDB(RocksDataflowStorage),
+    Memory(MemDataflowStorage),
 }
 
 impl DataflowStorageImpl {
@@ -148,24 +179,28 @@ impl DataflowStorageImpl {
 
         match self {
             Self::RocksDB(storage) => storage.save(dataflow),
+            Self::Memory(storage) => storage.save(dataflow),
         }
     }
 
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
         match self {
-            DataflowStorageImpl::RocksDB(storage) => storage.get(job_id),
+            Self::RocksDB(storage) => storage.get(job_id),
+            Self::Memory(storage) => storage.get(job_id),
         }
     }
 
     fn may_exists(&self, job_id: &ResourceId) -> bool {
         match self {
-            DataflowStorageImpl::RocksDB(storage) => storage.may_exists(job_id),
+            Self::RocksDB(storage) => storage.may_exists(job_id),
+            Self::Memory(storage) => storage.may_exists(job_id),
         }
     }
 
-    fn delete(&self, job_id: &ResourceId) -> Result<(), CommonException> {
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
         match self {
             DataflowStorageImpl::RocksDB(storage) => storage.delete(job_id),
+            DataflowStorageImpl::Memory(storage) => storage.delete(job_id),
         }
     }
 }
@@ -204,7 +239,7 @@ impl Coordinator {
         self.cluster.create_dataflow(map)
     }
 
-    pub fn terminate_dataflow(&self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {
+    pub fn terminate_dataflow(&mut self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {
         if !self.dataflow_storage.may_exists(job_id) {
             Ok(DataflowStatus::CLOSED)
         } else {
@@ -236,16 +271,18 @@ pub struct CoordinatorConfig {
 #[derive(serde::Deserialize, Clone, Debug)]
 pub enum DataflowStorageConfig {
     RocksDB { dataflow_store_path: String },
+    Memory,
 }
 
 impl DataflowStorageConfig {
     pub fn to_dataflow_storage(&self) -> DataflowStorageImpl {
         match self {
-            DataflowStorageConfig::RocksDB {
+            Self::RocksDB {
                 dataflow_store_path,
             } => DataflowStorageImpl::RocksDB(RocksDataflowStorage {
                 dataflow_store_path: dataflow_store_path.clone(),
             }),
+            Self::Memory => DataflowStorageImpl::Memory(Default::default()),
         }
     }
 }

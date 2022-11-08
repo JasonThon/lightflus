@@ -393,7 +393,7 @@ mod tests {
                   v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
                   v8::V8::initialize();
         });
-        std::env::set_var("RUST_LOG", "INFO");
+        std::env::set_var("STATE_MANAGER", "MEM");
 
         SetupGuard {}
     }

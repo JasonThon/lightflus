@@ -11,14 +11,14 @@ pub trait StateManager {
     fn set_key_state(&self, key: &[u8], value: &[u8]);
 }
 
-fn new_rowsdb_state_mgt() -> RocksStateManager {
+fn new_rocksdb_state_mgt() -> RocksStateManager {
     let path = common::utils::get_env(ROCKS_STATE_PATH).unwrap_or(DEFAULT_STATE_PATH.to_string());
     RocksStateManager::new(path)
 }
 
 pub fn new_state_mgt() -> impl StateManager {
     match state_mgt_type() {
-        StateMangerType::RocksDB => StateManagerEnum::RocksDb(new_rowsdb_state_mgt()),
+        StateMangerType::RocksDB => StateManagerEnum::RocksDb(new_rocksdb_state_mgt()),
         StateMangerType::Memory => StateManagerEnum::Memory(MemoryStateManager::new()),
     }
 }

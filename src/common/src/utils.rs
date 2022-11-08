@@ -79,7 +79,7 @@ pub fn from_reader<R: std::io::Read>(reader: R) -> serde_json::Result<String> {
     let mut buf_reader = std::io::BufReader::new(reader);
     buf_reader
         .read_to_string(buf)
-        .map_err(|err| serde_json::Error::custom("fail to read from reader"))
+        .map_err(|err| serde_json::Error::custom(format!("fail to read from reader: {}", err)))
         .map(|_| replace_by_env(buf))
 }
 

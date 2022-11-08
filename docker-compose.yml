@@ -19,7 +19,7 @@ services:
     depends_on:
       - zookeeper
   coordinator:
-    image: lightflus/runtime/coordinator:latest
+    image: lightflus/coordinator:latest
     build:
       context: .
       dockerfile: docker/coordinator/Dockerfile
@@ -44,7 +44,7 @@ services:
       retries: 3
       start_period: 10s
   worker:
-    image: lightflus/runtime/worker:latest
+    image: lightflus/worker:latest
     hostname: worker-1
     build:
       context: .
@@ -68,7 +68,7 @@ services:
       retries: 3
       start_period: 5s
   apiserver:
-    image: lightflus/runtime/apiserver:latest
+    image: lightflus/apiserver:latest
     hostname: apiserver-1
     build:
       context: .

@@ -10,5 +10,4 @@ RUN apk add --update --no-cache rocksdb-dev
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/etc /lightflus/runtime/etc
 COPY --from=builder /lightflus/runtime/apiserver /lightflus/runtime/apiserver
-COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
 CMD ["./apiserver", "-c", "etc/apiserver.json"]

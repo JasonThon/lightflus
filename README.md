@@ -11,7 +11,7 @@
 
 **Important Notes**
 
-1. Lightflus is in **preview** now, some features are still in development. If you want to try Lightflus, please wait for the demo version released.
+1. Lightflus is in **preview** now, some features are still in development. If you want to try a better Lightflus, please wait for the demo version released.
 
 2. We welcome every one to comment on Lightflus, including design, features support and more;
 

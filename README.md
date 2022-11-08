@@ -5,7 +5,7 @@
   </p>
   <p>
 
-[![CI](https://github.com/Lady-Summer/lightflus-runtime/actions/workflows/workflow.yml/badge.svg)](https://github.com/Lady-Summer/lightflus-runtime/actions/workflows/workflow.yml)
+[![CI](https://github.com/Lady-Summer/lightflus-runtime/actions/workflows/workflow.yml/badge.svg)](https://github.com/Lady-Summer/lightflus-runtime/actions/workflows/workflow.yml) [![Join the chat at https://gitter.im/lightflus/community](https://badges.gitter.im/lightflus/community.svg)](https://gitter.im/lightflus/community?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 </p>
 </div>
 

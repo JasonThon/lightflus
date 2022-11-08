@@ -9,6 +9,17 @@
 </p>
 </div>
 
+**Important Notes**
+
+1. Lightflus is in **preview** now, some features are still in development. If you want to try Lightflus, please wait for the demo version released.
+
+2. We welcome every one to comment on Lightflus, including design, features support and more;
+
+
+## Community
+
+Welcome all to join [Slack](https://lightflus.slack.com/join/shared_invite/zt-1hqwryop3-jWOhWSuQ2B7wulhQM5~sHQ#/shared-invite/email) Community! 
+
 ## Design Philosophy
 **Typescript API + Rust Runtime**
 

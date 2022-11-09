@@ -459,7 +459,7 @@ dependencies = [
  "bytes",
  "chrono",
  "common",
- "futures",
+ "futures-executor",
  "grpcio",
  "log",
  "proto",
@@ -1471,11 +1471,9 @@ dependencies = [
  "chrono",
  "common",
  "crossbeam-channel",
- "futures",
  "log",
  "proto",
  "protobuf",
- "rdkafka",
  "rocksdb",
  "serde",
  "stream",
@@ -1838,7 +1836,6 @@ name = "worker"
 version = "0.1.0"
 dependencies = [
  "common",
- "env_logger",
  "grpcio",
  "log",
  "proto",

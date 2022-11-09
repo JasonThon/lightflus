@@ -1,5 +1,5 @@
+use common::err::KafkaException;
 use crossbeam_channel::SendError;
-use rdkafka::error::KafkaError;
 
 use crate::actor::SinkableMessageImpl;
 
@@ -34,8 +34,8 @@ impl SinkException {
     }
 }
 
-impl From<KafkaError> for SinkException {
-    fn from(err: KafkaError) -> Self {
+impl From<KafkaException> for SinkException {
+    fn from(err: KafkaException) -> Self {
         Self {
             kind: ErrorKind::KafkaMessageSendFailed,
             msg: format!("message detail: {}", err),

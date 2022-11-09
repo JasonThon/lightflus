@@ -4,7 +4,7 @@ use crate::state::new_state_mgt;
 
 use common::collections::lang;
 use common::event::LocalEvent;
-use common::kafka::{run_consumer, run_producer, KafkaProducer};
+use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaProducer};
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils;
 use proto::common::common::{HostAddr, ResourceId};
@@ -16,9 +16,6 @@ use proto::worker::cli::{new_dataflow_worker_client, DataflowWorkerConfig};
 use proto::worker::worker::{DispatchDataEventStatusEnum, StopDataflowRequest};
 use protobuf::well_known_types::Timestamp;
 use protobuf::RepeatedField;
-use rdkafka::consumer::StreamConsumer;
-
-use rdkafka::Message;
 
 use std::collections::BTreeMap;
 
@@ -159,7 +156,7 @@ impl Executor for LocalExecutor {
                     match &msg {
                         LocalMessage(message) => match message {
                             KeyedDataStreamEvent(e) => {
-                                if self.operator.has_source() && self.operator.has_sink() {
+                                if self.operator.has_source() || self.operator.has_sink() {
                                     self.sinks.iter().for_each(|sink| {
                                         let _ = sink.sink(msg.clone());
                                     });
@@ -552,7 +549,7 @@ pub struct Kafka {
     connector_id: SourceId,
     conf: KafkaDesc,
     job_id: ResourceId,
-    consumer: Option<Arc<StreamConsumer>>,
+    consumer: Option<Arc<KafkaConsumer>>,
     producer: Option<KafkaProducer>,
 }
 
@@ -618,33 +615,24 @@ impl Source for Kafka {
     fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
         self.consumer.as_ref().and_then(|consumer| {
             let data_type = self.conf.get_data_type();
-            let mut stream = futures::executor::block_on_stream(consumer.stream());
-            stream.next().and_then(|message| match message {
-                Ok(msg) => {
-                    let owned_msg = msg.detach();
-                    owned_msg.payload().map(|payload| {
-                        let val = TypedValue::from_slice_with_type(payload, data_type);
-                        let mut event = KeyedDataEvent::default();
-                        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
-                        let mut event_time = Timestamp::default();
-                        event_time.set_seconds(datetime.naive_utc().timestamp());
-                        event_time.set_nanos(datetime.naive_utc().timestamp_subsec_nanos() as i32);
-                        event.set_event_time(event_time);
-                        event.set_job_id(self.job_id.clone());
-                        event.set_from_operator_id(self.connector_id);
+            consumer.fetch(|message| {
+                let payload = message.payload.as_slice();
+                let val = TypedValue::from_slice_with_type(payload, data_type);
+                let mut event = KeyedDataEvent::default();
+                let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
+                let mut event_time = Timestamp::default();
+                event_time.set_seconds(datetime.naive_utc().timestamp());
+                event_time.set_nanos(datetime.naive_utc().timestamp_subsec_nanos() as i32);
+                event.set_event_time(event_time);
+                event.set_job_id(self.job_id.clone());
+                event.set_from_operator_id(self.connector_id);
 
-                        let mut entry = Entry::default();
-                        entry.set_data_type(data_type);
-                        entry.set_value(val.get_data());
-                        event.set_data(RepeatedField::from_slice(&[entry]));
+                let mut entry = Entry::default();
+                entry.set_data_type(data_type);
+                entry.set_value(val.get_data());
+                event.set_data(RepeatedField::from_slice(&[entry]));
 
-                        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
-                    })
-                }
-                Err(err) => {
-                    log::error!("fetch data from kafka failed: {}", err);
-                    None
-                }
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
             })
         })
     }

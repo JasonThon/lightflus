@@ -1,5 +1,6 @@
 use std::io;
 
+use rdkafka::error::KafkaError;
 use tokio::sync::mpsc;
 
 use proto::common::common::{ResourceId, Response};
@@ -273,5 +274,16 @@ impl From<mpsc::error::TryRecvError> for TaskWorkerError {
 impl From<ExecutionException> for TaskWorkerError {
     fn from(err: ExecutionException) -> Self {
         Self::ExecutionError(err.to_string())
+    }
+}
+
+#[derive(Debug)]
+pub struct KafkaException {
+    pub err: KafkaError,
+}
+
+impl std::fmt::Display for KafkaException {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.err.fmt(f)
     }
 }

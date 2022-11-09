@@ -10,6 +10,7 @@ pub mod worker;
 
 #[tokio::main]
 async fn main() {
+    log::set_max_level(log::LevelFilter::Info);
     initialize_v8();
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
@@ -21,7 +22,6 @@ async fn main() {
             format!("config file open failed: {:?}", result.unwrap_err())
         )
     }
-    env_logger::init();
 
     let file = result.unwrap();
 
@@ -51,7 +51,7 @@ async fn main() {
 
     let grpc_server = grpcio::ServerBuilder::new(sync::Arc::new(grpcio::Environment::new(10)))
         .register_service(service)
-        .bind("127.0.0.1", config.port as u16)
+        .bind("0.0.0.0", config.port as u16)
         .build();
 
     if grpc_server.is_err() {

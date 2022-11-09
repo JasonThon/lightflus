@@ -6,5 +6,9 @@
       "port": 18090
     }
   ],
-  "storage": "Memory"
+  "storage": {
+    "RocksDB": {
+      "dataflow_store_path": "/Users/jason.song/state"
+    }
+  }
 }

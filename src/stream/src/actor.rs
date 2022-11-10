@@ -807,7 +807,6 @@ mod tests {
         let mut metas = vec![];
         let mut meta = DataflowMeta::default();
         meta.set_center(0);
-        meta.set_neighbors(vec![1, 2, 3]);
         metas.push(meta);
 
         let mut nodes = BTreeMap::new();

@@ -127,8 +127,10 @@ pub struct MemDataflowStorage {
 
 impl DataflowStorage for MemDataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
-        self.cache
-            .insert(HashedResourceId::from(dataflow.get_job_id()), dataflow);
+        self.cache.insert(
+            HashedResourceId::from(dataflow.get_job_id()),
+            dataflow.clone(),
+        );
         Ok(())
     }
 
@@ -155,28 +157,7 @@ pub enum DataflowStorageImpl {
 }
 
 impl DataflowStorageImpl {
-    fn save(
-        &mut self,
-        job_id: &ResourceId,
-        map: &HashMap<String, Dataflow>,
-    ) -> Result<(), CommonException> {
-        let mut metas = vec![];
-        let mut operator_infos = HashMap::new();
-        map.iter().for_each(|entry| {
-            entry.1.get_meta().iter().for_each(|meta| {
-                if !metas.contains(meta) {
-                    metas.push(meta.clone())
-                }
-            });
-            entry.1.get_nodes().iter().for_each(|sub_entry| {
-                operator_infos.insert(*sub_entry.0, sub_entry.1.clone());
-            })
-        });
-        let mut dataflow = Dataflow::default();
-        dataflow.set_job_id(job_id.clone());
-        dataflow.set_meta(RepeatedField::from_vec(metas));
-        dataflow.set_nodes(operator_infos);
-
+    fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
         match self {
             Self::RocksDB(storage) => storage.save(dataflow),
             Self::Memory(storage) => storage.save(dataflow),
@@ -222,21 +203,19 @@ impl Coordinator {
         }
     }
 
-    pub fn create_dataflow(&mut self, dataflow: Dataflow) -> Result<(), ApiError> {
-        let job_id = dataflow.get_job_id();
-
-        let map = self.cluster.partition_dataflow(&dataflow);
-        match self.dataflow_storage.save(job_id, &map) {
+    pub fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), ApiError> {
+        self.cluster.partition_dataflow(&mut dataflow);
+        match self.dataflow_storage.save(dataflow.clone()) {
             Err(err) => return err.to_api_error(),
             _ => {}
         }
 
-        let terminate_result = self.terminate_dataflow(job_id);
+        let terminate_result = self.terminate_dataflow(dataflow.get_job_id());
         if terminate_result.is_err() {
             return terminate_result.map(|_| ());
         }
 
-        self.cluster.create_dataflow(map)
+        self.cluster.create_dataflow(dataflow)
     }
 
     pub fn terminate_dataflow(&mut self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {

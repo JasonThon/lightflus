@@ -110,11 +110,13 @@ impl Cluster {
             .get_nodes()
             .iter()
             .map(|entry| {
-                HashMap::from([(
+                (
                     self.partition_key(&SingleKV::new(*entry.0)),
                     vec![entry.1.clone()],
-                )])
+                )
             })
+            .filter(|pair| pair.0.is_valid())
+            .map(|pair| HashMap::from([pair]))
             .reduce(|mut accum, mut map| {
                 map.iter_mut().for_each(|entry| {
                     entry.1.iter_mut().for_each(|info| {
@@ -231,6 +233,7 @@ impl NodeConfig {
 }
 
 mod cluster_tests {
+
     #[test]
     pub fn test_cluster_available() {
         use super::{Cluster, NodeConfig};
@@ -245,5 +248,69 @@ mod cluster_tests {
             .for_each(|node| node.status = super::NodeStatus::Running);
 
         assert!(cluster.is_available())
+    }
+
+    #[test]
+    fn test_cluster_partition_dataflow() {
+        use super::{Cluster, NodeConfig};
+        use proto::common::stream::Dataflow;
+        use protobuf::RepeatedField;
+        use std::collections::HashMap;
+
+        use proto::common::stream::{DataflowMeta, OperatorInfo};
+
+        use crate::net::cluster::NodeStatus;
+        let mut cluster = Cluster::new(&vec![
+            NodeConfig {
+                host: "198.0.0.1".to_string(),
+                port: 8080,
+            },
+            NodeConfig {
+                host: "198.0.0.2".to_string(),
+                port: 8080,
+            },
+            NodeConfig {
+                host: "198.0.0.3".to_string(),
+                port: 8080,
+            },
+        ]);
+        let mut dataflow = Dataflow::default();
+
+        let mut meta_1 = DataflowMeta::default();
+        meta_1.set_center(0);
+        meta_1.set_neighbors(vec![1, 2, 3]);
+
+        let mut nodes = HashMap::new();
+        let mut op0 = OperatorInfo::default();
+        op0.set_operator_id(0);
+        let mut op1 = OperatorInfo::default();
+        op1.set_operator_id(1);
+
+        let mut op2 = OperatorInfo::default();
+        op2.set_operator_id(2);
+
+        let mut op3 = OperatorInfo::default();
+        op3.set_operator_id(3);
+
+        nodes.insert(0, op0);
+        nodes.insert(1, op1);
+        nodes.insert(2, op2);
+        nodes.insert(3, op3);
+
+        dataflow.set_meta(RepeatedField::from_slice(&[meta_1]));
+        dataflow.set_nodes(nodes);
+
+        let result = cluster.partition_dataflow(&dataflow);
+
+        assert!(result.is_empty());
+        cluster
+            .workers
+            .iter_mut()
+            .for_each(|node| node.status = NodeStatus::Running);
+
+        let result = cluster.partition_dataflow(&dataflow);
+
+        assert!(!result.is_empty());
+        assert_eq!(result.len(), 3)
     }
 }

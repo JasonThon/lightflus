@@ -5,8 +5,8 @@ use proto::common::common::HostAddr;
 pub const SUCCESS: i32 = 200;
 pub const BAD_REQUEST: i32 = 400;
 pub const INTERNAL_SERVER_ERROR: i32 = 500;
-pub mod status;
 pub mod cluster;
+pub mod status;
 
 #[derive(Clone, Debug)]
 pub struct ClientConfig {
@@ -27,6 +27,10 @@ pub struct PersistableHostAddr {
 impl PersistableHostAddr {
     pub fn as_uri(&self) -> String {
         format!("{}:{}", &self.host, self.port)
+    }
+
+    fn is_valid(&self) -> bool {
+        !self.host.is_empty() && self.port > 0
     }
 }
 

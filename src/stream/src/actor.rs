@@ -1,6 +1,7 @@
 use crate::dataflow::DataflowTask;
-use crate::err::SinkException;
+use crate::err::{ErrorKind::RemoteSinkFailed, SinkException};
 use crate::state::new_state_mgt;
+use crate::v8_runtime::RuntimeEngine;
 
 use common::collections::lang;
 use common::event::LocalEvent;
@@ -10,18 +11,22 @@ use common::utils;
 use proto::common::common::{HostAddr, ResourceId};
 use proto::common::event::{Entry, KeyedDataEvent};
 use proto::common::stream::{
-    DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, Sink_oneof_desc, Source_oneof_desc,
+    DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc, Sink_oneof_desc, Source_oneof_desc,
 };
 use proto::worker::cli::{new_dataflow_worker_client, DataflowWorkerConfig};
-use proto::worker::worker::{DispatchDataEventStatusEnum, StopDataflowRequest};
+use proto::worker::worker::{
+    DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest,
+};
 use protobuf::well_known_types::Timestamp;
 use protobuf::RepeatedField;
+use sqlx::{Arguments, Execute, MySqlPool};
 
 use std::collections::BTreeMap;
 
 use std::sync::Arc;
 use std::thread::{spawn, JoinHandle};
 use std::time::SystemTime;
+use std::vec;
 
 pub type EventReceiver<Input> = crossbeam_channel::Receiver<Input>;
 pub type EventSender<Input> = crossbeam_channel::Sender<Input>;
@@ -422,14 +427,6 @@ impl Sink for RemoteSink {
         self.sink_id
     }
 
-    /**
-    Generally, remote/any database sink has to support three kinds of message delivery:
-    1. At most once
-    2. At least once
-    3. Exactly once
-    Each one face different tech trade-off. In 1.0.* released version, we only support At Least Once sink in default.
-    From 2.0 version, 2-PC exactly-once delivery will be planed to be supported.
-    **/
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let host = if self.host_addr.get_host().is_empty() {
             None
@@ -444,25 +441,49 @@ impl Sink for RemoteSink {
         };
 
         let cli = new_dataflow_worker_client(DataflowWorkerConfig {
-            host: host,
-            port: port,
+            host,
+            port,
             uri: None,
         });
 
         match msg {
             SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { job_id, to } => {
+                LocalEvent::Terminate { job_id, .. } => {
                     let mut req = StopDataflowRequest::default();
                     req.set_job_id(job_id);
-                    // cli.stop_dataflow(&req).map(|resp| {
-
-                    // })
+                    cli.stop_dataflow(&req)
+                        .map(|_| DispatchDataEventStatusEnum::DISPATCHING)
+                        .map_err(|err| SinkException {
+                            kind: RemoteSinkFailed,
+                            msg: format!("{}", err),
+                        })
                 }
-                LocalEvent::KeyedDataStreamEvent(_) => todo!(),
+                LocalEvent::KeyedDataStreamEvent(event) => {
+                    let mut req = DispatchDataEventsRequest::default();
+                    req.set_events(RepeatedField::from_slice(&[event]));
+                    cli.dispatch_data_events(&req)
+                        .map(|resp| {
+                            for entry in resp.get_statusSet() {
+                                match entry.1 {
+                                    DispatchDataEventStatusEnum::DISPATCHING => {
+                                        return DispatchDataEventStatusEnum::DISPATCHING
+                                    }
+                                    DispatchDataEventStatusEnum::DONE => continue,
+                                    DispatchDataEventStatusEnum::FAILURE => {
+                                        return DispatchDataEventStatusEnum::FAILURE
+                                    }
+                                }
+                            }
+
+                            DispatchDataEventStatusEnum::DONE
+                        })
+                        .map_err(|err| SinkException {
+                            kind: RemoteSinkFailed,
+                            msg: format!("{}", err),
+                        })
+                }
             },
         }
-
-        todo!()
     }
 }
 
@@ -672,37 +693,63 @@ impl Mysql {
     }
 
     fn get_actual_statements(&self, msg: SinkableMessageImpl) -> Vec<String> {
-        // let isolate = &mut v8::Isolate::new(Default::default());
-        // let scope = &mut v8::HandleScope::new(isolate);
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let scope = &mut v8::HandleScope::new(isolate);
+        let mut extractors = self.conf.get_statement().get_extractors().to_vec();
 
-        // let sql_arguments = self
-        //     .conf
-        //     .get_statement()
-        //     .get_extractors()
-        //     .iter()
-        //     .map(|extractor| match &msg {
-        //         SinkableMessageImpl::LocalMessage(event) => match event {
-        //             LocalEvent::Terminate { .. } => SqlColumnArguments {
-        //                 index: extractor.get_index(),
-        //                 value: vec![],
-        //             },
-        //             LocalEvent::KeyedDataStreamEvent(e) => {
-        //                 let ref mut rt_engine =
-        //                     RuntimeEngine::new(extractor.get_extractor(), "mysql_extractor", scope);
-        //                 let columns = e.get_data().iter().map(|entry| {
-        //                     rt_engine
-        //                         .call_one_arg(&TypedValue::from_slice(entry.get_value()))
-        //                         .unwrap_or_default()
-        //                 });
+        extractors.sort_by(|v1, v2| v1.get_index().cmp(&v2.get_index()));
 
-        //                 SqlColumnArguments {
-        //                     index: extractor.get_index(),
-        //                     value: Vec::from_iter(columns),
-        //                 }
-        //             }
-        //         },
-        //     });
-        vec![]
+        let row_arguments = match msg {
+            SinkableMessageImpl::LocalMessage(event) => match event {
+                LocalEvent::Terminate { .. } => vec![],
+                LocalEvent::KeyedDataStreamEvent(e) => {
+                    Vec::from_iter(e.get_data().iter().map(|entry| {
+                        let val = TypedValue::from_slice(entry.get_value());
+                        extractors
+                            .iter()
+                            .map(|extractor| {
+                                let mut rt_engine = RuntimeEngine::new(
+                                    extractor.get_extractor(),
+                                    "mysql_extractor",
+                                    scope,
+                                );
+                                rt_engine.call_one_arg(&val).unwrap_or_default()
+                            })
+                            .collect::<Vec<TypedValue>>()
+                    }))
+                }
+            },
+        };
+
+        row_arguments
+            .iter()
+            .map(|values| {
+                let mut arguments = sqlx::mysql::MySqlArguments::default();
+
+                values.iter().for_each(|val| match val {
+                    TypedValue::String(v) => arguments.add(v),
+                    TypedValue::BigInt(v) => arguments.add(v),
+                    TypedValue::Boolean(v) => arguments.add(v),
+                    TypedValue::Number(v) => arguments.add(v),
+                    _ => arguments.add(""),
+                });
+                sqlx::query_with::<sqlx::MySql, sqlx::mysql::MySqlArguments>(
+                    self.conf.get_statement().get_statement(),
+                    arguments,
+                )
+                .sql()
+                .to_string()
+            })
+            .collect()
+    }
+
+    fn get_uri(&self) -> String {
+        let db = self.conf.get_connection_opts().get_database();
+        let user = self.conf.get_connection_opts().get_username();
+        let password = self.conf.get_connection_opts().get_password();
+        let host = self.conf.get_connection_opts().get_host();
+
+        format!("mysql://{user}:{password}@{host}/{db}")
     }
 }
 
@@ -713,16 +760,69 @@ impl Sink for Mysql {
 
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let statements: Vec<String> = self.get_actual_statements(msg);
+        let pool = futures_executor::block_on(MySqlPool::connect(self.get_uri().as_str()));
+        pool.and_then(|conn| {
+            for statement in statements {
+                let result = futures_executor::block_on(sqlx::query(&statement).execute(&conn));
+                if result.is_err() {
+                    return result.map(|_| DispatchDataEventStatusEnum::FAILURE);
+                }
+            }
 
+            Ok(DispatchDataEventStatusEnum::DONE)
+        })
+        .map_err(|err| err.into())
+    }
+}
+
+#[derive(Clone)]
+pub struct Redis {
+    connector_id: SinkId,
+    conf: RedisDesc,
+}
+
+impl Sink for Redis {
+    fn sink_id(&self) -> SinkId {
+        self.connector_id
+    }
+
+    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         todo!()
     }
 }
 
-struct SqlColumnArguments {
-    pub index: u32,
-    pub value: Vec<TypedValue>,
-}
+mod tests {
 
-struct SqlRowArguments {
-    pub row: BTreeMap<u32, TypedValue>,
+    #[test]
+    fn test_new_dataflow_context() {
+        use proto::common::common::ResourceId;
+        use proto::common::stream::DataflowMeta;
+        use proto::common::stream::OperatorInfo;
+        use proto::common::stream::{KafkaDesc, Source};
+        use protobuf::RepeatedField;
+        use std::collections::BTreeMap;
+
+        use crate::actor::DataflowContext;
+
+        let mut metas = vec![];
+        let mut meta = DataflowMeta::default();
+        meta.set_center(0);
+        meta.set_neighbors(vec![1, 2, 3]);
+        metas.push(meta);
+
+        let mut nodes = BTreeMap::new();
+        let mut kafka = OperatorInfo::default();
+        let mut source = Source::default();
+        let mut desc = KafkaDesc::new();
+
+        desc.set_brokers(RepeatedField::from_slice(&["localhost:9001".to_string()]));
+        desc.set_topic("test".to_string());
+        source.set_kafka(desc);
+        kafka.set_source(source);
+        nodes.insert(0, kafka);
+
+        let ctx = DataflowContext::new(ResourceId::default(), metas, nodes);
+        let executors = ctx.create_executors();
+        assert_eq!(executors.len(), 1);
+    }
 }

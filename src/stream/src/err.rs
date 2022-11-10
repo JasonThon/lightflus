@@ -8,6 +8,8 @@ pub enum ErrorKind {
     InvalidMessageType,
     MessageSendFailed,
     KafkaMessageSendFailed,
+    SqlExecutionFailed,
+    RemoteSinkFailed,
 }
 
 #[derive(Clone, Debug)]
@@ -39,6 +41,15 @@ impl From<KafkaException> for SinkException {
         Self {
             kind: ErrorKind::KafkaMessageSendFailed,
             msg: format!("message detail: {}", err),
+        }
+    }
+}
+
+impl From<sqlx::Error> for SinkException {
+    fn from(err: sqlx::Error) -> Self {
+        Self {
+            kind: ErrorKind::SqlExecutionFailed,
+            msg: format!("{}", err),
         }
     }
 }

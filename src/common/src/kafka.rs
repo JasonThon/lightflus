@@ -3,7 +3,6 @@ use std::time::Duration;
 use proto::common::stream::KafkaDesc_KafkaOptions;
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
-    error::KafkaError,
     producer::{FutureProducer, FutureRecord},
     ClientConfig, Message,
 };

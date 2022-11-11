@@ -1,23 +1,29 @@
+use core::fmt;
 use std::io;
+
+use proto::common::common::{ErrorCode, ResourceId, Response};
 
 use rdkafka::error::KafkaError;
 use tokio::sync::mpsc;
 
-use proto::common::common::{ResourceId, Response};
+use crate::{event::LocalEvent, types::SinkId};
 
-use crate::event::LocalEvent;
-use crate::types::SinkId;
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApiError {
     pub code: i32,
     pub msg: String,
 }
 
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(serde_json::to_string(self).unwrap().as_str())
+    }
+}
+
 pub trait Error {
     fn to_string(&self) -> String {
         serde_json::to_string(&ApiError {
-            code: self.code(),
+            code: self.code() as i32,
             msg: format!("Error Kind: {:?}. Message: {}", self.kind(), self.msg()),
         })
         .unwrap()
@@ -27,12 +33,88 @@ pub trait Error {
 
     fn msg(&self) -> String;
 
-    fn code(&self) -> i32;
+    fn code(&self) -> ErrorCode;
 }
 
 impl From<grpcio::Error> for ApiError {
-    fn from(_err: grpcio::Error) -> Self {
-        todo!()
+    fn from(err: grpcio::Error) -> Self {
+        match err {
+            grpcio::Error::RpcFailure(status) => {
+                if status.code() == grpcio::RpcStatusCode::DEADLINE_EXCEEDED {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RESOURCE_NOT_FOUND as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                if status.code() == grpcio::RpcStatusCode::NOT_FOUND {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RESOURCE_NOT_FOUND as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                if status.code() == grpcio::RpcStatusCode::UNIMPLEMENTED {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RPC_UNIMPLEMENTED as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                if status.code() == grpcio::RpcStatusCode::UNAVAILABLE {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RPC_UNAVAILABLE as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                if status.code() == grpcio::RpcStatusCode::UNAUTHENTICATED {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RPC_UNAUTHORIZED as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                if status.code() == grpcio::RpcStatusCode::INVALID_ARGUMENT {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RPC_INVALID_ARGUMENT as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                if status.code() == grpcio::RpcStatusCode::PERMISSION_DENIED {
+                    return ApiError {
+                        code: ErrorCode::ERROR_CODE_RPC_PERMISSION_DENIED as i32,
+                        msg: status.message().to_string(),
+                    };
+                }
+
+                ApiError {
+                    code: ErrorCode::ERROR_CODE_INTERNAL_ERROR as i32,
+                    msg: status.message().to_string(),
+                }
+            }
+            grpcio::Error::RpcFinished(_) => ApiError {
+                code: ErrorCode::ERROR_CODE_TOO_MANY_REQUEST as i32,
+                msg: format!("{}", err),
+            },
+            grpcio::Error::RemoteStopped => ApiError {
+                code: ErrorCode::ERROR_CODE_RPC_UNAVAILABLE as i32,
+                msg: format!("{}", err),
+            },
+            grpcio::Error::BindFail(_, _) => ApiError {
+                code: ErrorCode::ERROR_CODE_RPC_BIND_FAILED as i32,
+                msg: format!("{}", err),
+            },
+            grpcio::Error::GoogleAuthenticationFailed => ApiError {
+                code: ErrorCode::ERROR_CODE_GOOGLE_AUTH_FAILED as i32,
+                msg: format!("{}", err),
+            },
+            _ => ApiError {
+                code: ErrorCode::ERROR_CODE_INTERNAL_ERROR as i32,
+                msg: format!("{}", err),
+            },
+        }
     }
 }
 
@@ -206,8 +288,8 @@ impl Error for CommonException {
         self.message.clone()
     }
 
-    fn code(&self) -> i32 {
-        500
+    fn code(&self) -> ErrorCode {
+        ErrorCode::ERROR_CODE_INTERNAL_ERROR
     }
 }
 
@@ -226,8 +308,8 @@ impl Error for ExecutionException {
         self.msg.clone()
     }
 
-    fn code(&self) -> i32 {
-        500
+    fn code(&self) -> ErrorCode {
+        ErrorCode::ERROR_CODE_INTERNAL_ERROR
     }
 }
 

@@ -11,6 +11,7 @@ COPY target/release/worker /lightflus/runtime/worker
 COPY src/worker/etc /lightflus/runtime
 
 FROM alpine:3.15
+RUN apk add --update --no-cache rocksdb-dev
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/etc /lightflus/runtime/etc
 COPY --from=builder /lightflus/runtime/worker /lightflus/runtime/worker

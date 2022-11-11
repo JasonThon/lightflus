@@ -10,7 +10,6 @@ pub mod coord;
 
 #[tokio::main]
 async fn main() {
-    log::set_max_level(log::LevelFilter::Info);
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let file_result =
@@ -56,7 +55,7 @@ async fn main() {
         .build()
         .expect("grpc server create failed");
     grpc_server.start();
-    println!("service start at port: {}", &config.port);
+    log::info!("service start at port: {}", &config.port);
 
     let _ = tokio::signal::ctrl_c().await;
 

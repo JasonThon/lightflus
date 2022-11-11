@@ -3,12 +3,8 @@
   "cluster": [
     {
       "host": "${WORKER_NODE_1}",
-      "port": 18090
+      "port": 8792
     }
   ],
-  "storage": {
-    "RocksDB": {
-      "dataflow_store_path": "/Users/jason.song/state"
-    }
-  }
+  "storage": "Memory"
 }

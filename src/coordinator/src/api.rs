@@ -97,12 +97,12 @@ impl CoordinatorApi for CoordinatorApiImpl {
     fn get_dataflow(
         &mut self,
         _ctx: RpcContext,
-        _req: GetDataflowRequest,
+        req: GetDataflowRequest,
         sink: UnarySink<GetDataflowResponse>,
     ) {
         match self
             .coordinator
-            .get_dataflow(_req.get_job_id())
+            .get_dataflow(req.get_job_id())
             .map(|dataflow| {
                 let mut resp = GetDataflowResponse::default();
                 resp.set_graph(dataflow.clone());
@@ -112,7 +112,10 @@ impl CoordinatorApi for CoordinatorApiImpl {
                 sink.success(resp);
             }
             None => {
-                sink.fail(RpcStatus::new(RpcStatusCode::NOT_FOUND));
+                sink.fail(RpcStatus::with_message(
+                    RpcStatusCode::NOT_FOUND,
+                    format!("dataflow {:?} does not found", req.get_job_id()),
+                ));
             }
         }
     }

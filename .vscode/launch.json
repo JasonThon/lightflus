@@ -153,7 +153,7 @@
                 }
             },
             "env": {
-                "RUST_LOG": "INFO"
+                "RUST_LOG": "INFO",
             },
             "args": [],
             "cwd": "${workspaceFolder}"
@@ -193,7 +193,8 @@
                 }
             },
             "env": {
-                "RUST_LOG": "INFO"
+                "RUST_LOG": "INFO",
+                "WORKER_1": "localhost:8792"
             },
             "args": [],
             "cwd": "${workspaceFolder}"
@@ -216,6 +217,28 @@
             },
             "args": [],
             "cwd": "${workspaceFolder}"
-        }
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'apiserver'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--bin=apiserver",
+                    "--package=apiserver"
+                ],
+                "filter": {
+                    "name": "apiserver",
+                    "kind": "bin"
+                }
+            },
+            "env": {
+                "RUST_LOG": "INFO",
+                "LIGHTFLUS_COORDINATOR_URI": "localhost:8791"
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
     ]
 }

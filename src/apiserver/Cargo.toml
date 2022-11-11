@@ -12,4 +12,4 @@ actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
 protobuf = "2.27.1"
 grpcio = "0.10.3"
-futures = "0.3"
+futures-util = "0.3.25"

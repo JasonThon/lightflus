@@ -70,7 +70,10 @@ impl Arg {
 pub fn get_env(k: &str) -> Option<String> {
     match env::var(k.to_string()) {
         Ok(var) => Some(var),
-        Err(_) => None,
+        Err(err) => {
+            log::error!("{}", err);
+            None
+        }
     }
 }
 

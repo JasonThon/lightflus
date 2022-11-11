@@ -1,5 +1,5 @@
 use std::collections::BTreeMap;
-use std::collections::HashMap;
+use std::sync::Arc;
 
 use common::err::ApiError;
 use common::err::CommonException;
@@ -12,7 +12,6 @@ use proto::common::common::ResourceId;
 use proto::common::stream::Dataflow;
 use proto::common::stream::DataflowStatus;
 use protobuf::Message;
-use protobuf::RepeatedField;
 use rocksdb::DB;
 
 pub(crate) trait DataflowStorage {
@@ -24,52 +23,41 @@ pub(crate) trait DataflowStorage {
 
 #[derive(Clone, Debug)]
 pub struct RocksDataflowStorage {
-    dataflow_store_path: String,
+    db: Arc<DB>,
 }
 
 impl DataflowStorage for RocksDataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
-        DB::open_default(self.dataflow_store_path.as_str())
-            .map_err(|err| CommonException {
-                kind: ErrorKind::SaveDataflowFailed,
-                message: err.into_string(),
-            })
-            .and_then(|db| {
+        dataflow
+            .get_job_id()
+            .write_to_bytes()
+            .map_err(|err| CommonException::from(err))
+            .and_then(|job_id_bytes| {
                 dataflow
-                    .get_job_id()
                     .write_to_bytes()
-                    .map_err(|err| CommonException::from(err))
-                    .and_then(|job_id_bytes| {
-                        dataflow
-                            .write_to_bytes()
-                            .map_err(|err| err.into())
-                            .and_then(|buf| {
-                                db.put(job_id_bytes, buf).map_err(|err| CommonException {
-                                    kind: ErrorKind::SaveDataflowFailed,
-                                    message: err.into_string(),
-                                })
+                    .map_err(|err| err.into())
+                    .and_then(|buf| {
+                        self.db
+                            .put(job_id_bytes, buf)
+                            .map_err(|err| CommonException {
+                                kind: ErrorKind::SaveDataflowFailed,
+                                message: err.into_string(),
                             })
                     })
             })
     }
 
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        match DB::open_default(self.dataflow_store_path.as_str())
-            .map_err(|err| CommonException {
-                kind: ErrorKind::OpenDBFailed,
-                message: err.into_string(),
-            })
-            .and_then(|db| {
-                job_id
-                    .write_to_bytes()
-                    .map_err(|err| CommonException::from(err))
-                    .and_then(|key| {
-                        db.get(key)
-                            .map(|data| data.and_then(|buf| Dataflow::parse_from_bytes(&buf).ok()))
-                            .map_err(|err| CommonException {
-                                kind: ErrorKind::GetDataflowFailed,
-                                message: err.into_string(),
-                            })
+        match job_id
+            .write_to_bytes()
+            .map_err(|err| CommonException::from(err))
+            .and_then(|key| {
+                self.db
+                    .get(key)
+                    .map(|data| data.and_then(|buf| Dataflow::parse_from_bytes(&buf).ok()))
+                    .map_err(|err| CommonException {
+                        kind: ErrorKind::GetDataflowFailed,
+                        message: err.into_string(),
                     })
             }) {
             Ok(result) => result,
@@ -81,41 +69,27 @@ impl DataflowStorage for RocksDataflowStorage {
     }
 
     fn may_exists(&self, job_id: &ResourceId) -> bool {
-        match DB::open_default(self.dataflow_store_path.as_str())
-            .map_err(|err| CommonException {
-                kind: ErrorKind::OpenDBFailed,
-                message: err.into_string(),
-            })
-            .and_then(|db| {
-                job_id
-                    .write_to_bytes()
-                    .map_err(|err| err.into())
-                    .map(|key| db.key_may_exist(key))
-            }) {
+        match job_id
+            .write_to_bytes()
+            .map(|key| self.db.key_may_exist(key))
+        {
             Ok(exist) => exist,
             Err(err) => {
-                log::error!("call dataflow exists error {:?}", err);
+                log::error!("deserialize proto failed {}", err);
                 false
             }
         }
     }
 
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
-        DB::open_default(self.dataflow_store_path.as_str())
-            .map_err(|err| CommonException {
-                kind: ErrorKind::OpenDBFailed,
-                message: err.into_string(),
-            })
-            .and_then(|db| {
-                job_id
-                    .write_to_bytes()
-                    .map_err(|err| err.into())
-                    .and_then(|key| {
-                        db.delete(key).map_err(|err| CommonException {
-                            kind: ErrorKind::DeleteDataflowFailed,
-                            message: err.into_string(),
-                        })
-                    })
+        job_id
+            .write_to_bytes()
+            .map_err(|err| err.into())
+            .and_then(|key| {
+                self.db.delete(key).map_err(|err| CommonException {
+                    kind: ErrorKind::DeleteDataflowFailed,
+                    message: err.into_string(),
+                })
             })
     }
 }
@@ -259,7 +233,7 @@ impl DataflowStorageConfig {
             Self::RocksDB {
                 dataflow_store_path,
             } => DataflowStorageImpl::RocksDB(RocksDataflowStorage {
-                dataflow_store_path: dataflow_store_path.clone(),
+                db: Arc::new(DB::open_default(dataflow_store_path).expect("open rocksdb failed")),
             }),
             Self::Memory => DataflowStorageImpl::Memory(Default::default()),
         }

@@ -51,7 +51,6 @@ services:
       dockerfile: docker/worker/Dockerfile
     environment:
       RUST_LOG: INFO
-      KAFKA_BROKERS: kafka:9002
     ports:
       - "18090:18090"
     healthcheck:
@@ -75,7 +74,6 @@ services:
       dockerfile: docker/apiserver/Dockerfile
     environment:
       RUST_LOG: INFO
-      KAFKA_BROKERS: kafka:9002
     ports:
       - "18090:18090"
     depends_on:

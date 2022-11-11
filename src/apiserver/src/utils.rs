@@ -1,9 +1,6 @@
-use actix_web::{error::ErrorInternalServerError, web::BytesMut};
-use protobuf::Message;
+use actix_web::web::BytesMut;
 
-pub(crate) fn grpc_err_to_actix_err(err: grpcio::Error) -> actix_web::Error {
-    actix_web::Error::from(ErrorInternalServerError(err))
-}
+use protobuf::Message;
 
 pub(crate) fn pb_to_bytes_mut<T: Message>(message: T) -> BytesMut {
     let ref mut raw_data = vec![];

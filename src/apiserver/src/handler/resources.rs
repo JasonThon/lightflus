@@ -2,7 +2,8 @@ use actix_web::{
     error::{ErrorBadRequest, ErrorInternalServerError},
     get, post, web, HttpResponse,
 };
-use futures::StreamExt;
+use common::err::ApiError;
+use futures_util::StreamExt;
 use proto::{
     apiserver::{
         CreateResourceRequest, CreateResourceResponse, GetResourceResponse, Resource,
@@ -15,7 +16,7 @@ use protobuf::{CodedInputStream, Message, ProtobufEnum, ProtobufError};
 
 use crate::{
     types::{GetResourceArgs, ListResourcesArgs},
-    utils::{grpc_err_to_actix_err, pb_to_bytes_mut},
+    utils::pb_to_bytes_mut,
 };
 
 const COORDINATOR_URI_ENV: &str = "LIGHTFLUS_COORDINATOR_URI";
@@ -68,7 +69,7 @@ async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<Htt
                 let ref mut req = GetDataflowRequest::default();
                 req.set_job_id(args.to_resource_id());
                 cli.get_dataflow(req)
-                    .map_err(|err| grpc_err_to_actix_err(err))
+                    .map_err(|err| ErrorBadRequest(ApiError::from(err)))
                     .and_then(|resp| {
                         let mut response = GetResourceResponse::default();
                         let mut resource = Resource::default();
@@ -89,4 +90,9 @@ async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<Htt
 #[get("/list/{namespace}/{resource_type}")]
 async fn list_resources(args: web::Path<ListResourcesArgs>) -> actix_web::Result<HttpResponse> {
     Ok(HttpResponse::Ok().finish())
+}
+
+#[get("/overview")]
+async fn overview() -> HttpResponse {
+    HttpResponse::Ok().finish()
 }

@@ -792,6 +792,25 @@ impl Sink for Redis {
 }
 
 mod tests {
+    struct SetupGuard {}
+
+    impl Drop for SetupGuard {
+        fn drop(&mut self) {}
+    }
+
+    fn setup_v8() -> SetupGuard {
+        use crate::MOD_TEST_START;
+        MOD_TEST_START.call_once(|| {
+            v8::V8::set_flags_from_string(
+                "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
+              );
+                  v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
+                  v8::V8::initialize();
+        });
+        std::env::set_var("STATE_MANAGER", "MEM");
+
+        SetupGuard {}
+    }
 
     #[test]
     fn test_new_dataflow_context() {
@@ -823,5 +842,67 @@ mod tests {
         let ctx = DataflowContext::new(ResourceId::default(), metas, nodes);
         let executors = ctx.create_executors();
         assert_eq!(executors.len(), 1);
+    }
+
+    #[test]
+    fn test_get_actual_statement() {
+        use proto::common::stream::{MysqlDesc, MysqlDesc_Statement};
+        use protobuf::RepeatedField;
+
+        use super::Mysql;
+        use common::event::LocalEvent;
+        use proto::common::event::KeyedDataEvent;
+
+        use crate::actor::SinkableMessageImpl;
+        use std::collections::BTreeMap;
+
+        use common::types::TypedValue;
+        use proto::common::{event::Entry, stream::MysqlDesc_Statement_Extractor};
+
+        let _setup_guard = setup_v8();
+
+        let mut desc = MysqlDesc::default();
+        let mut statement = MysqlDesc_Statement::default();
+        statement.set_statement("INSERT INTO table VALUES (?, ?)".to_string());
+        statement.set_extractors(RepeatedField::from_iter(
+            [
+                "function mysql_extractor(a) {return a.v1}",
+                "function mysql_extractor(a) {return a.v2}",
+            ]
+            .iter()
+            .map(|extractor| {
+                let mut new_extractor = MysqlDesc_Statement_Extractor::default();
+                new_extractor.set_extractor(extractor.to_string());
+                new_extractor
+            }),
+        ));
+        desc.set_statement(statement);
+
+        let mysql = Mysql::with_config(1, &desc);
+        let mut event = KeyedDataEvent::default();
+        event.set_data(RepeatedField::from_iter(
+            [TypedValue::Object(BTreeMap::from_iter(
+                [
+                    ("v1", TypedValue::Number(1.0)),
+                    ("v2", TypedValue::String("value".to_string())),
+                ]
+                .iter()
+                .map(|pair| (pair.0.to_string(), pair.1.get_data())),
+            ))]
+            .iter()
+            .map(|value| {
+                let mut entry = Entry::default();
+                entry.set_data_type(value.get_type());
+                entry.set_value(value.get_data());
+
+                entry
+            }),
+        ));
+        let message = SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event));
+        let statements = mysql.get_actual_statements(message);
+        assert_eq!(
+            statements,
+            vec!["INSERT INTO table VALUES (1.0, \"value\")"]
+        )
     }
 }

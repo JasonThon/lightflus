@@ -53,11 +53,11 @@ where
         let scope = &mut v8::HandleScope::new(&mut self.context_scope);
         let ref mut try_catch = v8::TryCatch::new(scope);
         let global = self.ctx.global(try_catch).into();
-        let arg_vals = &[wrap_value(val, try_catch)];
+        let arg_vals = [wrap_value(val, try_catch)];
 
         let process_fn = self.process_fn.as_ref().unwrap();
 
-        match process_fn.call(try_catch, global, arg_vals) {
+        match process_fn.call(try_catch, global, &arg_vals) {
             Some(v) => to_typed_value(v, try_catch),
             None => {
                 try_catch_log(try_catch);

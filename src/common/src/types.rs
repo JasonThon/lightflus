@@ -228,11 +228,14 @@ impl TypedValue {
             DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
             DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
             DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
-                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(data)
+                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(&data[1..data.len()])
+                    .map_err(|err| log::error!("{err}"))
                     .unwrap_or(Default::default()),
             ),
             DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
-                let val = serde_json::from_slice::<Vec<Vec<u8>>>(data).unwrap_or_default();
+                let val = serde_json::from_slice::<Vec<Vec<u8>>>(&data[1..data.len()])
+                    .map_err(|err| log::error!("{err}"))
+                    .unwrap_or_default();
                 TypedValue::Array(Vec::from_iter(
                     val.iter().map(|data| TypedValue::from_vec(data)),
                 ))

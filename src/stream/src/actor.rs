@@ -19,7 +19,7 @@ use proto::worker::worker::{
 };
 use protobuf::well_known_types::Timestamp;
 use protobuf::RepeatedField;
-use sqlx::{Arguments, Execute, MySqlPool};
+use sqlx::{Arguments, MySqlPool};
 
 use std::collections::BTreeMap;
 
@@ -692,55 +692,20 @@ impl Mysql {
         }
     }
 
-    fn get_actual_statements(&self, msg: SinkableMessageImpl) -> Vec<String> {
-        let isolate = &mut v8::Isolate::new(Default::default());
-        let scope = &mut v8::HandleScope::new(isolate);
+    fn get_arguments(&self, msg: SinkableMessageImpl) -> Vec<Vec<TypedValue>> {
         let mut extractors = self.conf.get_statement().get_extractors().to_vec();
 
         extractors.sort_by(|v1, v2| v1.get_index().cmp(&v2.get_index()));
 
-        let row_arguments = match msg {
-            SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { .. } => vec![],
-                LocalEvent::KeyedDataStreamEvent(e) => {
-                    Vec::from_iter(e.get_data().iter().map(|entry| {
-                        let val = TypedValue::from_slice(entry.get_value());
-                        extractors
-                            .iter()
-                            .map(|extractor| {
-                                let mut rt_engine = RuntimeEngine::new(
-                                    extractor.get_extractor(),
-                                    "mysql_extractor",
-                                    scope,
-                                );
-                                rt_engine.call_one_arg(&val).unwrap_or_default()
-                            })
-                            .collect::<Vec<TypedValue>>()
-                    }))
-                }
-            },
-        };
-
-        row_arguments
-            .iter()
-            .map(|values| {
-                let mut arguments = sqlx::mysql::MySqlArguments::default();
-
-                values.iter().for_each(|val| match val {
-                    TypedValue::String(v) => arguments.add(v),
-                    TypedValue::BigInt(v) => arguments.add(v),
-                    TypedValue::Boolean(v) => arguments.add(v),
-                    TypedValue::Number(v) => arguments.add(v),
-                    _ => arguments.add(""),
-                });
-                sqlx::query_with::<sqlx::MySql, sqlx::mysql::MySqlArguments>(
-                    self.conf.get_statement().get_statement(),
-                    arguments,
-                )
-                .sql()
-                .to_string()
-            })
-            .collect()
+        extract_arguments(
+            extractors
+                .iter()
+                .map(|e| e.get_extractor().to_string())
+                .collect::<Vec<String>>()
+                .as_slice(),
+            msg,
+            "mysql_extractor",
+        )
     }
 
     fn get_uri(&self) -> String {
@@ -751,6 +716,10 @@ impl Mysql {
 
         format!("mysql://{user}:{password}@{host}/{db}")
     }
+
+    fn get_sql(&self) -> String {
+        self.conf.get_statement().get_statement().to_string()
+    }
 }
 
 impl Sink for Mysql {
@@ -759,11 +728,22 @@ impl Sink for Mysql {
     }
 
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        let statements: Vec<String> = self.get_actual_statements(msg);
+        let row_arguments = self.get_arguments(msg);
         let pool = futures_executor::block_on(MySqlPool::connect(self.get_uri().as_str()));
         pool.and_then(|conn| {
-            for statement in statements {
-                let result = futures_executor::block_on(sqlx::query(&statement).execute(&conn));
+            for arguments in row_arguments {
+                let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
+                arguments.iter().for_each(|val| match val {
+                    TypedValue::String(v) => mysql_arg.add(v),
+                    TypedValue::BigInt(v) => mysql_arg.add(v),
+                    TypedValue::Boolean(v) => mysql_arg.add(v),
+                    TypedValue::Number(v) => mysql_arg.add(v),
+                    _ => {}
+                });
+
+                let result = futures_executor::block_on(
+                    sqlx::query_with(&self.get_sql(), mysql_arg).execute(&conn),
+                );
                 if result.is_err() {
                     return result.map(|_| DispatchDataEventStatusEnum::FAILURE);
                 }
@@ -788,6 +768,33 @@ impl Sink for Redis {
 
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         todo!()
+    }
+}
+
+fn extract_arguments(
+    extractors: &[String],
+    message: SinkableMessageImpl,
+    fn_name: &str,
+) -> Vec<Vec<TypedValue>> {
+    let isolate = &mut v8::Isolate::new(Default::default());
+    let scope = &mut v8::HandleScope::new(isolate);
+    match message {
+        SinkableMessageImpl::LocalMessage(event) => match event {
+            LocalEvent::Terminate { .. } => vec![],
+            LocalEvent::KeyedDataStreamEvent(e) => {
+                Vec::from_iter(e.get_data().iter().map(|entry| {
+                    let val = TypedValue::from_slice(entry.get_value());
+                    extractors
+                        .iter()
+                        .map(|extractor| {
+                            let mut rt_engine =
+                                RuntimeEngine::new(extractor.as_str(), fn_name, scope);
+                            rt_engine.call_one_arg(&val).unwrap_or_default()
+                        })
+                        .collect::<Vec<TypedValue>>()
+                }))
+            }
+        },
     }
 }
 
@@ -845,7 +852,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_actual_statement() {
+    fn test_get_mysql_arguments() {
         use proto::common::stream::{MysqlDesc, MysqlDesc_Statement};
         use protobuf::RepeatedField;
 
@@ -880,17 +887,17 @@ mod tests {
 
         let mysql = Mysql::with_config(1, &desc);
         let mut event = KeyedDataEvent::default();
+        let mut entry_1 = BTreeMap::new();
+        [
+            ("v1", TypedValue::Number(1.0)),
+            ("v2", TypedValue::String("value".to_string())),
+        ]
+        .iter()
+        .for_each(|pair| {
+            entry_1.insert(pair.0.to_string(), pair.1.get_data());
+        });
         event.set_data(RepeatedField::from_iter(
-            [TypedValue::Object(BTreeMap::from_iter(
-                [
-                    ("v1", TypedValue::Number(1.0)),
-                    ("v2", TypedValue::String("value".to_string())),
-                ]
-                .iter()
-                .map(|pair| (pair.0.to_string(), pair.1.get_data())),
-            ))]
-            .iter()
-            .map(|value| {
+            [TypedValue::Object(entry_1)].iter().map(|value| {
                 let mut entry = Entry::default();
                 entry.set_data_type(value.get_type());
                 entry.set_value(value.get_data());
@@ -899,10 +906,13 @@ mod tests {
             }),
         ));
         let message = SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event));
-        let statements = mysql.get_actual_statements(message);
+        let arguments = mysql.get_arguments(message);
         assert_eq!(
-            statements,
-            vec!["INSERT INTO table VALUES (1.0, \"value\")"]
+            arguments,
+            vec![vec![
+                TypedValue::Number(1.0),
+                TypedValue::String("value".to_string())
+            ]]
         )
     }
 }

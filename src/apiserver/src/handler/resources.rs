@@ -1,5 +1,5 @@
 use actix_web::{
-    error::{ErrorBadRequest, ErrorInternalServerError},
+    error::{ErrorBadRequest, ErrorNotAcceptable, ErrorInternalServerError},
     get, post, web, HttpResponse,
 };
 use common::err::ApiError;
@@ -43,7 +43,7 @@ async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpRespons
                 let cli = new_coordinator_client(uri.unwrap());
                 let result = cli.create_dataflow_async(req.get_dataflow().get_dataflow());
                 result
-                    .map_err(|err| ErrorInternalServerError(err))
+                    .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
                     .map(|_| {
                         let mut response = CreateResourceResponse::default();
                         response.set_status(ResourceStatusEnum::RESOURCE_STATUS_ENUM_STARTING);
@@ -69,7 +69,7 @@ async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<Htt
                 let ref mut req = GetDataflowRequest::default();
                 req.set_job_id(args.to_resource_id());
                 cli.get_dataflow(req)
-                    .map_err(|err| ErrorBadRequest(ApiError::from(err)))
+                    .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
                     .and_then(|resp| {
                         let mut response = GetResourceResponse::default();
                         let mut resource = Resource::default();

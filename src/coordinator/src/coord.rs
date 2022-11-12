@@ -8,6 +8,7 @@ use common::net::cluster;
 use common::net::status;
 
 use common::types::HashedResourceId;
+use common::utils::validate_dataflow;
 use proto::common::common::ResourceId;
 use proto::common::stream::Dataflow;
 use proto::common::stream::DataflowStatus;
@@ -178,18 +179,22 @@ impl Coordinator {
     }
 
     pub fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), ApiError> {
-        self.cluster.partition_dataflow(&mut dataflow);
-        match self.dataflow_storage.save(dataflow.clone()) {
-            Err(err) => return err.to_api_error(),
-            _ => {}
-        }
+        validate_dataflow(&dataflow)
+            .map_err(|err| ApiError::from_error(err))
+            .and_then(|_| {
+                self.cluster.partition_dataflow(&mut dataflow);
+                match self.dataflow_storage.save(dataflow.clone()) {
+                    Err(err) => return err.to_api_error(),
+                    _ => {}
+                }
 
-        let terminate_result = self.terminate_dataflow(dataflow.get_job_id());
-        if terminate_result.is_err() {
-            return terminate_result.map(|_| ());
-        }
+                let terminate_result = self.terminate_dataflow(dataflow.get_job_id());
+                if terminate_result.is_err() {
+                    return terminate_result.map(|_| ());
+                }
 
-        self.cluster.create_dataflow(dataflow)
+                self.cluster.create_dataflow(dataflow)
+            })
     }
 
     pub fn terminate_dataflow(&mut self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {

@@ -20,6 +20,35 @@ impl fmt::Display for ApiError {
     }
 }
 
+impl ApiError {
+    pub fn from_error<T: Error>(err: T) -> Self {
+        Self {
+            code: err.code() as i32,
+            msg: err.msg(),
+        }
+    }
+}
+
+impl Error for DataflowValidateError {
+    fn kind(&self) -> ErrorKind {
+        ErrorKind::DataflowValidateFailed
+    }
+
+    fn msg(&self) -> String {
+        match self {
+            DataflowValidateError::OperatorInfoMissing(msg) => msg.clone(),
+        }
+    }
+
+    fn code(&self) -> ErrorCode {
+        match self {
+            DataflowValidateError::OperatorInfoMissing(_) => {
+                ErrorCode::ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING
+            }
+        }
+    }
+}
+
 pub trait Error {
     fn to_string(&self) -> String {
         serde_json::to_string(&ApiError {
@@ -160,6 +189,7 @@ pub enum ErrorKind {
     OpenDBFailed,
     DeleteDataflowFailed,
     Other,
+    DataflowValidateFailed,
 }
 
 impl From<protobuf::ProtobufError> for CommonException {
@@ -368,4 +398,8 @@ impl std::fmt::Display for KafkaException {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.err.fmt(f)
     }
+}
+
+pub enum DataflowValidateError {
+    OperatorInfoMissing(String),
 }

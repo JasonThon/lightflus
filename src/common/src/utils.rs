@@ -1,4 +1,5 @@
 use crate::{
+    err::DataflowValidateError,
     net::hostname,
     types::{
         BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL, STRING_SYMBOL,
@@ -142,6 +143,28 @@ pub fn to_dataflow(
     dataflow
 }
 
+pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateError> {
+    for meta in dataflow.get_meta() {
+        if !dataflow.get_nodes().contains_key(&meta.center) {
+            return Err(DataflowValidateError::OperatorInfoMissing(format!(
+                "operatorInfo of node {} is missing",
+                meta.center
+            )));
+        }
+
+        for neighbor in meta.get_neighbors() {
+            if !dataflow.get_nodes().contains_key(neighbor) {
+                return Err(DataflowValidateError::OperatorInfoMissing(format!(
+                    "operatorInfo of node {} is missing",
+                    neighbor
+                )));
+            }
+        }
+    }
+
+    return Ok(());
+}
+
 pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
     let raw = symbol.as_str();
     if raw == STRING_SYMBOL {
@@ -160,5 +183,64 @@ pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
         DataTypeEnum::DATA_TYPE_ENUM_NULL
     } else {
         DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+    }
+}
+
+mod tests {
+
+    #[test]
+    fn test_validate_dataflow() {
+        use crate::utils::validate_dataflow;
+        use proto::common::stream::Dataflow;
+        use proto::common::stream::DataflowMeta;
+        use proto::common::stream::OperatorInfo;
+        use protobuf::RepeatedField;
+        use std::collections::HashMap;
+
+        let mut dataflow = Dataflow::default();
+        let mut meta = DataflowMeta::default();
+        meta.set_center(0);
+        meta.set_neighbors(vec![1, 2, 3]);
+
+        dataflow.set_meta(RepeatedField::from_slice(&[meta]));
+
+        let mut nodes = HashMap::default();
+        let mut info_1 = OperatorInfo::default();
+        info_1.set_operator_id(0);
+        nodes.insert(0, info_1);
+        dataflow.set_nodes(nodes);
+
+        let result = validate_dataflow(&dataflow);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_serde_env() {
+        let origin = "{\"name\":\"${your.name}\", \"card\": \"${your.card}\"}";
+        std::env::set_var("your.name", "jason");
+        std::env::set_var("your.card", "111");
+        let target = common::utils::from_str(origin);
+        let result = serde_json::from_str::<Name>(target.as_str());
+        if result.is_err() {
+            print!("{:?}", result.as_ref().unwrap_err())
+        }
+        assert!(result.is_ok());
+        let name = result.unwrap();
+        assert_eq!(&name.name, &"jason".to_string());
+        assert_eq!(&name.card, &"111".to_string());
+    }
+
+    #[test]
+    fn test_env_var_get() {
+        std::env::set_var("your.name", "jason");
+        let result = std::env::var("your.name".to_string());
+        assert!(result.is_ok());
+        assert_eq!(result.as_ref().unwrap(), &"jason".to_string())
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct Name {
+        name: String,
+        card: String,
     }
 }

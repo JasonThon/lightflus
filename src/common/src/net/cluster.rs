@@ -148,8 +148,9 @@ impl Cluster {
         let dataflows = self.split_into_subdataflow(dataflow);
 
         for elem in dataflows {
+            let uri = elem.0.as_uri();
             if !lang::any_match(&self.workers, |node| {
-                node.host_addr.as_uri() == elem.0.clone() && node.is_available()
+                node.host_addr.as_uri() == uri && node.is_available()
             }) {
                 return Err(ApiError {
                     code: status::WORKER_UNAVAILABLE,
@@ -159,7 +160,7 @@ impl Cluster {
             let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
                 host: None,
                 port: None,
-                uri: Some(elem.0.clone()),
+                uri: Some(uri),
             });
             let ref mut req = CreateDataflowRequest::new();
             req.set_job_id(elem.1.get_job_id().clone());
@@ -182,16 +183,15 @@ impl Cluster {
         Ok(())
     }
 
-    fn split_into_subdataflow(&self, dataflow: Dataflow) -> HashMap<String, Dataflow> {
-        let mut group = HashMap::<String, Vec<&DataflowMeta>>::new();
+    fn split_into_subdataflow(&self, dataflow: Dataflow) -> HashMap<PersistableHostAddr, Dataflow> {
+        let mut group = HashMap::<PersistableHostAddr, Vec<&DataflowMeta>>::new();
 
         dataflow.get_meta().iter().for_each(|node| {
             let operator = dataflow.get_nodes().get(&node.center).unwrap();
             let addr = PersistableHostAddr {
                 host: operator.get_host_addr().get_host().to_string(),
                 port: operator.get_host_addr().get_port() as u16,
-            }
-            .as_uri();
+            };
             if group.contains_key(&addr) {
                 group
                     .get_mut(&addr)

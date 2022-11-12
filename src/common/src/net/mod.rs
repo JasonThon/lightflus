@@ -69,3 +69,14 @@ pub fn local_ip() -> Option<String> {
 
     socket.local_addr().ok().map(|addr| addr.ip().to_string())
 }
+
+mod tests {
+
+    #[test]
+    fn test_local_ip() {
+    use super::local_ip;
+        let option = local_ip();
+        assert!(option.is_some());
+        println!("{}", option.unwrap())
+    }
+}

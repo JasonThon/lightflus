@@ -52,36 +52,43 @@ impl DataflowContext {
         }
     }
 
+    fn create_source_sink(&self, source_sink_manager: &mut SourceSinkManger, executor_id: u32) {
+        let operator_info = self.nodes.get(&executor_id);
+        let remote_node = operator_info.filter(|operator| utils::is_remote_operator(*operator));
+        let external_source = operator_info.filter(|operator| (*operator).has_source());
+        let external_sink = operator_info.filter(|operator| (*operator).has_sink());
+
+        if remote_node.is_some() {
+            remote_node.iter().for_each(|operator| {
+                source_sink_manager.create_remote_sink(&executor_id, *operator);
+                source_sink_manager.create_empty_source(&executor_id)
+            })
+        } else if external_source.is_some() {
+            external_source.iter().for_each(|operator| {
+                source_sink_manager.create_external_source(&executor_id, *operator);
+                source_sink_manager.create_empty_sink(&executor_id)
+            })
+        } else if external_sink.is_some() {
+            external_sink.iter().for_each(|operator| {
+                source_sink_manager.create_external_sink(&executor_id, *operator);
+                source_sink_manager.create_empty_source(&executor_id)
+            })
+        } else {
+            source_sink_manager.create_local(&executor_id)
+        }
+    }
+
     pub fn create_executors(&self) -> Vec<ExecutorImpl> {
         let ref mut source_sink_manager = SourceSinkManger::new(&self.job_id);
         let mut meta_map = BTreeMap::new();
         self.meta.iter().for_each(|meta| {
             meta_map.insert(meta.get_center(), meta.get_neighbors());
-            source_sink_manager.create_local(&(meta.center as ExecutorId));
+
+            self.create_source_sink(source_sink_manager, meta.center as ExecutorId);
 
             meta.neighbors.iter().for_each(|node_id| {
                 let executor_id = *node_id as ExecutorId;
-                let operator_info = self.nodes.get(&executor_id);
-                let remote_node =
-                    operator_info.filter(|operator| utils::is_remote_operator(*operator));
-                let external_source = operator_info.filter(|operator| (*operator).has_source());
-                let external_sink = operator_info.filter(|operator| (*operator).has_sink());
-
-                if remote_node.is_some() {
-                    remote_node.iter().for_each(|operator| {
-                        source_sink_manager.create_remote_sink(&executor_id, *operator)
-                    })
-                } else if external_source.is_some() {
-                    external_source.iter().for_each(|operator| {
-                        source_sink_manager.create_external_source(&executor_id, *operator)
-                    })
-                } else if external_sink.is_some() {
-                    external_sink.iter().for_each(|operator| {
-                        source_sink_manager.create_external_sink(&executor_id, *operator)
-                    })
-                } else {
-                    source_sink_manager.create_local(&executor_id)
-                }
+                self.create_source_sink(source_sink_manager, executor_id);
             })
         });
 
@@ -98,16 +105,18 @@ impl DataflowContext {
             )));
 
             meta.get_neighbors().iter().for_each(|id| {
-                let neighbors = meta_map
-                    .get(id)
-                    .map(|slice| (*slice).to_vec())
-                    .unwrap_or(vec![]);
-                executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
-                    *id as ExecutorId,
-                    source_sink_manager.get_sinks_by_ids(neighbors),
-                    source_sink_manager.get_source_by_id(*id).unwrap(),
-                    self.nodes.get(id).unwrap().clone(),
-                )))
+                if !meta_map.contains_key(id) {
+                    let neighbors = meta_map
+                        .get(id)
+                        .map(|slice| (*slice).to_vec())
+                        .unwrap_or(vec![]);
+                    executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+                        *id as ExecutorId,
+                        source_sink_manager.get_sinks_by_ids(neighbors),
+                        source_sink_manager.get_source_by_id(*id).unwrap(),
+                        self.nodes.get(id).unwrap().clone(),
+                    )))
+                }
             })
         });
         executors
@@ -340,6 +349,16 @@ impl SourceSinkManger {
             Sink_oneof_desc::redis(_) => todo!(),
         });
     }
+
+    fn create_empty_source(&mut self, executor_id: &u32) {
+        self.sources
+            .insert(*executor_id, SourceImpl::Empty(*executor_id));
+    }
+
+    fn create_empty_sink(&mut self, executor_id: &u32) {
+        self.sinks
+            .insert(*executor_id, SinkImpl::Empty(*executor_id));
+    }
 }
 
 impl SourceSinkManger {
@@ -515,6 +534,7 @@ impl LocalSource {
 pub enum SourceImpl {
     Local(LocalSource),
     Kafka(Kafka),
+    Empty(SourceId),
 }
 
 impl SourceImpl {
@@ -527,6 +547,7 @@ impl SourceImpl {
         match self {
             SourceImpl::Local(source) => source.create_msg_sender(),
             SourceImpl::Kafka(_) => zero_tx(),
+            SourceImpl::Empty(_) => zero_tx(),
         }
     }
 
@@ -534,6 +555,7 @@ impl SourceImpl {
         match self {
             SourceImpl::Local(source) => source.fetch_msg(),
             SourceImpl::Kafka(source) => source.fetch_msg(),
+            SourceImpl::Empty(_) => None,
         }
     }
 }
@@ -544,6 +566,7 @@ pub enum SinkImpl {
     Remote(RemoteSink),
     Kafka(Kafka),
     Mysql(Mysql),
+    Empty(SinkId),
 }
 
 impl Sink for SinkImpl {
@@ -553,6 +576,7 @@ impl Sink for SinkImpl {
             SinkImpl::Remote(sink) => sink.sink_id(),
             SinkImpl::Kafka(kafka) => kafka.sink_id(),
             SinkImpl::Mysql(mysql) => mysql.sink_id(),
+            SinkImpl::Empty(sink_id) => *sink_id,
         }
     }
 
@@ -562,6 +586,7 @@ impl Sink for SinkImpl {
             SinkImpl::Remote(sink) => sink.sink(msg),
             SinkImpl::Kafka(sink) => sink.sink(msg),
             SinkImpl::Mysql(sink) => sink.sink(msg),
+            SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::DONE),
         }
     }
 }
@@ -856,8 +881,6 @@ mod tests {
         use proto::common::stream::DataflowMeta;
         use proto::common::stream::OperatorInfo;
         use proto::common::stream::{Filter, MysqlDesc, Sink};
-        use proto::common::stream::{KafkaDesc, Source};
-        use protobuf::RepeatedField;
         use std::collections::BTreeMap;
 
         use crate::actor::DataflowContext;
@@ -865,26 +888,20 @@ mod tests {
         let mut metas = vec![];
         let mut meta = DataflowMeta::default();
         meta.set_center(0);
-        // meta.set_neighbors(vec![1]);
+        meta.set_neighbors(vec![1]);
 
-        // metas.push(meta);
-        // let mut meta = DataflowMeta::default();
-        // meta.set_center(1);
-        // meta.set_neighbors(vec![2]);
+        metas.push(meta);
+        let mut meta = DataflowMeta::default();
+        meta.set_center(1);
+        meta.set_neighbors(vec![2]);
 
         metas.push(meta);
 
         let mut nodes = BTreeMap::new();
-        let mut kafka = OperatorInfo::default();
-        kafka.set_operator_id(0);
-        let mut source = Source::default();
-        let mut desc = KafkaDesc::new();
+        let mut node_1 = OperatorInfo::default();
+        node_1.set_operator_id(0);
 
-        desc.set_brokers(RepeatedField::from_slice(&["localhost:9001".to_string()]));
-        desc.set_topic("test".to_string());
-        source.set_kafka(desc);
-        kafka.set_source(source);
-        nodes.insert(0, kafka);
+        nodes.insert(0, node_1);
 
         let mut op_1 = OperatorInfo::default();
         op_1.set_operator_id(1);
@@ -901,7 +918,7 @@ mod tests {
 
         let ctx = DataflowContext::new(ResourceId::default(), metas, nodes);
         let executors = ctx.create_executors();
-        assert_eq!(executors.len(), 1);
+        assert_eq!(executors.len(), 3);
     }
 
     #[test]

@@ -45,16 +45,43 @@ jobs:
     runs-on: ubuntu-latest
     needs: [test_and_build]
 
+    services:
+      zookeeper:
+        image: "bitnami/zookeeper:latest"
+        ports:
+          - "2181:2181"
+        env:
+          ALLOW_ANONYMOUS_LOGIN: yes
+      kafka:
+        image: "bitnami/kafka:latest"
+        ports:
+          - "9092:9092"
+        env:
+          KAFKA_BROKER_ID: 1
+          KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+          KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
+          KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+          ALLOW_PLAINTEXT_LISTENER: yes
+      mysql:
+        image: "bitnami/mysql:latest"
+        env:
+          ALLOW_EMPTY_PASSWORD: yes
+          MYSQL_DATABASE: ci_db
+          MYSQL_USER: root
+          MYSQL_PASSWORD: ci
+      redis:
+        image: "bitnami/redis:latest"
+        ports:
+          - "6379:6379"
+
     steps:
       - uses: actions/checkout@v3
-      - name: Docker Compose Action
-        uses: isbang/compose-action@v1.4.0
-        with:
-          compose-file: ./docker-compose.ci.yml
-      - name: Run all integration tests
+      - name: Run All Integration Tests
         run: |
           cargo test --manifest-path src/common/Cargo.toml
           cargo test --manifest-path src/stream/Cargo.toml
+        env:
+          KAFKA_HOST: kafka
 
   build_docker_image:
     if: ${{ github.event_name == 'release' }}

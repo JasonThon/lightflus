@@ -2,6 +2,7 @@ use bytes::Buf;
 use proto::common::common::{DataTypeEnum, ResourceId};
 use proto::common::event::Entry;
 use protobuf::ProtobufEnum;
+use redis::ToRedisArgs;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::hash::Hash;
@@ -63,7 +64,7 @@ pub enum TypedValue {
     Boolean(bool),
     Number(f64),
     Null,
-    Object(BTreeMap<String, Vec<u8>>),
+    Object(BTreeMap<String, TypedValue>),
     Array(Vec<TypedValue>),
     Invalid,
 }
@@ -74,6 +75,28 @@ impl Ord for TypedValue {
         match self.partial_cmp(other) {
             Some(order) => order,
             None => Ordering::Equal,
+        }
+    }
+}
+
+impl ToRedisArgs for TypedValue {
+    fn write_redis_args<W>(&self, out: &mut W)
+    where
+        W: ?Sized + redis::RedisWrite,
+    {
+        match self {
+            TypedValue::String(v) => out.write_arg(v.as_bytes()),
+            TypedValue::BigInt(v) => out.write_arg(&v.to_be_bytes()),
+            TypedValue::Boolean(v) => out.write_arg(&[*v as u8]),
+            TypedValue::Number(v) => out.write_arg(&v.to_be_bytes()),
+            TypedValue::Null => out.write_arg("null".as_bytes()),
+            TypedValue::Object(v) => v
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone()))
+                .collect::<BTreeMap<String, TypedValue>>()
+                .write_redis_args(out),
+            TypedValue::Array(v) => v.write_redis_args(out),
+            TypedValue::Invalid => out.write_arg("null".as_bytes()),
         }
     }
 }
@@ -193,7 +216,7 @@ impl TypedValue {
             DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
             DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
             DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
-                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(&data[1..data.len()])
+                serde_json::from_slice::<BTreeMap<String, TypedValue>>(&data[1..data.len()])
                     .map_err(|err| log::error!("deserialize object failed: {}", err))
                     .unwrap_or_default(),
             ),
@@ -228,7 +251,7 @@ impl TypedValue {
             DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
             DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
             DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
-                serde_json::from_slice::<BTreeMap<String, Vec<u8>>>(&data[1..data.len()])
+                serde_json::from_slice::<BTreeMap<String, TypedValue>>(&data[1..data.len()])
                     .map_err(|err| log::error!("{err}"))
                     .unwrap_or(Default::default()),
             ),
@@ -293,7 +316,17 @@ impl TypedValue {
         match val {
             serde_json::Value::Null => Self::Null,
             serde_json::Value::Bool(v) => Self::Boolean(v),
-            serde_json::Value::Number(v) => Self::Number(v.as_f64().unwrap_or_default()),
+            serde_json::Value::Number(v) => {
+                if v.is_f64() {
+                    Self::Number(v.as_f64().unwrap())
+                } else if v.is_i64() {
+                    Self::BigInt(v.as_i64().unwrap())
+                } else if v.is_u64() {
+                    Self::BigInt(v.as_u64().unwrap() as i64)
+                } else {
+                    Self::Invalid
+                }
+            }
             serde_json::Value::String(v) => Self::String(v),
             serde_json::Value::Array(v) => Self::Array(
                 v.iter()
@@ -302,12 +335,7 @@ impl TypedValue {
             ),
             serde_json::Value::Object(v) => Self::Object(
                 v.iter()
-                    .map(|entry| {
-                        (
-                            entry.0.clone(),
-                            Self::from_json_value(entry.1.clone()).get_data(),
-                        )
-                    })
+                    .map(|entry| (entry.0.clone(), Self::from_json_value(entry.1.clone())))
                     .collect(),
             ),
         }
@@ -601,5 +629,84 @@ mod tests {
             a1.clone() / a2.clone(),
             super::TypedValue::Number(2.2212569287310306)
         );
+    }
+
+    #[test]
+    fn test_from_json_value() {
+        use proto::common::common::DataTypeEnum;
+        use std::collections::BTreeMap;
+        let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"]}";
+
+        let value = serde_json::from_str::<serde_json::Value>(raw_data);
+        assert!(value.is_ok());
+
+        let value = super::TypedValue::from_json_value(value.unwrap());
+        assert_eq!(value.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+        match value {
+            super::TypedValue::Object(v) => {
+                for index in 1..7 {
+                    assert!(v.contains_key(&format!("key_{}", index)));
+                }
+                let val_1 = v.get(&format!("key_{}", 1)).unwrap();
+                assert_eq!(val_1.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
+                match val_1 {
+                    super::TypedValue::String(v) => assert_eq!(v.as_str(), "value_1"),
+                    _ => panic!("unexpected type"),
+                }
+
+                let val_2 = v.get(&format!("key_{}", 2)).unwrap();
+                assert_eq!(val_2.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+                match val_2 {
+                    super::TypedValue::BigInt(v) => assert_eq!(*v, 1),
+                    _ => panic!("unexpected type"),
+                }
+
+                let val_3 = v.get(&format!("key_{}", 3)).unwrap();
+                assert_eq!(val_3.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+                match val_3 {
+                    super::TypedValue::Number(v) => assert_eq!(*v, 3.14),
+                    _ => panic!("unexpected type"),
+                }
+
+                let val_4 = v.get(&format!("key_{}", 4)).unwrap();
+                assert_eq!(val_4.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+                let mut inner_obj = BTreeMap::new();
+                inner_obj.insert(
+                    "sub_key_1".to_string(),
+                    super::TypedValue::String("subval_1".to_string()),
+                );
+                inner_obj.insert("sub_key_2".to_string(), super::TypedValue::BigInt(1));
+                inner_obj.insert("sub_key_3".to_string(), super::TypedValue::Number(3.14));
+                match val_4 {
+                    super::TypedValue::Object(v) => assert_eq!(v, &inner_obj),
+                    _ => panic!("unexpected type"),
+                }
+
+                let val_5 = v.get(&format!("key_{}", 5)).unwrap();
+                assert_eq!(val_5.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+                match val_5 {
+                    super::TypedValue::Array(v) => assert_eq!(
+                        v,
+                        &(1..5)
+                            .map(|index| super::TypedValue::BigInt(index))
+                            .collect::<Vec<super::TypedValue>>()
+                    ),
+                    _ => panic!("unexpected type"),
+                }
+                
+                let val_6 = v.get(&format!("key_{}", 6)).unwrap();
+                assert_eq!(val_6.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+                match val_6 {
+                    super::TypedValue::Array(v) => assert_eq!(
+                        v,
+                        &(1..4)
+                            .map(|index| super::TypedValue::String(format!("v{index}")))
+                            .collect::<Vec<super::TypedValue>>()
+                    ),
+                    _ => panic!("unexpected type"),
+                }
+            }
+            _ => panic!("unexpected type"),
+        }
     }
 }

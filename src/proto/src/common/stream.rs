@@ -5267,7 +5267,7 @@ pub struct RedisDesc_ConnectionOpts {
     // message fields
     pub host: ::std::string::String,
     pub password: ::std::string::String,
-    pub database: ::std::string::String,
+    pub database: i64,
     pub tls: bool,
     // special fields
     pub unknown_fields: ::protobuf::UnknownFields,
@@ -5337,30 +5337,19 @@ impl RedisDesc_ConnectionOpts {
         ::std::mem::replace(&mut self.password, ::std::string::String::new())
     }
 
-    // string database = 3;
+    // int64 database = 3;
 
 
-    pub fn get_database(&self) -> &str {
-        &self.database
+    pub fn get_database(&self) -> i64 {
+        self.database
     }
     pub fn clear_database(&mut self) {
-        self.database.clear();
+        self.database = 0;
     }
 
     // Param is passed by value, moved
-    pub fn set_database(&mut self, v: ::std::string::String) {
+    pub fn set_database(&mut self, v: i64) {
         self.database = v;
-    }
-
-    // Mutable pointer to the field.
-    // If field is not initialized, it is initialized with default value first.
-    pub fn mut_database(&mut self) -> &mut ::std::string::String {
-        &mut self.database
-    }
-
-    // Take field
-    pub fn take_database(&mut self) -> ::std::string::String {
-        ::std::mem::replace(&mut self.database, ::std::string::String::new())
     }
 
     // bool tls = 4;
@@ -5395,7 +5384,11 @@ impl ::protobuf::Message for RedisDesc_ConnectionOpts {
                     ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.password)?;
                 },
                 3 => {
-                    ::protobuf::rt::read_singular_proto3_string_into(wire_type, is, &mut self.database)?;
+                    if wire_type != ::protobuf::wire_format::WireTypeVarint {
+                        return ::std::result::Result::Err(::protobuf::rt::unexpected_wire_type(wire_type));
+                    }
+                    let tmp = is.read_int64()?;
+                    self.database = tmp;
                 },
                 4 => {
                     if wire_type != ::protobuf::wire_format::WireTypeVarint {
@@ -5422,8 +5415,8 @@ impl ::protobuf::Message for RedisDesc_ConnectionOpts {
         if !self.password.is_empty() {
             my_size += ::protobuf::rt::string_size(2, &self.password);
         }
-        if !self.database.is_empty() {
-            my_size += ::protobuf::rt::string_size(3, &self.database);
+        if self.database != 0 {
+            my_size += ::protobuf::rt::value_size(3, self.database, ::protobuf::wire_format::WireTypeVarint);
         }
         if self.tls != false {
             my_size += 2;
@@ -5440,8 +5433,8 @@ impl ::protobuf::Message for RedisDesc_ConnectionOpts {
         if !self.password.is_empty() {
             os.write_string(2, &self.password)?;
         }
-        if !self.database.is_empty() {
-            os.write_string(3, &self.database)?;
+        if self.database != 0 {
+            os.write_int64(3, self.database)?;
         }
         if self.tls != false {
             os.write_bool(4, self.tls)?;
@@ -5494,7 +5487,7 @@ impl ::protobuf::Message for RedisDesc_ConnectionOpts {
                 |m: &RedisDesc_ConnectionOpts| { &m.password },
                 |m: &mut RedisDesc_ConnectionOpts| { &mut m.password },
             ));
-            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeString>(
+            fields.push(::protobuf::reflect::accessor::make_simple_field_accessor::<_, ::protobuf::types::ProtobufTypeInt64>(
                 "database",
                 |m: &RedisDesc_ConnectionOpts| { &m.database },
                 |m: &mut RedisDesc_ConnectionOpts| { &mut m.database },
@@ -5522,7 +5515,7 @@ impl ::protobuf::Clear for RedisDesc_ConnectionOpts {
     fn clear(&mut self) {
         self.host.clear();
         self.password.clear();
-        self.database.clear();
+        self.database = 0;
         self.tls = false;
         self.unknown_fields.clear();
     }
@@ -7229,9 +7222,9 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     actor\x125\n\x0fvalue_extractor\x18\x03\x20\x01(\x0b2\x0c.common.FuncR\
     \x0evalueExtractor\x1an\n\x0eConnectionOpts\x12\x12\n\x04host\x18\x01\
     \x20\x01(\tR\x04host\x12\x1a\n\x08password\x18\x02\x20\x01(\tR\x08passwo\
-    rd\x12\x1a\n\x08database\x18\x03\x20\x01(\tR\x08database\x12\x10\n\x03tl\
-    s\x18\x04\x20\x01(\x08R\x03tls\"\xe2\x01\n\x08Dataflow\x12)\n\x06job_id\
-    \x18\x01\x20\x01(\x0b2\x12.common.ResourceIdR\x05jobId\x12(\n\x04meta\
+    rd\x12\x1a\n\x08database\x18\x03\x20\x01(\x03R\x08database\x12\x10\n\x03\
+    tls\x18\x04\x20\x01(\x08R\x03tls\"\xe2\x01\n\x08Dataflow\x12)\n\x06job_i\
+    d\x18\x01\x20\x01(\x0b2\x12.common.ResourceIdR\x05jobId\x12(\n\x04meta\
     \x18\x02\x20\x03(\x0b2\x14.common.DataflowMetaR\x04meta\x121\n\x05nodes\
     \x18\x03\x20\x03(\x0b2\x1b.common.Dataflow.NodesEntryR\x05nodes\x1aN\n\n\
     NodesEntry\x12\x10\n\x03key\x18\x01\x20\x01(\rR\x03key\x12*\n\x05value\
@@ -7435,24 +7428,24 @@ static file_descriptor_proto_data: &'static [u8] = b"\
     \x02\x01\x05\x12\x04\x8f\x01\x04\n\n\x0f\n\x07\x04\x0e\x03\0\x02\x01\x01\
     \x12\x04\x8f\x01\x0b\x13\n\x0f\n\x07\x04\x0e\x03\0\x02\x01\x03\x12\x04\
     \x8f\x01\x16\x17\n\x0e\n\x06\x04\x0e\x03\0\x02\x02\x12\x04\x90\x01\x04\
-    \x18\n\x0f\n\x07\x04\x0e\x03\0\x02\x02\x05\x12\x04\x90\x01\x04\n\n\x0f\n\
-    \x07\x04\x0e\x03\0\x02\x02\x01\x12\x04\x90\x01\x0b\x13\n\x0f\n\x07\x04\
-    \x0e\x03\0\x02\x02\x03\x12\x04\x90\x01\x16\x17\n\x0e\n\x06\x04\x0e\x03\0\
-    \x02\x03\x12\x04\x91\x01\x04\x11\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x05\
-    \x12\x04\x91\x01\x04\x08\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x01\x12\x04\
-    \x91\x01\t\x0c\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x03\x12\x04\x91\x01\x0f\
-    \x10\n\x0c\n\x04\x04\x0e\x02\0\x12\x04\x94\x01\x02%\n\r\n\x05\x04\x0e\
-    \x02\0\x06\x12\x04\x94\x01\x02\x10\n\r\n\x05\x04\x0e\x02\0\x01\x12\x04\
-    \x94\x01\x11\x20\n\r\n\x05\x04\x0e\x02\0\x03\x12\x04\x94\x01#$\n\x0c\n\
-    \x04\x04\x0e\x02\x01\x12\x04\x95\x01\x02\x19\n\r\n\x05\x04\x0e\x02\x01\
-    \x06\x12\x04\x95\x01\x02\x06\n\r\n\x05\x04\x0e\x02\x01\x01\x12\x04\x95\
-    \x01\x07\x14\n\r\n\x05\x04\x0e\x02\x01\x03\x12\x04\x95\x01\x17\x18\n\x0c\
-    \n\x04\x04\x0e\x02\x02\x12\x04\x96\x01\x02\x1b\n\r\n\x05\x04\x0e\x02\x02\
-    \x06\x12\x04\x96\x01\x02\x06\n\r\n\x05\x04\x0e\x02\x02\x01\x12\x04\x96\
-    \x01\x07\x16\n\r\n\x05\x04\x0e\x02\x02\x03\x12\x04\x96\x01\x19\x1a\nP\n\
-    \x02\x05\0\x12\x06\x9c\x01\0\xa1\x01\x01\x1aB*\nStream\x20Graph\x20Statu\
-    s.\x20It\x20shows\x20which\x20status\x20a\x20stream\x20job\x20is\x20now.\
-    \n\n\x0b\n\x03\x05\0\x01\x12\x04\x9c\x01\x05\x13\n\x0c\n\x04\x05\0\x02\0\
+    \x17\n\x0f\n\x07\x04\x0e\x03\0\x02\x02\x05\x12\x04\x90\x01\x04\t\n\x0f\n\
+    \x07\x04\x0e\x03\0\x02\x02\x01\x12\x04\x90\x01\n\x12\n\x0f\n\x07\x04\x0e\
+    \x03\0\x02\x02\x03\x12\x04\x90\x01\x15\x16\n\x0e\n\x06\x04\x0e\x03\0\x02\
+    \x03\x12\x04\x91\x01\x04\x11\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x05\x12\
+    \x04\x91\x01\x04\x08\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x01\x12\x04\x91\
+    \x01\t\x0c\n\x0f\n\x07\x04\x0e\x03\0\x02\x03\x03\x12\x04\x91\x01\x0f\x10\
+    \n\x0c\n\x04\x04\x0e\x02\0\x12\x04\x94\x01\x02%\n\r\n\x05\x04\x0e\x02\0\
+    \x06\x12\x04\x94\x01\x02\x10\n\r\n\x05\x04\x0e\x02\0\x01\x12\x04\x94\x01\
+    \x11\x20\n\r\n\x05\x04\x0e\x02\0\x03\x12\x04\x94\x01#$\n\x0c\n\x04\x04\
+    \x0e\x02\x01\x12\x04\x95\x01\x02\x19\n\r\n\x05\x04\x0e\x02\x01\x06\x12\
+    \x04\x95\x01\x02\x06\n\r\n\x05\x04\x0e\x02\x01\x01\x12\x04\x95\x01\x07\
+    \x14\n\r\n\x05\x04\x0e\x02\x01\x03\x12\x04\x95\x01\x17\x18\n\x0c\n\x04\
+    \x04\x0e\x02\x02\x12\x04\x96\x01\x02\x1b\n\r\n\x05\x04\x0e\x02\x02\x06\
+    \x12\x04\x96\x01\x02\x06\n\r\n\x05\x04\x0e\x02\x02\x01\x12\x04\x96\x01\
+    \x07\x16\n\r\n\x05\x04\x0e\x02\x02\x03\x12\x04\x96\x01\x19\x1a\nP\n\x02\
+    \x05\0\x12\x06\x9c\x01\0\xa1\x01\x01\x1aB*\nStream\x20Graph\x20Status.\
+    \x20It\x20shows\x20which\x20status\x20a\x20stream\x20job\x20is\x20now.\n\
+    \n\x0b\n\x03\x05\0\x01\x12\x04\x9c\x01\x05\x13\n\x0c\n\x04\x05\0\x02\0\
     \x12\x04\x9d\x01\x02\x12\n\r\n\x05\x05\0\x02\0\x01\x12\x04\x9d\x01\x02\r\
     \n\r\n\x05\x05\0\x02\0\x02\x12\x04\x9d\x01\x10\x11\n\x0c\n\x04\x05\0\x02\
     \x01\x12\x04\x9e\x01\x02\x0e\n\r\n\x05\x05\0\x02\x01\x01\x12\x04\x9e\x01\

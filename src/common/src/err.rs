@@ -37,6 +37,7 @@ impl Error for DataflowValidateError {
     fn msg(&self) -> String {
         match self {
             DataflowValidateError::OperatorInfoMissing(msg) => msg.clone(),
+            DataflowValidateError::CyclicDataflow => "dataflow should not be cyclic".to_string(),
         }
     }
 
@@ -45,6 +46,7 @@ impl Error for DataflowValidateError {
             DataflowValidateError::OperatorInfoMissing(_) => {
                 ErrorCode::ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING
             }
+            DataflowValidateError::CyclicDataflow => ErrorCode::ERROR_CODE_CYCLIC_DATAFLOW,
         }
     }
 }
@@ -402,4 +404,11 @@ impl std::fmt::Display for KafkaException {
 
 pub enum DataflowValidateError {
     OperatorInfoMissing(String),
+    CyclicDataflow,
+}
+
+pub enum RedisException {
+    ConnectFailed(String),
+    SetValueFailed(String),
+    SetMultipleValueFailed(String)
 }

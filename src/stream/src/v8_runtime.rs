@@ -135,9 +135,7 @@ where
                 value.iter().for_each(|(key, value)| {
                     let key = v8::String::new(context_scope, key.as_str()).unwrap();
 
-                    let value = TypedValue::from_vec(value);
-
-                    let value = wrap_value(&value, context_scope);
+                    let value = wrap_value(value, context_scope);
                     v8_obj.set(context_scope, key.into(), value);
                 });
                 v8_obj
@@ -241,7 +239,7 @@ pub fn to_typed_value<'s>(
                     arr.get_index(handle_scope, index).iter().for_each(|key| {
                         let value = obj.get(handle_scope, key.clone()).unwrap();
                         let v = to_typed_value(value, handle_scope).unwrap();
-                        map.insert(key.to_rust_string_lossy(handle_scope), v.get_data());
+                        map.insert(key.to_rust_string_lossy(handle_scope), v);
                     })
                 }
                 TypedValue::Object(map)
@@ -485,10 +483,7 @@ mod tests {
             // let isolated_scope_1 = &mut v8::HandleScope::new(isolate_1);
             assert!(_rt_engine.process_fn.is_some());
             let mut val = BTreeMap::default();
-            val.insert(
-                "foo".to_string(),
-                TypedValue::String("bar".to_string()).get_data(),
-            );
+            val.insert("foo".to_string(), TypedValue::String("bar".to_string()));
             let val = TypedValue::Object(val);
             let val_opt = _rt_engine.call_one_arg(&val);
             assert!(val_opt.is_some());
@@ -555,8 +550,7 @@ mod tests {
                     assert!(!v.is_empty());
 
                     assert_eq!(
-                        v.get(&"foo".to_string())
-                            .map(|data| TypedValue::from_vec(data)),
+                        v.get(&"foo".to_string()).map(|data| data.clone()),
                         Some(TypedValue::String("bar".to_string()))
                     )
                 }
@@ -629,10 +623,7 @@ mod tests {
         let ref mut scope = v8::HandleScope::new(context_scope);
 
         let mut val = BTreeMap::default();
-        val.insert(
-            "foo".to_string(),
-            TypedValue::String("bar".to_string()).get_data(),
-        );
+        val.insert("foo".to_string(), TypedValue::String("bar".to_string()));
         let val = TypedValue::Object(val);
         let val = wrap_value(&val, scope);
 
@@ -643,10 +634,7 @@ mod tests {
         match val {
             TypedValue::Object(v) => {
                 assert!(v.contains_key(&"foo".to_string()));
-                let value = v
-                    .get(&"foo".to_string())
-                    .map(|data| TypedValue::from_vec(data))
-                    .unwrap();
+                let value = v.get(&"foo".to_string()).map(|data| data.clone()).unwrap();
                 assert_eq!(value, TypedValue::String("bar".to_string()))
             }
             _ => panic!("unexpected type"),

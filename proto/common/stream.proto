@@ -142,7 +142,7 @@ message RedisDesc {
   message ConnectionOpts {
     string host = 1;
     string password = 2;
-    string database = 3;
+    int64 database = 3;
     bool tls = 4;
   }
 

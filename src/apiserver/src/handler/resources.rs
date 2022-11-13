@@ -1,5 +1,5 @@
 use actix_web::{
-    error::{ErrorBadRequest, ErrorNotAcceptable, ErrorInternalServerError},
+    error::{ErrorBadRequest, ErrorInternalServerError},
     get, post, web, HttpResponse,
 };
 use common::err::ApiError;

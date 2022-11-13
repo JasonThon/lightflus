@@ -144,7 +144,10 @@ pub fn to_dataflow(
 }
 
 pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateError> {
-    for meta in dataflow.get_meta() {
+    let mut metas = dataflow.get_meta().to_vec();
+    metas.sort_by(|prev, next| prev.center.cmp(&next.center));
+
+    for meta in &metas {
         if !dataflow.get_nodes().contains_key(&meta.center) {
             return Err(DataflowValidateError::OperatorInfoMissing(format!(
                 "operatorInfo of node {} is missing",
@@ -153,6 +156,10 @@ pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateErro
         }
 
         for neighbor in meta.get_neighbors() {
+            if neighbor < &meta.center {
+                return Err(DataflowValidateError::CyclicDataflow);
+            }
+
             if !dataflow.get_nodes().contains_key(neighbor) {
                 return Err(DataflowValidateError::OperatorInfoMissing(format!(
                     "operatorInfo of node {} is missing",
@@ -189,7 +196,7 @@ pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
 mod tests {
 
     #[test]
-    fn test_validate_dataflow() {
+    fn test_validate_dataflow_success() {
         use crate::utils::validate_dataflow;
         use proto::common::stream::Dataflow;
         use proto::common::stream::DataflowMeta;
@@ -208,10 +215,65 @@ mod tests {
         let mut info_1 = OperatorInfo::default();
         info_1.set_operator_id(0);
         nodes.insert(0, info_1);
+        dataflow.set_nodes(nodes.clone());
+
+        let result = validate_dataflow(&dataflow);
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            crate::err::DataflowValidateError::OperatorInfoMissing(_) => {}
+            _ => panic!("unexpected error"),
+        };
+
+        (1..4).for_each(|index| {
+            let mut info = OperatorInfo::default();
+            info.set_operator_id(index);
+            nodes.insert(index, info);
+        });
+
+        dataflow.set_nodes(nodes);
+        let result = validate_dataflow(&dataflow);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_dataflow_is_cyclic() {
+        use crate::utils::validate_dataflow;
+        use proto::common::stream::Dataflow;
+        use proto::common::stream::DataflowMeta;
+        use proto::common::stream::OperatorInfo;
+        use protobuf::RepeatedField;
+        use std::collections::HashMap;
+
+        let mut dataflow = Dataflow::default();
+        let mut meta = DataflowMeta::default();
+        meta.set_center(0);
+        meta.set_neighbors(vec![1, 2, 3]);
+        let mut meta_1 = DataflowMeta::default();
+        meta_1.set_center(1);
+        meta_1.set_neighbors(vec![2, 3, 4]);
+        let mut meta_2 = DataflowMeta::default();
+        meta_2.set_center(4);
+        meta_2.set_neighbors(vec![0]);
+
+        dataflow.set_meta(RepeatedField::from_slice(&[meta, meta_1, meta_2]));
+        let mut nodes = HashMap::default();
+
+        (0..5).for_each(|index| {
+            let mut info = OperatorInfo::default();
+            info.set_operator_id(index);
+            nodes.insert(index, info);
+        });
+
         dataflow.set_nodes(nodes);
 
         let result = validate_dataflow(&dataflow);
         assert!(result.is_err());
+        let err = result.unwrap_err();
+        match err {
+            crate::err::DataflowValidateError::CyclicDataflow => {}
+            _ => panic!("unexpected error"),
+        };
     }
 
     #[test]

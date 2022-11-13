@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use futures_util::StreamExt;
 use proto::common::stream::KafkaDesc_KafkaOptions;
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
@@ -96,23 +97,21 @@ impl KafkaConsumer {
     }
 
     pub fn fetch<M, F: FnMut(KafkaMessage) -> M>(&self, mut processor: F) -> Option<M> {
-        futures_executor::block_on_stream(self.consumer.stream())
-            .next()
-            .and_then(|msg| match msg {
-                Ok(msg) => {
-                    let msg = msg.detach();
-                    msg.payload().map(|payload| {
-                        let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
-                        processor(KafkaMessage {
-                            key,
-                            payload: payload.to_vec(),
-                        })
+        futures_executor::block_on(self.consumer.stream().next()).and_then(|msg| match msg {
+            Ok(msg) => {
+                let msg = msg.detach();
+                msg.payload().map(|payload| {
+                    let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
+                    processor(KafkaMessage {
+                        key,
+                        payload: payload.to_vec(),
                     })
-                }
-                Err(err) => {
-                    log::error!("fail to fetch data from kafka: {}", err);
-                    None
-                }
-            })
+                })
+            }
+            Err(err) => {
+                log::error!("fail to fetch data from kafka: {}", err);
+                None
+            }
+        })
     }
 }

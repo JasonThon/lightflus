@@ -17,8 +17,10 @@ grpcio = "0.10.3"
 log = "0.4"
 protobuf = "2.27.1"
 rdkafka = "0.29.0"
+redis = "0.22.1"
 futures-executor = "0.3"
+futures-util = "0.3"
 
 [dev-dependencies]
 common = { path = "../common" }
-tokio = { version = "1", features = ["test-util"] }
+tokio = { version = "1", features = ["test-util", "macros"] }

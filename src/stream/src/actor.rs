@@ -6,6 +6,7 @@ use crate::v8_runtime::RuntimeEngine;
 use common::collections::lang;
 use common::event::LocalEvent;
 use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaProducer};
+use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils;
 use proto::common::common::{HostAddr, ResourceId};
@@ -759,6 +760,18 @@ impl Sink for Mysql {
 pub struct Redis {
     connector_id: SinkId,
     conf: RedisDesc,
+    client: RedisClient,
+}
+
+impl Redis {
+    pub fn with_config(connector_id: SinkId, conf: RedisDesc) -> Self {
+        let client = RedisClient::new(&conf);
+        Self {
+            connector_id,
+            conf,
+            client,
+        }
+    }
 }
 
 impl Sink for Redis {
@@ -767,7 +780,24 @@ impl Sink for Redis {
     }
 
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        todo!()
+        let key_extractor = self.conf.get_key_extractor().get_function().to_string();
+        let value_extractor = self.conf.get_value_extractor().get_function().to_string();
+        let key_values = extract_arguments(
+            &[key_extractor, value_extractor],
+            msg.clone(),
+            "redis_extractor",
+        );
+        let mut conn_result = self.client.connect();
+        conn_result
+            .as_mut()
+            .map_err(|err| err.into())
+            .and_then(|conn| {
+                let kvs = Vec::from_iter(key_values.iter().map(|kv| (&kv[0], &kv[1])));
+                self.client
+                    .set_multiple(conn, kvs.as_slice())
+                    .map(|_| DispatchDataEventStatusEnum::DONE)
+                    .map_err(|err| err.into())
+            })
     }
 }
 
@@ -799,6 +829,7 @@ fn extract_arguments(
 }
 
 mod tests {
+
     struct SetupGuard {}
 
     impl Drop for SetupGuard {
@@ -824,6 +855,7 @@ mod tests {
         use proto::common::common::ResourceId;
         use proto::common::stream::DataflowMeta;
         use proto::common::stream::OperatorInfo;
+        use proto::common::stream::{Filter, MysqlDesc, Sink};
         use proto::common::stream::{KafkaDesc, Source};
         use protobuf::RepeatedField;
         use std::collections::BTreeMap;
@@ -833,10 +865,18 @@ mod tests {
         let mut metas = vec![];
         let mut meta = DataflowMeta::default();
         meta.set_center(0);
+        meta.set_neighbors(vec![1]);
+
+        metas.push(meta);
+        let mut meta = DataflowMeta::default();
+        meta.set_center(1);
+        meta.set_neighbors(vec![2]);
+
         metas.push(meta);
 
         let mut nodes = BTreeMap::new();
         let mut kafka = OperatorInfo::default();
+        kafka.set_operator_id(0);
         let mut source = Source::default();
         let mut desc = KafkaDesc::new();
 
@@ -846,9 +886,22 @@ mod tests {
         kafka.set_source(source);
         nodes.insert(0, kafka);
 
+        let mut op_1 = OperatorInfo::default();
+        op_1.set_operator_id(1);
+        op_1.set_filter(Filter::new());
+        nodes.insert(1, op_1);
+
+        let mut mysql = OperatorInfo::default();
+        mysql.set_operator_id(2);
+        let mut sink = Sink::default();
+        let desc = MysqlDesc::default();
+        sink.set_mysql(desc);
+        mysql.set_sink(sink);
+        nodes.insert(2, mysql);
+
         let ctx = DataflowContext::new(ResourceId::default(), metas, nodes);
         let executors = ctx.create_executors();
-        assert_eq!(executors.len(), 1);
+        assert_eq!(executors.len(), 3);
     }
 
     #[test]
@@ -894,7 +947,7 @@ mod tests {
         ]
         .iter()
         .for_each(|pair| {
-            entry_1.insert(pair.0.to_string(), pair.1.get_data());
+            entry_1.insert(pair.0.to_string(), pair.1.clone());
         });
         event.set_data(RepeatedField::from_iter(
             [TypedValue::Object(entry_1)].iter().map(|value| {

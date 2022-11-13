@@ -1,4 +1,4 @@
-use common::err::KafkaException;
+use common::err::{KafkaException, RedisException};
 use crossbeam_channel::SendError;
 
 use crate::actor::SinkableMessageImpl;
@@ -51,6 +51,18 @@ impl From<sqlx::Error> for SinkException {
             kind: ErrorKind::SqlExecutionFailed,
             msg: format!("{}", err),
         }
+    }
+}
+
+impl From<&mut RedisException> for SinkException {
+    fn from(_: &mut RedisException) -> Self {
+        todo!()
+    }
+}
+
+impl From<RedisException> for SinkException {
+    fn from(err: RedisException) -> Self {
+        todo!()
     }
 }
 

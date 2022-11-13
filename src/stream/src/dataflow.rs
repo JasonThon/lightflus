@@ -566,11 +566,11 @@ mod tests {
         let mut val = BTreeMap::default();
         val.insert(
             "foo".to_string(),
-            TypedValue::String("bar".to_string()).get_data(),
+            TypedValue::String("bar".to_string()),
         );
         val.insert(
             "foo2".to_string(),
-            TypedValue::String("bar".to_string()).get_data(),
+            TypedValue::String("bar".to_string()),
         );
 
         let val = TypedValue::Object(val);
@@ -581,11 +581,11 @@ mod tests {
         let mut val = BTreeMap::default();
         val.insert(
             "foo".to_string(),
-            TypedValue::String("bar1".to_string()).get_data(),
+            TypedValue::String("bar1".to_string()),
         );
         val.insert(
             "foo2".to_string(),
-            TypedValue::String("bar2".to_string()).get_data(),
+            TypedValue::String("bar2".to_string()),
         );
         let val = TypedValue::Object(val);
 

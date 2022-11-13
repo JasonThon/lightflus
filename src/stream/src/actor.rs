@@ -865,12 +865,12 @@ mod tests {
         let mut metas = vec![];
         let mut meta = DataflowMeta::default();
         meta.set_center(0);
-        meta.set_neighbors(vec![1]);
+        // meta.set_neighbors(vec![1]);
 
-        metas.push(meta);
-        let mut meta = DataflowMeta::default();
-        meta.set_center(1);
-        meta.set_neighbors(vec![2]);
+        // metas.push(meta);
+        // let mut meta = DataflowMeta::default();
+        // meta.set_center(1);
+        // meta.set_neighbors(vec![2]);
 
         metas.push(meta);
 
@@ -901,7 +901,7 @@ mod tests {
 
         let ctx = DataflowContext::new(ResourceId::default(), metas, nodes);
         let executors = ctx.create_executors();
-        assert_eq!(executors.len(), 3);
+        assert_eq!(executors.len(), 1);
     }
 
     #[test]

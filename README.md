@@ -35,6 +35,10 @@ Lightflus is **designed for most developer teams even no one is familiar with st
 
 Lightflus is powered by [Deno](https://github.com/denoland/deno) and implemented in Rust which can ensure memory safe and real-time performance. We embed `v8` engine into Lightflus engine with minimum dependencies makes it light and fast; With the help of `Deno`, you can **run `Typescript` user-defined functions or `WebAssembly` encoded bytes code (for better performance) in Lightflus with stream-like API**; 
 
+### References
+
+Lightflus is mainly based on Google's Paper [The Dataflow Model: A Practical Approach to Balancing Correctness, Latency, and Cost in Massive-Scale, Unbounded, Out-of-Order Data Processing](https://research.google/pubs/pub43864/) and refer to [Streaming System](https://www.oreilly.com/library/view/streaming-systems/9781491983867/). Some other papers in the field of streaming system are also our important source of references. 
+
 
 ## Document
 You can read the [document](https://humorous-bream-e48.notion.site/Lightflus-Document-217eedc73610413ba2a4f0c374d66c77) for more details about Lightflus;

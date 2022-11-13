@@ -48,7 +48,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Docker Compose Action
-      - uses: isbang/compose-action@v1.4.0
+        uses: isbang/compose-action@v1.4.0
         with:
           compose-file: ./docker-compose.ci.yml
       - name: Run all integration tests

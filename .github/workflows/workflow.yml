@@ -1,4 +1,4 @@
-name: lightflus-runtime cicd
+name: lightflus cicd
 
 on:
   push:
@@ -17,9 +17,9 @@ jobs:
       - name: Check all features of proto
         run: cargo check --manifest-path src/proto/Cargo.toml --all-features
       - name: Check tests of common lib
-        run: cargo test --manifest-path src/common/Cargo.toml
+        run: cargo test --lib --manifest-path src/common/Cargo.toml
       - name: Check tests of stream lib
-        run: cargo test --manifest-path src/stream/Cargo.toml
+        run: cargo test --lib --manifest-path src/stream/Cargo.toml
       - name: Check Coordinator
         run: cargo check --manifest-path src/coordinator/Cargo.toml
       - name: Check Worker
@@ -41,10 +41,25 @@ jobs:
           token: ${{secrets.CODECOV_TOKEN}}
           fail_ci_if_error: false
 
+  integration_test:
+    runs-on: ubuntu-latest
+    needs: [test_and_build]
+
+    steps:
+      - uses: actions/checkout@v3
+      - name: Docker Compose Action
+      - uses: isbang/compose-action@v1.4.0
+        with:
+          compose-file: ./docker-compose.ci.yml
+      - name: Run all integration tests
+        run: |
+          cargo test --manifest-path src/common/Cargo.toml
+          cargo test --manifest-path src/stream/Cargo.toml
+
   build_docker_image:
     if: ${{ github.event_name == 'release' }}
 
-    needs: [test_and_build]
+    needs: [integration_test]
 
     runs-on: ubuntu-latest
 

@@ -21,6 +21,7 @@ pub fn run_consumer(
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
+        .set("auto.offset.reset", "beginning")
         .create()
         .expect("Consumer creation failed");
     consumer
@@ -30,8 +31,9 @@ pub fn run_consumer(
 
 pub fn run_producer(brokers: &str, topic: &str, opts: &KafkaDesc_KafkaOptions) -> KafkaProducer {
     let producer: FutureProducer = ClientConfig::new()
+        .set("group.id", opts.get_group())
         .set("bootstrap.servers", brokers)
-        .set("message.timeout.ms", "5000")
+        .set("message.timeout.ms", "3000")
         .create()
         .expect("Producer creation error");
 

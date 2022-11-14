@@ -1905,6 +1905,7 @@ dependencies = [
  "protobuf",
  "rocksdb",
  "serde",
+ "serde_json",
  "sqlx",
  "stream",
  "tokio",

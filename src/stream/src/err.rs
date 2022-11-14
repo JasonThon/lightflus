@@ -1,4 +1,7 @@
-use common::err::{KafkaException, RedisException};
+use common::{
+    err::{KafkaException, RedisException},
+    event::KafkaEventError,
+};
 use crossbeam_channel::SendError;
 
 use crate::actor::SinkableMessageImpl;
@@ -62,6 +65,12 @@ impl From<&mut RedisException> for SinkException {
 
 impl From<RedisException> for SinkException {
     fn from(err: RedisException) -> Self {
+        todo!()
+    }
+}
+
+impl From<KafkaEventError> for SinkException {
+    fn from(err: KafkaEventError) -> Self {
         todo!()
     }
 }

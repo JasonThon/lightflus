@@ -4,8 +4,8 @@ use crate::state::new_state_mgt;
 use crate::v8_runtime::RuntimeEngine;
 
 use common::collections::lang;
-use common::event::LocalEvent;
-use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaProducer};
+use common::event::{KafkaEventError, LocalEvent};
+use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, KafkaProducer};
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils;
@@ -379,8 +379,7 @@ pub trait Sink {
 }
 
 pub trait SinkableMessage {
-    fn get_key(&self) -> Vec<u8>;
-    fn get_payload(&self) -> Vec<u8>;
+    fn get_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError>;
 }
 
 #[derive(Clone, Debug)]
@@ -389,22 +388,35 @@ pub enum SinkableMessageImpl {
 }
 
 impl SinkableMessage for SinkableMessageImpl {
-    fn get_key(&self) -> Vec<u8> {
+    fn get_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError> {
         match self {
             SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { .. } => vec![],
-                LocalEvent::KeyedDataStreamEvent(e) => e.get_key().get_value().to_vec(),
-            },
-        }
-    }
+                LocalEvent::Terminate { .. } => Err(KafkaEventError::UnsupportedEvent),
+                LocalEvent::KeyedDataStreamEvent(e) => {
+                    let key = TypedValue::from_slice(e.get_key().get_value()).to_json_value();
+                    let values = e
+                        .get_data()
+                        .iter()
+                        .map(|entry| TypedValue::from_slice(entry.get_value()).to_json_value());
+                    serde_json::to_vec(&key)
+                        .and_then(|k| {
+                            let mut messages = vec![];
+                            for val in values {
+                                let payload_result = serde_json::to_vec(&val);
+                                if payload_result.is_err() {
+                                    return Err(payload_result.err().unwrap());
+                                }
 
-    fn get_payload(&self) -> Vec<u8> {
-        match self {
-            SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { .. } => vec![],
-                LocalEvent::KeyedDataStreamEvent(e) => protobuf::Message::write_to_bytes(e)
-                    .map_err(|err| log::error!("protobuf marshal failed: {}", err))
-                    .unwrap_or(vec![]),
+                                messages.push(KafkaMessage {
+                                    key: k.to_vec(),
+                                    payload: payload_result.unwrap(),
+                                })
+                            }
+
+                            Ok(messages)
+                        })
+                        .map_err(|err| err.into())
+                }
             },
         }
     }
@@ -696,10 +708,23 @@ impl Sink for Kafka {
 
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match &self.producer {
-            Some(producer) => producer
-                .send(msg.get_key().as_slice(), msg.get_payload().as_slice())
-                .map(|_| DispatchDataEventStatusEnum::DONE)
-                .map_err(|err| err.into()),
+            Some(producer) => {
+                let messages_result = msg.get_kafka_message();
+                messages_result
+                    .map_err(|err| err.into())
+                    .and_then(|messages| {
+                        for msg in messages {
+                            let send_result = producer.send(&msg.key, &msg.payload);
+                            if send_result.is_err() {
+                                return send_result
+                                    .map(|_| DispatchDataEventStatusEnum::FAILURE)
+                                    .map_err(|err| err.into());
+                            }
+                        }
+
+                        Ok(DispatchDataEventStatusEnum::DONE)
+                    })
+            }
             None => Ok(DispatchDataEventStatusEnum::DONE),
         }
     }

@@ -18,7 +18,8 @@ v8 = "0.51.0"
 protobuf = "2.27.1"
 sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "mysql" ] }
 futures-executor = "0.3"
+serde_json = "1.0.59"
 
 [dev-dependencies]
-tokio = { version = "1", features = ["test-util"] }
+tokio = { version = "1", features = ["test-util", "macros"] }
 stream = { path = "../stream" }

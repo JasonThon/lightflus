@@ -340,6 +340,27 @@ impl TypedValue {
             ),
         }
     }
+
+    pub fn to_json_value(&self) -> serde_json::Value {
+        match self {
+            TypedValue::String(v) => serde_json::Value::String(v.clone()),
+            TypedValue::BigInt(v) => serde_json::Value::Number(serde_json::Number::from(*v)),
+            TypedValue::Boolean(v) => serde_json::Value::Bool(*v),
+            TypedValue::Number(v) => serde_json::Value::Number(
+                serde_json::Number::from_f64(*v).unwrap_or(serde_json::Number::from(0)),
+            ),
+            TypedValue::Null => serde_json::Value::Null,
+            TypedValue::Object(v) => serde_json::Value::Object(
+                v.iter()
+                    .map(|entry| (entry.0.clone(), entry.1.to_json_value()))
+                    .collect(),
+            ),
+            TypedValue::Array(v) => {
+                serde_json::Value::Array(v.iter().map(|value| value.to_json_value()).collect())
+            }
+            TypedValue::Invalid => serde_json::Value::Null,
+        }
+    }
 }
 
 impl From<&Entry> for TypedValue {
@@ -693,7 +714,7 @@ mod tests {
                     ),
                     _ => panic!("unexpected type"),
                 }
-                
+
                 let val_6 = v.get(&format!("key_{}", 6)).unwrap();
                 assert_eq!(val_6.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
                 match val_6 {
@@ -708,5 +729,134 @@ mod tests {
             }
             _ => panic!("unexpected type"),
         }
+    }
+
+    #[test]
+    fn test_string_to_json_value() {
+        let val = super::TypedValue::String("value".to_string());
+        let value = val.to_json_value();
+
+        assert!(value.is_string());
+        assert!(value.as_str().is_some());
+        assert_eq!(value.as_str().unwrap(), "value");
+    }
+
+    #[test]
+    fn test_bigint_to_json_value() {
+        let val = super::TypedValue::BigInt(198);
+        let value = val.to_json_value();
+
+        assert!(value.is_i64());
+        assert!(value.as_i64().is_some());
+        assert_eq!(value.as_i64().unwrap(), 198);
+    }
+
+    #[test]
+    fn test_number_to_json_value() {
+        let val = super::TypedValue::Number(198.198);
+        let value = val.to_json_value();
+
+        assert!(value.is_f64());
+        assert!(value.as_f64().is_some());
+        assert_eq!(value.as_f64().unwrap(), 198.198);
+    }
+
+    #[test]
+    fn test_boolean_to_json_value() {
+        let val = super::TypedValue::Boolean(false);
+        let value = val.to_json_value();
+
+        assert!(value.is_boolean());
+        assert!(value.as_bool().is_some());
+        assert_eq!(value.as_bool().unwrap(), false);
+
+        let val = super::TypedValue::Boolean(true);
+        let value = val.to_json_value();
+
+        assert!(value.is_boolean());
+        assert!(value.as_bool().is_some());
+        assert_eq!(value.as_bool().unwrap(), true);
+    }
+
+    #[test]
+    fn test_array_to_json_value() {
+        {
+            let val = super::TypedValue::Array(vec![
+                super::TypedValue::BigInt(1),
+                super::TypedValue::BigInt(2),
+                super::TypedValue::BigInt(3),
+            ]);
+            let value = val.to_json_value();
+
+            assert!(value.is_array());
+            assert!(value.as_array().is_some());
+
+            let arr = value.as_array().unwrap();
+
+            let mut cursor = 1;
+            for ele in arr {
+                assert!(ele.is_i64());
+                assert!(ele.as_i64().is_some());
+                assert_eq!(ele.as_i64().unwrap(), cursor);
+                cursor = cursor + 1;
+            }
+        }
+
+        {
+            let val = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+                super::TypedValue::String("v3".to_string()),
+            ]);
+            let value = val.to_json_value();
+
+            assert!(value.is_array());
+            assert!(value.as_array().is_some());
+
+            let arr = value.as_array().unwrap();
+
+            let mut cursor = 1;
+            for ele in arr {
+                assert!(ele.is_string());
+                assert!(ele.as_str().is_some());
+                assert_eq!(ele.as_str().unwrap(), format!("v{}", cursor).as_str());
+                cursor = cursor + 1;
+            }
+        }
+    }
+
+    #[test]
+    fn test_object_to_json_value() {
+        use std::collections::BTreeMap;
+        let mut obj = BTreeMap::default();
+        obj.insert(
+            "k1".to_string(),
+            super::TypedValue::String("v1".to_string()),
+        );
+        obj.insert("k2".to_string(), super::TypedValue::BigInt(1));
+        obj.insert("k3".to_string(), super::TypedValue::Number(2.0));
+
+        let val = super::TypedValue::Object(obj);
+        let value = val.to_json_value();
+
+        assert!(value.is_object());
+        assert!(value.as_object().is_some());
+
+        let obj = value.as_object().unwrap();
+
+        (1..4).for_each(|index| assert!(obj.contains_key(&format!("k{}", index))));
+        let v1 = obj.get(&format!("k{}", 1)).unwrap();
+        let v2 = obj.get(&format!("k{}", 2)).unwrap();
+        let v3 = obj.get(&format!("k{}", 3)).unwrap();
+        
+        assert!(v1.is_string());
+        assert_eq!(v1.as_str().unwrap(), "v1");
+
+        assert!(v2.is_i64());
+        assert_eq!(v2.as_i64().unwrap(), 1);
+
+        assert!(v3.is_f64());
+        assert_eq!(v3.as_f64().unwrap(), 2.0);
+
     }
 }

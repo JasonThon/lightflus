@@ -11,6 +11,25 @@ pub trait KeyedEvent<K, V> {
 
 #[derive(Clone, Debug)]
 pub enum LocalEvent {
-    Terminate { job_id: ResourceId, to: types::SinkId },
+    Terminate {
+        job_id: ResourceId,
+        to: types::SinkId,
+    },
     KeyedDataStreamEvent(KeyedDataEvent),
+}
+
+pub enum KafkaEventError {
+    UnsupportedEvent,
+    SerializeJsonFailed(String),
+}
+
+impl From<serde_json::Error> for KafkaEventError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::SerializeJsonFailed(format!(
+            "serialize json failed, error occurs at line:{} and column: {}. error message: {}",
+            err.line(),
+            err.column(),
+            err
+        ))
+    }
 }

@@ -81,7 +81,7 @@ jobs:
           cargo test --manifest-path src/common/Cargo.toml
           cargo test --manifest-path src/stream/Cargo.toml
         env:
-          KAFKA_HOST: kafka
+          KAFKA_HOST: localhost
 
   build_docker_image:
     if: ${{ github.event_name == 'release' }}

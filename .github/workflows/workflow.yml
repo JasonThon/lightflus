@@ -82,6 +82,8 @@ jobs:
           cargo test --manifest-path src/stream/Cargo.toml
         env:
           KAFKA_HOST: localhost
+          REDIS_HOST: localhost
+          MYSQL_HOST: localhost
 
   build_docker_image:
     if: ${{ github.event_name == 'release' }}

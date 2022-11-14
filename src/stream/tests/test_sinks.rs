@@ -1,3 +1,22 @@
+use std::collections::BTreeMap;
+
+use common::{
+    event::LocalEvent,
+    kafka::{run_consumer, run_producer, KafkaMessage},
+    types::TypedValue,
+    utils::get_env,
+};
+use proto::{
+    common::{
+        common::{DataTypeEnum, ResourceId},
+        event::{Entry, KeyedDataEvent},
+        stream::{KafkaDesc, KafkaDesc_KafkaOptions},
+    },
+    worker::worker::DispatchDataEventStatusEnum,
+};
+use protobuf::RepeatedField;
+use stream::actor::{Kafka, Sink, SinkableMessageImpl, Source};
+
 #[tokio::test]
 async fn test_kafka_sink() {
     let mut kafka_desc = KafkaDesc::default();

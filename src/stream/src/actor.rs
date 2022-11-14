@@ -680,16 +680,23 @@ impl Source for Kafka {
                 let mut event = KeyedDataEvent::default();
                 let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
                 let mut event_time = Timestamp::default();
+
                 event_time.set_seconds(datetime.naive_utc().timestamp());
                 event_time.set_nanos(datetime.naive_utc().timestamp_subsec_nanos() as i32);
                 event.set_event_time(event_time);
                 event.set_job_id(self.job_id.clone());
                 event.set_from_operator_id(self.connector_id);
 
-                let mut entry = Entry::default();
-                entry.set_data_type(data_type);
-                entry.set_value(val.get_data());
-                event.set_data(RepeatedField::from_slice(&[entry]));
+                let mut data_entry = Entry::default();
+                data_entry.set_data_type(data_type);
+                data_entry.set_value(val.get_data());
+                event.set_data(RepeatedField::from_slice(&[data_entry]));
+
+                let mut key_entry = Entry::default();
+                let key = TypedValue::from_vec(&message.key);
+                key_entry.set_data_type(key.get_type());
+                key_entry.set_value(message.key.clone());
+                event.set_key(key_entry);
 
                 SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
             })

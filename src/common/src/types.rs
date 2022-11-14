@@ -197,6 +197,9 @@ impl TypedValue {
     }
 
     pub fn from_vec(data: &Vec<u8>) -> Self {
+        if data.is_empty() {
+            return Self::Null;
+        }
         let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
@@ -232,6 +235,9 @@ impl TypedValue {
     }
 
     pub fn from_slice(data: &[u8]) -> Self {
+        if data.is_empty() {
+            return Self::Null;
+        }
         let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
@@ -848,7 +854,7 @@ mod tests {
         let v1 = obj.get(&format!("k{}", 1)).unwrap();
         let v2 = obj.get(&format!("k{}", 2)).unwrap();
         let v3 = obj.get(&format!("k{}", 3)).unwrap();
-        
+
         assert!(v1.is_string());
         assert_eq!(v1.as_str().unwrap(), "v1");
 
@@ -857,6 +863,5 @@ mod tests {
 
         assert!(v3.is_f64());
         assert_eq!(v3.as_f64().unwrap(), 2.0);
-
     }
 }

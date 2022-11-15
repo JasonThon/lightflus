@@ -754,7 +754,58 @@ mod tests {
             let order = a1.partial_cmp(&a2);
             assert!(order.is_some());
             let order = order.unwrap();
+            assert_eq!(order, Ordering::Less);
+
+            let a1 = super::TypedValue::Number(2.0);
+            let a2 = super::TypedValue::Number(1.0);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
             assert_eq!(order, Ordering::Greater);
+
+            let a1 = super::TypedValue::BigInt(2);
+            let a2 = super::TypedValue::Number(1.0);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Greater);
+
+            let a1 = super::TypedValue::Number(2.0);
+            let a2 = super::TypedValue::BigInt(1);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Greater);
+
+            let a1 = super::TypedValue::BigInt(1);
+            let a2 = super::TypedValue::Number(1.5);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Less);
+        }
+
+        {
+            let a1 = super::TypedValue::BigInt(2);
+            let a2 = super::TypedValue::BigInt(2);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+
+            let a1 = super::TypedValue::BigInt(2);
+            let a2 = super::TypedValue::BigInt(1);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Greater);
+
+            let a1 = super::TypedValue::BigInt(1);
+            let a2 = super::TypedValue::BigInt(2);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Less);
         }
     }
 

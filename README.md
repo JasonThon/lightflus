@@ -57,7 +57,7 @@ You can get the Roadmap in this [Jira Dashboard](https://lightflus.atlassian.net
 
 ## Community
 
-Welcome all to join [Slack](https://lightflus.slack.com/join/shared_invite/zt-1hqwryop3-jWOhWSuQ2B7wulhQM5~sHQ#/shared-invite/email) Community! 
+You can join [Gitter](https://gitter.im/lightflus/community) community!
 
 ## Set Up
 

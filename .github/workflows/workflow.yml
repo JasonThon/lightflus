@@ -34,7 +34,7 @@ jobs:
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Generate code coverage
-        run: cargo tarpaulin --lib --all-features --out Xml
+        run: cargo tarpaulin --lib --all-features -p `cargo pkgid --manifest-path src/common/Cargo.toml` `cargo pkgid --manifest-path src/stream/Cargo.toml` --out Xml
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2
         with:

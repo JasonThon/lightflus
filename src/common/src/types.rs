@@ -807,6 +807,139 @@ mod tests {
             let order = order.unwrap();
             assert_eq!(order, Ordering::Less);
         }
+
+        {
+            let a1 = super::TypedValue::Boolean(true);
+            let a2 = super::TypedValue::Boolean(true);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+
+            let a1 = super::TypedValue::Boolean(true);
+            let a2 = super::TypedValue::Boolean(false);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Greater);
+
+            let a1 = super::TypedValue::Boolean(false);
+            let a2 = super::TypedValue::Boolean(true);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Less);
+        }
+
+        {
+            let a1 = super::TypedValue::Null;
+            let a2 = super::TypedValue::Boolean(true);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_none());
+
+            let a1 = super::TypedValue::Null;
+            let a2 = super::TypedValue::Null;
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+
+            let a1 = super::TypedValue::Null;
+            let a2 = super::TypedValue::Invalid;
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+
+            let a1 = super::TypedValue::Invalid;
+            let a2 = super::TypedValue::Null;
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+
+            let a1 = super::TypedValue::Invalid;
+            let a2 = super::TypedValue::Invalid;
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+        }
+    }
+
+    #[test]
+    pub fn test_typed_value_partial_eq() {
+        {
+            let a1 = super::TypedValue::Boolean(true);
+            let a2 = super::TypedValue::Boolean(true);
+            assert!(a1.eq(&a2));
+
+            let a1 = super::TypedValue::Boolean(true);
+            let a2 = super::TypedValue::Boolean(false);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::Boolean(false);
+            let a2 = super::TypedValue::Boolean(true);
+            assert!(!a1.eq(&a2));
+        }
+
+        {
+            let a1 = super::TypedValue::BigInt(2);
+            let a2 = super::TypedValue::BigInt(2);
+            assert!(a1.eq(&a2));
+
+            let a1 = super::TypedValue::BigInt(2);
+            let a2 = super::TypedValue::BigInt(1);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::BigInt(1);
+            let a2 = super::TypedValue::BigInt(2);
+            assert!(!a1.eq(&a2));
+        }
+
+        {
+            let a1 = super::TypedValue::Number(1.0);
+            let a2 = super::TypedValue::Number(1.0);
+            assert!(a1.eq(&a2));
+
+            let a1 = super::TypedValue::Number(1.0);
+            let a2 = super::TypedValue::Number(2.0);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::Number(2.0);
+            let a2 = super::TypedValue::Number(1.0);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::BigInt(2);
+            let a2 = super::TypedValue::Number(1.0);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::Number(2.0);
+            let a2 = super::TypedValue::BigInt(1);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::BigInt(1);
+            let a2 = super::TypedValue::Number(1.5);
+            assert!(!a1.eq(&a2));
+
+            let a1 = super::TypedValue::BigInt(1);
+            let a2 = super::TypedValue::Number(1.0);
+            assert!(a1.eq(&a2));
+
+            let a1 = super::TypedValue::Number(1.0);
+            let a2 = super::TypedValue::BigInt(1);
+            assert!(a1.eq(&a2));
+        }
+
+        {
+            let a1 = super::TypedValue::String("v1".to_string());
+            let a2 = super::TypedValue::String("v1".to_string());
+            assert!(a1.eq(&a2));
+
+            let a1 = super::TypedValue::String("v1".to_string());
+            let a2 = super::TypedValue::String("v2".to_string());
+            assert!(!a1.eq(&a2));
+        }
     }
 
     #[test]

@@ -1,12 +1,12 @@
 use std::thread::JoinHandle;
 
-use common::err::ExecutionException;
+use common::{err::ExecutionException, event::SinkableMessageImpl};
 use common::event::LocalEvent;
 use common::types::SinkId;
 use proto::common::common::ResourceId;
 use proto::common::event::KeyedDataEvent;
 use proto::worker::worker::DispatchDataEventStatusEnum;
-use stream::actor::{DataflowContext, Sink, SinkImpl, SinkableMessageImpl};
+use stream::actor::{DataflowContext, Sink, SinkImpl};
 
 pub struct LocalExecutorManager {
     pub job_id: ResourceId,

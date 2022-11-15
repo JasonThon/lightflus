@@ -730,6 +730,35 @@ mod tests {
     }
 
     #[test]
+    pub fn test_typed_value_partial_order() {
+        use std::cmp::Ordering;
+        {
+            let a1 = super::TypedValue::String("v1".to_string());
+            let a2 = super::TypedValue::String("v1".to_string());
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+        }
+
+        {
+            let a1 = super::TypedValue::Number(1.0);
+            let a2 = super::TypedValue::Number(1.0);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Equal);
+
+            let a1 = super::TypedValue::Number(1.0);
+            let a2 = super::TypedValue::Number(2.0);
+            let order = a1.partial_cmp(&a2);
+            assert!(order.is_some());
+            let order = order.unwrap();
+            assert_eq!(order, Ordering::Greater);
+        }
+    }
+
+    #[test]
     pub fn test_from_json_value() {
         use proto::common::common::DataTypeEnum;
         use std::collections::BTreeMap;

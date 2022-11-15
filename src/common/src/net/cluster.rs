@@ -265,7 +265,7 @@ mod cluster_tests {
     }
 
     #[test]
-    fn test_cluster_partition_dataflow() {
+    pub fn test_cluster_partition_dataflow() {
         use super::{Cluster, NodeConfig};
         use proto::common::stream::Dataflow;
         use protobuf::RepeatedField;
@@ -335,7 +335,7 @@ mod cluster_tests {
     }
 
     #[test]
-    fn test_split_into_subdataflow() {
+    pub fn test_split_into_subdataflow() {
         use super::{Cluster, NodeConfig};
         use proto::common::stream::Dataflow;
         use protobuf::RepeatedField;

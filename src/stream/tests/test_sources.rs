@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use common::{
-    event::LocalEvent,
+    event::{LocalEvent, SinkableMessageImpl},
     kafka::{run_consumer, run_producer, KafkaMessage},
     types::TypedValue,
     utils::get_env,
@@ -15,7 +15,7 @@ use proto::{
     worker::worker::DispatchDataEventStatusEnum,
 };
 use protobuf::RepeatedField;
-use stream::actor::{Kafka, Sink, SinkableMessageImpl, Source};
+use stream::actor::{Kafka, Sink, Source};
 
 #[tokio::test]
 async fn test_kafka_source() {

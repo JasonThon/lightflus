@@ -5,7 +5,6 @@ use handler::{
 };
 mod handler;
 mod types;
-mod utils;
 
 #[actix_web::main]
 async fn main() -> Result<(), std::io::Error> {

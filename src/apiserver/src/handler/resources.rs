@@ -2,7 +2,7 @@ use actix_web::{
     error::{ErrorBadRequest, ErrorInternalServerError},
     get, post, web, HttpResponse,
 };
-use common::err::ApiError;
+use common::{err::ApiError, utils::pb_to_bytes_mut};
 use futures_util::StreamExt;
 use proto::{
     apiserver::{
@@ -14,10 +14,7 @@ use proto::{
 };
 use protobuf::{CodedInputStream, Message, ProtobufEnum, ProtobufError};
 
-use crate::{
-    types::{GetResourceArgs, ListResourcesArgs},
-    utils::pb_to_bytes_mut,
-};
+use crate::types::{GetResourceArgs, ListResourcesArgs};
 
 const COORDINATOR_URI_ENV: &str = "LIGHTFLUS_COORDINATOR_URI";
 

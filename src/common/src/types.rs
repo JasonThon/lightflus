@@ -438,12 +438,12 @@ where
 }
 
 mod tests {
-
     #[test]
-    fn test_typed_value_get_data() {
+    pub fn test_typed_value_get_data() {
         use super::TypedValue;
         use bytes::Buf;
         use proto::common::common::DataTypeEnum;
+        use std::collections::BTreeMap;
 
         let int = TypedValue::BigInt(1 << 30);
         let mut data = int.get_data();
@@ -467,11 +467,82 @@ mod tests {
         assert_eq!(string.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
         let mut data = string.get_data();
         let _ = data.remove(0);
-        assert_eq!(String::from_utf8(data), Ok("test".to_string()))
+        assert_eq!(String::from_utf8(data), Ok("test".to_string()));
+
+        let boolean = super::TypedValue::Boolean(true);
+        assert_eq!(boolean.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+        let mut data = boolean.get_data();
+        let _ = data.remove(0);
+        assert_eq!(data[0], 1);
+
+        let boolean = super::TypedValue::Boolean(false);
+        assert_eq!(boolean.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+        let mut data = boolean.get_data();
+        let _ = data.remove(0);
+        assert_eq!(data[0], 0);
+
+        let arr = super::TypedValue::Array(vec![
+            super::TypedValue::Number(1.0),
+            super::TypedValue::Number(2.0),
+            super::TypedValue::Number(3.0),
+        ]);
+        assert_eq!(arr.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+        let mut data = arr.get_data();
+        let _ = data.remove(0);
+        let data = serde_json::from_slice::<Vec<Vec<u8>>>(data.as_slice());
+        assert!(data.is_ok());
+        let data = data.unwrap();
+        assert_eq!(data.len(), 3);
+        let mut index = 1.0;
+        data.iter().for_each(|entry| {
+            let val = super::TypedValue::from_vec(entry);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+            match val {
+                super::TypedValue::Number(v) => assert_eq!(v, index),
+                _ => panic!("unexpected type"),
+            };
+
+            index = index + 1.0;
+        });
+
+        let mut obj = BTreeMap::new();
+        obj.insert(
+            "k1".to_string(),
+            super::TypedValue::String("v1".to_string()),
+        );
+        obj.insert("k2".to_string(), super::TypedValue::BigInt(1));
+        obj.insert("k3".to_string(), super::TypedValue::Number(1.0));
+        let obj = super::TypedValue::Object(obj);
+        assert_eq!(obj.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+        let mut data = obj.get_data();
+        let _ = data.remove(0);
+
+        let val = serde_json::from_slice::<BTreeMap<String, super::TypedValue>>(data.as_slice());
+        assert!(val.is_ok());
+
+        let val = val.expect("");
+
+        (1..4).for_each(|index| {
+            let key = &format!("k{}", index);
+            assert!(val.contains_key(key));
+            let value = val.get(key).unwrap();
+
+            if key == "k1" {
+                assert_eq!(value.clone(), super::TypedValue::String("v1".to_string()));
+            }
+
+            if key == "k2" {
+                assert_eq!(value.clone(), super::TypedValue::BigInt(1));
+            }
+
+            if key == "k3" {
+                assert_eq!(value.clone(), super::TypedValue::Number(1.0));
+            }
+        })
     }
 
     #[test]
-    fn test_typed_value_left_int_dual_op() {
+    pub fn test_typed_value_left_int_dual_op() {
         let a1 = super::TypedValue::BigInt(100);
         let a2 = super::TypedValue::BigInt(200);
         assert_eq!(a1.clone() + a2.clone(), super::TypedValue::BigInt(300));
@@ -519,7 +590,7 @@ mod tests {
     }
 
     #[test]
-    fn test_typed_value_left_long_dual_op() {
+    pub fn test_typed_value_left_long_dual_op() {
         std::env::set_var("double.accuracy", 8.to_string());
         let a1 = super::TypedValue::BigInt(1000);
         let a2 = super::TypedValue::BigInt(2000);
@@ -565,7 +636,7 @@ mod tests {
     }
 
     #[test]
-    fn test_typed_value_left_float_dual_op() {
+    pub fn test_typed_value_left_float_dual_op() {
         let a1 = super::TypedValue::Number(1999.111222333);
         let a2 = super::TypedValue::String("sss".to_string());
         assert_eq!(a1.clone() + a2.clone(), super::TypedValue::Invalid);
@@ -659,7 +730,7 @@ mod tests {
     }
 
     #[test]
-    fn test_from_json_value() {
+    pub fn test_from_json_value() {
         use proto::common::common::DataTypeEnum;
         use std::collections::BTreeMap;
         let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"]}";
@@ -738,7 +809,7 @@ mod tests {
     }
 
     #[test]
-    fn test_string_to_json_value() {
+    pub fn test_string_to_json_value() {
         let val = super::TypedValue::String("value".to_string());
         let value = val.to_json_value();
 

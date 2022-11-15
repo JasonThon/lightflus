@@ -4,7 +4,7 @@ use crate::state::new_state_mgt;
 use crate::v8_runtime::RuntimeEngine;
 
 use common::collections::lang;
-use common::event::{KafkaEventError, LocalEvent};
+use common::event::{LocalEvent, SinkableMessage, SinkableMessageImpl};
 use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, KafkaProducer};
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
@@ -378,53 +378,6 @@ pub trait Sink {
     fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException>;
 }
 
-pub trait SinkableMessage {
-    fn get_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError>;
-}
-
-#[derive(Clone, Debug)]
-pub enum SinkableMessageImpl {
-    LocalMessage(LocalEvent),
-}
-
-impl SinkableMessage for SinkableMessageImpl {
-    fn get_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError> {
-        match self {
-            SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { .. } => Err(KafkaEventError::UnsupportedEvent),
-                LocalEvent::KeyedDataStreamEvent(e) => {
-                    let key = TypedValue::from_slice(e.get_key().get_value()).to_json_value();
-                    let values = e
-                        .get_data()
-                        .iter()
-                        .map(|entry| TypedValue::from_slice(entry.get_value()).to_json_value());
-                    serde_json::to_vec(&key)
-                        .and_then(|k| {
-                            let mut messages = vec![];
-                            for val in values {
-                                let payload_result = serde_json::to_vec(&val);
-                                if payload_result.is_err() {
-                                    return Err(payload_result.err().unwrap());
-                                }
-
-                                messages.push(KafkaMessage {
-                                    key: k.to_vec(),
-                                    payload: payload_result.unwrap(),
-                                })
-                            }
-
-                            Ok(messages)
-                        })
-                        .map_err(|err| err.into())
-                }
-            },
-        }
-    }
-}
-
-unsafe impl Send for SinkableMessageImpl {}
-unsafe impl Sync for SinkableMessageImpl {}
-
 #[derive(Clone)]
 pub struct LocalSink {
     pub(crate) sender: EventSender<SinkableMessageImpl>,
@@ -668,39 +621,41 @@ impl Kafka {
             producer: Some(producer),
         }
     }
+
+    fn process(&self, message: KafkaMessage) -> SinkableMessageImpl {
+        let data_type = self.conf.get_data_type();
+        let payload = message.payload.as_slice();
+        let val = TypedValue::from_slice_with_type(payload, data_type);
+        let mut event = KeyedDataEvent::default();
+        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
+        let mut event_time = Timestamp::default();
+
+        event_time.set_seconds(datetime.naive_utc().timestamp());
+        event_time.set_nanos(datetime.naive_utc().timestamp_subsec_nanos() as i32);
+        event.set_event_time(event_time);
+        event.set_job_id(self.job_id.clone());
+        event.set_from_operator_id(self.connector_id);
+
+        let mut data_entry = Entry::default();
+        data_entry.set_data_type(data_type);
+        data_entry.set_value(val.get_data());
+        event.set_data(RepeatedField::from_slice(&[data_entry]));
+
+        let mut key_entry = Entry::default();
+        let key = TypedValue::from_vec(&message.key);
+        key_entry.set_data_type(key.get_type());
+        key_entry.set_value(message.key.clone());
+        event.set_key(key_entry);
+
+        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
+    }
 }
 
 impl Source for Kafka {
     fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
-        self.consumer.as_ref().and_then(|consumer| {
-            let data_type = self.conf.get_data_type();
-            consumer.fetch(|message| {
-                let payload = message.payload.as_slice();
-                let val = TypedValue::from_slice_with_type(payload, data_type);
-                let mut event = KeyedDataEvent::default();
-                let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
-                let mut event_time = Timestamp::default();
-
-                event_time.set_seconds(datetime.naive_utc().timestamp());
-                event_time.set_nanos(datetime.naive_utc().timestamp_subsec_nanos() as i32);
-                event.set_event_time(event_time);
-                event.set_job_id(self.job_id.clone());
-                event.set_from_operator_id(self.connector_id);
-
-                let mut data_entry = Entry::default();
-                data_entry.set_data_type(data_type);
-                data_entry.set_value(val.get_data());
-                event.set_data(RepeatedField::from_slice(&[data_entry]));
-
-                let mut key_entry = Entry::default();
-                let key = TypedValue::from_vec(&message.key);
-                key_entry.set_data_type(key.get_type());
-                key_entry.set_value(message.key.clone());
-                event.set_key(key_entry);
-
-                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
-            })
-        })
+        self.consumer
+            .as_ref()
+            .and_then(|consumer| consumer.fetch(|message| self.process(message)))
     }
 
     fn source_id(&self) -> SourceId {
@@ -775,7 +730,7 @@ impl Mysql {
         format!("mysql://{user}:{password}@{host}/{db}")
     }
 
-    fn get_sql(&self) -> String {
+    fn get_statement(&self) -> String {
         self.conf.get_statement().get_statement().to_string()
     }
 }
@@ -800,7 +755,7 @@ impl Sink for Mysql {
                 });
 
                 let result = futures_executor::block_on(
-                    sqlx::query_with(&self.get_sql(), mysql_arg).execute(&conn),
+                    sqlx::query_with(&self.get_statement(), mysql_arg).execute(&conn),
                 );
                 if result.is_err() {
                     return result.map(|_| DispatchDataEventStatusEnum::FAILURE);
@@ -908,7 +863,7 @@ mod tests {
     }
 
     #[test]
-    fn test_new_dataflow_context() {
+    pub fn test_new_dataflow_context() {
         use proto::common::common::ResourceId;
         use proto::common::stream::DataflowMeta;
         use proto::common::stream::OperatorInfo;
@@ -954,7 +909,7 @@ mod tests {
     }
 
     #[test]
-    fn test_get_mysql_arguments() {
+    pub fn test_get_mysql_arguments() {
         use proto::common::stream::{MysqlDesc, MysqlDesc_Statement};
         use protobuf::RepeatedField;
 

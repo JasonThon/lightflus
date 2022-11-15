@@ -9,7 +9,7 @@ edition = "2021"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["sync"] }
 regex = "1"
-bytes = "1.1.0"
+bytes = "1.2.1"
 chrono = "0.4"
 proto = { path = "../proto", features = ["proto-common", "worker"] }
 serde_json = "1.0.59"

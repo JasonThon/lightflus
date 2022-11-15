@@ -73,10 +73,38 @@ pub fn local_ip() -> Option<String> {
 mod tests {
 
     #[test]
-    fn test_local_ip() {
-    use super::local_ip;
+    pub fn test_local_ip() {
+        use super::local_ip;
         let option = local_ip();
         assert!(option.is_some());
         println!("{}", option.unwrap())
+    }
+
+    #[test]
+    pub fn test_to_host_addr() {
+        let mut addr = super::PersistableHostAddr {
+            host: "198.0.0.1".to_string(),
+            port: 8970,
+        };
+
+        let host_addr = super::to_host_addr(&addr);
+        assert_eq!(host_addr.get_host(), "198.0.0.1");
+        assert_eq!(host_addr.get_port(), 8970);
+
+        assert_eq!(addr.as_uri().as_str(), "198.0.0.1:8970");
+        assert!(addr.is_valid());
+
+        addr.host = "".to_string();
+        assert!(!addr.is_valid());
+
+        addr.host = "198.0.0.1".to_string();
+        addr.port = 0;
+        assert!(!addr.is_valid());
+    }
+
+    #[test]
+    pub fn test_hostname() {
+        let host = super::hostname();
+        assert!(host.is_some());
     }
 }

@@ -1,10 +1,8 @@
 use common::{
     err::{KafkaException, RedisException},
-    event::KafkaEventError,
+    event::{KafkaEventError, SinkableMessageImpl},
 };
 use crossbeam_channel::SendError;
-
-use crate::actor::SinkableMessageImpl;
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {

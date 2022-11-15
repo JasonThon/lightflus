@@ -6,10 +6,12 @@ use crate::{
         UNDEFINED_SYMBOL,
     },
 };
+use bytes::BytesMut;
 use proto::common::{
     common::{DataTypeEnum, ResourceId},
     stream::{Dataflow, DataflowMeta, OperatorInfo},
 };
+use protobuf::Message;
 use serde::de::Error;
 use std::collections::HashMap;
 use std::env;
@@ -191,6 +193,16 @@ pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
     } else {
         DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
     }
+}
+
+pub fn pb_to_bytes_mut<T: Message>(message: T) -> BytesMut {
+    let ref mut raw_data = vec![];
+    let mut bytes = BytesMut::new();
+    if message.write_to_vec(raw_data).is_ok() {
+        bytes.extend_from_slice(raw_data);
+    }
+
+    bytes
 }
 
 mod tests {

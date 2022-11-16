@@ -1,3 +1,4 @@
+#![cfg_attr(tarpaulin, ignore)]
 // This file is generated. Do not edit
 // @generated
 

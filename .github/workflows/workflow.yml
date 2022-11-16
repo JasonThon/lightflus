@@ -35,7 +35,6 @@ jobs:
         run: cargo install cargo-tarpaulin
       - name: Generate code coverage
         run: |
-          cargo clean
           cargo tarpaulin --lib --all-features --engine llvm -p `cargo pkgid --manifest-path src/common/Cargo.toml` `cargo pkgid --manifest-path src/stream/Cargo.toml` --exclude-files src/proto/* src/apiserver/* src/coordinator/* src/worker/* --out Xml
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v2

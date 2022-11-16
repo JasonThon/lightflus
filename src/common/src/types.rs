@@ -438,6 +438,8 @@ where
 }
 
 mod tests {
+    use std::str::FromStr;
+
     #[test]
     pub fn test_typed_value_get_data() {
         use super::TypedValue;
@@ -731,139 +733,97 @@ mod tests {
 
     #[test]
     pub fn test_typed_value_partial_order() {
-        use std::cmp::Ordering;
         {
             let a1 = super::TypedValue::String("v1".to_string());
             let a2 = super::TypedValue::String("v1".to_string());
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
         }
 
         {
             let a1 = super::TypedValue::Number(1.0);
             let a2 = super::TypedValue::Number(1.0);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
+            assert!(a1 == a2);
 
             let a1 = super::TypedValue::Number(1.0);
             let a2 = super::TypedValue::Number(2.0);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Less);
+            assert_ne!(a1, a2);
+            assert!(a1 < a2);
 
             let a1 = super::TypedValue::Number(2.0);
             let a2 = super::TypedValue::Number(1.0);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Greater);
+            assert_ne!(a1, a2);
+            assert!(a1 > a2);
 
             let a1 = super::TypedValue::BigInt(2);
             let a2 = super::TypedValue::Number(1.0);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Greater);
+            assert_ne!(a1, a2);
+            assert!(a1 > a2);
 
             let a1 = super::TypedValue::Number(2.0);
             let a2 = super::TypedValue::BigInt(1);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Greater);
+            assert_ne!(a1, a2);
+            assert!(a1 > a2);
 
             let a1 = super::TypedValue::BigInt(1);
             let a2 = super::TypedValue::Number(1.5);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Less);
+            assert_ne!(a1, a2);
+            assert!(a1 < a2);
         }
 
         {
             let a1 = super::TypedValue::BigInt(2);
             let a2 = super::TypedValue::BigInt(2);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::BigInt(2);
             let a2 = super::TypedValue::BigInt(1);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Greater);
+            assert_ne!(a1, a2);
+            assert!(a1 > a2);
 
             let a1 = super::TypedValue::BigInt(1);
             let a2 = super::TypedValue::BigInt(2);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Less);
+            assert_ne!(a1, a2);
+            assert!(a1 < a2);
         }
 
         {
             let a1 = super::TypedValue::Boolean(true);
             let a2 = super::TypedValue::Boolean(true);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
+            assert!(a1 == a2);
 
             let a1 = super::TypedValue::Boolean(true);
             let a2 = super::TypedValue::Boolean(false);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Greater);
+            assert_ne!(a1, a2);
+            assert!(a1 > a2);
 
             let a1 = super::TypedValue::Boolean(false);
             let a2 = super::TypedValue::Boolean(true);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Less);
+            assert_ne!(a1, a2);
+            assert!(a1 < a2);
         }
 
         {
             let a1 = super::TypedValue::Null;
             let a2 = super::TypedValue::Boolean(true);
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_none());
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::Null;
             let a2 = super::TypedValue::Null;
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::Null;
             let a2 = super::TypedValue::Invalid;
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::Invalid;
             let a2 = super::TypedValue::Null;
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::Invalid;
             let a2 = super::TypedValue::Invalid;
-            let order = a1.partial_cmp(&a2);
-            assert!(order.is_some());
-            let order = order.unwrap();
-            assert_eq!(order, Ordering::Equal);
+            assert_eq!(a1, a2);
         }
     }
 
@@ -872,73 +832,73 @@ mod tests {
         {
             let a1 = super::TypedValue::Boolean(true);
             let a2 = super::TypedValue::Boolean(true);
-            assert!(a1.eq(&a2));
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::Boolean(true);
             let a2 = super::TypedValue::Boolean(false);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::Boolean(false);
             let a2 = super::TypedValue::Boolean(true);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
         }
 
         {
             let a1 = super::TypedValue::BigInt(2);
             let a2 = super::TypedValue::BigInt(2);
-            assert!(a1.eq(&a2));
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::BigInt(2);
             let a2 = super::TypedValue::BigInt(1);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::BigInt(1);
             let a2 = super::TypedValue::BigInt(2);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
         }
 
         {
             let a1 = super::TypedValue::Number(1.0);
             let a2 = super::TypedValue::Number(1.0);
-            assert!(a1.eq(&a2));
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::Number(1.0);
             let a2 = super::TypedValue::Number(2.0);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::Number(2.0);
             let a2 = super::TypedValue::Number(1.0);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::BigInt(2);
             let a2 = super::TypedValue::Number(1.0);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::Number(2.0);
             let a2 = super::TypedValue::BigInt(1);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::BigInt(1);
             let a2 = super::TypedValue::Number(1.5);
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
 
             let a1 = super::TypedValue::BigInt(1);
             let a2 = super::TypedValue::Number(1.0);
-            assert!(a1.eq(&a2));
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::Number(1.0);
             let a2 = super::TypedValue::BigInt(1);
-            assert!(a1.eq(&a2));
+            assert_eq!(a1, a2);
         }
 
         {
             let a1 = super::TypedValue::String("v1".to_string());
             let a2 = super::TypedValue::String("v1".to_string());
-            assert!(a1.eq(&a2));
+            assert_eq!(a1, a2);
 
             let a1 = super::TypedValue::String("v1".to_string());
             let a2 = super::TypedValue::String("v2".to_string());
-            assert!(!a1.eq(&a2));
+            assert_ne!(a1, a2);
         }
     }
 
@@ -1024,48 +984,37 @@ mod tests {
     #[test]
     pub fn test_string_to_json_value() {
         let val = super::TypedValue::String("value".to_string());
-        let value = val.to_json_value();
-
-        assert!(value.is_string());
-        assert!(value.as_str().is_some());
-        assert_eq!(value.as_str().unwrap(), "value");
+        assert_eq!(
+            val.to_json_value(),
+            serde_json::Value::String("value".to_string())
+        );
     }
 
     #[test]
     fn test_bigint_to_json_value() {
         let val = super::TypedValue::BigInt(198);
-        let value = val.to_json_value();
-
-        assert!(value.is_i64());
-        assert!(value.as_i64().is_some());
-        assert_eq!(value.as_i64().unwrap(), 198);
+        assert_eq!(
+            val.to_json_value(),
+            serde_json::Value::Number(serde_json::Number::from_str("198").unwrap())
+        );
     }
 
     #[test]
     fn test_number_to_json_value() {
         let val = super::TypedValue::Number(198.198);
-        let value = val.to_json_value();
-
-        assert!(value.is_f64());
-        assert!(value.as_f64().is_some());
-        assert_eq!(value.as_f64().unwrap(), 198.198);
+        assert_eq!(
+            val.to_json_value(),
+            serde_json::Value::Number(serde_json::Number::from_str("198.198").unwrap())
+        );
     }
 
     #[test]
     fn test_boolean_to_json_value() {
         let val = super::TypedValue::Boolean(false);
-        let value = val.to_json_value();
-
-        assert!(value.is_boolean());
-        assert!(value.as_bool().is_some());
-        assert_eq!(value.as_bool().unwrap(), false);
+        assert_eq!(val.to_json_value(), serde_json::Value::Bool(false));
 
         let val = super::TypedValue::Boolean(true);
-        let value = val.to_json_value();
-
-        assert!(value.is_boolean());
-        assert!(value.as_bool().is_some());
-        assert_eq!(value.as_bool().unwrap(), true);
+        assert_eq!(val.to_json_value(), serde_json::Value::Bool(true));
     }
 
     #[test]
@@ -1076,20 +1025,15 @@ mod tests {
                 super::TypedValue::BigInt(2),
                 super::TypedValue::BigInt(3),
             ]);
-            let value = val.to_json_value();
 
-            assert!(value.is_array());
-            assert!(value.as_array().is_some());
-
-            let arr = value.as_array().unwrap();
-
-            let mut cursor = 1;
-            for ele in arr {
-                assert!(ele.is_i64());
-                assert!(ele.as_i64().is_some());
-                assert_eq!(ele.as_i64().unwrap(), cursor);
-                cursor = cursor + 1;
-            }
+            assert_eq!(
+                val.to_json_value(),
+                serde_json::Value::Array(vec![
+                    serde_json::Value::Number(serde_json::Number::from_str("1").unwrap(),),
+                    serde_json::Value::Number(serde_json::Number::from_str("2").unwrap(),),
+                    serde_json::Value::Number(serde_json::Number::from_str("3").unwrap(),)
+                ])
+            );
         }
 
         {
@@ -1098,20 +1042,15 @@ mod tests {
                 super::TypedValue::String("v2".to_string()),
                 super::TypedValue::String("v3".to_string()),
             ]);
-            let value = val.to_json_value();
 
-            assert!(value.is_array());
-            assert!(value.as_array().is_some());
-
-            let arr = value.as_array().unwrap();
-
-            let mut cursor = 1;
-            for ele in arr {
-                assert!(ele.is_string());
-                assert!(ele.as_str().is_some());
-                assert_eq!(ele.as_str().unwrap(), format!("v{}", cursor).as_str());
-                cursor = cursor + 1;
-            }
+            assert_eq!(
+                val.to_json_value(),
+                serde_json::Value::Array(vec![
+                    serde_json::Value::String("v1".to_string()),
+                    serde_json::Value::String("v2".to_string()),
+                    serde_json::Value::String("v3".to_string()),
+                ])
+            );
         }
     }
 
@@ -1127,25 +1066,27 @@ mod tests {
         obj.insert("k3".to_string(), super::TypedValue::Number(2.0));
 
         let val = super::TypedValue::Object(obj);
-        let value = val.to_json_value();
 
-        assert!(value.is_object());
-        assert!(value.as_object().is_some());
-
-        let obj = value.as_object().unwrap();
-
-        (1..4).for_each(|index| assert!(obj.contains_key(&format!("k{}", index))));
-        let v1 = obj.get(&format!("k{}", 1)).unwrap();
-        let v2 = obj.get(&format!("k{}", 2)).unwrap();
-        let v3 = obj.get(&format!("k{}", 3)).unwrap();
-
-        assert!(v1.is_string());
-        assert_eq!(v1.as_str().unwrap(), "v1");
-
-        assert!(v2.is_i64());
-        assert_eq!(v2.as_i64().unwrap(), 1);
-
-        assert!(v3.is_f64());
-        assert_eq!(v3.as_f64().unwrap(), 2.0);
+        assert_eq!(
+            val.to_json_value(),
+            serde_json::Value::Object(serde_json::Map::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        serde_json::Value::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from_str("1").unwrap(),)
+                    ),
+                    (
+                        "k3".to_string(),
+                        serde_json::Value::Number(serde_json::Number::from_str("2.0").unwrap(),)
+                    )
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone()))
+            ))
+        );
     }
 }

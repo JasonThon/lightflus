@@ -33,6 +33,7 @@ services:
     healthcheck:
       test:
         [
+          "CMD-SHELL",
           "/lightflus/runtime/tools/healthcheck",
           "-TARGET localhost:8791",
           "-METHOD /proto.CoordinatorApi/Probe",
@@ -56,6 +57,7 @@ services:
     healthcheck:
       test:
         [
+          "CMD-SHELL",
           "/lightflus/runtime/tools/healthcheck",
           "-TARGET localhost:18090",
           "-METHOD /proto.TaskWorkerApi/Probe",

@@ -6,6 +6,7 @@ RUN go build -ldflags="-s -w" -o /lightflus/runtime/tools/healthcheck health-che
 FROM rust:1.61.0-alpine as builder
 WORKDIR /lightflus/runtime
 COPY . .
+RUN apk add --update --no-cache musl-dev
 RUN cargo install --path src/coordinator
 COPY target/release/coordinator /lightflus/runtime/coordinator
 COPY src/coordinator/etc /lightflus/runtime

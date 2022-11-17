@@ -1391,7 +1391,9 @@ mod tests {
             let val = super::TypedValue::Invalid;
             val.write_redis_args(&mut writer);
 
-            assert_eq!(writer.len(), 0);
+            assert_eq!(writer.len(), 1);
+            let val = &writer[0];
+            assert_eq!(String::from_utf8(val.clone()), Ok("undefined".to_string()))
         }
 
         {
@@ -1402,7 +1404,10 @@ mod tests {
                 super::TypedValue::BigInt(3),
             ]);
             val.write_redis_args(&mut writer);
-            assert_eq!(writer.len(), 3);
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+            assert_eq!(String::from_utf8(val.clone()), Ok("[1,2,3]".to_string()))
         }
     }
 }

@@ -10,7 +10,7 @@ RUN cargo install --path src/coordinator
 COPY target/release/coordinator /lightflus/runtime/coordinator
 COPY src/coordinator/etc /lightflus/runtime
 
-FROM alpine:3.15
+FROM alpine:3.16
 RUN apk add --update --no-cache rocksdb-dev
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/etc /lightflus/runtime/etc

@@ -531,6 +531,7 @@ pub enum SinkImpl {
     Remote(RemoteSink),
     Kafka(Kafka),
     Mysql(Mysql),
+    Redis(Redis),
     Empty(SinkId),
 }
 
@@ -542,6 +543,7 @@ impl Sink for SinkImpl {
             SinkImpl::Kafka(kafka) => kafka.sink_id(),
             SinkImpl::Mysql(mysql) => mysql.sink_id(),
             SinkImpl::Empty(sink_id) => *sink_id,
+            SinkImpl::Redis(redis) => redis.sink_id(),
         }
     }
 
@@ -552,6 +554,7 @@ impl Sink for SinkImpl {
             SinkImpl::Kafka(sink) => sink.sink(msg),
             SinkImpl::Mysql(sink) => sink.sink(msg),
             SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::DONE),
+            SinkImpl::Redis(redis) => redis.sink(msg),
         }
     }
 }
@@ -840,6 +843,7 @@ fn extract_arguments(
     }
 }
 
+#[cfg(test)]
 mod tests {
 
     struct SetupGuard {}

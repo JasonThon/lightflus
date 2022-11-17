@@ -82,6 +82,7 @@ pub fn any_match<T, F: FnMut(&T) -> bool>(elems: &Vec<T>, mut predicate: F) -> b
     elems.iter().filter(|e| predicate(*e)).next().is_some()
 }
 
+#[cfg(test)]
 mod tests {
 
     #[test]

@@ -70,6 +70,7 @@ pub fn local_ip() -> Option<String> {
     socket.local_addr().ok().map(|addr| addr.ip().to_string())
 }
 
+#[cfg(test)]
 mod tests {
 
     #[test]

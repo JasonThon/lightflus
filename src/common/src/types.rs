@@ -96,7 +96,7 @@ impl ToRedisArgs for TypedValue {
                 .collect::<BTreeMap<String, TypedValue>>()
                 .write_redis_args(out),
             TypedValue::Array(v) => v.write_redis_args(out),
-            TypedValue::Invalid => out.write_arg("null".as_bytes()),
+            TypedValue::Invalid => {}
         }
     }
 }
@@ -437,8 +437,11 @@ where
     }
 }
 
+#[cfg(test)]
 mod tests {
-    use std::str::FromStr;
+    use std::{cmp::Ordering, collections::BTreeMap, str::FromStr};
+
+    use bytes::Buf;
 
     #[test]
     pub fn test_typed_value_get_data() {
@@ -808,22 +811,149 @@ mod tests {
             let a1 = super::TypedValue::Null;
             let a2 = super::TypedValue::Boolean(true);
             assert_ne!(a1, a2);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, None);
 
             let a1 = super::TypedValue::Null;
             let a2 = super::TypedValue::Null;
             assert_eq!(a1, a2);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
 
             let a1 = super::TypedValue::Null;
             let a2 = super::TypedValue::Invalid;
             assert_eq!(a1, a2);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
 
             let a1 = super::TypedValue::Invalid;
             let a2 = super::TypedValue::Null;
             assert_eq!(a1, a2);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
 
             let a1 = super::TypedValue::Invalid;
             let a2 = super::TypedValue::Invalid;
             assert_eq!(a1, a2);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
+        }
+
+        {
+            let a1 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+            ]);
+            let a2 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+            ]);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
+
+            let a1 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+            ]);
+            let a2 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v2".to_string()),
+                super::TypedValue::String("v3".to_string()),
+            ]);
+
+            assert!(a1 < a2);
+            assert!(a2 > a1);
+
+            let a1 = super::TypedValue::Array(vec![
+                super::TypedValue::Number(1.0),
+                super::TypedValue::Number(2.0),
+            ]);
+            let a2 = super::TypedValue::Array(vec![
+                super::TypedValue::Number(1.0),
+                super::TypedValue::Number(2.0),
+            ]);
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
+
+            let a1 = super::TypedValue::Array(vec![
+                super::TypedValue::Number(1.0),
+                super::TypedValue::Number(2.0),
+            ]);
+            let a2 = super::TypedValue::Array(vec![
+                super::TypedValue::Number(2.0),
+                super::TypedValue::Number(3.0),
+            ]);
+
+            assert!(a1 < a2);
+            assert!(a2 > a1);
+        }
+
+        {
+            let a1 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            let a2 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            let order = a1.partial_cmp(&a2);
+            assert_eq!(order, Some(Ordering::Equal));
+
+            let a1 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            let a2 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                    (
+                        "k3".to_string(),
+                        super::TypedValue::String("v3".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+
+            assert!(a1 < a2);
+            assert!(a2 > a1);
         }
     }
 
@@ -900,6 +1030,101 @@ mod tests {
             let a2 = super::TypedValue::String("v2".to_string());
             assert_ne!(a1, a2);
         }
+
+        {
+            let a1 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+            ]);
+            let a2 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+            ]);
+            assert_eq!(a1, a2);
+
+            let a1 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v2".to_string()),
+            ]);
+            let a2 = super::TypedValue::Array(vec![
+                super::TypedValue::String("v1".to_string()),
+                super::TypedValue::String("v3".to_string()),
+            ]);
+            assert_ne!(a1, a2);
+        }
+
+        {
+            let a1 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            let a2 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            assert_eq!(a1, a2);
+
+            let a1 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            let a2 = super::TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "k1".to_string(),
+                        super::TypedValue::String("v1".to_string()),
+                    ),
+                    (
+                        "k2".to_string(),
+                        super::TypedValue::String("v2".to_string()),
+                    ),
+                    (
+                        "k3".to_string(),
+                        super::TypedValue::String("v3".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            assert_ne!(a1, a2);
+        }
+    }
+
+    #[test]
+    fn test_typed_value_default() {
+        let val: super::TypedValue = Default::default();
+
+        assert_eq!(val, super::TypedValue::Invalid);
     }
 
     #[test]
@@ -1088,5 +1313,77 @@ mod tests {
                 .map(|entry| (entry.0.clone(), entry.1.clone()))
             ))
         );
+    }
+
+    #[test]
+    fn test_typed_value_to_redis_args() {
+        use redis::ToRedisArgs;
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::String("value".to_string());
+            val.write_redis_args(&mut writer);
+
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+
+            assert_eq!(String::from_utf8(val.clone()), Ok("value".to_string()))
+        }
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::BigInt(10);
+            val.write_redis_args(&mut writer);
+
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+
+            assert_eq!(val.as_slice().get_i64(), 10)
+        }
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::Number(10.78);
+            val.write_redis_args(&mut writer);
+
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+
+            assert_eq!(val.as_slice().get_f64(), 10.78)
+        }
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::Null;
+            val.write_redis_args(&mut writer);
+
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+
+            assert_eq!(String::from_utf8(val.clone()), Ok("null".to_string()))
+        }
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::Invalid;
+            val.write_redis_args(&mut writer);
+
+            assert_eq!(writer.len(), 0);
+        }
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::Array(vec![
+                super::TypedValue::BigInt(1),
+                super::TypedValue::BigInt(2),
+                super::TypedValue::BigInt(3),
+            ]);
+            val.write_redis_args(&mut writer);
+            assert_eq!(writer.len(), 3);
+        }
     }
 }

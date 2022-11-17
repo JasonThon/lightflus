@@ -5,7 +5,7 @@ use redis::{Commands, ConnectionAddr, ConnectionInfo, RedisConnectionInfo};
 
 use crate::{err::RedisException, types::TypedValue};
 
-const REDIS_PORT: u16 = 6479;
+const REDIS_PORT: u16 = 6379;
 
 #[derive(Debug, Clone)]
 pub struct RedisClient {
@@ -44,6 +44,24 @@ impl RedisClient {
     ) -> Result<(), RedisException> {
         conn.set_multiple(items)
             .map_err(|err| RedisException::SetMultipleValueFailed(format!("{}", err)))
+    }
+
+    pub fn get(
+        &self,
+        conn: &mut redis::Connection,
+        key: &TypedValue,
+    ) -> Result<Vec<u8>, RedisException> {
+        conn.get(key)
+            .map_err(|err| RedisException::GetValueFailed(format!("{}", err)))
+    }
+
+    pub fn del(
+        &self,
+        conn: &mut redis::Connection,
+        key: &TypedValue,
+    ) -> Result<(), RedisException> {
+        conn.del(key)
+            .map_err(|err| RedisException::DelValueFailed(format!("{}", err)))
     }
 }
 

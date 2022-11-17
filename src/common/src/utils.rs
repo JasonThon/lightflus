@@ -29,18 +29,7 @@ impl Default for Args {
         };
         let mut map = HashMap::new();
 
-        env::args().for_each(|arg| {
-            let is_key = arg.starts_with("-");
-            if is_key {
-                if !current_arg.is_empty() {
-                    current_arg.clear();
-                }
-                current_arg.key = arg[1..arg.len()].to_string();
-            } else {
-                current_arg.value = arg.clone();
-                let _ = map.insert(current_arg.key.clone(), current_arg.clone());
-            }
-        });
+        env::args().for_each(|arg| Self::process_arg(arg, &mut current_arg, &mut map));
 
         Self { args: map.clone() }
     }
@@ -51,9 +40,33 @@ impl Args {
         let key = flag.to_string();
         self.args.get(&key).map(|val| val.clone())
     }
+
+    pub(crate) fn process_arg(
+        arg: String,
+        mut current_arg: &mut Arg,
+        map: &mut HashMap<String, Arg>,
+    ) {
+        let is_flag = arg.starts_with("-");
+        if is_flag {
+            if !current_arg.key.is_empty() {
+                panic!(
+                    "flag {} has invalid value {}",
+                    current_arg.key.as_str(),
+                    arg
+                );
+            }
+            if !current_arg.is_empty() {
+                current_arg.clear();
+            }
+            current_arg.key = arg[1..arg.len()].to_string();
+        } else {
+            current_arg.value = arg.clone();
+            let _ = map.insert(current_arg.key.clone(), current_arg.clone());
+        }
+    }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default, PartialEq, Eq, Debug)]
 pub struct Arg {
     pub key: String,
     pub value: String,
@@ -205,7 +218,119 @@ pub fn pb_to_bytes_mut<T: Message>(message: T) -> BytesMut {
     bytes
 }
 
+#[cfg(test)]
 mod tests {
+
+    #[test]
+    fn test_process_arg_success() {
+        use std::collections::HashMap;
+        let mut current_arg = Default::default();
+        let mut map = HashMap::new();
+        super::Args::process_arg("-f".to_string(), &mut current_arg, &mut map);
+        assert!(!map.contains_key(&"f".to_string()));
+        assert_eq!(current_arg.key, "f".to_string());
+        assert_eq!(current_arg.value, "".to_string());
+
+        super::Args::process_arg("src".to_string(), &mut current_arg, &mut map);
+        assert!(map.contains_key(&"f".to_string()));
+        assert_eq!(current_arg.key, "f".to_string());
+        assert_eq!(current_arg.value, "src".to_string());
+
+        assert_eq!(
+            map.get(&"f".to_string()),
+            Some(&super::Arg {
+                key: "f".to_string(),
+                value: "src".to_string()
+            })
+        )
+    }
+
+    #[test]
+    #[should_panic(expected = "flag f has invalid value -s")]
+    fn test_process_arg_failed() {
+        use std::collections::HashMap;
+        let mut current_arg = Default::default();
+        let mut map = HashMap::new();
+        super::Args::process_arg("-f".to_string(), &mut current_arg, &mut map);
+        assert!(!map.contains_key(&"f".to_string()));
+        assert_eq!(current_arg.key, "f".to_string());
+        assert_eq!(current_arg.value, "".to_string());
+
+        super::Args::process_arg("-s".to_string(), &mut current_arg, &mut map);
+    }
+
+    #[test]
+    fn test_from_type_symbol() {
+        use proto::common::common::DataTypeEnum;
+        assert_eq!(
+            super::from_type_symbol(super::STRING_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_STRING
+        );
+
+        assert_eq!(
+            super::from_type_symbol(super::NUMBER_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_NUMBER
+        );
+
+        assert_eq!(
+            super::from_type_symbol(super::OBJECT_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+        );
+
+        assert_eq!(
+            super::from_type_symbol(super::BOOLEAN_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+        );
+
+        assert_eq!(
+            super::from_type_symbol(super::BIGINT_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_BIGINT
+        );
+
+        assert_eq!(
+            super::from_type_symbol(super::NULL_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_NULL
+        );
+
+        assert_eq!(
+            super::from_type_symbol(super::UNDEFINED_SYMBOL.to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_NULL
+        );
+
+        assert_eq!(
+            super::from_type_symbol("sss".to_string()),
+            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+        );
+    }
+
+    #[test]
+    fn test_to_dataflow() {
+        use proto::common::common::ResourceId;
+        use proto::common::stream::DataflowMeta;
+        use proto::common::stream::OperatorInfo;
+        use std::collections::HashMap;
+
+        let job_id = ResourceId::default();
+        let mut op1 = OperatorInfo::default();
+        op1.set_operator_id(0);
+        let mut op2 = OperatorInfo::default();
+        op2.set_operator_id(1);
+        let operators = vec![op1.clone(), op2.clone()];
+
+        let mut meta1 = DataflowMeta::default();
+        meta1.set_center(0);
+        meta1.set_neighbors(vec![1]);
+
+        let dataflow = super::to_dataflow(&job_id, &operators, &[meta1.clone()]);
+
+        let mut nodes = HashMap::default();
+        nodes.insert(0, op1);
+        nodes.insert(1, op2);
+
+        assert_eq!(dataflow.get_job_id(), &job_id);
+        assert_eq!(dataflow.get_meta(), &[meta1]);
+        assert_eq!(dataflow.get_nodes(), &nodes);
+    }
 
     #[test]
     fn test_validate_dataflow_success() {

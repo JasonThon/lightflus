@@ -407,8 +407,11 @@ pub enum DataflowValidateError {
     CyclicDataflow,
 }
 
+#[derive(Debug)]
 pub enum RedisException {
     ConnectFailed(String),
     SetValueFailed(String),
-    SetMultipleValueFailed(String)
+    SetMultipleValueFailed(String),
+    GetValueFailed(String),
+    DelValueFailed(String)
 }

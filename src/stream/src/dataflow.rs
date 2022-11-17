@@ -376,6 +376,7 @@ fn get_operator_state_key(operator_id: NodeIdx, operator: &str) -> Vec<u8> {
     format!("{}-{}", operator, operator_id).as_bytes().to_vec()
 }
 
+#[cfg(test)]
 mod tests {
 
     struct SetupGuard {}

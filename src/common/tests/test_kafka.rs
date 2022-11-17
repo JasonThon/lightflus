@@ -6,7 +6,7 @@ use common::{
 use proto::common::stream::KafkaDesc_KafkaOptions;
 
 #[tokio::test]
-async fn test_kafka() {
+async fn test_kafka_pub_sub() {
     let kafka_host = utils::get_env("KAFKA_HOST").unwrap_or("localhost".to_string());
     println!("kafka host: {}", kafka_host);
     let consumer_result = run_consumer(format!("{}:9092", kafka_host).as_str(), "ci_group", "ci");

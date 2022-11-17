@@ -259,6 +259,7 @@ fn try_catch_log(try_catch: &mut v8::TryCatch<v8::HandleScope>) {
     log::error!("{}", exception_string);
 }
 
+#[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
 

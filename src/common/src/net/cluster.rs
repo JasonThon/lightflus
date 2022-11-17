@@ -246,6 +246,7 @@ impl NodeConfig {
     }
 }
 
+#[cfg(test)]
 mod cluster_tests {
 
     #[test]

@@ -96,72 +96,72 @@ async fn test_kafka_sink() {
 }
 
 // #[tokio::test]
-async fn test_redis_sink_success() {
-    let mut redis_desc = RedisDesc::default();
-    let mut key_extractor = Func::default();
-    key_extractor.set_function("function (a) {a.key}".to_string());
-    let mut value_extractor = Func::default();
-    value_extractor.set_function("function (a) {a.value}".to_string());
+// async fn test_redis_sink_success() {
+//     let mut redis_desc = RedisDesc::default();
+//     let mut key_extractor = Func::default();
+//     key_extractor.set_function("function (a) {a.key}".to_string());
+//     let mut value_extractor = Func::default();
+//     value_extractor.set_function("function (a) {a.value}".to_string());
 
-    {
-        let mut opts = RedisDesc_ConnectionOpts::default();
-        opts.set_database(0);
-        opts.set_host(get_env("REDIS_HOST").unwrap_or("localhost".to_string()));
-        redis_desc.set_key_extractor(key_extractor);
-        redis_desc.set_value_extractor(value_extractor);
-        redis_desc.set_connection_opts(opts);
-    }
+//     {
+//         let mut opts = RedisDesc_ConnectionOpts::default();
+//         opts.set_database(0);
+//         opts.set_host(get_env("REDIS_HOST").unwrap_or("localhost".to_string()));
+//         redis_desc.set_key_extractor(key_extractor);
+//         redis_desc.set_value_extractor(value_extractor);
+//         redis_desc.set_connection_opts(opts);
+//     }
 
-    let redis_sink = SinkImpl::Redis(Redis::with_config(1, redis_desc.clone()));
+//     let redis_sink = SinkImpl::Redis(Redis::with_config(1, redis_desc.clone()));
 
-    assert_eq!(redis_sink.sink_id(), 1);
+//     assert_eq!(redis_sink.sink_id(), 1);
 
-    let mut event = KeyedDataEvent::default();
-    let mut entry = Entry::default();
-    entry.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+//     let mut event = KeyedDataEvent::default();
+//     let mut entry = Entry::default();
+//     entry.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
 
-    let mut val = BTreeMap::default();
-    val.insert("key".to_string(), TypedValue::String("word-1".to_string()));
-    val.insert("value".to_string(), TypedValue::BigInt(10));
+//     let mut val = BTreeMap::default();
+//     val.insert("key".to_string(), TypedValue::String("word-1".to_string()));
+//     val.insert("value".to_string(), TypedValue::BigInt(10));
 
-    let value = TypedValue::Object(val);
-    entry.set_value(value.get_data());
-    entry.set_data_type(value.get_type());
+//     let value = TypedValue::Object(val);
+//     entry.set_value(value.get_data());
+//     entry.set_data_type(value.get_type());
 
-    let mut entry_2 = Entry::default();
-    entry_2.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+//     let mut entry_2 = Entry::default();
+//     entry_2.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
 
-    let mut val = BTreeMap::default();
-    val.insert("key".to_string(), TypedValue::String("word-2".to_string()));
-    val.insert("value".to_string(), TypedValue::BigInt(100));
+//     let mut val = BTreeMap::default();
+//     val.insert("key".to_string(), TypedValue::String("word-2".to_string()));
+//     val.insert("value".to_string(), TypedValue::BigInt(100));
 
-    let value = TypedValue::Object(val);
-    entry_2.set_value(value.get_data());
-    entry_2.set_data_type(value.get_type());
+//     let value = TypedValue::Object(val);
+//     entry_2.set_value(value.get_data());
+//     entry_2.set_data_type(value.get_type());
 
-    event.set_job_id(ResourceId::default());
-    event.set_data(RepeatedField::from_slice(&[entry, entry_2]));
+//     event.set_job_id(ResourceId::default());
+//     event.set_data(RepeatedField::from_slice(&[entry, entry_2]));
 
-    let result = redis_sink.sink(SinkableMessageImpl::LocalMessage(
-        LocalEvent::KeyedDataStreamEvent(event),
-    ));
+//     let result = redis_sink.sink(SinkableMessageImpl::LocalMessage(
+//         LocalEvent::KeyedDataStreamEvent(event),
+//     ));
 
-    assert!(result.is_ok());
+//     assert!(result.is_ok());
 
-    let client = RedisClient::new(&redis_desc);
-    let conn_result = client.connect();
-    assert!(conn_result.is_ok());
+//     let client = RedisClient::new(&redis_desc);
+//     let conn_result = client.connect();
+//     assert!(conn_result.is_ok());
 
-    let ref mut conn = conn_result.expect("");
-    let result = client.get(conn, &TypedValue::String("word-1".to_string()));
-    assert!(result.is_ok());
-    let value = result.expect("msg");
+//     let ref mut conn = conn_result.expect("");
+//     let result = client.get(conn, &TypedValue::String("word-1".to_string()));
+//     assert!(result.is_ok());
+//     let value = result.expect("msg");
 
-    assert_eq!(value.as_slice().get_i64(), 10);
+//     assert_eq!(value.as_slice().get_i64(), 10);
 
-    let result = client.get(conn, &TypedValue::String("word-2".to_string()));
-    assert!(result.is_ok());
-    let value = result.expect("msg");
+//     let result = client.get(conn, &TypedValue::String("word-2".to_string()));
+//     assert!(result.is_ok());
+//     let value = result.expect("msg");
 
-    assert_eq!(value.as_slice().get_i64(), 100)
-}
+//     assert_eq!(value.as_slice().get_i64(), 100)
+// }

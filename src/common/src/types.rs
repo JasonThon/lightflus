@@ -89,14 +89,34 @@ impl ToRedisArgs for TypedValue {
             TypedValue::BigInt(v) => out.write_arg(&v.to_be_bytes()),
             TypedValue::Boolean(v) => out.write_arg(&[*v as u8]),
             TypedValue::Number(v) => out.write_arg(&v.to_be_bytes()),
-            TypedValue::Null => out.write_arg("null".as_bytes()),
-            TypedValue::Object(v) => v
-                .iter()
-                .map(|entry| (entry.0.clone(), entry.1.clone()))
-                .collect::<BTreeMap<String, TypedValue>>()
-                .write_redis_args(out),
-            TypedValue::Array(v) => v.write_redis_args(out),
-            TypedValue::Invalid => {}
+            _ => out.write_arg(self.to_string().as_bytes()),
+        }
+    }
+}
+
+// The result of to_string() of TypedValue must be the same as JavaScript
+impl ToString for TypedValue {
+    fn to_string(&self) -> String {
+        match self {
+            TypedValue::String(v) => v.clone(),
+            TypedValue::BigInt(v) => v.to_string(),
+            TypedValue::Boolean(v) => v.to_string(),
+            TypedValue::Number(v) => v.to_string(),
+            TypedValue::Null => "null".to_string(),
+            TypedValue::Object(v) => {
+                let val = BTreeMap::from_iter(
+                    v.iter()
+                        .map(|pair| (pair.0.clone(), pair.1.to_json_value())),
+                );
+                serde_json::to_string(&val).unwrap_or_default()
+            }
+            TypedValue::Array(v) => serde_json::to_string(
+                &v.iter()
+                    .map(|val| val.to_json_value())
+                    .collect::<Vec<serde_json::Value>>(),
+            )
+            .unwrap_or_default(),
+            TypedValue::Invalid => "undefined".to_string(),
         }
     }
 }
@@ -596,7 +616,6 @@ mod tests {
 
     #[test]
     pub fn test_typed_value_left_long_dual_op() {
-        std::env::set_var("double.accuracy", 8.to_string());
         let a1 = super::TypedValue::BigInt(1000);
         let a2 = super::TypedValue::BigInt(2000);
         assert_eq!(a1.clone() + a2.clone(), super::TypedValue::BigInt(3000));

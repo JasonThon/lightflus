@@ -19,6 +19,7 @@ pub enum LocalEvent {
     KeyedDataStreamEvent(KeyedDataEvent),
 }
 
+#[derive(Debug)]
 pub enum KafkaEventError {
     UnsupportedEvent,
     SerializeJsonFailed(String),

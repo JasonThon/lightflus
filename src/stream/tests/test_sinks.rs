@@ -1,10 +1,8 @@
 use std::collections::BTreeMap;
 
-use bytes::Buf;
 use common::{
     event::{LocalEvent, SinkableMessageImpl},
     kafka::{run_consumer, KafkaMessage},
-    redis::RedisClient,
     types::TypedValue,
     utils::get_env,
 };
@@ -12,12 +10,12 @@ use proto::{
     common::{
         common::{DataTypeEnum, ResourceId},
         event::{Entry, KeyedDataEvent},
-        stream::{Func, KafkaDesc, KafkaDesc_KafkaOptions, RedisDesc, RedisDesc_ConnectionOpts},
+        stream::{KafkaDesc, KafkaDesc_KafkaOptions},
     },
     worker::worker::DispatchDataEventStatusEnum,
 };
 use protobuf::RepeatedField;
-use stream::actor::{Kafka, Redis, Sink, SinkImpl};
+use stream::actor::{Kafka, Sink, SinkImpl};
 
 #[tokio::test]
 async fn test_kafka_sink() {

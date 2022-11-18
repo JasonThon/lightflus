@@ -3,6 +3,9 @@ use common::types::TypedValue;
 use std::collections::BTreeMap;
 use v8::{HandleScope, Local};
 
+/**
+ * RuntimeEngine wraps an isolated instance of v8 engine which contains only one function's runtime context.
+ */
 pub struct RuntimeEngine<'s, 'i> {
     context_scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
     ctx: Local<'s, v8::Context>,
@@ -49,6 +52,9 @@ where
         self_
     }
 
+    /**
+     * call with one argument
+     */
     pub fn call_one_arg(&mut self, val: &TypedValue) -> Option<TypedValue> {
         let scope = &mut v8::HandleScope::new(&mut self.context_scope);
         let ref mut try_catch = v8::TryCatch::new(scope);
@@ -66,6 +72,9 @@ where
         }
     }
 
+    /**
+     * call with two arguments
+     */
     pub fn call_two_args(&mut self, vals: (&TypedValue, &TypedValue)) -> Option<TypedValue> {
         let scope = &mut v8::HandleScope::new(&mut self.context_scope);
         let ref mut try_catch = v8::TryCatch::new(scope);
@@ -92,6 +101,9 @@ where
     }
 }
 
+/*
+wrap_value() will convert a TypedValue into v8::Value.
+ */
 pub fn wrap_value<'s, 'i, 'p>(
     typed_val: &'p TypedValue,
     scope: &'i mut HandleScope<'s, ()>,
@@ -168,6 +180,9 @@ where
     }
 }
 
+/*
+to_typed_value() will convert v8::Value into TypedValue.
+ */
 pub fn to_typed_value<'s>(
     local: v8::Local<v8::Value>,
     handle_scope: &'s mut v8::HandleScope,

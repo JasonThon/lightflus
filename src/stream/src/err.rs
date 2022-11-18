@@ -11,6 +11,7 @@ pub enum ErrorKind {
     KafkaMessageSendFailed,
     SqlExecutionFailed,
     RemoteSinkFailed,
+    RedisSinkFailed,
 }
 
 #[derive(Clone, Debug)]
@@ -56,20 +57,29 @@ impl From<sqlx::Error> for SinkException {
 }
 
 impl From<&mut RedisException> for SinkException {
-    fn from(_: &mut RedisException) -> Self {
-        todo!()
+    fn from(err: &mut RedisException) -> Self {
+        Self {
+            kind: ErrorKind::RedisSinkFailed,
+            msg: format!("{:?}", err),
+        }
     }
 }
 
 impl From<RedisException> for SinkException {
     fn from(err: RedisException) -> Self {
-        todo!()
+        Self {
+            kind: ErrorKind::RedisSinkFailed,
+            msg: format!("{:?}", err),
+        }
     }
 }
 
 impl From<KafkaEventError> for SinkException {
     fn from(err: KafkaEventError) -> Self {
-        todo!()
+        Self {
+            kind: ErrorKind::KafkaMessageSendFailed,
+            msg: format!("{:?}", err),
+        }
     }
 }
 

@@ -8,6 +8,10 @@ use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::{ops, vec};
 
+/**
+ * TypedValue is the Rust mapping to the value in Javascript. TypedValue can be converted to v8::Value, the reverse works too.
+ */
+
 pub(crate) const STRING_SYMBOL: &str = "string";
 pub(crate) const NUMBER_SYMBOL: &str = "number";
 pub(crate) const NULL_SYMBOL: &str = "null";
@@ -56,16 +60,24 @@ impl PartialOrd for TypedValue {
     }
 }
 
-// TODO fix float calculated with double precision loss problem
+// TypedValue is the Rust mapping to the value in Javascript
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum TypedValue {
+    // `string` in Javascript
     String(String),
+    // `bigint` in Javascript
     BigInt(i64),
+    // `boolean` in Javascript
     Boolean(bool),
+    // `number` in Javascript
     Number(f64),
+    // `null` in Javascript
     Null,
+    // `object` in Javascript
     Object(BTreeMap<String, TypedValue>),
+    // `array` in Javascript
     Array(Vec<TypedValue>),
+    // `undefined` in Javascript
     Invalid,
 }
 
@@ -87,14 +99,14 @@ impl ToRedisArgs for TypedValue {
         match self {
             TypedValue::String(v) => out.write_arg(v.as_bytes()),
             TypedValue::BigInt(v) => out.write_arg(&v.to_be_bytes()),
-            TypedValue::Boolean(v) => out.write_arg(&[*v as u8]),
+            TypedValue::Boolean(_) => out.write_arg(self.to_string().as_bytes()),
             TypedValue::Number(v) => out.write_arg(&v.to_be_bytes()),
             _ => out.write_arg(self.to_string().as_bytes()),
         }
     }
 }
 
-// The result of to_string() of TypedValue must be the same as JavaScript
+// The result of to_string() of TypedValue must be the same as Typescript
 impl ToString for TypedValue {
     fn to_string(&self) -> String {
         match self {
@@ -306,6 +318,13 @@ impl TypedValue {
     }
 
     pub fn from_slice_with_type(mut data: &[u8], data_type: DataTypeEnum) -> Self {
+        if data.is_empty() {
+            return if data_type != DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED {
+                Self::Null
+            } else {
+                Self::Invalid
+            };
+        }
         match data_type {
             DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => Self::Invalid,
             DataTypeEnum::DATA_TYPE_ENUM_BIGINT => Self::BigInt(data.get_i64()),
@@ -1150,7 +1169,7 @@ mod tests {
     pub fn test_from_json_value() {
         use proto::common::common::DataTypeEnum;
         use std::collections::BTreeMap;
-        let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"]}";
+        let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"],\"key_7\":true,\"key_8\":null}";
 
         let value = serde_json::from_str::<serde_json::Value>(raw_data);
         assert!(value.is_ok());
@@ -1220,6 +1239,16 @@ mod tests {
                     ),
                     _ => panic!("unexpected type"),
                 }
+
+                let val_7 = v.get(&format!("key_{}", 7)).unwrap();
+                assert_eq!(val_7.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+                match val_7 {
+                    super::TypedValue::Boolean(v) => assert_eq!(v, &true),
+                    _ => panic!("unexpected type"),
+                }
+
+                let val_8 = v.get(&format!("key_{}", 8)).unwrap();
+                assert_eq!(val_8.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
             }
             _ => panic!("unexpected type"),
         }
@@ -1408,6 +1437,149 @@ mod tests {
 
             let val = &writer[0];
             assert_eq!(String::from_utf8(val.clone()), Ok("[1,2,3]".to_string()))
+        }
+
+        {
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::Boolean(true);
+            val.write_redis_args(&mut writer);
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+            assert_eq!(String::from_utf8(val.clone()), Ok("true".to_string()));
+
+            let mut writer: Vec<Vec<u8>> = vec![];
+            let val = super::TypedValue::Boolean(false);
+            val.write_redis_args(&mut writer);
+            assert_eq!(writer.len(), 1);
+
+            let val = &writer[0];
+            assert_eq!(String::from_utf8(val.clone()), Ok("false".to_string()))
+        }
+    }
+
+    #[test]
+    fn test_from_slice_with_type() {
+        use proto::common::common::DataTypeEnum;
+
+        {
+            let val = super::TypedValue::from_slice_with_type(
+                "v1".as_bytes(),
+                DataTypeEnum::DATA_TYPE_ENUM_STRING,
+            );
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
+            assert_eq!(val, super::TypedValue::String("v1".to_string()));
+        }
+
+        {
+            let val: i64 = 1;
+            let val = val.to_be_bytes();
+            let val =
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+            assert_eq!(val, super::TypedValue::BigInt(1));
+        }
+
+        {
+            let val: f64 = 1.0;
+            let val = val.to_be_bytes();
+            let val =
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+            assert_eq!(val, super::TypedValue::Number(1.0));
+        }
+
+        {
+            let val = [1];
+            let val =
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+            assert_eq!(val, super::TypedValue::Boolean(true));
+
+            let val = [0];
+            let val =
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+            assert_eq!(val, super::TypedValue::Boolean(false));
+        }
+
+        {
+            let val = [1];
+            let val =
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_NULL);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+            assert_eq!(val, super::TypedValue::Null);
+        }
+
+        {
+            let val = [];
+            let val = super::TypedValue::from_slice_with_type(
+                &val,
+                DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED,
+            );
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED);
+            assert_eq!(val, super::TypedValue::Invalid);
+
+            let val = [];
+            let val =
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+            assert_eq!(val, super::TypedValue::Null);
+        }
+
+        {
+            let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"],\"key_7\":true,\"key_8\":null}";
+            let val = super::TypedValue::from_slice_with_type(
+                raw_data.as_bytes(),
+                DataTypeEnum::DATA_TYPE_ENUM_OBJECT,
+            );
+            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+
+            let obj = BTreeMap::from_iter(
+                [
+                    ("key_1", super::TypedValue::String("value_1".to_string())),
+                    ("key_2", super::TypedValue::BigInt(1)),
+                    ("key_3", super::TypedValue::Number(3.14)),
+                    (
+                        "key_4",
+                        super::TypedValue::Object(BTreeMap::from_iter(
+                            [
+                                (
+                                    "sub_key_1",
+                                    super::TypedValue::String("subval_1".to_string()),
+                                ),
+                                ("sub_key_2", super::TypedValue::BigInt(1)),
+                                ("sub_key_3", super::TypedValue::Number(3.14)),
+                            ]
+                            .iter()
+                            .map(|entry| (entry.0.to_string(), entry.1.clone())),
+                        )),
+                    ),
+                    (
+                        "key_5",
+                        super::TypedValue::Array(vec![
+                            super::TypedValue::BigInt(1),
+                            super::TypedValue::BigInt(2),
+                            super::TypedValue::BigInt(3),
+                            super::TypedValue::BigInt(4),
+                        ]),
+                    ),
+                    (
+                        "key_6",
+                        super::TypedValue::Array(vec![
+                            super::TypedValue::String("v1".to_string()),
+                            super::TypedValue::String("v2".to_string()),
+                            super::TypedValue::String("v3".to_string()),
+                        ]),
+                    ),
+                    ("key_7", super::TypedValue::Boolean(true)),
+                    ("key_8", super::TypedValue::Null),
+                ]
+                .iter()
+                .map(|entry| (entry.0.to_string(), entry.1.clone())),
+            );
+
+            assert_eq!(val, super::TypedValue::Object(obj));
         }
     }
 }

@@ -83,7 +83,7 @@ pub fn test_redis_with_string_key_simple_value() {
 
         let result = result.expect("msg");
 
-        assert_eq!(result[0], 1);
+        assert_eq!(String::from_utf8(result), Ok("true".to_string()));
 
         let value = &TypedValue::Boolean(false);
 
@@ -94,7 +94,7 @@ pub fn test_redis_with_string_key_simple_value() {
         assert!(result.is_ok());
 
         let result = result.expect("msg");
-        assert_eq!(result[0], 0);
+        assert_eq!(String::from_utf8(result), Ok("false".to_string()));
 
         let result = client.del(conn, key);
         assert!(result.is_ok());

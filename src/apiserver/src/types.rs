@@ -1,4 +1,4 @@
-use proto::common::common::ResourceId;
+use proto::common::ResourceId;
 
 #[derive(serde::Deserialize)]
 pub(crate) struct GetResourceArgs {
@@ -10,8 +10,8 @@ pub(crate) struct GetResourceArgs {
 impl GetResourceArgs {
     pub fn to_resource_id(&self) -> ResourceId {
         let mut resource_id = ResourceId::default();
-        resource_id.set_namespace_id(self.namespace.clone());
-        resource_id.set_resource_id(self.resource_id.clone());
+        resource_id.namespace_id = self.namespace.clone();
+        resource_id.resource_id = self.resource_id.clone();
         resource_id
     }
 }

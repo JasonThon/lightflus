@@ -1,7 +1,7 @@
 use bytes::Buf;
-use proto::common::common::{DataTypeEnum, ResourceId};
-use proto::common::event::Entry;
-use protobuf::ProtobufEnum;
+use proto::common::{DataTypeEnum, ResourceId};
+use proto::common::Entry;
+
 use redis::ToRedisArgs;
 use std::cmp::Ordering;
 use std::collections::BTreeMap;
@@ -235,27 +235,27 @@ impl TypedValue {
         let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
-            DataTypeEnum::DATA_TYPE_ENUM_STRING => {
+            DataTypeEnum::String => {
                 match String::from_utf8(data[1..data.len()].to_vec()) {
                     Ok(val) => TypedValue::String(val),
                     Err(_) => TypedValue::Invalid,
                 }
             }
-            DataTypeEnum::DATA_TYPE_ENUM_BIGINT => {
+            DataTypeEnum::Bigint => {
                 TypedValue::BigInt(data[1..data.len()].to_vec().as_slice().get_i64())
             }
-            DataTypeEnum::DATA_TYPE_ENUM_NUMBER => {
+            DataTypeEnum::Number => {
                 TypedValue::Number(data[1..data.len()].to_vec().as_slice().get_f64())
             }
-            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN => TypedValue::Boolean(data[1] == 1),
-            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
-            DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
-            DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
+            DataTypeEnum::Boolean => TypedValue::Boolean(data[1] == 1),
+            DataTypeEnum::Unspecified => TypedValue::Invalid,
+            DataTypeEnum::Null => TypedValue::Null,
+            DataTypeEnum::Object => TypedValue::Object(
                 serde_json::from_slice::<BTreeMap<String, TypedValue>>(&data[1..data.len()])
                     .map_err(|err| log::error!("deserialize object failed: {}", err))
                     .unwrap_or_default(),
             ),
-            DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
+            DataTypeEnum::Array => {
                 let val = serde_json::from_slice::<Vec<Vec<u8>>>(&data[1..data.len()])
                     .map_err(|err| log::error!("deserializ array failed:{}", err))
                     .unwrap_or_default();
@@ -273,27 +273,27 @@ impl TypedValue {
         let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
-            DataTypeEnum::DATA_TYPE_ENUM_STRING => {
+            DataTypeEnum::String => {
                 match String::from_utf8(data[1..data.len()].to_vec()) {
                     Ok(val) => TypedValue::String(val),
                     Err(_) => TypedValue::Invalid,
                 }
             }
-            DataTypeEnum::DATA_TYPE_ENUM_BIGINT => {
+            DataTypeEnum::Bigint => {
                 TypedValue::BigInt(data[1..data.len()].to_vec().as_slice().get_i64())
             }
-            DataTypeEnum::DATA_TYPE_ENUM_NUMBER => {
+            DataTypeEnum::Number => {
                 TypedValue::Number(data[1..data.len()].to_vec().as_slice().get_f64())
             }
-            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN => TypedValue::Boolean(data[1] == 1),
-            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => TypedValue::Invalid,
-            DataTypeEnum::DATA_TYPE_ENUM_NULL => TypedValue::Null,
-            DataTypeEnum::DATA_TYPE_ENUM_OBJECT => TypedValue::Object(
+            DataTypeEnum::Boolean => TypedValue::Boolean(data[1] == 1),
+            DataTypeEnum::Unspecified => TypedValue::Invalid,
+            DataTypeEnum::Null => TypedValue::Null,
+            DataTypeEnum::Object => TypedValue::Object(
                 serde_json::from_slice::<BTreeMap<String, TypedValue>>(&data[1..data.len()])
                     .map_err(|err| log::error!("{err}"))
                     .unwrap_or(Default::default()),
             ),
-            DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
+            DataTypeEnum::Array => {
                 let val = serde_json::from_slice::<Vec<Vec<u8>>>(&data[1..data.len()])
                     .map_err(|err| log::error!("{err}"))
                     .unwrap_or_default();
@@ -306,35 +306,35 @@ impl TypedValue {
 
     pub fn get_type(&self) -> DataTypeEnum {
         match self {
-            TypedValue::String(_) => DataTypeEnum::DATA_TYPE_ENUM_STRING,
-            TypedValue::Number(_) => DataTypeEnum::DATA_TYPE_ENUM_NUMBER,
-            TypedValue::BigInt(_) => DataTypeEnum::DATA_TYPE_ENUM_BIGINT,
-            TypedValue::Null => DataTypeEnum::DATA_TYPE_ENUM_NULL,
-            TypedValue::Object(_) => DataTypeEnum::DATA_TYPE_ENUM_OBJECT,
-            TypedValue::Boolean(_) => DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN,
-            TypedValue::Array(_) => DataTypeEnum::DATA_TYPE_ENUM_ARRAY,
-            _ => DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED,
+            TypedValue::String(_) => DataTypeEnum::String,
+            TypedValue::Number(_) => DataTypeEnum::Number,
+            TypedValue::BigInt(_) => DataTypeEnum::Bigint,
+            TypedValue::Null => DataTypeEnum::Null,
+            TypedValue::Object(_) => DataTypeEnum::Object,
+            TypedValue::Boolean(_) => DataTypeEnum::Boolean,
+            TypedValue::Array(_) => DataTypeEnum::Array,
+            _ => DataTypeEnum::Unspecified,
         }
     }
 
     pub fn from_slice_with_type(mut data: &[u8], data_type: DataTypeEnum) -> Self {
         if data.is_empty() {
-            return if data_type != DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED {
+            return if data_type != DataTypeEnum::Unspecified {
                 Self::Null
             } else {
                 Self::Invalid
             };
         }
         match data_type {
-            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED => Self::Invalid,
-            DataTypeEnum::DATA_TYPE_ENUM_BIGINT => Self::BigInt(data.get_i64()),
-            DataTypeEnum::DATA_TYPE_ENUM_NUMBER => Self::Number(data.get_f64()),
-            DataTypeEnum::DATA_TYPE_ENUM_NULL => Self::Null,
-            DataTypeEnum::DATA_TYPE_ENUM_STRING => {
+            DataTypeEnum::Unspecified => Self::Invalid,
+            DataTypeEnum::Bigint => Self::BigInt(data.get_i64()),
+            DataTypeEnum::Number => Self::Number(data.get_f64()),
+            DataTypeEnum::Null => Self::Null,
+            DataTypeEnum::String => {
                 Self::String(String::from_utf8_lossy(data).to_string())
             }
-            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN => Self::Boolean(data[0] == 1),
-            DataTypeEnum::DATA_TYPE_ENUM_OBJECT => {
+            DataTypeEnum::Boolean => Self::Boolean(data[0] == 1),
+            DataTypeEnum::Object => {
                 let value = serde_json::from_slice::<serde_json::Value>(data);
                 match value {
                     Ok(val) => Self::from_json_value(val),
@@ -344,7 +344,7 @@ impl TypedValue {
                     }
                 }
             }
-            DataTypeEnum::DATA_TYPE_ENUM_ARRAY => {
+            DataTypeEnum::Array => {
                 let value = serde_json::from_slice::<serde_json::Value>(data);
                 match value {
                     Ok(val) => Self::from_json_value(val),
@@ -411,7 +411,7 @@ impl TypedValue {
 impl From<&Entry> for TypedValue {
     fn from(entry: &Entry) -> Self {
         let mut data = vec![];
-        data.extend_from_slice(entry.get_value());
+        data.extend_from_slice(&entry.value);
         Self::from_vec(&data)
     }
 }
@@ -486,41 +486,41 @@ mod tests {
     pub fn test_typed_value_get_data() {
         use super::TypedValue;
         use bytes::Buf;
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
         use std::collections::BTreeMap;
 
         let int = TypedValue::BigInt(1 << 30);
         let mut data = int.get_data();
         let _ = data.remove(0);
         assert_eq!(data.as_slice().get_i64(), 1 << 30);
-        assert_eq!(int.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+        assert_eq!(int.get_type(), DataTypeEnum::Bigint);
 
         let double = super::TypedValue::Number(1.6546);
         let mut data = double.get_data();
         let _ = data.remove(0);
         assert_eq!(data.as_slice().get_f64(), 1.6546);
-        assert_eq!(double.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+        assert_eq!(double.get_type(), DataTypeEnum::Number);
 
         let float = super::TypedValue::Null;
-        assert_eq!(float.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+        assert_eq!(float.get_type(), DataTypeEnum::Null);
         let mut data = float.get_data();
         let _ = data.remove(0);
         assert_eq!(data.len(), 0);
 
         let string = super::TypedValue::String("test".to_string());
-        assert_eq!(string.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
+        assert_eq!(string.get_type(), DataTypeEnum::String);
         let mut data = string.get_data();
         let _ = data.remove(0);
         assert_eq!(String::from_utf8(data), Ok("test".to_string()));
 
         let boolean = super::TypedValue::Boolean(true);
-        assert_eq!(boolean.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+        assert_eq!(boolean.get_type(), DataTypeEnum::Boolean);
         let mut data = boolean.get_data();
         let _ = data.remove(0);
         assert_eq!(data[0], 1);
 
         let boolean = super::TypedValue::Boolean(false);
-        assert_eq!(boolean.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+        assert_eq!(boolean.get_type(), DataTypeEnum::Boolean);
         let mut data = boolean.get_data();
         let _ = data.remove(0);
         assert_eq!(data[0], 0);
@@ -530,7 +530,7 @@ mod tests {
             super::TypedValue::Number(2.0),
             super::TypedValue::Number(3.0),
         ]);
-        assert_eq!(arr.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+        assert_eq!(arr.get_type(), DataTypeEnum::Array);
         let mut data = arr.get_data();
         let _ = data.remove(0);
         let data = serde_json::from_slice::<Vec<Vec<u8>>>(data.as_slice());
@@ -540,7 +540,7 @@ mod tests {
         let mut index = 1.0;
         data.iter().for_each(|entry| {
             let val = super::TypedValue::from_vec(entry);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+            assert_eq!(val.get_type(), DataTypeEnum::Number);
             match val {
                 super::TypedValue::Number(v) => assert_eq!(v, index),
                 _ => panic!("unexpected type"),
@@ -557,7 +557,7 @@ mod tests {
         obj.insert("k2".to_string(), super::TypedValue::BigInt(1));
         obj.insert("k3".to_string(), super::TypedValue::Number(1.0));
         let obj = super::TypedValue::Object(obj);
-        assert_eq!(obj.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+        assert_eq!(obj.get_type(), DataTypeEnum::Object);
         let mut data = obj.get_data();
         let _ = data.remove(0);
 
@@ -1167,7 +1167,7 @@ mod tests {
 
     #[test]
     pub fn test_from_json_value() {
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
         use std::collections::BTreeMap;
         let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"],\"key_7\":true,\"key_8\":null}";
 
@@ -1175,35 +1175,35 @@ mod tests {
         assert!(value.is_ok());
 
         let value = super::TypedValue::from_json_value(value.unwrap());
-        assert_eq!(value.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+        assert_eq!(value.get_type(), DataTypeEnum::Object);
         match value {
             super::TypedValue::Object(v) => {
                 for index in 1..7 {
                     assert!(v.contains_key(&format!("key_{}", index)));
                 }
                 let val_1 = v.get(&format!("key_{}", 1)).unwrap();
-                assert_eq!(val_1.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
+                assert_eq!(val_1.get_type(), DataTypeEnum::String);
                 match val_1 {
                     super::TypedValue::String(v) => assert_eq!(v.as_str(), "value_1"),
                     _ => panic!("unexpected type"),
                 }
 
                 let val_2 = v.get(&format!("key_{}", 2)).unwrap();
-                assert_eq!(val_2.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+                assert_eq!(val_2.get_type(), DataTypeEnum::Bigint);
                 match val_2 {
                     super::TypedValue::BigInt(v) => assert_eq!(*v, 1),
                     _ => panic!("unexpected type"),
                 }
 
                 let val_3 = v.get(&format!("key_{}", 3)).unwrap();
-                assert_eq!(val_3.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+                assert_eq!(val_3.get_type(), DataTypeEnum::Number);
                 match val_3 {
                     super::TypedValue::Number(v) => assert_eq!(*v, 3.14),
                     _ => panic!("unexpected type"),
                 }
 
                 let val_4 = v.get(&format!("key_{}", 4)).unwrap();
-                assert_eq!(val_4.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+                assert_eq!(val_4.get_type(), DataTypeEnum::Object);
                 let mut inner_obj = BTreeMap::new();
                 inner_obj.insert(
                     "sub_key_1".to_string(),
@@ -1217,7 +1217,7 @@ mod tests {
                 }
 
                 let val_5 = v.get(&format!("key_{}", 5)).unwrap();
-                assert_eq!(val_5.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+                assert_eq!(val_5.get_type(), DataTypeEnum::Array);
                 match val_5 {
                     super::TypedValue::Array(v) => assert_eq!(
                         v,
@@ -1229,7 +1229,7 @@ mod tests {
                 }
 
                 let val_6 = v.get(&format!("key_{}", 6)).unwrap();
-                assert_eq!(val_6.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+                assert_eq!(val_6.get_type(), DataTypeEnum::Array);
                 match val_6 {
                     super::TypedValue::Array(v) => assert_eq!(
                         v,
@@ -1241,14 +1241,14 @@ mod tests {
                 }
 
                 let val_7 = v.get(&format!("key_{}", 7)).unwrap();
-                assert_eq!(val_7.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+                assert_eq!(val_7.get_type(), DataTypeEnum::Boolean);
                 match val_7 {
                     super::TypedValue::Boolean(v) => assert_eq!(v, &true),
                     _ => panic!("unexpected type"),
                 }
 
                 let val_8 = v.get(&format!("key_{}", 8)).unwrap();
-                assert_eq!(val_8.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+                assert_eq!(val_8.get_type(), DataTypeEnum::Null);
             }
             _ => panic!("unexpected type"),
         }
@@ -1460,14 +1460,14 @@ mod tests {
 
     #[test]
     fn test_from_slice_with_type() {
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
 
         {
             let val = super::TypedValue::from_slice_with_type(
                 "v1".as_bytes(),
-                DataTypeEnum::DATA_TYPE_ENUM_STRING,
+                DataTypeEnum::String,
             );
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
+            assert_eq!(val.get_type(), DataTypeEnum::String);
             assert_eq!(val, super::TypedValue::String("v1".to_string()));
         }
 
@@ -1475,8 +1475,8 @@ mod tests {
             let val: i64 = 1;
             let val = val.to_be_bytes();
             let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BIGINT);
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Bigint);
+            assert_eq!(val.get_type(), DataTypeEnum::Bigint);
             assert_eq!(val, super::TypedValue::BigInt(1));
         }
 
@@ -1484,30 +1484,30 @@ mod tests {
             let val: f64 = 1.0;
             let val = val.to_be_bytes();
             let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Number);
+            assert_eq!(val.get_type(), DataTypeEnum::Number);
             assert_eq!(val, super::TypedValue::Number(1.0));
         }
 
         {
             let val = [1];
             let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
+            assert_eq!(val.get_type(), DataTypeEnum::Boolean);
             assert_eq!(val, super::TypedValue::Boolean(true));
 
             let val = [0];
             let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
+            assert_eq!(val.get_type(), DataTypeEnum::Boolean);
             assert_eq!(val, super::TypedValue::Boolean(false));
         }
 
         {
             let val = [1];
             let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_NULL);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Null);
+            assert_eq!(val.get_type(), DataTypeEnum::Null);
             assert_eq!(val, super::TypedValue::Null);
         }
 
@@ -1515,15 +1515,15 @@ mod tests {
             let val = [];
             let val = super::TypedValue::from_slice_with_type(
                 &val,
-                DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED,
+                DataTypeEnum::Unspecified,
             );
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED);
+            assert_eq!(val.get_type(), DataTypeEnum::Unspecified);
             assert_eq!(val, super::TypedValue::Invalid);
 
             let val = [];
             let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN);
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
+            assert_eq!(val.get_type(), DataTypeEnum::Null);
             assert_eq!(val, super::TypedValue::Null);
         }
 
@@ -1531,9 +1531,9 @@ mod tests {
             let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"],\"key_7\":true,\"key_8\":null}";
             let val = super::TypedValue::from_slice_with_type(
                 raw_data.as_bytes(),
-                DataTypeEnum::DATA_TYPE_ENUM_OBJECT,
+                DataTypeEnum::Object,
             );
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+            assert_eq!(val.get_type(), DataTypeEnum::Object);
 
             let obj = BTreeMap::from_iter(
                 [

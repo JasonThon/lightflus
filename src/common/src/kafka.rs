@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use proto::common::stream::KafkaDesc_KafkaOptions;
+use proto::common::kafka_desc::KafkaOptions;
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
     producer::{FutureProducer, FutureRecord},
@@ -15,39 +15,45 @@ pub fn run_consumer(
     group_id: &str,
     topic: &str,
 ) -> Result<KafkaConsumer, rdkafka::error::KafkaError> {
-    let consumer: StreamConsumer = ClientConfig::new()
+    let group_id = if group_id.is_empty() {
+        "lightflus"
+    } else {
+        group_id
+    };
+
+    let consumer_result: Result<StreamConsumer, rdkafka::error::KafkaError> = ClientConfig::new()
         .set("group.id", group_id)
         .set("bootstrap.servers", brokers)
         .set("enable.partition.eof", "false")
         .set("session.timeout.ms", "6000")
         .set("enable.auto.commit", "true")
         .set("auto.offset.reset", "beginning")
-        .create()
-        .expect("Consumer creation failed");
-    consumer
-        .subscribe(&[topic])
-        .map(|_| KafkaConsumer::new(consumer))
+        .create();
+    consumer_result.and_then(|consumer| {
+        consumer
+            .subscribe(&[topic])
+            .map(|_| KafkaConsumer::new(consumer))
+    })
 }
 
-pub fn run_producer(brokers: &str, topic: &str, opts: &KafkaDesc_KafkaOptions) -> KafkaProducer {
-    let producer: FutureProducer = ClientConfig::new()
-        .set("group.id", opts.get_group())
+pub fn run_producer(
+    brokers: &str,
+    topic: &str,
+    group: &str,
+    partition: i32
+) -> Result<KafkaProducer, rdkafka::error::KafkaError> {
+    ClientConfig::new()
+        .set("group.id", group)
         .set("bootstrap.servers", brokers)
         .set("message.timeout.ms", "3000")
         .create()
-        .expect("Producer creation error");
-
-    let partition = if opts.has_partition() {
-        opts.get_partition() as i32
-    } else {
-        0
-    };
-
-    KafkaProducer {
-        producer,
-        topic: topic.to_string(),
-        partition,
-    }
+        .and_then(|producer| {
+            Ok(KafkaProducer {
+                producer,
+                topic: topic.to_string(),
+                partition,
+            })
+        })
 }
 
 #[derive(Clone)]

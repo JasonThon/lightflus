@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use bytes::Buf;
 use common::{redis::RedisClient, types::TypedValue, utils::get_env};
-use proto::common::stream::{RedisDesc, RedisDesc_ConnectionOpts};
+use proto::common::{RedisDesc, RedisDesc_ConnectionOpts};
 
 #[test]
 pub fn test_redis_with_string_key_simple_value() {

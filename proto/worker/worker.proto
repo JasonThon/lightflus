@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package proto;
+package worker;
 import "common/probe.proto";
 import "common/event.proto";
 import "common/common.proto";
@@ -12,7 +12,7 @@ service TaskWorkerApi {
   rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
   rpc DispatchDataEvents(DispatchDataEventsRequest) returns (DispatchDataEventsResponse){}
   rpc StopDataflow(StopDataflowRequest) returns (StopDataflowResponse) {}
-  rpc CreateDataflow(CreateDataflowRequest) returns(CreateDataflowResponse) {}
+  rpc CreateSubDataflow(CreateSubDataflowRequest) returns(CreateSubDataflowResponse) {}
 }
 
 message DispatchDataEventsRequest{
@@ -37,11 +37,11 @@ message StopDataflowResponse {
   common.Response resp = 1;
 }
 
-message CreateDataflowRequest {
+message CreateSubDataflowRequest {
   common.ResourceId job_id = 1;
   common.Dataflow dataflow = 2;
 }
 
-message CreateDataflowResponse {
-  common.Response resp = 1;
+message CreateSubDataflowResponse {
+  common.DataflowStatus status = 1;
 }

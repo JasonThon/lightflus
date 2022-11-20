@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package proto;
+package coordinator;
 import "common/probe.proto";
 import "common/stream.proto";
 import "common/common.proto";

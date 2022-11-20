@@ -302,7 +302,7 @@ mod tests {
     #[test]
     fn test_primitive_to_typed_value() {
         use common::types::TypedValue;
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
         let _setup_guard = setup();
 
         let isolate = &mut v8::Isolate::new(Default::default());
@@ -342,7 +342,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_NUMBER
+                DataTypeEnum::Number
             );
             match unwrapped_val {
                 TypedValue::Number(v) => assert_eq!(v, 78.9),
@@ -357,7 +357,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_BIGINT
+                DataTypeEnum::Bigint
             );
             match unwrapped_val {
                 TypedValue::BigInt(v) => assert_eq!(v, 123),
@@ -372,7 +372,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_STRING
+                DataTypeEnum::String
             );
             match unwrapped_val {
                 TypedValue::String(v) => assert_eq!(v, "test"),
@@ -385,7 +385,7 @@ mod tests {
             let value = super::to_typed_value(null_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NULL);
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Null);
         }
 
         {
@@ -395,7 +395,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+                DataTypeEnum::Unspecified
             );
         }
 
@@ -406,7 +406,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+                DataTypeEnum::Object
             );
             match unwrapped_val {
                 TypedValue::Object(v) => assert!(v.is_empty()),
@@ -421,7 +421,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+                DataTypeEnum::Boolean
             );
             match unwrapped_val {
                 TypedValue::Boolean(v) => assert!(v),
@@ -436,7 +436,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+                DataTypeEnum::Boolean
             );
             match unwrapped_val {
                 TypedValue::Boolean(v) => assert!(!v),
@@ -463,7 +463,7 @@ mod tests {
     fn test_v8_runtime_call_fn() {
         use super::RuntimeEngine;
         use common::types::TypedValue;
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
         let _setup_guard = setup();
         let ref mut isolate = v8::Isolate::new(Default::default());
         let ref mut isolated_scope = v8::HandleScope::new(isolate);
@@ -481,7 +481,7 @@ mod tests {
             let val_opt = _rt_engine.call_one_arg(&TypedValue::Number(1.0));
             assert!(val_opt.is_some());
             let val = val_opt.unwrap();
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_NUMBER);
+            assert_eq!(val.get_type(), DataTypeEnum::Number);
             match val {
                 TypedValue::Number(v) => assert_eq!(v, 2.0),
                 _ => panic!("unexpected type"),
@@ -504,7 +504,7 @@ mod tests {
             let val_opt = _rt_engine.call_one_arg(&val);
             assert!(val_opt.is_some());
             let val = val_opt.unwrap();
-            assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_STRING);
+            assert_eq!(val.get_type(), DataTypeEnum::String);
             match val {
                 TypedValue::String(v) => assert_eq!(v, "bar".to_string()),
                 _ => panic!("unexpected type"),
@@ -515,7 +515,7 @@ mod tests {
     #[test]
     fn test_object_to_typed_value() {
         use common::types::TypedValue;
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
 
         fn eval<'s>(
             scope: &mut v8::HandleScope<'s>,
@@ -559,7 +559,7 @@ mod tests {
             let unwrapped_val = value.unwrap();
             assert_eq!(
                 unwrapped_val.get_type(),
-                DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+                DataTypeEnum::Object
             );
             match unwrapped_val {
                 TypedValue::Object(v) => {
@@ -578,7 +578,7 @@ mod tests {
     #[test]
     fn test_array_to_typed_value() {
         use common::types::TypedValue;
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
 
         fn eval<'s>(
             scope: &mut v8::HandleScope<'s>,
@@ -608,7 +608,7 @@ mod tests {
             let value = super::to_typed_value(obj, scope);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_ARRAY);
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Array);
             match unwrapped_val {
                 TypedValue::Array(v) => {
                     assert!(!v.is_empty());
@@ -629,7 +629,7 @@ mod tests {
     #[test]
     fn test_object_wrap_value() {
         use common::types::TypedValue;
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
         use std::collections::BTreeMap;
         let _setup_guard = setup();
         let isolate = &mut v8::Isolate::new(Default::default());
@@ -646,7 +646,7 @@ mod tests {
         let val = super::to_typed_value(val, scope);
         assert!(val.is_some());
         let val = val.unwrap();
-        assert_eq!(val.get_type(), DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+        assert_eq!(val.get_type(), DataTypeEnum::Object);
         match val {
             TypedValue::Object(v) => {
                 assert!(v.contains_key(&"foo".to_string()));

@@ -2,13 +2,13 @@
   "port": 8791,
   "cluster": [
     {
-      "host": "${WORKER_NODE_1}",
+      "host": "${WORKER_1}",
       "port": 8792
     }
   ],
   "storage":{
     "RocksDB": {
-      "dataflow_store_path": "/Users/Jason/lightflus"
+      "dataflow_store_path": "${HOME}/lightflus/dataflow"
     }
   } 
 }

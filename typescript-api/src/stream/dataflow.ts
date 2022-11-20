@@ -2,14 +2,11 @@ import { ExecutionContext } from "./context";
 import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
 import { apiserver, common } from "../proto/apiserver";
 import { Sink } from "../connectors/definition";
-import { ApplicationStream, createResourceApiEndpoint, logger, POST } from "../common/consts";
-import { RequestInfo, RequestInit } from "node-fetch";
+import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
+import axios from "axios";
 import IWindow = common.IWindow;
 import CreateResourceRequest = apiserver.CreateResourceRequest;
 import ResourceTypeEnum = apiserver.ResourceTypeEnum;
-import CreateResourceResponse = apiserver.CreateResourceResponse;
-
-const fetch = (url: RequestInfo, init?: RequestInit) => import("node-fetch").then(module => module.default(url, init));
 
 export class Dataflow<T> {
   protected ctx: ExecutionContext;
@@ -46,24 +43,19 @@ export class Dataflow<T> {
     request.dataflow = options;
     request.resourceType = ResourceTypeEnum.RESOURCE_TYPE_ENUM_DATAFLOW;
     request.namespace = this.ctx.namespace;
-
-    await fetch(createResourceApiEndpoint, {
-      method: POST,
-      headers: { "Content-Type": ApplicationStream },
-      body: Buffer.from(CreateResourceRequest.encode(request).finish())
-    }).then((resp) => {
-      if (resp.ok) {
-        resp.arrayBuffer().then((buf) => {
-          let response = CreateResourceResponse.decode(new Uint8Array(buf));
-          logger.info({ status: response.status, resourceId: response.resourceId, errorMessage: response.errorMsg });
-        }).catch((err) => logger.error(err));
-      } else {
-        resp.text().then((content) => logger.info({
-          status: resp.status,
-          message: content
-        })).catch(err => logger.error(err));
-      }
-    }).catch((err) => logger.error(err));
+    await axios.post(
+      createResourceApiEndpoint,
+      CreateResourceRequest.encode(request).finish(),
+      { headers: { "Content-Type": ApplicationStream } })
+      .then((resp) => {
+        console.log(`{status: ${resp.status}, response: ${JSON.stringify(resp.data)}`);
+      }).catch((err) => {
+        if (axios.isAxiosError(err)) {
+          console.log(`{status: ${err.status}, errMsg: ${JSON.stringify(err.response.data)}`);
+        } else {
+          console.log(err);
+        }
+      });
   }
 
   map<U>(callbackFn: (value: T) => U): Dataflow<U> {

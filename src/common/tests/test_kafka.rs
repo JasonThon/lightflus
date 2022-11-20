@@ -3,8 +3,6 @@ use common::{
     utils,
 };
 
-use proto::common::stream::KafkaDesc_KafkaOptions;
-
 #[tokio::test]
 async fn test_kafka_pub_sub() {
     let kafka_host = utils::get_env("KAFKA_HOST").unwrap_or("localhost".to_string());
@@ -18,9 +16,9 @@ async fn test_kafka_pub_sub() {
 
     let consumer = consumer_result.unwrap();
 
-    let mut opts = KafkaDesc_KafkaOptions::new();
-    opts.set_group("ci_group".to_string());
-    let producer = run_producer(format!("{}:9092", kafka_host).as_str(), "ci", &opts);
+    let producer = run_producer(format!("{}:9092", kafka_host).as_str(), "ci", "ci_group", 0);
+    assert!(producer.is_ok());
+    let producer = producer.unwrap();
     let send_result = producer.send("key".as_bytes(), "value".as_bytes());
     if send_result.is_err() {
         let send_result = producer.send("key".as_bytes(), "value".as_bytes());

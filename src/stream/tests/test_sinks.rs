@@ -1,43 +1,57 @@
 use std::collections::BTreeMap;
 
+use bytes::Buf;
 use common::{
     event::{LocalEvent, SinkableMessageImpl},
     kafka::{run_consumer, KafkaMessage},
+    redis::RedisClient,
     types::TypedValue,
     utils::get_env,
 };
+
 use proto::{
     common::{
-        common::{DataTypeEnum, ResourceId},
-        event::{Entry, KeyedDataEvent},
-        stream::{KafkaDesc, KafkaDesc_KafkaOptions},
+        kafka_desc, redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, RedisDesc,
+        ResourceId,
     },
-    worker::worker::DispatchDataEventStatusEnum,
+    worker::DispatchDataEventStatusEnum,
 };
 use protobuf::RepeatedField;
-use stream::actor::{Kafka, Sink, SinkImpl};
+use stream::actor::{Kafka, Redis, Sink, SinkImpl};
+
+struct SetupGuard {}
+
+impl Drop for SetupGuard {
+    fn drop(&mut self) {}
+}
+
+fn setup() -> SetupGuard {
+    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
+    MOD_TEST_START.call_once(|| {
+        v8::V8::set_flags_from_string(
+            "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
+          );
+              v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
+              v8::V8::initialize();
+    });
+
+    SetupGuard {}
+}
 
 #[tokio::test]
 async fn test_kafka_sink() {
-    let mut kafka_desc = KafkaDesc::default();
-    let mut kafka_opts = KafkaDesc_KafkaOptions::default();
-    let kafka_host = get_env("KAFKA_HOST").unwrap_or("localhost".to_string());
-
-    {
-        kafka_opts.set_group("ci_group".to_string());
-    }
-
-    {
-        kafka_desc.set_brokers(RepeatedField::from_slice(&[format!("{kafka_host}:9092")]));
-        kafka_desc.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_STRING);
-        kafka_desc.set_opts(kafka_opts.clone());
-        kafka_desc.set_topic("ci".to_string());
-    }
-
     let kafka_sink = SinkImpl::Kafka(Kafka::with_sink_config(
         &ResourceId::default(),
         1,
-        &kafka_desc,
+        &KafkaDesc {
+            brokers: vec![format!("{kafka_host}:9092")],
+            topic: "ci".to_string(),
+            opts: Some(kafka_desc::KafkaOptions {
+                group: Some("ci_group".to_string()),
+                partition: Some(0),
+            }),
+            data_type: DataTypeEnum::String,
+        },
     ));
 
     assert_eq!(kafka_sink.sink_id(), 1);
@@ -46,22 +60,42 @@ async fn test_kafka_sink() {
     assert!(consumer.is_ok());
 
     let consumer = consumer.unwrap();
-    let mut event = KeyedDataEvent::default();
+    let mut event = KeyedDataEvent {
+        job_id: Some(ResourceId {
+            resource_id: b"resource_id",
+            namespace_id: b"namespaceId",
+        }),
+        key: None,
+        to_operator_id: 1,
+        data: vec![
+            Entry {
+                data_type: DataTypeEnum::Object,
+                value: TypedValue::Object(BTreeMap::from_iter(
+                    [
+                        ("key_1".to_string(), TypedValue::String("val_1".to_string())),
+                        ("key_2".to_string(), TypedValue::Number(1.0)),
+                    ]
+                    .iter(),
+                )),
+            },
+            Entry {
+                data_type: DataTypeEnum::Object,
+                value: TypedValue::Object(BTreeMap::from_iter(
+                    [
+                        ("key_1".to_string(), TypedValue::String("val_1".to_string())),
+                        ("key_2".to_string(), TypedValue::Number(1.0)),
+                    ]
+                    .iter(),
+                )),
+            },
+        ],
+        event_time: todo!(),
+        process_time: todo!(),
+        from_operator_id: todo!(),
+        window: todo!(),
+    };
 
-    let mut entry = Entry::default();
-    entry.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
-
-    let mut val = BTreeMap::default();
     val.insert("key_1".to_string(), TypedValue::String("val_1".to_string()));
-    val.insert("key_2".to_string(), TypedValue::Number(1.0));
-
-    let value = TypedValue::Object(val);
-    entry.set_value(value.get_data());
-    entry.set_data_type(value.get_type());
-
-    event.set_job_id(ResourceId::default());
-    event.set_data(RepeatedField::from_slice(&[entry.clone(), entry]));
-
     let result = kafka_sink.sink(SinkableMessageImpl::LocalMessage(
         LocalEvent::KeyedDataStreamEvent(event),
     ));
@@ -71,7 +105,7 @@ async fn test_kafka_sink() {
 
     assert!(result.is_ok());
     let status = result.unwrap();
-    assert_eq!(status, DispatchDataEventStatusEnum::DONE);
+    assert_eq!(status, DispatchDataEventStatusEnum::Done);
 
     fn processor(message: KafkaMessage) {
         let key = serde_json::from_slice::<serde_json::Value>(&message.key);
@@ -93,73 +127,84 @@ async fn test_kafka_sink() {
     assert!(opt.is_some());
 }
 
-// #[tokio::test]
-// async fn test_redis_sink_success() {
-//     let mut redis_desc = RedisDesc::default();
-//     let mut key_extractor = Func::default();
-//     key_extractor.set_function("function (a) {a.key}".to_string());
-//     let mut value_extractor = Func::default();
-//     value_extractor.set_function("function (a) {a.value}".to_string());
+#[tokio::test]
+async fn test_redis_sink_success() {
+    let _setup_guard = setup();
+    let ref desc = RedisDesc {
+        connection_opts: Some(redis_desc::ConnectionOpts {
+            host: get_env("REDIS_HOST").unwrap_or("localhost".to_string()),
+            username: Default::default(),
+            password: Default::default(),
+            database: 0,
+            tls: false,
+        }),
+        key_extractor: Some(Func {
+            function: "function redis_extractor(a) {return a.key}".to_string(),
+        }),
+        value_extractor: Some(Func {
+            function: "function redis_extractor(a) {return a.value}".to_string(),
+        }),
+    };
 
-//     {
-//         let mut opts = RedisDesc_ConnectionOpts::default();
-//         opts.set_database(0);
-//         opts.set_host(get_env("REDIS_HOST").unwrap_or("localhost".to_string()));
-//         redis_desc.set_key_extractor(key_extractor);
-//         redis_desc.set_value_extractor(value_extractor);
-//         redis_desc.set_connection_opts(opts);
-//     }
+    let redis_sink = SinkImpl::Redis(Redis::with_config(1, desc));
 
-//     let redis_sink = SinkImpl::Redis(Redis::with_config(1, redis_desc.clone()));
+    assert_eq!(redis_sink.sink_id(), 1);
 
-//     assert_eq!(redis_sink.sink_id(), 1);
+    let event = KeyedDataEvent {
+        job_id: Some(ResourceId {
+            resource_id: b"resource_id",
+            namespace_id: b"namespaceId",
+        }),
+        key: None,
+        to_operator_id: 1,
+        data: vec![
+            Entry {
+                data_type: DataTypeEnum::Object,
+                value: BTreeMap::from_iter(
+                    [
+                        ("key".to_string(), TypedValue::String("word-1".to_string())),
+                        ("value".to_string(), TypedValue::BigInt(10)),
+                    ]
+                    .iter(),
+                ),
+            },
+            Entry {
+                data_type: DataTypeEnum::Object,
+                value: BTreeMap::from_iter(
+                    [
+                        ("key".to_string(), TypedValue::String("word-2".to_string())),
+                        ("value".to_string(), TypedValue::BigInt(100)),
+                    ]
+                    .iter(),
+                ),
+            },
+        ],
+        event_time: None,
+        process_time: None,
+        from_operator_id: 0,
+        window: None,
+    };
 
-//     let mut event = KeyedDataEvent::default();
-//     let mut entry = Entry::default();
-//     entry.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+    let result = redis_sink.sink(SinkableMessageImpl::LocalMessage(
+        LocalEvent::KeyedDataStreamEvent(event),
+    ));
 
-//     let mut val = BTreeMap::default();
-//     val.insert("key".to_string(), TypedValue::String("word-1".to_string()));
-//     val.insert("value".to_string(), TypedValue::BigInt(10));
+    assert!(result.is_ok());
 
-//     let value = TypedValue::Object(val);
-//     entry.set_value(value.get_data());
-//     entry.set_data_type(value.get_type());
+    let client = RedisClient::new(&desc);
+    let conn_result = client.connect();
+    assert!(conn_result.is_ok());
 
-//     let mut entry_2 = Entry::default();
-//     entry_2.set_data_type(DataTypeEnum::DATA_TYPE_ENUM_OBJECT);
+    let ref mut conn = conn_result.expect("");
+    let result = client.get(conn, &TypedValue::String("word-1".to_string()));
+    assert!(result.is_ok());
+    let value = result.expect("msg");
 
-//     let mut val = BTreeMap::default();
-//     val.insert("key".to_string(), TypedValue::String("word-2".to_string()));
-//     val.insert("value".to_string(), TypedValue::BigInt(100));
+    assert_eq!(value.as_slice().get_i64(), 10);
 
-//     let value = TypedValue::Object(val);
-//     entry_2.set_value(value.get_data());
-//     entry_2.set_data_type(value.get_type());
+    let result = client.get(conn, &TypedValue::String("word-2".to_string()));
+    assert!(result.is_ok());
+    let value = result.expect("msg");
 
-//     event.set_job_id(ResourceId::default());
-//     event.set_data(RepeatedField::from_slice(&[entry, entry_2]));
-
-//     let result = redis_sink.sink(SinkableMessageImpl::LocalMessage(
-//         LocalEvent::KeyedDataStreamEvent(event),
-//     ));
-
-//     assert!(result.is_ok());
-
-//     let client = RedisClient::new(&redis_desc);
-//     let conn_result = client.connect();
-//     assert!(conn_result.is_ok());
-
-//     let ref mut conn = conn_result.expect("");
-//     let result = client.get(conn, &TypedValue::String("word-1".to_string()));
-//     assert!(result.is_ok());
-//     let value = result.expect("msg");
-
-//     assert_eq!(value.as_slice().get_i64(), 10);
-
-//     let result = client.get(conn, &TypedValue::String("word-2".to_string()));
-//     assert!(result.is_ok());
-//     let value = result.expect("msg");
-
-//     assert_eq!(value.as_slice().get_i64(), 100)
-// }
+    assert_eq!(value.as_slice().get_i64(), 100)
+}

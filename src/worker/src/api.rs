@@ -1,9 +1,16 @@
 use std::sync;
 
 use crate::worker as w;
-use proto::common::probe;
-use proto::worker::worker;
-use proto::worker::worker_grpc;
+use proto::common::DataflowStatus;
+use proto::common::ProbeRequest;
+use proto::common::ProbeResponse;
+use proto::worker::task_worker_api_server::TaskWorkerApi;
+use proto::worker::CreateSubDataflowRequest;
+use proto::worker::CreateSubDataflowResponse;
+use proto::worker::DispatchDataEventsRequest;
+use proto::worker::DispatchDataEventsResponse;
+use proto::worker::StopDataflowRequest;
+use proto::worker::StopDataflowResponse;
 
 #[derive(Clone)]
 pub(crate) struct TaskWorkerApiImpl {
@@ -22,99 +29,71 @@ impl TaskWorkerApiImpl {
     }
 }
 
-impl worker_grpc::TaskWorkerApi for TaskWorkerApiImpl {
-    fn probe(
-        &mut self,
-        ctx: grpcio::RpcContext,
-        req: probe::ProbeRequest,
-        sink: grpcio::UnarySink<probe::ProbeResponse>,
-    ) {
-        let mut response = probe::ProbeResponse::new();
-        response.available = true;
-        match req.probeType {
-            probe::ProbeRequest_ProbeType::Liveness => {
-                sink.success(response);
-            }
-            probe::ProbeRequest_ProbeType::Readiness => {
-                sink.success(response);
-            }
-        }
+#[tonic::async_trait]
+impl TaskWorkerApi for TaskWorkerApiImpl {
+    async fn probe(
+        &self,
+        _request: tonic::Request<ProbeRequest>,
+    ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
+        Ok(tonic::Response::new(ProbeResponse {
+            memory: 1.0,
+            cpu: 1.0,
+            available: true,
+        }))
     }
 
-    fn dispatch_data_events(
-        &mut self,
-        _ctx: grpcio::RpcContext,
-        req: worker::DispatchDataEventsRequest,
-        sink: grpcio::UnarySink<worker::DispatchDataEventsResponse>,
-    ) {
-        match self.worker.dispatch_events(req.events.to_vec()) {
-            Ok(status_set) => {
-                let mut response = worker::DispatchDataEventsResponse::new();
-                response.set_statusSet(
-                    status_set
+    async fn dispatch_data_events(
+        &self,
+        request: tonic::Request<DispatchDataEventsRequest>,
+    ) -> Result<tonic::Response<DispatchDataEventsResponse>, tonic::Status> {
+        self.worker
+            .dispatch_events(&request.get_ref().events)
+            .map(|status_set| {
+                tonic::Response::new(DispatchDataEventsResponse {
+                    status_set: status_set
                         .iter()
-                        .map(|(key, status)| (key.clone(), status.clone()))
+                        .map(|entry| (entry.0.clone(), *entry.1 as i32))
                         .collect(),
-                );
-
-                sink.success(response);
-            }
-
-            Err(err) => {
-                sink.fail(grpcio::RpcStatus::with_message(
-                    grpcio::RpcStatusCode::INTERNAL,
-                    format!("{:?}", err),
-                ));
-            }
-        }
+                })
+            })
+            .map_err(|err| err.into_grpc_status())
     }
-
-    fn stop_dataflow(
-        &mut self,
-        ctx: grpcio::RpcContext,
-        req: worker::StopDataflowRequest,
-        sink: grpcio::UnarySink<worker::StopDataflowResponse>,
-    ) {
-        if ctx.deadline().exceeded() {
-            sink.fail(grpcio::RpcStatus::new(
-                grpcio::RpcStatusCode::DEADLINE_EXCEEDED,
-            ));
-        } else {
-            match self.worker.stop_dataflow(req.job_id.unwrap()) {
-                Ok(_) => sink.success(worker::StopDataflowResponse::default()),
-                Err(err) => sink.fail(grpcio::RpcStatus::with_message(
-                    grpcio::RpcStatusCode::INTERNAL,
-                    format!("{:?}", err),
-                )),
-            };
-        }
-    }
-
-    fn create_dataflow(
-        &mut self,
-        ctx: grpcio::RpcContext,
-        req: worker::CreateDataflowRequest,
-        sink: grpcio::UnarySink<worker::CreateDataflowResponse>,
-    ) {
-        if ctx.deadline().exceeded() {
-            sink.fail(grpcio::RpcStatus::new(
-                grpcio::RpcStatusCode::DEADLINE_EXCEEDED,
-            ));
-        } else {
-            match self
+    async fn stop_dataflow(
+        &self,
+        request: tonic::Request<StopDataflowRequest>,
+    ) -> Result<tonic::Response<StopDataflowResponse>, tonic::Status> {
+        match &request.get_ref().job_id {
+            Some(job_id) => self
                 .worker
-                .create_dataflow(req.job_id.unwrap(), req.dataflow.unwrap())
-            {
-                Ok(_) => {
-                    sink.success(worker::CreateDataflowResponse::default());
-                }
-                Err(err) => {
-                    sink.fail(grpcio::RpcStatus::with_message(
-                        grpcio::RpcStatusCode::INTERNAL,
-                        format!("{:?}", err),
-                    ));
-                }
-            }
+                .stop_dataflow(job_id)
+                .map(|_| tonic::Response::new(StopDataflowResponse { resp: None }))
+                .map_err(|err| err.into_grpc_status()),
+            None => Ok(tonic::Response::new(StopDataflowResponse { resp: None })),
+        }
+    }
+    async fn create_sub_dataflow(
+        &self,
+        request: tonic::Request<CreateSubDataflowRequest>,
+    ) -> Result<tonic::Response<CreateSubDataflowResponse>, tonic::Status> {
+        match &request.get_ref().dataflow {
+            Some(dataflow) => match &request.get_ref().job_id {
+                Some(job_id) => self
+                    .worker
+                    .create_dataflow(&job_id, dataflow)
+                    .await
+                    .map(|_| {
+                        tonic::Response::new(CreateSubDataflowResponse {
+                            status: DataflowStatus::Initialized as i32,
+                        })
+                    })
+                    .map_err(|err| err.into_grpc_status()),
+                None => Ok(tonic::Response::new(CreateSubDataflowResponse {
+                    status: DataflowStatus::Closed as i32,
+                })),
+            },
+            None => Ok(tonic::Response::new(CreateSubDataflowResponse {
+                status: DataflowStatus::Closed as i32,
+            })),
         }
     }
 }

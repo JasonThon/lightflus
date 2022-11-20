@@ -4,7 +4,7 @@ export const POST = "POST";
 
 export var ENDPOINT = process.env.LIGHTFLUS_ENDPOINT;
 
-export const createResourceApiEndpoint = `/resources/create`;
+export const createResourceApiEndpoint = `http://${ENDPOINT}/resources/create`;
 export const ApplicationJson = "application/json";
 export const ApplicationStream = "application/octet-stream";
 export const ContentType = "Content-Type";

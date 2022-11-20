@@ -1,17 +1,38 @@
 use core::fmt;
 use std::io;
 
-use proto::common::common::{ErrorCode, ResourceId, Response};
+use proto::common::{ErrorCode, ResourceId, Response};
 
 use rdkafka::error::KafkaError;
 use tokio::sync::mpsc;
 
-use crate::{event::LocalEvent, types::SinkId};
+use crate::{
+    event::LocalEvent,
+    types::{ExecutorId, SinkId},
+};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApiError {
     pub code: i32,
     pub msg: String,
+}
+
+impl From<&mut tonic::transport::Error> for ApiError {
+    fn from(err: &mut tonic::transport::Error) -> Self {
+        Self {
+            code: ErrorCode::InternalError as i32,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl From<tonic::transport::Error> for ApiError {
+    fn from(err: tonic::transport::Error) -> Self {
+        Self {
+            code: ErrorCode::InternalError as i32,
+            msg: err.to_string(),
+        }
+    }
 }
 
 impl fmt::Display for ApiError {
@@ -27,6 +48,59 @@ impl ApiError {
             msg: err.msg(),
         }
     }
+
+    pub fn into_tonic_status(&self) -> tonic::Status {
+        todo!()
+    }
+}
+
+impl From<tonic::Status> for ApiError {
+    fn from(err: tonic::Status) -> Self {
+        let msg = format!("{}", err);
+        match err.code() {
+            tonic::Code::Cancelled => todo!(),
+            tonic::Code::Unknown => todo!(),
+            tonic::Code::InvalidArgument => Self {
+                code: ErrorCode::RpcInvalidArgument as i32,
+                msg,
+            },
+            tonic::Code::DeadlineExceeded => todo!(),
+            tonic::Code::NotFound => Self {
+                code: ErrorCode::ResourceNotFound as i32,
+                msg,
+            },
+            tonic::Code::AlreadyExists => todo!(),
+            tonic::Code::PermissionDenied => Self {
+                code: ErrorCode::RpcPermissionDenied as i32,
+                msg,
+            },
+            tonic::Code::ResourceExhausted => todo!(),
+            tonic::Code::FailedPrecondition => todo!(),
+            tonic::Code::Aborted => todo!(),
+            tonic::Code::OutOfRange => todo!(),
+            tonic::Code::Unimplemented => Self {
+                code: ErrorCode::RpcUnimplemented as i32,
+                msg,
+            },
+            tonic::Code::Internal => Self {
+                code: ErrorCode::InternalError as i32,
+                msg,
+            },
+            tonic::Code::Unavailable => Self {
+                code: ErrorCode::RpcUnavailable as i32,
+                msg,
+            },
+            tonic::Code::DataLoss => todo!(),
+            tonic::Code::Unauthenticated => Self {
+                code: ErrorCode::RpcUnauthorized as i32,
+                msg,
+            },
+            _ => Self {
+                code: ErrorCode::Unspecified as i32,
+                msg: "".to_string(),
+            },
+        }
+    }
 }
 
 impl Error for DataflowValidateError {
@@ -35,18 +109,27 @@ impl Error for DataflowValidateError {
     }
 
     fn msg(&self) -> String {
-        match self {
-            DataflowValidateError::OperatorInfoMissing(msg) => msg.clone(),
-            DataflowValidateError::CyclicDataflow => "dataflow should not be cyclic".to_string(),
-        }
+        serde_json::to_string(self).unwrap_or_default()
     }
 
     fn code(&self) -> ErrorCode {
         match self {
-            DataflowValidateError::OperatorInfoMissing(_) => {
-                ErrorCode::ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING
-            }
-            DataflowValidateError::CyclicDataflow => ErrorCode::ERROR_CODE_CYCLIC_DATAFLOW,
+            DataflowValidateError::OperatorInfoMissing(_) => ErrorCode::DataflowOperatorInfoMissing,
+            DataflowValidateError::CyclicDataflow => ErrorCode::CyclicDataflow,
+            DataflowValidateError::OperatorDetailMissing(_) => todo!(),
+            DataflowValidateError::MissingSourceDesc => todo!(),
+            DataflowValidateError::MissingKafkaBrokers => todo!(),
+            DataflowValidateError::MissingKafkaTypes => todo!(),
+            DataflowValidateError::MissingKafkaTopic => todo!(),
+            DataflowValidateError::MissingSinkDesc => todo!(),
+            DataflowValidateError::MissingRedisKeyExtractor => todo!(),
+            DataflowValidateError::MissingRedisValueExtractor => todo!(),
+            DataflowValidateError::MissingRedisHost => todo!(),
+            DataflowValidateError::MissingRedisConnectionOpts => todo!(),
+            DataflowValidateError::InvalidRedisTlsConfig => todo!(),
+            DataflowValidateError::MissingMysqlConnectionOpts => todo!(),
+            DataflowValidateError::MissingMysqlStatement => todo!(),
+            DataflowValidateError::MissingResourceId => todo!(),
         }
     }
 }
@@ -65,88 +148,6 @@ pub trait Error {
     fn msg(&self) -> String;
 
     fn code(&self) -> ErrorCode;
-}
-
-impl From<grpcio::Error> for ApiError {
-    fn from(err: grpcio::Error) -> Self {
-        match err {
-            grpcio::Error::RpcFailure(status) => {
-                if status.code() == grpcio::RpcStatusCode::DEADLINE_EXCEEDED {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RESOURCE_NOT_FOUND as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                if status.code() == grpcio::RpcStatusCode::NOT_FOUND {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RESOURCE_NOT_FOUND as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                if status.code() == grpcio::RpcStatusCode::UNIMPLEMENTED {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RPC_UNIMPLEMENTED as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                if status.code() == grpcio::RpcStatusCode::UNAVAILABLE {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RPC_UNAVAILABLE as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                if status.code() == grpcio::RpcStatusCode::UNAUTHENTICATED {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RPC_UNAUTHORIZED as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                if status.code() == grpcio::RpcStatusCode::INVALID_ARGUMENT {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RPC_INVALID_ARGUMENT as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                if status.code() == grpcio::RpcStatusCode::PERMISSION_DENIED {
-                    return ApiError {
-                        code: ErrorCode::ERROR_CODE_RPC_PERMISSION_DENIED as i32,
-                        msg: status.message().to_string(),
-                    };
-                }
-
-                ApiError {
-                    code: ErrorCode::ERROR_CODE_INTERNAL_ERROR as i32,
-                    msg: status.message().to_string(),
-                }
-            }
-            grpcio::Error::RpcFinished(_) => ApiError {
-                code: ErrorCode::ERROR_CODE_TOO_MANY_REQUEST as i32,
-                msg: format!("{}", err),
-            },
-            grpcio::Error::RemoteStopped => ApiError {
-                code: ErrorCode::ERROR_CODE_RPC_UNAVAILABLE as i32,
-                msg: format!("{}", err),
-            },
-            grpcio::Error::BindFail(_, _) => ApiError {
-                code: ErrorCode::ERROR_CODE_RPC_BIND_FAILED as i32,
-                msg: format!("{}", err),
-            },
-            grpcio::Error::GoogleAuthenticationFailed => ApiError {
-                code: ErrorCode::ERROR_CODE_GOOGLE_AUTH_FAILED as i32,
-                msg: format!("{}", err),
-            },
-            _ => ApiError {
-                code: ErrorCode::ERROR_CODE_INTERNAL_ERROR as i32,
-                msg: format!("{}", err),
-            },
-        }
-    }
 }
 
 impl From<&Response> for ApiError {
@@ -192,76 +193,6 @@ pub enum ErrorKind {
     DeleteDataflowFailed,
     Other,
     DataflowValidateFailed,
-}
-
-impl From<protobuf::ProtobufError> for CommonException {
-    fn from(err: protobuf::ProtobufError) -> Self {
-        match err {
-            protobuf::ProtobufError::IoError(e) => Self::from(e),
-            protobuf::ProtobufError::WireError(e) => Self::from(e),
-            protobuf::ProtobufError::Utf8(e) => Self {
-                kind: ErrorKind::Utf8Error,
-                message: format!(
-                    "utf8 error. {}: {}. {}: {:?}",
-                    "valid UTF-8 start from",
-                    e.valid_up_to(),
-                    "error length",
-                    e.error_len()
-                ),
-            },
-            protobuf::ProtobufError::MessageNotInitialized { message } => Self {
-                kind: ErrorKind::MessageNotInitialized,
-                message: message.to_string(),
-            },
-        }
-    }
-}
-
-impl From<protobuf::error::WireError> for CommonException {
-    fn from(err: protobuf::error::WireError) -> Self {
-        match err {
-            protobuf::error::WireError::UnexpectedEof => Self {
-                kind: ErrorKind::UnexpectedEof,
-                message: "unexpected eof".to_string(),
-            },
-            protobuf::error::WireError::UnexpectedWireType(t) => Self {
-                kind: ErrorKind::UnexpectedWireType,
-                message: format!("UnexpectedWireType: {:?}", t),
-            },
-            protobuf::error::WireError::IncorrectTag(v) => Self {
-                kind: ErrorKind::IncorrectWireTag,
-                message: format!("IncorrectWireTag: {}", v),
-            },
-            protobuf::error::WireError::IncompleteMap => Self {
-                kind: ErrorKind::IncompleteWireMap,
-                message: "IncompleteWireMap".to_string(),
-            },
-            protobuf::error::WireError::IncorrectVarint => Self {
-                kind: ErrorKind::IncorrectVarint,
-                message: "IncorrectVarint".to_string(),
-            },
-            protobuf::error::WireError::Utf8Error => Self {
-                kind: ErrorKind::Utf8Error,
-                message: "uft8 error".to_string(),
-            },
-            protobuf::error::WireError::InvalidEnumValue(v) => Self {
-                kind: ErrorKind::InvalidEnumValue,
-                message: format!("InvalidEnumValue error. enum: {}", v),
-            },
-            protobuf::error::WireError::OverRecursionLimit => Self {
-                kind: ErrorKind::OverRecursionLimit,
-                message: "OverRecursionLimit error".to_string(),
-            },
-            protobuf::error::WireError::TruncatedMessage => Self {
-                kind: ErrorKind::TruncatedMessage,
-                message: "TruncatedMessage error".to_string(),
-            },
-            protobuf::error::WireError::Other => Self {
-                kind: ErrorKind::Other,
-                message: "Other error".to_string(),
-            },
-        }
-    }
 }
 
 impl From<std::io::Error> for CommonException {
@@ -321,7 +252,7 @@ impl Error for CommonException {
     }
 
     fn code(&self) -> ErrorCode {
-        ErrorCode::ERROR_CODE_INTERNAL_ERROR
+        ErrorCode::InternalError
     }
 }
 
@@ -341,7 +272,7 @@ impl Error for ExecutionException {
     }
 
     fn code(&self) -> ErrorCode {
-        ErrorCode::ERROR_CODE_INTERNAL_ERROR
+        ErrorCode::InternalError
     }
 }
 
@@ -391,6 +322,12 @@ impl From<ExecutionException> for TaskWorkerError {
     }
 }
 
+impl TaskWorkerError {
+    pub fn into_grpc_status(&self) -> tonic::Status {
+        todo!()
+    }
+}
+
 #[derive(Debug)]
 pub struct KafkaException {
     pub err: KafkaError,
@@ -402,9 +339,24 @@ impl std::fmt::Display for KafkaException {
     }
 }
 
+#[derive(Debug, serde::Serialize)]
 pub enum DataflowValidateError {
+    MissingResourceId,
     OperatorInfoMissing(String),
     CyclicDataflow,
+    OperatorDetailMissing(ExecutorId),
+    MissingSourceDesc,
+    MissingKafkaBrokers,
+    MissingKafkaTypes,
+    MissingKafkaTopic,
+    MissingSinkDesc,
+    MissingRedisKeyExtractor,
+    MissingRedisValueExtractor,
+    MissingRedisHost,
+    MissingRedisConnectionOpts,
+    InvalidRedisTlsConfig,
+    MissingMysqlConnectionOpts,
+    MissingMysqlStatement,
 }
 
 #[derive(Debug)]
@@ -413,5 +365,5 @@ pub enum RedisException {
     SetValueFailed(String),
     SetMultipleValueFailed(String),
     GetValueFailed(String),
-    DelValueFailed(String)
+    DelValueFailed(String),
 }

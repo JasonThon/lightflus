@@ -2,15 +2,15 @@ use crate::{
     err::DataflowValidateError,
     net::hostname,
     types::{
-        BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL, STRING_SYMBOL,
-        UNDEFINED_SYMBOL,
+        ExecutorId, BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL,
+        STRING_SYMBOL, UNDEFINED_SYMBOL,
     },
 };
 use bytes::BytesMut;
 use prost::{DecodeError, Message};
 use proto::common::{
-    operator_info::Details, sink, source, DataTypeEnum, Dataflow, DataflowMeta, HostAddr,
-    KafkaDesc, OperatorInfo, RedisDesc, ResourceId, Source,
+    operator_info::Details, sink, source, DataTypeEnum, Dataflow, DataflowMeta, KafkaDesc,
+    OperatorInfo, RedisDesc, ResourceId, Source,
 };
 use serde::de::Error;
 use std::collections::HashMap;
@@ -161,16 +161,16 @@ pub fn to_dataflow(
 }
 
 fn check_operator_info(
-    meta: &DataflowMeta,
+    node_id: ExecutorId,
     dataflow: &Dataflow,
 ) -> Result<(), DataflowValidateError> {
-    if !dataflow.nodes.contains_key(&meta.center) {
+    if !dataflow.nodes.contains_key(&node_id) {
         Err(DataflowValidateError::OperatorInfoMissing(format!(
             "operatorInfo of node {} is missing",
-            meta.center
+            node_id
         )))
     } else {
-        let operator = dataflow.nodes.get(&meta.center).unwrap();
+        let operator = dataflow.nodes.get(&node_id).unwrap();
 
         match operator.details.as_ref() {
             Some(detail) => match detail {
@@ -178,7 +178,7 @@ fn check_operator_info(
                 Details::Sink(sink) => check_sink(sink),
                 _ => Ok(()),
             },
-            None => return Err(DataflowValidateError::OperatorDetailMissing(meta.center)),
+            None => return Err(DataflowValidateError::OperatorDetailMissing(node_id)),
         }
     }
 }
@@ -267,7 +267,7 @@ pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateErro
     metas.sort_by(|prev, next| prev.center.cmp(&next.center));
 
     for meta in &metas {
-        let result = check_operator_info(meta, dataflow);
+        let result = check_operator_info(meta.center, dataflow);
         if result.is_err() {
             return result;
         }
@@ -277,7 +277,7 @@ pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateErro
                 return Err(DataflowValidateError::CyclicDataflow);
             }
 
-            let result = check_operator_info(meta, dataflow);
+            let result = check_operator_info(*neighbor, dataflow);
             if result.is_err() {
                 return result;
             }
@@ -408,6 +408,7 @@ pub fn uuid() -> String {
 
 #[cfg(test)]
 mod tests {
+    use proto::common::{operator_info::Details, ResourceId};
 
     #[test]
     fn test_process_arg_success() {
@@ -482,7 +483,7 @@ mod tests {
 
         assert_eq!(
             super::from_type_symbol(super::UNDEFINED_SYMBOL.to_string()),
-            DataTypeEnum::Null
+            DataTypeEnum::Unspecified
         );
 
         assert_eq!(
@@ -505,7 +506,7 @@ mod tests {
         op2.operator_id = 1;
         let operators = vec![op1.clone(), op2.clone()];
 
-        let mut meta1 = DataflowMeta {
+        let meta1 = DataflowMeta {
             center: 0,
             neighbors: vec![1],
         };
@@ -530,17 +531,22 @@ mod tests {
         use std::collections::HashMap;
 
         let mut dataflow = Dataflow::default();
+        dataflow.job_id = Some(ResourceId {
+            resource_id: "resourceId".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        });
         let mut meta = DataflowMeta::default();
-        meta.set_center(0);
-        meta.set_neighbors(vec![1, 2, 3]);
+        meta.center = 0;
+        meta.neighbors = vec![1, 2, 3];
 
-        dataflow.set_meta(RepeatedField::from_slice(&[meta]));
+        dataflow.meta = vec![meta];
 
         let mut nodes = HashMap::default();
         let mut info_1 = OperatorInfo::default();
-        info_1.set_operator_id(0);
+        info_1.operator_id = 0;
+        info_1.details = Some(Details::Filter(Default::default()));
         nodes.insert(0, info_1);
-        dataflow.set_nodes(nodes.clone());
+        dataflow.nodes = nodes.clone();
 
         let result = validate_dataflow(&dataflow);
         assert!(result.is_err());
@@ -552,11 +558,12 @@ mod tests {
 
         (1..4).for_each(|index| {
             let mut info = OperatorInfo::default();
-            info.set_operator_id(index);
+            info.operator_id = index;
+            info.details = Some(Details::Filter(Default::default()));
             nodes.insert(index, info);
         });
 
-        dataflow.set_nodes(nodes);
+        dataflow.nodes = nodes;
         let result = validate_dataflow(&dataflow);
         assert!(result.is_ok());
     }
@@ -571,25 +578,30 @@ mod tests {
 
         let mut dataflow = Dataflow::default();
         let mut meta = DataflowMeta::default();
-        meta.set_center(0);
-        meta.set_neighbors(vec![1, 2, 3]);
+        meta.center = 0;
+        meta.neighbors = vec![1, 2, 3];
         let mut meta_1 = DataflowMeta::default();
-        meta_1.set_center(1);
-        meta_1.set_neighbors(vec![2, 3, 4]);
+        meta_1.center = 1;
+        meta_1.neighbors = vec![2, 3, 4];
         let mut meta_2 = DataflowMeta::default();
-        meta_2.set_center(4);
-        meta_2.set_neighbors(vec![0]);
+        meta_2.center = 4;
+        meta_2.neighbors = vec![0];
 
-        dataflow.set_meta(RepeatedField::from_slice(&[meta, meta_1, meta_2]));
+        dataflow.meta = vec![meta, meta_1, meta_2];
+        dataflow.job_id = Some(ResourceId {
+            resource_id: "resourceId".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        });
         let mut nodes = HashMap::default();
 
         (0..5).for_each(|index| {
             let mut info = OperatorInfo::default();
-            info.set_operator_id(index);
+            info.operator_id = index;
+            info.details = Some(Details::Filter(Default::default()));
             nodes.insert(index, info);
         });
 
-        dataflow.set_nodes(nodes);
+        dataflow.nodes = nodes;
 
         let result = validate_dataflow(&dataflow);
         assert!(result.is_err());

@@ -265,7 +265,7 @@ mod cluster_tests {
 
         cluster
             .workers
-            .iter()
+            .iter_mut()
             .for_each(|node| node.status = super::NodeStatus::Running);
 
         assert!(cluster.is_available())
@@ -296,7 +296,7 @@ mod cluster_tests {
         ]);
         let mut dataflow = Dataflow::default();
 
-        let mut meta_1 = DataflowMeta {
+        let meta_1 = DataflowMeta {
             center: 0,
             neighbors: vec![1, 2, 3],
         };
@@ -329,7 +329,7 @@ mod cluster_tests {
 
         cluster
             .workers
-            .iter()
+            .iter_mut()
             .for_each(|node| node.status = NodeStatus::Running);
 
         cluster.partition_dataflow(&mut dataflow);
@@ -406,7 +406,7 @@ mod cluster_tests {
 
         cluster
             .workers
-            .iter()
+            .iter_mut()
             .for_each(|node| node.status = NodeStatus::Running);
 
         cluster.partition_dataflow(&mut dataflow);

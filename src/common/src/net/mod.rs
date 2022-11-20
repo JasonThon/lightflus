@@ -89,8 +89,8 @@ mod tests {
         };
 
         let host_addr = super::to_host_addr(&addr);
-        assert_eq!(host_addr.get_host(), "198.0.0.1");
-        assert_eq!(host_addr.get_port(), 8970);
+        assert_eq!(host_addr.host.as_str(), "198.0.0.1");
+        assert_eq!(host_addr.port, 8970);
 
         assert_eq!(addr.as_uri().as_str(), "198.0.0.1:8970");
         assert!(addr.is_valid());

@@ -895,13 +895,13 @@ mod tests {
 
         let mut metas = vec![];
         let mut meta = DataflowMeta::default();
-        meta.set_center(0);
-        meta.set_neighbors(vec![1]);
+        meta.center = 0;
+        meta.neighbors = vec![1];
 
         metas.push(meta);
         let mut meta = DataflowMeta::default();
-        meta.set_center(1);
-        meta.set_neighbors(vec![2]);
+        meta.center = 1;
+        meta.neighbors = vec![2];
 
         metas.push(meta);
 
@@ -916,12 +916,12 @@ mod tests {
         op_1.details = Some(Details::Filter(Filter::default()));
         nodes.insert(1, op_1);
 
-        let mut mysql = OperatorInfo {
+        let mysql = OperatorInfo {
             operator_id: 2,
             host_addr: None,
             upstreams: vec![1],
             details: Some(Details::Sink(Sink {
-                desc: Some(MysqlDesc {
+                desc: Some(sink::Desc::Mysql(MysqlDesc {
                     connection_opts: Some(mysql_desc::ConnectionOpts {
                         host: "localhost".to_string(),
                         username: "root".to_string(),
@@ -932,7 +932,7 @@ mod tests {
                         statement: "select".to_string(),
                         extractors: vec![],
                     }),
-                }),
+                })),
             })),
         };
         nodes.insert(2, mysql);
@@ -944,8 +944,7 @@ mod tests {
 
     #[test]
     pub fn test_get_mysql_arguments() {
-        use proto::common::{MysqlDesc, MysqlDesc_Statement};
-        use protobuf::RepeatedField;
+        use proto::common::MysqlDesc;
 
         use super::Mysql;
         use common::event::LocalEvent;
@@ -958,7 +957,7 @@ mod tests {
 
         let _setup_guard = setup_v8();
 
-        let mut desc = MysqlDesc {
+        let desc = MysqlDesc {
             connection_opts: Some(mysql_desc::ConnectionOpts {
                 host: "localhost".to_string(),
                 username: "root".to_string(),

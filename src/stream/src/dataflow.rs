@@ -438,6 +438,48 @@ fn get_operator_state_key(operator_id: NodeIdx, operator: &str) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use proto::common::{
+        filter, flat_map, key_by, mapper, operator_info::Details, reducer, OperatorInfo,
+    };
+
+    fn get_opeartor_code(op_info: &OperatorInfo) -> String {
+        match op_info.details.as_ref() {
+            Some(info) => match info {
+                Details::Mapper(func) => match &func.value {
+                    Some(value) => match value {
+                        mapper::Value::Func(func) => func.function.clone(),
+                    },
+                    None => "".to_string(),
+                },
+                Details::Filter(func) => match &func.value {
+                    Some(value) => match value {
+                        filter::Value::Func(func) => func.function.clone(),
+                    },
+                    None => "".to_string(),
+                },
+                Details::KeyBy(func) => match &func.value {
+                    Some(value) => match value {
+                        key_by::Value::Func(func) => func.function.clone(),
+                    },
+                    None => "".to_string(),
+                },
+                Details::Reducer(func) => match &func.value {
+                    Some(value) => match value {
+                        reducer::Value::Func(func) => func.function.clone(),
+                    },
+                    None => "".to_string(),
+                },
+                Details::FlatMap(func) => match &func.value {
+                    Some(value) => match value {
+                        flat_map::Value::Func(func) => func.function.clone(),
+                    },
+                    None => "".to_string(),
+                },
+                _ => "".to_string(),
+            },
+            None => "".to_string(),
+        }
+    }
 
     struct SetupGuard {}
 
@@ -470,18 +512,20 @@ mod tests {
         use proto::common::Func;
         use proto::common::{Entry, KeyedDataEvent};
         use proto::common::{Mapper, OperatorInfo};
-        use protobuf::RepeatedField;
         use std::cell::RefCell;
 
         let _setup_guard = setup();
 
-        let mut op_info = OperatorInfo::default();
-        let mut map_fn = Mapper::new();
-        let mut function = Func::new();
-        function.set_function("function _operator_map_process(a) { return a+1 }".to_string());
-        map_fn.set_func(function);
-        op_info.set_mapper(map_fn);
-        op_info.set_operator_id(1);
+        let op_info = OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(Details::Mapper(Mapper {
+                value: Some(mapper::Value::Func(Func {
+                    function: "function _operator_map_process(a) { return a+1 }".to_string(),
+                })),
+            })),
+        };
 
         let state_manager = MemoryStateManager::new();
 
@@ -502,7 +546,7 @@ mod tests {
         entry.set_data_type(val.get_type());
         entry.value = val.get_data();
 
-        event.set_data(RepeatedField::from_vec(vec![entry.clone(), entry.clone()]));
+        event.data = vec![entry.clone(), entry.clone()];
 
         let result = operator.call_fn(&event, &rt_engine);
         assert!(result.is_ok());
@@ -530,19 +574,20 @@ mod tests {
         use proto::common::Func;
         use proto::common::{Entry, KeyedDataEvent};
         use proto::common::{Filter, OperatorInfo};
-        use protobuf::RepeatedField;
         use std::cell::RefCell;
 
         let _setup_guard = setup();
 
-        let mut op_info = OperatorInfo::default();
-        let mut filter_fn = Filter::new();
-        let mut function = Func::new();
-        function
-            .set_function("function _operator_filter_process(a) { return a === 1 }".to_string());
-        filter_fn.set_func(function);
-        op_info.set_filter(filter_fn);
-        op_info.set_operator_id(1);
+        let op_info = OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(Details::Filter(Filter {
+                value: Some(filter::Value::Func(Func {
+                    function: "function _operator_filter_process(a) { return a === 1 }".to_string(),
+                })),
+            })),
+        };
 
         let state_manager = MemoryStateManager::new();
 
@@ -568,11 +613,7 @@ mod tests {
         entry_1.set_data_type(val.get_type());
         entry_1.value = val.get_data();
 
-        event.set_data(RepeatedField::from_vec(vec![
-            entry.clone(),
-            entry.clone(),
-            entry_1,
-        ]));
+        event.data = vec![entry.clone(), entry.clone(), entry_1];
 
         let result = operator.call_fn(&event, &rt_engine);
 
@@ -581,7 +622,7 @@ mod tests {
             let new_events = result.expect("");
             assert_eq!(new_events.len(), 1);
 
-            assert_eq!(new_events[0].get_data(), &[entry.clone(), entry.clone()]);
+            assert_eq!(new_events[0].data, vec![entry.clone(), entry.clone()]);
         }
     }
 
@@ -599,25 +640,27 @@ mod tests {
         use proto::common::Func;
         use proto::common::{Entry, KeyedDataEvent};
         use proto::common::{KeyBy, OperatorInfo};
-        use protobuf::RepeatedField;
         use std::cell::RefCell;
 
         let _setup_guard = setup();
 
-        let mut op_info = OperatorInfo::default();
-        let mut keyby_fn = KeyBy::new();
-        let mut function = Func::new();
-        function.set_function("function _operator_keyBy_process(a) { return a.foo }".to_string());
-        keyby_fn.set_func(function);
-        op_info.set_key_by(keyby_fn);
-        op_info.set_operator_id(1);
+        let op_info = OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(Details::KeyBy(KeyBy {
+                value: Some(key_by::Value::Func(Func {
+                    function: "function _operator_keyBy_process(a) { return a.foo }".to_string(),
+                })),
+            })),
+        };
 
         let state_manager = MemoryStateManager::new();
 
         let isolate = &mut v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
         let rt_engine = RefCell::new(RuntimeEngine::new(
-            op_info.get_key_by().get_func().get_function(),
+            &get_opeartor_code(&op_info),
             &get_function_name(&op_info),
             isolated_scope,
         ));
@@ -644,11 +687,7 @@ mod tests {
         entry_1.set_data_type(val.get_type());
         entry_1.value = val.get_data();
 
-        event.set_data(RepeatedField::from_vec(vec![
-            entry.clone(),
-            entry.clone(),
-            entry_1,
-        ]));
+        event.data = vec![entry.clone(), entry.clone(), entry_1];
 
         let result = operator.call_fn(&event, &rt_engine);
         {
@@ -656,12 +695,14 @@ mod tests {
             let events = result.unwrap();
             assert_eq!(events.len(), 2);
             assert!(any_match(&events, |event| {
-                event.has_key()
-                    && TypedValue::from(event.get_key()) == TypedValue::String("bar".to_string())
+                event.key.is_some()
+                    && TypedValue::from(event.key.as_ref().unwrap())
+                        == TypedValue::String("bar".to_string())
             }));
             assert!(any_match(&events, |event| {
-                event.has_key()
-                    && TypedValue::from(event.get_key()) == TypedValue::String("bar1".to_string())
+                event.key.is_some()
+                    && TypedValue::from(event.key.as_ref().unwrap())
+                        == TypedValue::String("bar1".to_string())
             }));
         }
     }
@@ -678,20 +719,22 @@ mod tests {
         use proto::common::Func;
         use proto::common::{Entry, KeyedDataEvent};
         use proto::common::{OperatorInfo, Reducer};
-        use protobuf::RepeatedField;
         use std::cell::RefCell;
 
         let _setup_guard = setup();
 
-        let mut op_info = OperatorInfo::default();
-        let mut reduce_fn = Reducer::new();
-        let mut function = Func::new();
-        function.set_function(
-            "function _operator_reduce_process(accum, val) { return accum + val }".to_string(),
-        );
-        reduce_fn.set_func(function);
-        op_info.set_reducer(reduce_fn);
-        op_info.set_operator_id(1);
+        let mut op_info = OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(Details::Reducer(Reducer {
+                value: Some(reducer::Value::Func(Func {
+                    function:
+                        "function _operator_reduce_process(accum, val) { return accum + val }"
+                            .to_string(),
+                })),
+            })),
+        };
 
         let state_manager = MemoryStateManager::new();
 
@@ -717,11 +760,7 @@ mod tests {
         entry_1.set_data_type(val.get_type());
         entry_1.value = val.get_data();
 
-        event.set_data(RepeatedField::from_vec(vec![
-            entry.clone(),
-            entry.clone(),
-            entry_1,
-        ]));
+        event.data = vec![entry.clone(), entry.clone(), entry_1];
         let result = operator.call_fn(&event, &rt_engine);
 
         {
@@ -733,7 +772,7 @@ mod tests {
             entry.set_data_type(val.get_type());
             entry.value = val.get_data();
 
-            assert_eq!(new_events[0].get_data(), &[entry]);
+            assert_eq!(new_events[0].data, vec![entry]);
             let state = operator
                 .state_manager
                 .get_keyed_state(&get_operator_state_key(operator.operator_id, "reduce"));
@@ -752,19 +791,21 @@ mod tests {
         use proto::common::Func;
         use proto::common::{Entry, KeyedDataEvent};
         use proto::common::{FlatMap, OperatorInfo};
-        use protobuf::RepeatedField;
         use std::cell::RefCell;
 
         let _setup_guard = setup();
 
-        let mut op_info = OperatorInfo::default();
-        let mut flatmap_fn = FlatMap::new();
-        let mut function = Func::new();
-        function
-            .set_function("function _operator_flatMap_process(v) { return [v, v, 2] }".to_string());
-        flatmap_fn.set_func(function);
-        op_info.set_flat_map(flatmap_fn);
-        op_info.set_operator_id(1);
+        let op_info = OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(Details::FlatMap(FlatMap {
+                value: Some(flat_map::Value::Func(Func {
+                    function: "function _operator_flatMap_process(v) { return [v, v, 2] }"
+                        .to_string(),
+                })),
+            })),
+        };
 
         let state_manager = MemoryStateManager::new();
 
@@ -785,7 +826,7 @@ mod tests {
         entry.set_data_type(val.get_type());
         entry.value = val.get_data();
 
-        event.set_data(RepeatedField::from_vec(vec![entry.clone()]));
+        event.data = vec![entry.clone()];
         let result = operator.call_fn(&event, &rt_engine);
 
         {
@@ -800,14 +841,14 @@ mod tests {
             let mut entry_2 = Entry::default();
             let val = TypedValue::Number(1.0);
             entry_2.set_data_type(val.get_type());
-            entry_2.set_value(val.get_data());
+            entry_2.value = val.get_data();
 
             let mut entry_3 = Entry::default();
             let val = TypedValue::Number(2.0);
             entry_3.set_data_type(val.get_type());
             entry_3.value = val.get_data();
 
-            assert_eq!(new_events[0].data.as_slice(), &[entry_1, entry_2, entry_3]);
+            assert_eq!(new_events[0].data, vec![entry_1, entry_2, entry_3]);
         }
     }
 }

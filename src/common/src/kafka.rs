@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use futures_util::StreamExt;
-use proto::common::kafka_desc::KafkaOptions;
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
     producer::{FutureProducer, FutureRecord},
@@ -40,7 +39,7 @@ pub fn run_producer(
     brokers: &str,
     topic: &str,
     group: &str,
-    partition: i32
+    partition: i32,
 ) -> Result<KafkaProducer, rdkafka::error::KafkaError> {
     ClientConfig::new()
         .set("group.id", group)

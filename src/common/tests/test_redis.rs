@@ -2,15 +2,21 @@ use std::collections::BTreeMap;
 
 use bytes::Buf;
 use common::{redis::RedisClient, types::TypedValue, utils::get_env};
-use proto::common::{RedisDesc, RedisDesc_ConnectionOpts};
+use proto::common::{RedisDesc, redis_desc};
 
 #[test]
 pub fn test_redis_with_string_key_simple_value() {
-    let mut conf = RedisDesc::default();
-    let mut opts = RedisDesc_ConnectionOpts::default();
-    opts.set_database(0);
-    opts.set_host(get_env("REDIS_HOST").unwrap_or("localhost".to_string()));
-    conf.set_connection_opts(opts);
+    let conf = RedisDesc {
+        connection_opts: Some(redis_desc::ConnectionOpts {
+            host: get_env("REDIS_HOST").unwrap_or("localhost".to_string()),
+            username: Default::default(),
+            password: Default::default(),
+            database: 0,
+            tls: false,
+        }),
+        key_extractor: None,
+        value_extractor: None,
+    };
     let client = RedisClient::new(&conf);
     let conn_result = client.connect();
 

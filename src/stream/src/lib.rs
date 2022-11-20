@@ -1,5 +1,3 @@
-use common::{event::LocalEvent, types::TypedValue};
-
 pub mod actor;
 pub mod dataflow;
 pub mod err;
@@ -15,4 +13,3 @@ pub fn initialize_v8() {
     v8::V8::initialize_platform(v8::new_default_platform(10, false).make_shared());
     v8::V8::initialize();
 }
-

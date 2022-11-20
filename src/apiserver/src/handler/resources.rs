@@ -4,21 +4,23 @@ use actix_web::{
 };
 use common::{
     err::ApiError,
-    utils::{from_pb_slice, pb_to_bytes_mut, uuid},
+    utils::{from_pb_slice, pb_to_bytes_mut},
 };
 use futures_util::StreamExt;
 use proto::{
     apiserver::{
-        create_resource_request::Options, CreateResourceRequest, CreateResourceResponse,
-        GetResourceResponse, Resource, ResourceStatusEnum, ResourceTypeEnum,
+        CreateResourceRequest, CreateResourceResponse, GetResourceResponse, Resource,
+        ResourceTypeEnum,
     },
-    common::ResourceId,
     coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
 };
 
-use crate::types::{GetResourceArgs, ListResourcesArgs};
+use crate::{
+    handler::service::create_dataflow,
+    types::{GetResourceArgs, ListResourcesArgs},
+};
 
-const COORDINATOR_URI_ENV: &str = "LIGHTFLUS_COORDINATOR_URI";
+use super::{service::get_dataflow, COORDINATOR_URI_ENV};
 
 #[post("/create")]
 async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpResponse> {
@@ -31,29 +33,7 @@ async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpRespons
     from_pb_slice::<CreateResourceRequest>(bytes.iter().as_slice())
         .map_err(|err| ErrorBadRequest(err))
         .and_then(|req| match req.resource_type() {
-            ResourceTypeEnum::Dataflow => {
-                let mut req = req.clone();
-                let mut resource_id = ResourceId::default();
-                resource_id.resource_id = uuid();
-                req.options.iter_mut().for_each(|options| match options {
-                    Options::Dataflow(dataflow) => dataflow
-                        .dataflow
-                        .iter_mut()
-                        .for_each(|df| df.job_id = Some(resource_id)),
-                });
-
-                let uri = common::utils::get_env(COORDINATOR_URI_ENV);
-                let mut cli = futures_executor::block_on(CoordinatorApiClient::connect(uri.unwrap_or_default()))?;
-
-                let result = futures_executor::block_on(cli.create_dataflow(tonic::Request::new(req)));
-                result
-                    .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-                    .map(|_| {
-                        let mut response = CreateResourceResponse::default();
-                        response.set_status(ResourceStatusEnum::Starting);
-                        response
-                    })
-            }
+            ResourceTypeEnum::Dataflow => create_dataflow(req),
             _ => Ok(CreateResourceResponse::default()),
         })
         .map(|resp| HttpResponse::Created().body(pb_to_bytes_mut(resp)))
@@ -62,38 +42,15 @@ async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpRespons
 #[get("/get/{namespace}/{resource_type}/{resource_id}")]
 async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<HttpResponse> {
     let resource_type_option = ResourceTypeEnum::from_i32(args.resource_type);
-    let mut resp = HttpResponse::Ok();
 
     if resource_type_option.is_some() {
         let ref resource_type = resource_type_option.unwrap();
         match resource_type {
-            ResourceTypeEnum::Dataflow => {
-                let uri = common::utils::get_env(COORDINATOR_URI_ENV).unwrap();
-                let cli = CoordinatorApiClient::connect(uri.unwrap_or_default()).await?;
-                let ref mut req = GetDataflowRequest::default();
-                req.job_id = Some(args.to_resource_id());
-                cli.get_dataflow(req)
-                    .await
-                    .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-                    .and_then(|resp| {
-                        let mut response = GetResourceResponse::default();
-                        let mut resource = Resource::default();
-                        match resp.into_inner().graph {
-                            Some(dataflow) => {
-                                resource.set_resource_id();
-                                resource.set_resource_type(*resource_type);
-                                response.set_resource(resource);
-                                Ok(response)
-                            }
-                            None => ErrorBadRequest("empty graph response"),
-                        }
-                    })
-                    .map(|response| resp.body(pb_to_bytes_mut(response)))
-            }
-            _ => Ok(resp.finish()),
+            ResourceTypeEnum::Dataflow => get_dataflow(args.as_ref()).await,
+            _ => Ok(HttpResponse::Ok().finish()),
         }
     } else {
-        Ok(resp.finish())
+        Ok(HttpResponse::Ok().finish())
     }
 }
 

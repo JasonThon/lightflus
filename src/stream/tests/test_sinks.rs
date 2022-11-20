@@ -16,7 +16,6 @@ use proto::{
     },
     worker::DispatchDataEventStatusEnum,
 };
-use protobuf::RepeatedField;
 use stream::actor::{Kafka, Redis, Sink, SinkImpl};
 
 struct SetupGuard {}
@@ -40,6 +39,7 @@ fn setup() -> SetupGuard {
 
 #[tokio::test]
 async fn test_kafka_sink() {
+    let kafka_host = get_env("KAFKA_HOST").unwrap_or("localhost".to_string());
     let kafka_sink = SinkImpl::Kafka(Kafka::with_sink_config(
         &ResourceId::default(),
         1,
@@ -50,7 +50,7 @@ async fn test_kafka_sink() {
                 group: Some("ci_group".to_string()),
                 partition: Some(0),
             }),
-            data_type: DataTypeEnum::String,
+            data_type: DataTypeEnum::String as i32,
         },
     ));
 
@@ -60,42 +60,45 @@ async fn test_kafka_sink() {
     assert!(consumer.is_ok());
 
     let consumer = consumer.unwrap();
-    let mut event = KeyedDataEvent {
+    let event = KeyedDataEvent {
         job_id: Some(ResourceId {
-            resource_id: b"resource_id",
-            namespace_id: b"namespaceId",
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespaceId".to_string(),
         }),
         key: None,
         to_operator_id: 1,
         data: vec![
             Entry {
-                data_type: DataTypeEnum::Object,
+                data_type: DataTypeEnum::Object as i32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key_1".to_string(), TypedValue::String("val_1".to_string())),
                         ("key_2".to_string(), TypedValue::Number(1.0)),
                     ]
-                    .iter(),
-                )),
+                    .iter()
+                    .map(|entry| (entry.0.clone(), entry.1.clone())),
+                ))
+                .get_data(),
             },
             Entry {
-                data_type: DataTypeEnum::Object,
+                data_type: DataTypeEnum::Object as i32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key_1".to_string(), TypedValue::String("val_1".to_string())),
                         ("key_2".to_string(), TypedValue::Number(1.0)),
                     ]
-                    .iter(),
-                )),
+                    .iter()
+                    .map(|entry| (entry.0.clone(), entry.1.clone())),
+                ))
+                .get_data(),
             },
         ],
-        event_time: todo!(),
-        process_time: todo!(),
-        from_operator_id: todo!(),
-        window: todo!(),
+        event_time: None,
+        process_time: None,
+        from_operator_id: 0,
+        window: None,
     };
 
-    val.insert("key_1".to_string(), TypedValue::String("val_1".to_string()));
     let result = kafka_sink.sink(SinkableMessageImpl::LocalMessage(
         LocalEvent::KeyedDataStreamEvent(event),
     ));
@@ -152,31 +155,35 @@ async fn test_redis_sink_success() {
 
     let event = KeyedDataEvent {
         job_id: Some(ResourceId {
-            resource_id: b"resource_id",
-            namespace_id: b"namespaceId",
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespaceId".to_string(),
         }),
         key: None,
         to_operator_id: 1,
         data: vec![
             Entry {
-                data_type: DataTypeEnum::Object,
-                value: BTreeMap::from_iter(
+                data_type: DataTypeEnum::Object as i32,
+                value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key".to_string(), TypedValue::String("word-1".to_string())),
                         ("value".to_string(), TypedValue::BigInt(10)),
                     ]
-                    .iter(),
-                ),
+                    .iter()
+                    .map(|entry| (entry.0.clone(), entry.1.clone())),
+                ))
+                .get_data(),
             },
             Entry {
-                data_type: DataTypeEnum::Object,
-                value: BTreeMap::from_iter(
+                data_type: DataTypeEnum::Object as i32,
+                value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key".to_string(), TypedValue::String("word-2".to_string())),
                         ("value".to_string(), TypedValue::BigInt(100)),
                     ]
-                    .iter(),
-                ),
+                    .iter()
+                    .map(|entry| (entry.0.clone(), entry.1.clone())),
+                ))
+                .get_data(),
             },
         ],
         event_time: None,

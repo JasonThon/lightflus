@@ -1,26 +1,14 @@
-use actix_web::{
-    error::{ErrorBadRequest, ErrorInternalServerError},
-    get, post, web, HttpResponse,
-};
-use common::{
-    err::ApiError,
-    utils::{from_pb_slice, pb_to_bytes_mut},
-};
+use actix_web::{error::ErrorBadRequest, get, post, web, HttpResponse};
+use common::utils::{from_pb_slice, pb_to_bytes_mut};
 use futures_util::StreamExt;
-use proto::{
-    apiserver::{
-        CreateResourceRequest, CreateResourceResponse, GetResourceResponse, Resource,
-        ResourceTypeEnum,
-    },
-    coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
-};
+use proto::apiserver::{CreateResourceRequest, CreateResourceResponse, ResourceTypeEnum};
 
 use crate::{
     handler::service::create_dataflow,
     types::{GetResourceArgs, ListResourcesArgs},
 };
 
-use super::{service::get_dataflow, COORDINATOR_URI_ENV};
+use super::{service::get_dataflow};
 
 #[post("/create")]
 async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpResponse> {

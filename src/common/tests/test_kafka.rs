@@ -27,20 +27,22 @@ async fn test_kafka_pub_sub() {
         assert!(send_result.is_ok());
     }
 
-    let opt = consumer.fetch(|msg| {
-        let key = String::from_utf8(msg.key);
-        assert!(key.is_ok());
-        let key = key.unwrap();
+    let opt = consumer
+        .fetch(|msg| {
+            let key = String::from_utf8(msg.key);
+            assert!(key.is_ok());
+            let key = key.unwrap();
 
-        let value = String::from_utf8(msg.payload);
+            let value = String::from_utf8(msg.payload);
 
-        assert!(value.is_ok());
+            assert!(value.is_ok());
 
-        let value = value.unwrap();
+            let value = value.unwrap();
 
-        assert_eq!(key.as_str(), "key");
-        assert_eq!(value.as_str(), "value");
-    });
+            assert_eq!(key.as_str(), "key");
+            assert_eq!(value.as_str(), "value");
+        })
+        .await;
 
     assert!(opt.is_some());
 }

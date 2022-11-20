@@ -53,7 +53,7 @@ impl Drop for LocalExecutorManager {
                 job_id: self.job_id.clone(),
                 to: sink.sink_id(),
             };
-            match sink.sink(SinkableMessageImpl::LocalMessage(event.clone())) {
+            match futures_executor::block_on(sink.sink(SinkableMessageImpl::LocalMessage(event.clone()))) {
                 Err(err) => {
                     log::error!(
                         "termintate node {} failed. details: {:?}",

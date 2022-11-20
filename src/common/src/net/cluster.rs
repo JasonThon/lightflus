@@ -335,7 +335,10 @@ mod cluster_tests {
         cluster.partition_dataflow(&mut dataflow);
 
         dataflow.nodes.iter().for_each(|entry| {
-            assert!(entry.1.host_addr.is_none());
+            assert!(entry.1.host_addr.is_some());
+            let host_addr = entry.1.host_addr.as_ref().unwrap();
+            assert!(!host_addr.host.is_empty());
+            assert_eq!(host_addr.port, 8080);
         });
     }
 

@@ -30,7 +30,6 @@ async fn test_kafka_source() {
         &kafka_desc,
     );
 
-
     let producer = run_producer(format!("{kafka_host}:9092").as_str(), "ci", "ci_group", 0);
     assert!(producer.is_ok());
     let producer = producer.unwrap();

@@ -99,9 +99,11 @@ async fn test_kafka_sink() {
         window: None,
     };
 
-    let result = kafka_sink.sink(SinkableMessageImpl::LocalMessage(
-        LocalEvent::KeyedDataStreamEvent(event),
-    ));
+    let result = kafka_sink
+        .sink(SinkableMessageImpl::LocalMessage(
+            LocalEvent::KeyedDataStreamEvent(event),
+        ))
+        .await;
     if result.is_err() {
         panic!("{:?}", result.unwrap_err());
     }
@@ -123,10 +125,10 @@ async fn test_kafka_sink() {
         assert!(value.is_object());
     }
 
-    let opt = consumer.fetch(processor);
+    let opt = consumer.fetch(processor).await;
     assert!(opt.is_some());
 
-    let opt = consumer.fetch(processor);
+    let opt = consumer.fetch(processor).await;
     assert!(opt.is_some());
 }
 
@@ -192,9 +194,11 @@ async fn test_redis_sink_success() {
         window: None,
     };
 
-    let result = redis_sink.sink(SinkableMessageImpl::LocalMessage(
-        LocalEvent::KeyedDataStreamEvent(event),
-    ));
+    let result = redis_sink
+        .sink(SinkableMessageImpl::LocalMessage(
+            LocalEvent::KeyedDataStreamEvent(event),
+        ))
+        .await;
 
     assert!(result.is_ok());
 

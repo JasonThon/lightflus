@@ -103,8 +103,8 @@ impl KafkaConsumer {
         Self { consumer }
     }
 
-    pub fn fetch<M, F: FnMut(KafkaMessage) -> M>(&self, mut processor: F) -> Option<M> {
-        futures_executor::block_on(self.consumer.stream().next()).and_then(|msg| match msg {
+    pub async fn fetch<M, F: FnMut(KafkaMessage) -> M>(&self, mut processor: F) -> Option<M> {
+        self.consumer.stream().next().await.and_then(|msg| match msg {
             Ok(msg) => {
                 let msg = msg.detach();
                 msg.payload().map(|payload| {

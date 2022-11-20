@@ -22,7 +22,7 @@ use sqlx::{Arguments, MySqlPool};
 
 use std::collections::BTreeMap;
 
-use futures_executor;
+use rayon::prelude::*;
 use std::sync::Arc;
 use std::time::SystemTime;
 use std::vec;
@@ -172,16 +172,17 @@ impl Executor for LocalExecutor {
                                 if proto_utils::has_source(&self.operator)
                                     || proto_utils::has_sink(&self.operator)
                                 {
-                                    self.sinks.iter().for_each(|sink| {
-                                        let _ = sink.sink(msg.clone());
+                                    self.sinks.par_iter().for_each(|sink| {
+                                        let _ = futures_executor::block_on(sink.sink(msg.clone()));
                                     });
                                 } else {
                                     match task.process(e) {
                                         Ok(results) => results.iter().for_each(|event| {
                                             let after_process = KeyedDataStreamEvent(event.clone());
-                                            self.sinks.iter().for_each(|sink| {
-                                                let _ =
-                                                    sink.sink(LocalMessage(after_process.clone()));
+                                            self.sinks.par_iter().for_each(|sink| {
+                                                let _ = futures_executor::block_on(
+                                                    sink.sink(LocalMessage(after_process.clone())),
+                                                );
                                             });
                                         }),
                                         Err(err) => {
@@ -374,9 +375,13 @@ impl SourceSinkManger {
     }
 }
 
+#[tonic::async_trait]
 pub trait Sink {
     fn sink_id(&self) -> SinkId;
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException>;
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException>;
 }
 
 #[derive(Clone)]
@@ -385,12 +390,16 @@ pub struct LocalSink {
     pub(crate) sink_id: SinkId,
 }
 
+#[tonic::async_trait]
 impl Sink for LocalSink {
     fn sink_id(&self) -> SinkId {
         self.sink_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match &msg {
             SinkableMessageImpl::LocalMessage(_) => self
                 .sender
@@ -407,27 +416,31 @@ pub struct RemoteSink {
     pub(crate) host_addr: HostAddr,
 }
 
+#[tonic::async_trait]
 impl Sink for RemoteSink {
     fn sink_id(&self) -> SinkId {
         self.sink_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        let ref mut result = futures_executor::block_on(TaskWorkerApiClient::connect(format!(
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+        let ref mut result = TaskWorkerApiClient::connect(format!(
             "{}:{}",
             &self.host_addr.host, self.host_addr.port
-        )));
+        ))
+        .await;
 
-        result
-            .as_mut()
-            .map_err(|err| err.into())
-            .and_then(|cli| match msg {
+        match result.as_mut().map_err(|err| err.into()) {
+            Ok(cli) => match msg {
                 SinkableMessageImpl::LocalMessage(event) => match event {
                     LocalEvent::Terminate { job_id, .. } => {
                         let req = StopDataflowRequest {
                             job_id: Some(job_id),
                         };
-                        futures_executor::block_on(cli.stop_dataflow(tonic::Request::new(req)))
+                        cli.stop_dataflow(tonic::Request::new(req))
+                            .await
                             .map(|_| DispatchDataEventStatusEnum::Dispatching)
                             .map_err(|err| SinkException {
                                 kind: RemoteSinkFailed,
@@ -438,31 +451,32 @@ impl Sink for RemoteSink {
                         let req = DispatchDataEventsRequest {
                             events: vec![event],
                         };
-                        futures_executor::block_on(
-                            cli.dispatch_data_events(tonic::Request::new(req)),
-                        )
-                        .map(|resp| {
-                            for key in resp.get_ref().status_set.keys() {
-                                match resp.get_ref().get_status_set(&key).unwrap_or_default() {
-                                    DispatchDataEventStatusEnum::Dispatching => {
-                                        return DispatchDataEventStatusEnum::Dispatching
-                                    }
-                                    DispatchDataEventStatusEnum::Done => continue,
-                                    DispatchDataEventStatusEnum::Failure => {
-                                        return DispatchDataEventStatusEnum::Failure
+                        cli.dispatch_data_events(tonic::Request::new(req))
+                            .await
+                            .map(|resp| {
+                                for key in resp.get_ref().status_set.keys() {
+                                    match resp.get_ref().get_status_set(&key).unwrap_or_default() {
+                                        DispatchDataEventStatusEnum::Dispatching => {
+                                            return DispatchDataEventStatusEnum::Dispatching
+                                        }
+                                        DispatchDataEventStatusEnum::Done => continue,
+                                        DispatchDataEventStatusEnum::Failure => {
+                                            return DispatchDataEventStatusEnum::Failure
+                                        }
                                     }
                                 }
-                            }
 
-                            DispatchDataEventStatusEnum::Done
-                        })
-                        .map_err(|err| SinkException {
-                            kind: RemoteSinkFailed,
-                            msg: format!("{}", err),
-                        })
+                                DispatchDataEventStatusEnum::Done
+                            })
+                            .map_err(|err| SinkException {
+                                kind: RemoteSinkFailed,
+                                msg: format!("{}", err),
+                            })
                     }
                 },
-            })
+            },
+            Err(err) => Err(err),
+        }
     }
 }
 
@@ -529,6 +543,7 @@ pub enum SinkImpl {
     Empty(SinkId),
 }
 
+#[tonic::async_trait]
 impl Sink for SinkImpl {
     fn sink_id(&self) -> SinkId {
         match self {
@@ -541,14 +556,17 @@ impl Sink for SinkImpl {
         }
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match self {
-            SinkImpl::Local(sink) => sink.sink(msg),
-            SinkImpl::Remote(sink) => sink.sink(msg),
-            SinkImpl::Kafka(sink) => sink.sink(msg),
-            SinkImpl::Mysql(sink) => sink.sink(msg),
+            SinkImpl::Local(sink) => sink.sink(msg).await,
+            SinkImpl::Remote(sink) => sink.sink(msg).await,
+            SinkImpl::Kafka(sink) => sink.sink(msg).await,
+            SinkImpl::Mysql(sink) => sink.sink(msg).await,
             SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
-            SinkImpl::Redis(redis) => redis.sink(msg),
+            SinkImpl::Redis(redis) => redis.sink(msg).await,
         }
     }
 }
@@ -655,9 +673,12 @@ impl Kafka {
 
 impl Source for Kafka {
     fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
-        self.consumer
-            .as_ref()
-            .and_then(|consumer| consumer.fetch(|message| self.process(message)))
+        match &self.consumer {
+            Some(consumer) => {
+                futures_executor::block_on(consumer.fetch(|message| self.process(message)))
+            }
+            None => None,
+        }
     }
 
     fn source_id(&self) -> SourceId {
@@ -665,18 +686,21 @@ impl Source for Kafka {
     }
 }
 
+#[tonic::async_trait]
 impl Sink for Kafka {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match &self.producer {
             Some(producer) => {
                 let messages_result = msg.get_kafka_message();
-                messages_result
-                    .map_err(|err| err.into())
-                    .and_then(|messages| {
+                match messages_result.map_err(|err| err.into()) {
+                    Ok(messages) => {
                         for msg in messages {
                             let send_result = producer.send(&msg.key, &msg.payload);
                             if send_result.is_err() {
@@ -687,7 +711,9 @@ impl Sink for Kafka {
                         }
 
                         Ok(DispatchDataEventStatusEnum::Done)
-                    })
+                    }
+                    Err(err) => Err(err),
+                }
             }
             None => Ok(DispatchDataEventStatusEnum::Done),
         }
@@ -747,36 +773,43 @@ impl Mysql {
     }
 }
 
+#[tonic::async_trait]
 impl Sink for Mysql {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let row_arguments = self.get_arguments(msg);
-        let pool = futures_executor::block_on(MySqlPool::connect(self.get_uri().as_str()));
-        pool.and_then(|conn| {
-            for arguments in row_arguments {
-                let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
-                arguments.iter().for_each(|val| match val {
-                    TypedValue::String(v) => mysql_arg.add(v),
-                    TypedValue::BigInt(v) => mysql_arg.add(v),
-                    TypedValue::Boolean(v) => mysql_arg.add(v),
-                    TypedValue::Number(v) => mysql_arg.add(v),
-                    _ => {}
-                });
+        match MySqlPool::connect(self.get_uri().as_str()).await {
+            Ok(conn) => {
+                for arguments in row_arguments {
+                    let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
+                    arguments.iter().for_each(|val| match val {
+                        TypedValue::String(v) => mysql_arg.add(v),
+                        TypedValue::BigInt(v) => mysql_arg.add(v),
+                        TypedValue::Boolean(v) => mysql_arg.add(v),
+                        TypedValue::Number(v) => mysql_arg.add(v),
+                        _ => {}
+                    });
 
-                let result = futures_executor::block_on(
-                    sqlx::query_with(&self.get_statement(), mysql_arg).execute(&conn),
-                );
-                if result.is_err() {
-                    return result.map(|_| DispatchDataEventStatusEnum::Failure);
+                    let result = sqlx::query_with(&self.get_statement(), mysql_arg)
+                        .execute(&conn)
+                        .await
+                        .map_err(|err| err.into());
+
+                    if result.is_err() {
+                        return result.map(|_| DispatchDataEventStatusEnum::Failure);
+                    }
                 }
-            }
 
-            Ok(DispatchDataEventStatusEnum::Done)
-        })
-        .map_err(|err| err.into())
+                Ok(DispatchDataEventStatusEnum::Done)
+            }
+            Err(err) => Err(err.into()),
+        }
     }
 }
 
@@ -810,12 +843,16 @@ impl Redis {
     }
 }
 
+#[tonic::async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let key_values = extract_arguments(
             &[self.key_extractor.clone(), self.value_extractor.clone()],
             msg.clone(),

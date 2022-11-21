@@ -723,7 +723,7 @@ pub struct Mysql {
     conn: MysqlConn,
 }
 impl Mysql {
-    fn with_config(connector_id: u32, conf: &MysqlDesc) -> Mysql {
+    pub fn with_config(connector_id: u32, conf: &MysqlDesc) -> Mysql {
         let mut statement = conf.get_mysql_statement();
         statement
             .extractors

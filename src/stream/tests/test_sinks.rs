@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use bytes::Buf;
 use common::{
+    db::MysqlConn,
     event::{LocalEvent, SinkableMessageImpl},
     kafka::{run_consumer, KafkaMessage},
     redis::RedisClient,
@@ -11,12 +12,15 @@ use common::{
 
 use proto::{
     common::{
-        kafka_desc, redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, RedisDesc,
+        kafka_desc,
+        mysql_desc::{self, statement},
+        redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, MysqlDesc, RedisDesc,
         ResourceId,
     },
     worker::DispatchDataEventStatusEnum,
 };
-use stream::actor::{Kafka, Redis, Sink, SinkImpl};
+use sqlx::Row;
+use stream::actor::{Kafka, Mysql, Redis, Sink, SinkImpl};
 
 struct SetupGuard {}
 
@@ -218,4 +222,119 @@ async fn test_redis_sink_success() {
     let value = result.expect("msg");
 
     assert_eq!(value.as_slice().get_i64(), 100)
+}
+
+#[tokio::test]
+async fn test_mysql_sink() {
+    let conn_opts = mysql_desc::ConnectionOpts {
+        host: "localhost".to_string(),
+        username: "ci".to_string(),
+        password: "123".to_string(),
+        database: "ci".to_string(),
+    };
+
+    let conn = MysqlConn::from(conn_opts.clone());
+
+    let result = conn.connect().await;
+    assert!(result.is_ok());
+
+    let ref mut mysql_conn = result.unwrap();
+    let result = conn.execute("create table if not exists person (id int NOT NULL AUTO_INCREMENT, name varchar(36), age int, country varchar(36), address varchar(255), PRIMARY KEY (id))", vec![], mysql_conn).await;
+
+    assert!(result.is_ok());
+    let mysql = SinkImpl::Mysql(Mysql::with_config(
+        0,
+        &MysqlDesc {
+            connection_opts: Some(conn_opts),
+            statement: Some(mysql_desc::Statement {
+                statement: "insert into person (name,age,country,address) values (?,?,?,?)"
+                    .to_string(),
+                extractors: vec![
+                    statement::Extractor {
+                        index: 1,
+                        extractor: "function mysql_extractor(a) {a.v1}".to_string(),
+                    },
+                    statement::Extractor {
+                        index: 2,
+                        extractor: "function mysql_extractor(a) {a.v2}".to_string(),
+                    },
+                    statement::Extractor {
+                        index: 3,
+                        extractor: "function mysql_extractor(a) {a.v3}".to_string(),
+                    },
+                    statement::Extractor {
+                        index: 4,
+                        extractor: "function mysql_extractor(a) {a.v4}".to_string(),
+                    },
+                ],
+            }),
+        },
+    ));
+
+    let event = KeyedDataEvent {
+        job_id: Some(ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespaceId".to_string(),
+        }),
+        key: None,
+        to_operator_id: 1,
+        data: vec![Entry {
+            data_type: DataTypeEnum::Object as i32,
+            value: TypedValue::Object(BTreeMap::from_iter(
+                [
+                    (
+                        "v1".to_string(),
+                        TypedValue::String("jason thon".to_string()),
+                    ),
+                    ("v2".to_string(), TypedValue::BigInt(25)),
+                    ("v3".to_string(), TypedValue::String("China".to_string())),
+                    (
+                        "v4".to_string(),
+                        TypedValue::String("Songjiang,Shanghai".to_string()),
+                    ),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ))
+            .get_data(),
+        }],
+        event_time: None,
+        process_time: None,
+        from_operator_id: 0,
+        window: None,
+    };
+
+    let result = mysql
+        .sink(SinkableMessageImpl::LocalMessage(
+            LocalEvent::KeyedDataStreamEvent(event),
+        ))
+        .await;
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), DispatchDataEventStatusEnum::Done);
+
+    let result = conn
+        .try_for_each(
+            "select * from person",
+            vec![],
+            mysql_conn,
+            |row| async move {
+                let name = row.try_get::<&str, &str>("name");
+                assert_eq!(name.unwrap(), "jason thon");
+                let age = row.try_get::<i32, &str>("age");
+                assert_eq!(age.unwrap(), 25);
+                let country = row.try_get::<&str, &str>("country");
+                assert_eq!(country.unwrap(), "China");
+                let address = row.try_get::<&str, &str>("address");
+                assert_eq!(address.unwrap(), "Songjiang,Shanghai");
+                Ok(())
+            },
+        )
+        .await;
+
+    assert!(result.is_ok());
+
+    let result = conn
+        .execute("drop table if exists person", vec![], mysql_conn)
+        .await;
+    assert!(result.is_ok());
 }

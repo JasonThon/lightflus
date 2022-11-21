@@ -340,10 +340,7 @@ mod tests {
             let value = super::to_typed_value(number_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Number
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Number);
             match unwrapped_val {
                 TypedValue::Number(v) => assert_eq!(v, 78.9),
                 _ => panic!("unexpected type"),
@@ -355,10 +352,7 @@ mod tests {
             let value = super::to_typed_value(bigint_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Bigint
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Bigint);
             match unwrapped_val {
                 TypedValue::BigInt(v) => assert_eq!(v, 123),
                 _ => panic!("unexpected type"),
@@ -370,10 +364,7 @@ mod tests {
             let value = super::to_typed_value(string_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::String
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::String);
             match unwrapped_val {
                 TypedValue::String(v) => assert_eq!(v, "test"),
                 _ => panic!("unexpected type"),
@@ -393,10 +384,7 @@ mod tests {
             let value = super::to_typed_value(undefined_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Unspecified
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Unspecified);
         }
 
         {
@@ -404,10 +392,7 @@ mod tests {
             let value = super::to_typed_value(object_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Object
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Object);
             match unwrapped_val {
                 TypedValue::Object(v) => assert!(v.is_empty()),
                 _ => panic!("unexpected type"),
@@ -419,10 +404,7 @@ mod tests {
             let value = super::to_typed_value(boolean_true_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Boolean
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Boolean);
             match unwrapped_val {
                 TypedValue::Boolean(v) => assert!(v),
                 _ => panic!("unexpected type"),
@@ -434,10 +416,7 @@ mod tests {
             let value = super::to_typed_value(boolean_false_l1, try_catch);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Boolean
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Boolean);
             match unwrapped_val {
                 TypedValue::Boolean(v) => assert!(!v),
                 _ => panic!("unexpected type"),
@@ -557,10 +536,7 @@ mod tests {
             let value = super::to_typed_value(object_l2, scope);
             assert!(value.is_some());
             let unwrapped_val = value.unwrap();
-            assert_eq!(
-                unwrapped_val.get_type(),
-                DataTypeEnum::Object
-            );
+            assert_eq!(unwrapped_val.get_type(), DataTypeEnum::Object);
             match unwrapped_val {
                 TypedValue::Object(v) => {
                     assert!(!v.is_empty());

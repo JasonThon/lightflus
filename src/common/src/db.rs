@@ -1,3 +1,4 @@
+use futures_util::{TryFuture, TryStreamExt};
 use proto::common::mysql_desc;
 use sqlx::{Arguments, ConnectOptions};
 
@@ -25,6 +26,31 @@ impl MysqlConn {
         });
 
         sqlx::query_with(statement, mysql_arg).execute(conn).await
+    }
+
+    pub async fn try_for_each<
+        Fut: TryFuture<Ok = (), Error = sqlx::Error>,
+        F: FnMut(sqlx::mysql::MySqlRow) -> Fut,
+    >(
+        &self,
+        statement: &str,
+        arguments: Vec<TypedValue>,
+        conn: &mut sqlx::mysql::MySqlConnection,
+        mut f: F,
+    ) -> Result<(), sqlx::Error> {
+        let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
+        arguments.iter().for_each(|val| match val {
+            TypedValue::String(v) => mysql_arg.add(v),
+            TypedValue::BigInt(v) => mysql_arg.add(v),
+            TypedValue::Boolean(v) => mysql_arg.add(v),
+            TypedValue::Number(v) => mysql_arg.add(v),
+            _ => {}
+        });
+
+        sqlx::query_with(statement, mysql_arg)
+            .fetch(conn)
+            .try_for_each(|row| f(row))
+            .await
     }
 
     pub async fn connect(&self) -> Result<sqlx::mysql::MySqlConnection, sqlx::Error> {

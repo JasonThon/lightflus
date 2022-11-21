@@ -4,6 +4,7 @@ use common::types::SinkId;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
 use proto::worker::DispatchDataEventStatusEnum;
+use rayon::prelude::*;
 use stream::actor::{DataflowContext, ExecutorImpl, Sink, SinkImpl};
 use tokio::task::JoinHandle;
 
@@ -53,7 +54,9 @@ impl Drop for LocalExecutorManager {
                 job_id: self.job_id.clone(),
                 to: sink.sink_id(),
             };
-            match futures_executor::block_on(sink.sink(SinkableMessageImpl::LocalMessage(event.clone()))) {
+            match futures_executor::block_on(
+                sink.sink(SinkableMessageImpl::LocalMessage(event.clone())),
+            ) {
                 Err(err) => {
                     log::error!(
                         "termintate node {} failed. details: {:?}",
@@ -73,7 +76,7 @@ impl ExecutorManager for LocalExecutorManager {
     fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
         let local_events = events
-            .iter()
+            .par_iter()
             .map(|e| LocalEvent::KeyedDataStreamEvent(e.clone()));
 
         events
@@ -87,7 +90,11 @@ impl ExecutorManager for LocalExecutorManager {
                     .next()
                     .map(|sink| {
                         local_events
-                            .map(|e| sink.sink(SinkableMessageImpl::LocalMessage(e)))
+                            .map(|e| {
+                                futures_executor::block_on(
+                                    sink.sink(SinkableMessageImpl::LocalMessage(e)),
+                                )
+                            })
                             .map(|result| match result {
                                 Ok(status) => status,
                                 Err(err) => {
@@ -96,11 +103,13 @@ impl ExecutorManager for LocalExecutorManager {
                                     DispatchDataEventStatusEnum::Failure
                                 }
                             })
-                            .reduce(|accum, result| match accum {
-                                DispatchDataEventStatusEnum::Failure => accum,
-                                _ => result,
-                            })
-                            .unwrap_or(DispatchDataEventStatusEnum::Done)
+                            .reduce(
+                                || DispatchDataEventStatusEnum::Done,
+                                |accum, result| match accum {
+                                    DispatchDataEventStatusEnum::Failure => accum,
+                                    _ => result,
+                                },
+                            )
                     })
                     .unwrap_or(DispatchDataEventStatusEnum::Done)
             })

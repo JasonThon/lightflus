@@ -15,3 +15,4 @@ tokio = { version = "1", features = ["rt-multi-thread", "sync", "signal", "macro
 log = "0.4"
 serde_json = "1.0.59"
 futures-executor = "0.3"
+rayon = "1.5"

@@ -2718,6 +2718,7 @@ dependencies = [
  "futures-executor",
  "log",
  "proto",
+ "rayon",
  "serde",
  "serde_json",
  "stream",

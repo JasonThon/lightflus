@@ -11,3 +11,5 @@ pub mod worker;
 
 #[cfg(feature = "apiserver")]
 pub mod apiserver;
+#[cfg(feature = "apiserver")]
+pub mod apiserver_impl;

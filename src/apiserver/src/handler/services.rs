@@ -19,7 +19,7 @@ use crate::types::GetResourceArgs;
 
 use super::COORDINATOR_URI_ENV;
 
-pub(crate) fn create_dataflow(
+pub(crate) async fn create_dataflow(
     req: CreateResourceRequest,
 ) -> Result<CreateResourceResponse, actix_web::Error> {
     let mut req = req.clone();
@@ -31,34 +31,28 @@ pub(crate) fn create_dataflow(
             .iter_mut()
             .for_each(|df| df.job_id = Some(resource_id.clone())),
     });
-    match req.options {
-        Some(options) => match options {
-            Options::Dataflow(dataflow) => match dataflow.dataflow {
-                Some(dataflow) => {
-                    let uri = common::utils::get_env(COORDINATOR_URI_ENV);
-                    let ref mut cli = futures_executor::block_on(CoordinatorApiClient::connect(
-                        uri.unwrap_or_default(),
-                    ));
 
-                    cli.as_mut()
-                        .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-                        .and_then(|client| {
-                            let result = futures_executor::block_on(
-                                client.create_dataflow(tonic::Request::new(dataflow)),
-                            );
-                            result
-                                .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-                                .map(|resp| {
-                                    let mut response = CreateResourceResponse::default();
-                                    response.set_status(ResourceStatusEnum::Starting);
-                                    response
-                                })
-                        })
-                }
-                None => Err(ErrorBadRequest("empty dataflow")),
-            },
-        },
-        None => Err(ErrorBadRequest("empty dataflow")),
+    if req.is_dataflow_empty() {
+        return Err(ErrorBadRequest("empty dataflow"));
+    }
+
+    let uri = common::utils::get_env(COORDINATOR_URI_ENV);
+    let ref mut cli = CoordinatorApiClient::connect(uri.unwrap_or_default()).await;
+
+    match cli {
+        Ok(client) => {
+            let result = client
+                .create_dataflow(tonic::Request::new(req.get_dataflow()))
+                .await;
+            result
+                .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
+                .map(|_| {
+                    let mut response = CreateResourceResponse::default();
+                    response.set_status(ResourceStatusEnum::Starting);
+                    response
+                })
+        }
+        Err(err) => Err(ErrorInternalServerError(ApiError::from(err))),
     }
 }
 

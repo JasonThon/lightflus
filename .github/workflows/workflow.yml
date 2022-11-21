@@ -35,7 +35,7 @@ jobs:
           ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: ci
           MYSQL_USER: ci
-          MYSQL_PASSWORD: 123
+          MYSQL_PASSWORD: "123"
       redis:
         image: "bitnami/redis:latest"
         ports:
@@ -86,7 +86,7 @@ jobs:
           ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: ci
           MYSQL_USER: ci
-          MYSQL_PASSWORD: 123
+          MYSQL_PASSWORD: "123"
       redis:
         image: "bitnami/redis:latest"
         ports:

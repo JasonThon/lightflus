@@ -76,7 +76,7 @@ impl KafkaProducer {
                     .send(record, Duration::from_secs(3))
                     .await
                     .map(|(partition, offset)| {
-                        log::debug!(
+                        tracing::debug!(
                             "send message to partition {} with offset {}",
                             partition,
                             offset
@@ -116,7 +116,7 @@ impl KafkaConsumer {
                 })
             }
             Err(err) => {
-                log::error!("fail to fetch data from kafka: {}", err);
+                tracing::error!("fail to fetch data from kafka: {}", err);
                 None
             }
         })

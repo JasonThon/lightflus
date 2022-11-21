@@ -183,16 +183,16 @@ impl Executor for LocalExecutor {
                                             });
                                         }),
                                         Err(err) => {
-                                            log::error!("process msg failed: {:?}", err);
+                                            tracing::error!("process msg failed: {:?}", err);
                                             // TODO fault tolerance
                                         }
                                     }
                                 }
 
-                                log::info!("nodeId: {}, msg: {:?}", &self.executor_id, e)
+                                tracing::info!("nodeId: {}, msg: {:?}", &self.executor_id, e)
                             }
                             LocalEvent::Terminate { job_id, to } => {
-                                log::info!("stopping {:?} at node id {}", job_id, to);
+                                tracing::info!("stopping {:?} at node id {}", job_id, to);
                                 break 'outside;
                             }
                         },
@@ -600,7 +600,7 @@ impl Kafka {
             &config.topic,
         ) {
             Ok(consumer) => self_.consumer = Some(Arc::new(consumer)),
-            Err(err) => log::error!("kafka source connect failed: {}", err),
+            Err(err) => tracing::error!("kafka source connect failed: {}", err),
         };
 
         self_
@@ -631,7 +631,7 @@ impl Kafka {
             config.get_kafka_partition() as i32,
         ) {
             Ok(producer) => self_.producer = Some(producer),
-            Err(err) => log::error!("kafka producer create failed: {}", err),
+            Err(err) => tracing::error!("kafka producer create failed: {}", err),
         }
 
         self_

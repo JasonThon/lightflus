@@ -11,6 +11,7 @@ pub mod worker;
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     initialize_v8();
+    tracing_subscriber::fmt::init();
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let result =
@@ -47,6 +48,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let server = TaskWorkerApiServer::new(api::TaskWorkerApiImpl::new(task_worker));
     let addr = format!("0.0.0.0:{}", config.port).parse()?;
+
+    tracing::info!("service will start at {}", config.port);
+
     Server::builder().add_service(server).serve(addr).await?;
 
     let _ = tokio::signal::ctrl_c().await;

@@ -1,4 +1,4 @@
-use std::cell::RefCell;
+use std::sync::Arc;
 
 use crate::coord;
 use proto::common::{Dataflow, DataflowStatus};
@@ -8,16 +8,17 @@ use proto::coordinator::{
     CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest,
     TerminateDataflowResponse,
 };
+use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub(crate) struct CoordinatorApiImpl {
-    coordinator: RefCell<coord::Coordinator>,
+    coordinator: Arc<RwLock<coord::Coordinator>>,
 }
 
 impl CoordinatorApiImpl {
     pub(crate) fn new(coordinator: coord::Coordinator) -> CoordinatorApiImpl {
         CoordinatorApiImpl {
-            coordinator: RefCell::new(coordinator),
+            coordinator: Arc::new(RwLock::new(coordinator)),
         }
     }
 }
@@ -32,7 +33,8 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &self,
         _request: tonic::Request<ProbeRequest>,
     ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
-        self.coordinator.borrow_mut().probe_state();
+        let mut write_lock = self.coordinator.write().await;
+        write_lock.probe_state().await;
 
         Ok(tonic::Response::new(ProbeResponse {
             memory: 1.0,
@@ -44,9 +46,10 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &self,
         request: tonic::Request<Dataflow>,
     ) -> Result<tonic::Response<CreateDataflowResponse>, tonic::Status> {
-        self.coordinator
-            .borrow_mut()
+        let mut write_lock = self.coordinator.write().await;
+        write_lock
             .create_dataflow(request.into_inner())
+            .await
             .map(|_| {
                 tonic::Response::new(CreateDataflowResponse {
                     status: DataflowStatus::Initialized as i32,
@@ -57,9 +60,10 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &self,
         request: tonic::Request<TerminateDataflowRequest>,
     ) -> Result<tonic::Response<TerminateDataflowResponse>, tonic::Status> {
-        self.coordinator
-            .borrow_mut()
+        let mut write_lock = self.coordinator.write().await;
+        write_lock
             .terminate_dataflow(request.get_ref().job_id.as_ref().unwrap())
+            .await
             .map(|status| {
                 tonic::Response::new(TerminateDataflowResponse {
                     status: status as i32,
@@ -70,11 +74,8 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &self,
         request: tonic::Request<GetDataflowRequest>,
     ) -> Result<tonic::Response<GetDataflowResponse>, tonic::Status> {
-        match self
-            .coordinator
-            .borrow()
-            .get_dataflow(request.get_ref().job_id.as_ref().unwrap())
-        {
+        let read_lock = self.coordinator.read().await;
+        match read_lock.get_dataflow(request.get_ref().job_id.as_ref().unwrap()) {
             Some(resp) => Ok(tonic::Response::new(GetDataflowResponse {
                 status: DataflowStatus::Running as i32,
                 graph: Some(resp),

@@ -26,7 +26,7 @@ pub struct PersistableHostAddr {
 
 impl PersistableHostAddr {
     pub fn as_uri(&self) -> String {
-        format!("{}:{}", &self.host, self.port)
+        format!("http://{}:{}", &self.host, self.port)
     }
 
     fn is_valid(&self) -> bool {

@@ -48,7 +48,7 @@ pub struct LocalExecutorManager {
 
 impl Drop for LocalExecutorManager {
     fn drop(&mut self) {
-        log::info!("LocalExecutorManager for Job {:?} is dropping", self.job_id);
+        tracing::info!("LocalExecutorManager for Job {:?} is dropping", self.job_id);
         for sink in &self.inner_sinks {
             let event = LocalEvent::Terminate {
                 job_id: self.job_id.clone(),
@@ -58,13 +58,13 @@ impl Drop for LocalExecutorManager {
                 sink.sink(SinkableMessageImpl::LocalMessage(event.clone())),
             ) {
                 Err(err) => {
-                    log::error!(
+                    tracing::error!(
                         "termintate node {} failed. details: {:?}",
                         sink.sink_id(),
                         err
                     );
                 }
-                _ => log::info!("terminate node {} success", sink.sink_id()),
+                _ => tracing::info!("terminate node {} success", sink.sink_id()),
             }
         }
         self.handlers.clear();
@@ -99,7 +99,7 @@ impl ExecutorManager for LocalExecutorManager {
                                 Ok(status) => status,
                                 Err(err) => {
                                     // TODO fault tolerant
-                                    log::error!("dispatch event failed: {:?}", err);
+                                    tracing::error!("dispatch event failed: {:?}", err);
                                     DispatchDataEventStatusEnum::Failure
                                 }
                             })

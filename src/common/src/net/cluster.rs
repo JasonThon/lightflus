@@ -13,6 +13,7 @@ use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::vec;
+use tonic::transport::Channel;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum NodeStatus {
@@ -21,24 +22,41 @@ enum NodeStatus {
     Unreachable,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Debug)]
 struct Node {
     status: NodeStatus,
     pub host_addr: PersistableHostAddr,
+    pub client: Option<TaskWorkerApiClient<Channel>>,
 }
 
 impl Node {
-    pub(crate) fn probe_state(&mut self) {
-        let ref mut client =
-            futures_executor::block_on(TaskWorkerApiClient::connect(self.host_addr.as_uri()));
+    async fn try_connect(&mut self) {
+        let ref mut client = TaskWorkerApiClient::connect(self.host_addr.as_uri()).await;
+        match client {
+            Ok(cli) => {
+                self.client = Some(cli.clone());
+            }
+            Err(err) => {
+                tracing::error!("{}", err);
+            }
+        }
+    }
 
+    pub(crate) async fn probe_state(&mut self) {
         let request = ProbeRequest {
             node_type: NodeType::Coordinator as i32,
             probe_type: ProbeType::Liveness as i32,
         };
 
-        match client {
-            Ok(cli) => match futures_executor::block_on(cli.probe(tonic::Request::new(request))) {
+        // First, try to connect if not
+        if self.client.is_none() {
+            self.try_connect().await
+        }
+
+        // Second, try to send probe request if connection has been built
+        if self.client.is_some() {
+            let cli = self.client.as_mut().unwrap();
+            match cli.probe(tonic::Request::new(request)).await {
                 Ok(resp) => {
                     if resp.get_ref().available {
                         self.status = NodeStatus::Running
@@ -47,13 +65,9 @@ impl Node {
                     }
                 }
                 Err(err) => {
-                    log::error!("{}", err);
+                    tracing::error!("{}", err);
                     self.status = NodeStatus::Unreachable
                 }
-            },
-            Err(err) => {
-                log::error!("{}", err);
-                self.status = NodeStatus::Unreachable
             }
         }
     }
@@ -104,8 +118,10 @@ impl Cluster {
         }
     }
 
-    pub fn probe_state(&mut self) {
-        self.workers.iter_mut().for_each(|node| node.probe_state())
+    pub async fn probe_state(&mut self) {
+        for node in &mut self.workers {
+            node.probe_state().await
+        }
     }
 
     pub fn partition_dataflow(&self, dataflow: &mut Dataflow) {
@@ -117,32 +133,29 @@ impl Cluster {
         });
     }
 
-    pub fn terminate_dataflow(&self, job_id: &ResourceId) -> Result<DataflowStatus, tonic::Status> {
-        for worker in &self.workers {
+    pub async fn terminate_dataflow(
+        &mut self,
+        job_id: &ResourceId,
+    ) -> Result<DataflowStatus, tonic::Status> {
+        for worker in &mut self.workers {
             if !worker.is_available() {
                 continue;
             }
-            let ref mut client =
-                futures_executor::block_on(TaskWorkerApiClient::connect(worker.host_addr.as_uri()));
+            let ref mut client = worker.client.as_mut().unwrap();
             let req = StopDataflowRequest {
                 job_id: Some(job_id.clone()),
             };
 
-            match client {
-                Ok(cli) => {
-                    match futures_executor::block_on(cli.stop_dataflow(tonic::Request::new(req))) {
-                        Err(err) => return Err(err),
-                        _ => {}
-                    }
-                }
-                Err(err) => return Err(tonic::Status::internal(err.to_string())),
-            };
+            match client.stop_dataflow(tonic::Request::new(req)).await {
+                Err(err) => return Err(err),
+                _ => {}
+            }
         }
 
         Ok(DataflowStatus::Closing)
     }
 
-    pub fn create_dataflow(&self, dataflow: &Dataflow) -> Result<(), tonic::Status> {
+    pub async fn create_dataflow(&mut self, dataflow: &Dataflow) -> Result<(), tonic::Status> {
         if !self.is_available() {
             return Err(tonic::Status::unavailable("worker is unavailable"));
         }
@@ -156,23 +169,23 @@ impl Cluster {
             }) {
                 return Err(tonic::Status::unavailable("worker is unavailable"));
             }
-            let ref mut client = futures_executor::block_on(TaskWorkerApiClient::connect(uri));
+            let group = lang::map_self(&self.workers, |worker| worker.host_addr.as_uri());
+            let worker = group.get(&uri).unwrap();
+
+            let ref mut client = worker.client.clone().unwrap();
+
             let dataflow = Some(elem.1.clone());
             let req = CreateSubDataflowRequest {
                 job_id: elem.1.job_id,
                 dataflow,
             };
 
-            let result = match client {
-                Ok(cli) => {
-                    futures_executor::block_on(cli.create_sub_dataflow(tonic::Request::new(req)))
-                        .map_err(|err| err)
-                }
-                Err(err) => Err(tonic::Status::internal(err.to_string())),
-            };
-
+            let result = client
+                .create_sub_dataflow(tonic::Request::new(req))
+                .await
+                .map_err(|err| err);
             match result {
-                Ok(status) => log::debug!(
+                Ok(status) => tracing::debug!(
                     "subdataflow status: {}",
                     status.get_ref().status().as_str_name()
                 ),
@@ -242,13 +255,27 @@ pub struct NodeConfig {
 
 impl NodeConfig {
     fn to_node(&self) -> Node {
-        Node {
+        let mut self_ = Node {
             status: NodeStatus::Pending,
             host_addr: PersistableHostAddr {
                 host: self.host.clone(),
                 port: self.port,
             },
+            client: None,
+        };
+        let ref mut client =
+            futures_executor::block_on(TaskWorkerApiClient::connect(self_.host_addr.as_uri()));
+        match client {
+            Ok(cli) => {
+                self_.client = Some(cli.clone());
+                self_.status = NodeStatus::Running
+            }
+            Err(err) => {
+                tracing::error!("{}", err);
+                self_.status = NodeStatus::Unreachable
+            }
         }
+        self_
     }
 }
 

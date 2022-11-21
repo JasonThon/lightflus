@@ -29,14 +29,11 @@ impl Drop for SetupGuard {
 }
 
 fn setup() -> SetupGuard {
-    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
-    MOD_TEST_START.call_once(|| {
-        v8::V8::set_flags_from_string(
-            "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
-          );
-              v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
-              v8::V8::initialize();
-    });
+    v8::V8::set_flags_from_string(
+        "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
+      );
+    v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
+    v8::V8::initialize();
 
     SetupGuard {}
 }
@@ -226,6 +223,7 @@ async fn test_redis_sink_success() {
 
 #[tokio::test]
 async fn test_mysql_sink() {
+    let _setup_guard = setup();
     let conn_opts = mysql_desc::ConnectionOpts {
         host: "localhost".to_string(),
         username: "ci".to_string(),
@@ -252,19 +250,19 @@ async fn test_mysql_sink() {
                 extractors: vec![
                     statement::Extractor {
                         index: 1,
-                        extractor: "function mysql_extractor(a) {a.v1}".to_string(),
+                        extractor: "function mysql_extractor(a) {return a.v1}".to_string(),
                     },
                     statement::Extractor {
                         index: 2,
-                        extractor: "function mysql_extractor(a) {a.v2}".to_string(),
+                        extractor: "function mysql_extractor(a) {return a.v2}".to_string(),
                     },
                     statement::Extractor {
                         index: 3,
-                        extractor: "function mysql_extractor(a) {a.v3}".to_string(),
+                        extractor: "function mysql_extractor(a) {return a.v3}".to_string(),
                     },
                     statement::Extractor {
                         index: 4,
-                        extractor: "function mysql_extractor(a) {a.v4}".to_string(),
+                        extractor: "function mysql_extractor(a) {return a.v4}".to_string(),
                     },
                 ],
             }),

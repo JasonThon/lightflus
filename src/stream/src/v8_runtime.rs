@@ -271,7 +271,7 @@ fn try_catch_log(try_catch: &mut v8::TryCatch<v8::HandleScope>) {
         .to_string(try_catch)
         .unwrap()
         .to_rust_string_lossy(try_catch);
-    log::error!("{}", exception_string);
+    tracing::error!("{}", exception_string);
 }
 
 #[cfg(test)]

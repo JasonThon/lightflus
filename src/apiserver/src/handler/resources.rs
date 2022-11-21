@@ -1,22 +1,14 @@
-use actix_web::{
-    error::{ErrorBadRequest, ErrorInternalServerError},
-    get, post, web, HttpResponse,
-};
-use common::{err::ApiError, utils::pb_to_bytes_mut};
+use actix_web::{error::ErrorBadRequest, get, post, web, HttpResponse};
+use common::utils::{from_pb_slice, pb_to_bytes_mut};
 use futures_util::StreamExt;
-use proto::{
-    apiserver::{
-        CreateResourceRequest, CreateResourceResponse, GetResourceResponse, Resource,
-        ResourceStatusEnum,
-        ResourceTypeEnum::{self, RESOURCE_TYPE_ENUM_DATAFLOW},
-    },
-    coordinator::{cli::new_coordinator_client, coordinator::GetDataflowRequest},
+use proto::apiserver::{CreateResourceRequest, CreateResourceResponse, ResourceTypeEnum};
+
+use crate::{
+    handler::services::create_dataflow,
+    types::{GetResourceArgs, ListResourcesArgs},
 };
-use protobuf::{CodedInputStream, Message, ProtobufEnum, ProtobufError};
 
-use crate::types::{GetResourceArgs, ListResourcesArgs};
-
-const COORDINATOR_URI_ENV: &str = "LIGHTFLUS_COORDINATOR_URI";
+use super::services::get_dataflow;
 
 #[post("/create")]
 async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpResponse> {
@@ -26,61 +18,27 @@ async fn create_resource(mut req: web::Payload) -> actix_web::Result<HttpRespons
         bytes.extend_from_slice(&item);
     }
 
-    let ref mut stream = CodedInputStream::from_bytes(bytes.iter().as_slice());
-    CreateResourceRequest::parse_from(stream)
-        .map_err(|err| match err {
-            ProtobufError::IoError(io_err) => ErrorBadRequest(io_err),
-            ProtobufError::WireError(wire_err) => ErrorBadRequest(format!("{}", wire_err)),
-            ProtobufError::Utf8(utf8_err) => ErrorBadRequest(utf8_err),
-            ProtobufError::MessageNotInitialized { message } => ErrorBadRequest(message),
-        })
-        .and_then(|req| match req.get_resource_type() {
-            RESOURCE_TYPE_ENUM_DATAFLOW => {
-                let uri = common::utils::get_env(COORDINATOR_URI_ENV);
-                let cli = new_coordinator_client(uri.unwrap());
-                let result = cli.create_dataflow_async(req.get_dataflow().get_dataflow());
-                result
-                    .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-                    .map(|_| {
-                        let mut response = CreateResourceResponse::default();
-                        response.set_status(ResourceStatusEnum::RESOURCE_STATUS_ENUM_STARTING);
-                        response
-                    })
-            }
-            _ => Ok(CreateResourceResponse::default()),
-        })
-        .map(|resp| HttpResponse::Created().body(pb_to_bytes_mut(resp)))
+    match from_pb_slice::<CreateResourceRequest>(bytes.iter().as_slice()) {
+        Ok(req) => match req.resource_type() {
+            ResourceTypeEnum::Dataflow => create_dataflow(req)
+                .await
+                .map(|resp| HttpResponse::Created().body(pb_to_bytes_mut(resp))),
+            _ => Ok(
+                HttpResponse::Created().body(pb_to_bytes_mut(CreateResourceResponse::default()))
+            ),
+        },
+        Err(err) => Err(ErrorBadRequest(err)),
+    }
 }
 
 #[get("/get/{namespace}/{resource_type}/{resource_id}")]
 async fn get_resource(args: web::Path<GetResourceArgs>) -> actix_web::Result<HttpResponse> {
-    let resource_type_option = ResourceTypeEnum::from_i32(args.resource_type);
-    let mut resp = HttpResponse::Ok();
-
-    if resource_type_option.is_some() {
-        let ref resource_type = resource_type_option.unwrap();
-        match resource_type {
-            RESOURCE_TYPE_ENUM_DATAFLOW => {
-                let uri = common::utils::get_env(COORDINATOR_URI_ENV).unwrap();
-                let cli = new_coordinator_client(uri);
-                let ref mut req = GetDataflowRequest::default();
-                req.set_job_id(args.to_resource_id());
-                cli.get_dataflow(req)
-                    .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-                    .and_then(|resp| {
-                        let mut response = GetResourceResponse::default();
-                        let mut resource = Resource::default();
-                        resource.set_resource_id(resp.get_graph().get_job_id().clone());
-                        resource.set_resource_type(*resource_type);
-                        response.set_resource(resource);
-                        Ok(response)
-                    })
-                    .map(|response| resp.body(pb_to_bytes_mut(response)))
-            }
-            _ => Ok(resp.finish()),
-        }
-    } else {
-        Ok(resp.finish())
+    match ResourceTypeEnum::from_i32(args.resource_type) {
+        Some(resource_type) => match resource_type {
+            ResourceTypeEnum::Dataflow => get_dataflow(args.as_ref()).await,
+            _ => Ok(HttpResponse::Ok().finish()),
+        },
+        None => Ok(HttpResponse::Ok().finish()),
     }
 }
 

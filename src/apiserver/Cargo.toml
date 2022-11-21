@@ -10,6 +10,6 @@ common = { path = "../common" }
 proto = { path = "../proto", features = ["coordinator", "apiserver"] }
 actix-web = "4"
 serde = { version = "1.0", features = ["derive"] }
-protobuf = "2.27.1"
-grpcio = "0.10.3"
 futures-util = "0.3.25"
+futures-executor = "0.3"
+tonic = "0.8"

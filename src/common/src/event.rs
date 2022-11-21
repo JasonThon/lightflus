@@ -1,5 +1,5 @@
-use proto::common::common::ResourceId;
-use proto::common::event::KeyedDataEvent;
+use proto::common::KeyedDataEvent;
+use proto::common::ResourceId;
 
 use crate::kafka::KafkaMessage;
 use crate::types::{self, TypedValue};
@@ -51,11 +51,17 @@ impl SinkableMessage for SinkableMessageImpl {
             SinkableMessageImpl::LocalMessage(event) => match event {
                 LocalEvent::Terminate { .. } => Err(KafkaEventError::UnsupportedEvent),
                 LocalEvent::KeyedDataStreamEvent(e) => {
-                    let key = TypedValue::from_slice(e.get_key().get_value()).to_json_value();
+                    let key = TypedValue::from_slice(
+                        &e.key
+                            .as_ref()
+                            .map(|entry| entry.value.clone())
+                            .unwrap_or_default(),
+                    )
+                    .to_json_value();
                     let values = e
-                        .get_data()
+                        .data
                         .iter()
-                        .map(|entry| TypedValue::from_slice(entry.get_value()).to_json_value());
+                        .map(|entry| TypedValue::from_slice(&entry.value).to_json_value());
                     serde_json::to_vec(&key)
                         .and_then(|k| {
                             let mut messages = vec![];

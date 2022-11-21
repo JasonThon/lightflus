@@ -25,13 +25,6 @@ async function wordCount(ctx: ExecutionContext) {
     .reduce((v1, v2) => {
       return { t0: v1.t0, t1: v1.t1 + v2.t1 };
     })
-    .window({
-      fixed: {
-        size: {
-          seconds: 5
-        }
-      }
-    })
     .sink(sink)
     .execute();
 }

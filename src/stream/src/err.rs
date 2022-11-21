@@ -29,15 +29,6 @@ impl From<SendError<SinkableMessageImpl>> for SinkException {
     }
 }
 
-impl SinkException {
-    pub(crate) fn invalid_message_type() -> Self {
-        Self {
-            kind: ErrorKind::InvalidMessageType,
-            msg: "invalid message type".to_string(),
-        }
-    }
-}
-
 impl From<KafkaException> for SinkException {
     fn from(err: KafkaException) -> Self {
         Self {
@@ -80,6 +71,12 @@ impl From<KafkaEventError> for SinkException {
             kind: ErrorKind::KafkaMessageSendFailed,
             msg: format!("{:?}", err),
         }
+    }
+}
+
+impl From<&mut tonic::transport::Error> for SinkException {
+    fn from(err: &mut tonic::transport::Error) -> Self {
+        todo!()
     }
 }
 

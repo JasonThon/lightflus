@@ -1,14 +1,15 @@
 #[cfg(feature = "proto-common")]
-#[cfg(not(tarpaulin_include))]
 pub mod common;
+#[cfg(feature = "proto-common")]
+pub mod common_impl;
+
 #[cfg(feature = "coordinator")]
-#[cfg(not(tarpaulin_include))]
 pub mod coordinator;
 
 #[cfg(feature = "worker")]
-#[cfg(not(tarpaulin_include))]
 pub mod worker;
 
 #[cfg(feature = "apiserver")]
-#[cfg(not(tarpaulin_include))]
 pub mod apiserver;
+#[cfg(feature = "apiserver")]
+pub mod apiserver_impl;

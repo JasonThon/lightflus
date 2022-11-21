@@ -1,18 +1,16 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use common::err::ApiError;
 use common::err::CommonException;
 use common::err::ErrorKind;
 use common::net::cluster;
-use common::net::status;
 
 use common::types::HashedResourceId;
-use common::utils::validate_dataflow;
-use proto::common::common::ResourceId;
-use proto::common::stream::Dataflow;
-use proto::common::stream::DataflowStatus;
-use protobuf::Message;
+use common::utils;
+use prost::Message;
+use proto::common::Dataflow;
+use proto::common::DataflowStatus;
+use proto::common::ResourceId;
 use rocksdb::DB;
 
 pub(crate) trait DataflowStorage {
@@ -29,37 +27,29 @@ pub struct RocksDataflowStorage {
 
 impl DataflowStorage for RocksDataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
-        dataflow
-            .get_job_id()
-            .write_to_bytes()
-            .map_err(|err| CommonException::from(err))
-            .and_then(|job_id_bytes| {
+        self.db
+            .put(
                 dataflow
-                    .write_to_bytes()
-                    .map_err(|err| err.into())
-                    .and_then(|buf| {
-                        self.db
-                            .put(job_id_bytes, buf)
-                            .map_err(|err| CommonException {
-                                kind: ErrorKind::SaveDataflowFailed,
-                                message: err.into_string(),
-                            })
-                    })
+                    .job_id
+                    .as_ref()
+                    .map(|key| key.encode_to_vec())
+                    .unwrap_or_default(),
+                dataflow.encode_to_vec(),
+            )
+            .map_err(|err| CommonException {
+                kind: ErrorKind::SaveDataflowFailed,
+                message: err.into_string(),
             })
     }
 
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        match job_id
-            .write_to_bytes()
-            .map_err(|err| CommonException::from(err))
-            .and_then(|key| {
-                self.db
-                    .get(key)
-                    .map(|data| data.and_then(|buf| Dataflow::parse_from_bytes(&buf).ok()))
-                    .map_err(|err| CommonException {
-                        kind: ErrorKind::GetDataflowFailed,
-                        message: err.into_string(),
-                    })
+        match self
+            .db
+            .get(&job_id.encode_to_vec())
+            .map(|data| data.and_then(|buf| utils::from_pb_slice(&buf).ok()))
+            .map_err(|err| CommonException {
+                kind: ErrorKind::GetDataflowFailed,
+                message: err.into_string(),
             }) {
             Ok(result) => result,
             Err(err) => {
@@ -70,27 +60,15 @@ impl DataflowStorage for RocksDataflowStorage {
     }
 
     fn may_exists(&self, job_id: &ResourceId) -> bool {
-        match job_id
-            .write_to_bytes()
-            .map(|key| self.db.key_may_exist(key))
-        {
-            Ok(exist) => exist,
-            Err(err) => {
-                log::error!("deserialize proto failed {}", err);
-                false
-            }
-        }
+        self.db.key_may_exist(job_id.encode_to_vec())
     }
 
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
-        job_id
-            .write_to_bytes()
-            .map_err(|err| err.into())
-            .and_then(|key| {
-                self.db.delete(key).map_err(|err| CommonException {
-                    kind: ErrorKind::DeleteDataflowFailed,
-                    message: err.into_string(),
-                })
+        self.db
+            .delete(job_id.encode_to_vec())
+            .map_err(|err| CommonException {
+                kind: ErrorKind::DeleteDataflowFailed,
+                message: err.into_string(),
             })
     }
 }
@@ -103,7 +81,7 @@ pub struct MemDataflowStorage {
 impl DataflowStorage for MemDataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
         self.cache.insert(
-            HashedResourceId::from(dataflow.get_job_id()),
+            HashedResourceId::from(dataflow.job_id.as_ref().unwrap()),
             dataflow.clone(),
         );
         Ok(())
@@ -178,37 +156,37 @@ impl Coordinator {
         }
     }
 
-    pub fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), ApiError> {
-        validate_dataflow(&dataflow)
-            .map_err(|err| ApiError::from_error(err))
+    pub fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), tonic::Status> {
+        dataflow.validate()
+            .map_err(|err| tonic::Status::invalid_argument(format!("{:?}", err)))
             .and_then(|_| {
                 self.cluster.partition_dataflow(&mut dataflow);
-                match self.dataflow_storage.save(dataflow.clone()) {
-                    Err(err) => return err.to_api_error(),
-                    _ => {}
-                }
-
-                let terminate_result = self.terminate_dataflow(dataflow.get_job_id());
+                let terminate_result = self.terminate_dataflow(dataflow.job_id.as_ref().unwrap());
                 if terminate_result.is_err() {
                     return terminate_result.map(|_| ());
                 }
 
-                self.cluster.create_dataflow(dataflow)
+                match self.dataflow_storage.save(dataflow.clone()) {
+                    Err(err) => return Err(tonic::Status::internal(err.message)),
+                    _ => {}
+                }
+
+                self.cluster.create_dataflow(&dataflow)
             })
     }
 
-    pub fn terminate_dataflow(&mut self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {
+    pub fn terminate_dataflow(
+        &mut self,
+        job_id: &ResourceId,
+    ) -> Result<DataflowStatus, tonic::Status> {
         if !self.dataflow_storage.may_exists(job_id) {
-            Ok(DataflowStatus::CLOSED)
+            Ok(DataflowStatus::Closed)
         } else {
             self.dataflow_storage
                 .delete(job_id)
                 .map_err(|err| {
                     log::error!("delete dataflow failed: {:?}", err);
-                    ApiError {
-                        code: status::SERVICE_INTERNAL_ERROR,
-                        msg: err.message,
-                    }
+                    tonic::Status::internal(err.message)
                 })
                 .and_then(|_| self.cluster.terminate_dataflow(job_id))
         }
@@ -216,6 +194,10 @@ impl Coordinator {
 
     pub fn get_dataflow(&self, job_id: &ResourceId) -> Option<Dataflow> {
         self.dataflow_storage.get(job_id)
+    }
+
+    pub fn probe_state(&mut self) {
+        self.cluster.probe_state()
     }
 }
 

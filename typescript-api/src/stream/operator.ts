@@ -1,8 +1,8 @@
-import { common } from "../proto/apiserver";
 import { injectFunctionName } from "../common/common";
 import IWindow = common.IWindow;
 import ISource = common.ISource;
 import ISink = common.ISink;
+import { common } from "../proto/apiserver";
 
 export enum OperatorType {
   FlatMap = "flatMap",
@@ -25,9 +25,6 @@ export abstract class Operator {
   toOperatorInfo(): common.IOperatorInfo {
     return {
       operatorId: this.operatorId,
-      config: {
-        window: this.window
-      }
     };
   }
 

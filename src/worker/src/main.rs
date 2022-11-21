@@ -1,16 +1,15 @@
 use common::utils;
-use proto::worker::worker_grpc;
+use proto::worker::task_worker_api_server::TaskWorkerApiServer;
 use std::fs;
-use std::sync;
 use stream::initialize_v8;
+use tonic::transport::Server;
 
 mod api;
 pub mod manager;
 pub mod worker;
 
 #[tokio::main]
-async fn main() {
-    log::set_max_level(log::LevelFilter::Info);
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     initialize_v8();
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
@@ -46,22 +45,10 @@ async fn main() {
     let ref mut config = reader.unwrap();
     let task_worker = worker::new_worker();
 
-    let server = api::TaskWorkerApiImpl::new(task_worker);
-    let service = worker_grpc::create_task_worker_api(server);
-
-    let grpc_server = grpcio::ServerBuilder::new(sync::Arc::new(grpcio::Environment::new(10)))
-        .register_service(service)
-        .bind("0.0.0.0", config.port as u16)
-        .build();
-
-    if grpc_server.is_err() {
-        panic!("{:?}", grpc_server.unwrap_err())
-    }
-
-    let mut unwrap_server = grpc_server.unwrap();
-    unwrap_server.start();
-    log::info!("start service at port {}", &config.port);
+    let server = TaskWorkerApiServer::new(api::TaskWorkerApiImpl::new(task_worker));
+    let addr = format!("0.0.0.0:{}", config.port).parse()?;
+    Server::builder().add_service(server).serve(addr).await?;
 
     let _ = tokio::signal::ctrl_c().await;
-    let _ = unwrap_server.shutdown().await;
+    Ok(())
 }

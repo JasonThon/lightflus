@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use proto::common::stream::RedisDesc;
+use proto::common::RedisDesc;
 use redis::{Commands, ConnectionAddr, ConnectionInfo, RedisConnectionInfo};
 
 use crate::{err::RedisException, types::TypedValue};
@@ -66,24 +66,24 @@ impl RedisClient {
 }
 
 pub fn to_connection_info(conf: &RedisDesc) -> ConnectionInfo {
-    let db = conf.get_connection_opts().get_database();
-    let host = conf.get_connection_opts().get_host();
-    let (addr, opt) = if conf.get_connection_opts().get_tls() {
+    let opts = conf.connection_opts.as_ref().unwrap();
+    let db = opts.database;
+    let (addr, opt) = if opts.tls {
         (
             ConnectionAddr::TcpTls {
-                host: host.to_string(),
+                host: opts.host.clone(),
                 port: REDIS_PORT,
                 insecure: false,
             },
             RedisConnectionInfo {
                 db,
                 username: None,
-                password: Some(conf.get_connection_opts().get_password().to_string()),
+                password: Some(opts.password.clone()),
             },
         )
     } else {
         (
-            ConnectionAddr::Tcp(host.to_string(), REDIS_PORT),
+            ConnectionAddr::Tcp(opts.host.clone(), REDIS_PORT),
             RedisConnectionInfo {
                 db,
                 username: None,

@@ -6,26 +6,24 @@ use crate::v8_runtime::RuntimeEngine;
 use common::collections::lang;
 use common::event::{LocalEvent, SinkableMessage, SinkableMessageImpl};
 use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, KafkaProducer};
+
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils;
-use proto::common::common::{HostAddr, ResourceId};
-use proto::common::event::{Entry, KeyedDataEvent};
-use proto::common::stream::{
-    DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc, Sink_oneof_desc, Source_oneof_desc,
-};
-use proto::worker::cli::{new_dataflow_worker_client, DataflowWorkerConfig};
-use proto::worker::worker::{
-    DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest,
-};
-use protobuf::well_known_types::Timestamp;
-use protobuf::RepeatedField;
+use prost_types::Timestamp;
+
+use proto::common::mysql_desc;
+use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc};
+use proto::common::{Entry, KeyedDataEvent};
+use proto::common::{HostAddr, ResourceId};
+use proto::worker::task_worker_api_client::TaskWorkerApiClient;
+use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
 use sqlx::{Arguments, MySqlPool};
 
 use std::collections::BTreeMap;
 
+use rayon::prelude::*;
 use std::sync::Arc;
-use std::thread::{spawn, JoinHandle};
 use std::time::SystemTime;
 use std::vec;
 
@@ -82,7 +80,7 @@ impl DataflowContext {
         let ref mut source_sink_manager = SourceSinkManger::new(&self.job_id);
         let mut meta_map = BTreeMap::new();
         self.meta.iter().for_each(|meta| {
-            meta_map.insert(meta.get_center(), meta.get_neighbors());
+            meta_map.insert(meta.center, meta.neighbors.clone());
 
             self.create_source_sink(source_sink_manager, meta.center as ExecutorId);
 
@@ -104,7 +102,7 @@ impl DataflowContext {
                 self.nodes.get(&meta.center).unwrap().clone(),
             )));
 
-            meta.get_neighbors().iter().for_each(|id| {
+            meta.neighbors.iter().for_each(|id| {
                 if !meta_map.contains_key(id) {
                     let neighbors = meta_map
                         .get(id)
@@ -128,7 +126,7 @@ impl DataflowContext {
 }
 
 pub trait Executor {
-    fn run(self) -> JoinHandle<()>;
+    fn run(self) -> tokio::task::JoinHandle<()>;
     fn as_sinkable(&self) -> SinkImpl;
 }
 
@@ -158,11 +156,11 @@ impl LocalExecutor {
 }
 
 impl Executor for LocalExecutor {
-    fn run(self) -> JoinHandle<()> {
+    fn run(self) -> tokio::task::JoinHandle<()> {
         use LocalEvent::KeyedDataStreamEvent;
         use SinkableMessageImpl::LocalMessage;
 
-        spawn(move || {
+        tokio::spawn(async move {
             let isolate = &mut v8::Isolate::new(Default::default());
             let scope = &mut v8::HandleScope::new(isolate);
             let task = DataflowTask::new(self.operator.clone(), new_state_mgt(), scope);
@@ -172,16 +170,17 @@ impl Executor for LocalExecutor {
                         LocalMessage(message) => match message {
                             KeyedDataStreamEvent(e) => {
                                 if self.operator.has_source() || self.operator.has_sink() {
-                                    self.sinks.iter().for_each(|sink| {
-                                        let _ = sink.sink(msg.clone());
+                                    self.sinks.par_iter().for_each(|sink| {
+                                        let _ = futures_executor::block_on(sink.sink(msg.clone()));
                                     });
                                 } else {
                                     match task.process(e) {
                                         Ok(results) => results.iter().for_each(|event| {
                                             let after_process = KeyedDataStreamEvent(event.clone());
-                                            self.sinks.iter().for_each(|sink| {
-                                                let _ =
-                                                    sink.sink(LocalMessage(after_process.clone()));
+                                            self.sinks.par_iter().for_each(|sink| {
+                                                let _ = futures_executor::block_on(
+                                                    sink.sink(LocalMessage(after_process.clone())),
+                                                );
                                             });
                                         }),
                                         Err(err) => {
@@ -218,7 +217,7 @@ pub enum ExecutorImpl {
 }
 
 impl ExecutorImpl {
-    pub fn run(self) -> JoinHandle<()> {
+    pub fn run(self) -> tokio::task::JoinHandle<()> {
         match self {
             ExecutorImpl::Local(exec) => exec.run(),
         }
@@ -297,7 +296,7 @@ impl SourceSinkManger {
             *executor_id,
             SinkImpl::Remote(RemoteSink {
                 sink_id: *executor_id,
-                host_addr: info.get_host_addr().clone(),
+                host_addr: info.get_host_addr(),
             }),
         );
     }
@@ -315,7 +314,7 @@ impl SourceSinkManger {
             .desc
             .iter()
             .for_each(|desc| match desc {
-                Source_oneof_desc::kafka(conf) => {
+                source::Desc::Kafka(conf) => {
                     self.sources.insert(
                         *executor_id,
                         SourceImpl::Kafka(Kafka::with_source_config(
@@ -325,7 +324,6 @@ impl SourceSinkManger {
                         )),
                     );
                 }
-                _ => {}
             })
     }
 
@@ -334,19 +332,19 @@ impl SourceSinkManger {
             return;
         }
         operator.get_sink().desc.iter().for_each(|desc| match desc {
-            Sink_oneof_desc::kafka(kafka) => {
+            sink::Desc::Kafka(kafka) => {
                 self.sinks.insert(
                     *executor_id,
                     SinkImpl::Kafka(Kafka::with_sink_config(&self.job_id, *executor_id, kafka)),
                 );
             }
-            Sink_oneof_desc::mysql(mysql) => {
+            sink::Desc::Mysql(mysql) => {
                 self.sinks.insert(
                     *executor_id,
                     SinkImpl::Mysql(Mysql::with_config(*executor_id, mysql)),
                 );
             }
-            Sink_oneof_desc::redis(_) => todo!(),
+            sink::Desc::Redis(_) => todo!(),
         });
     }
 
@@ -373,9 +371,13 @@ impl SourceSinkManger {
     }
 }
 
+#[tonic::async_trait]
 pub trait Sink {
     fn sink_id(&self) -> SinkId;
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException>;
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException>;
 }
 
 #[derive(Clone)]
@@ -384,19 +386,22 @@ pub struct LocalSink {
     pub(crate) sink_id: SinkId,
 }
 
+#[tonic::async_trait]
 impl Sink for LocalSink {
     fn sink_id(&self) -> SinkId {
         self.sink_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match &msg {
             SinkableMessageImpl::LocalMessage(_) => self
                 .sender
                 .send(msg)
-                .map(|_| DispatchDataEventStatusEnum::DONE)
+                .map(|_| DispatchDataEventStatusEnum::Done)
                 .map_err(|err| err.into()),
-            _ => Err(SinkException::invalid_message_type()),
         }
     }
 }
@@ -407,67 +412,66 @@ pub struct RemoteSink {
     pub(crate) host_addr: HostAddr,
 }
 
+#[tonic::async_trait]
 impl Sink for RemoteSink {
     fn sink_id(&self) -> SinkId {
         self.sink_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        let host = if self.host_addr.get_host().is_empty() {
-            None
-        } else {
-            Some(self.host_addr.get_host().to_string())
-        };
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+        let ref mut result = TaskWorkerApiClient::connect(format!(
+            "{}:{}",
+            &self.host_addr.host, self.host_addr.port
+        ))
+        .await;
 
-        let port = if self.host_addr.get_port() != 0 {
-            None
-        } else {
-            Some(self.host_addr.get_port() as u16)
-        };
-
-        let cli = new_dataflow_worker_client(DataflowWorkerConfig {
-            host,
-            port,
-            uri: None,
-        });
-
-        match msg {
-            SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { job_id, .. } => {
-                    let mut req = StopDataflowRequest::default();
-                    req.set_job_id(job_id);
-                    cli.stop_dataflow(&req)
-                        .map(|_| DispatchDataEventStatusEnum::DISPATCHING)
-                        .map_err(|err| SinkException {
-                            kind: RemoteSinkFailed,
-                            msg: format!("{}", err),
-                        })
-                }
-                LocalEvent::KeyedDataStreamEvent(event) => {
-                    let mut req = DispatchDataEventsRequest::default();
-                    req.set_events(RepeatedField::from_slice(&[event]));
-                    cli.dispatch_data_events(&req)
-                        .map(|resp| {
-                            for entry in resp.get_statusSet() {
-                                match entry.1 {
-                                    DispatchDataEventStatusEnum::DISPATCHING => {
-                                        return DispatchDataEventStatusEnum::DISPATCHING
-                                    }
-                                    DispatchDataEventStatusEnum::DONE => continue,
-                                    DispatchDataEventStatusEnum::FAILURE => {
-                                        return DispatchDataEventStatusEnum::FAILURE
+        match result.as_mut().map_err(|err| err.into()) {
+            Ok(cli) => match msg {
+                SinkableMessageImpl::LocalMessage(event) => match event {
+                    LocalEvent::Terminate { job_id, .. } => {
+                        let req = StopDataflowRequest {
+                            job_id: Some(job_id),
+                        };
+                        cli.stop_dataflow(tonic::Request::new(req))
+                            .await
+                            .map(|_| DispatchDataEventStatusEnum::Dispatching)
+                            .map_err(|err| SinkException {
+                                kind: RemoteSinkFailed,
+                                msg: format!("{}", err),
+                            })
+                    }
+                    LocalEvent::KeyedDataStreamEvent(event) => {
+                        let req = DispatchDataEventsRequest {
+                            events: vec![event],
+                        };
+                        cli.dispatch_data_events(tonic::Request::new(req))
+                            .await
+                            .map(|resp| {
+                                for key in resp.get_ref().status_set.keys() {
+                                    match resp.get_ref().get_status_set(&key).unwrap_or_default() {
+                                        DispatchDataEventStatusEnum::Dispatching => {
+                                            return DispatchDataEventStatusEnum::Dispatching
+                                        }
+                                        DispatchDataEventStatusEnum::Done => continue,
+                                        DispatchDataEventStatusEnum::Failure => {
+                                            return DispatchDataEventStatusEnum::Failure
+                                        }
                                     }
                                 }
-                            }
 
-                            DispatchDataEventStatusEnum::DONE
-                        })
-                        .map_err(|err| SinkException {
-                            kind: RemoteSinkFailed,
-                            msg: format!("{}", err),
-                        })
-                }
+                                DispatchDataEventStatusEnum::Done
+                            })
+                            .map_err(|err| SinkException {
+                                kind: RemoteSinkFailed,
+                                msg: format!("{}", err),
+                            })
+                    }
+                },
             },
+            Err(err) => Err(err),
         }
     }
 }
@@ -535,6 +539,7 @@ pub enum SinkImpl {
     Empty(SinkId),
 }
 
+#[tonic::async_trait]
 impl Sink for SinkImpl {
     fn sink_id(&self) -> SinkId {
         match self {
@@ -547,14 +552,17 @@ impl Sink for SinkImpl {
         }
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match self {
-            SinkImpl::Local(sink) => sink.sink(msg),
-            SinkImpl::Remote(sink) => sink.sink(msg),
-            SinkImpl::Kafka(sink) => sink.sink(msg),
-            SinkImpl::Mysql(sink) => sink.sink(msg),
-            SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::DONE),
-            SinkImpl::Redis(redis) => redis.sink(msg),
+            SinkImpl::Local(sink) => sink.sink(msg).await,
+            SinkImpl::Remote(sink) => sink.sink(msg).await,
+            SinkImpl::Kafka(sink) => sink.sink(msg).await,
+            SinkImpl::Mysql(sink) => sink.sink(msg).await,
+            SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
+            SinkImpl::Redis(redis) => redis.sink(msg).await,
         }
     }
 }
@@ -583,14 +591,14 @@ impl Kafka {
         };
         match run_consumer(
             config
-                .get_brokers()
+                .brokers
                 .iter()
                 .map(|v| v.clone())
                 .collect::<Vec<String>>()
                 .join(",")
                 .as_str(),
-            config.get_opts().get_group(),
-            config.get_topic(),
+            &config.get_kafka_group(),
+            &config.topic,
         ) {
             Ok(consumer) => self_.consumer = Some(Arc::new(consumer)),
             Err(err) => log::error!("kafka source connect failed: {}", err),
@@ -604,61 +612,69 @@ impl Kafka {
         executor_id: ExecutorId,
         config: &KafkaDesc,
     ) -> Kafka {
-        let producer = run_producer(
+        let mut self_ = Kafka {
+            connector_id: executor_id,
+            conf: config.clone(),
+            job_id: job_id.clone(),
+            consumer: None,
+            producer: None,
+        };
+        match run_producer(
             config
-                .get_brokers()
+                .brokers
                 .iter()
                 .map(|v| v.clone())
                 .collect::<Vec<String>>()
                 .join(",")
                 .as_str(),
-            config.get_topic(),
-            config.get_opts(),
-        );
-
-        Kafka {
-            connector_id: executor_id,
-            conf: config.clone(),
-            job_id: job_id.clone(),
-            consumer: None,
-            producer: Some(producer),
+            &config.topic,
+            &config.get_kafka_group(),
+            config.get_kafka_partition() as i32,
+        ) {
+            Ok(producer) => self_.producer = Some(producer),
+            Err(err) => log::error!("kafka producer create failed: {}", err),
         }
+
+        self_
     }
 
     fn process(&self, message: KafkaMessage) -> SinkableMessageImpl {
-        let data_type = self.conf.get_data_type();
+        let data_type = self.conf.data_type();
         let payload = message.payload.as_slice();
-        let val = TypedValue::from_slice_with_type(payload, data_type);
-        let mut event = KeyedDataEvent::default();
-        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
-        let mut event_time = Timestamp::default();
-
-        event_time.set_seconds(datetime.naive_utc().timestamp());
-        event_time.set_nanos(datetime.naive_utc().timestamp_subsec_nanos() as i32);
-        event.set_event_time(event_time);
-        event.set_job_id(self.job_id.clone());
-        event.set_from_operator_id(self.connector_id);
-
-        let mut data_entry = Entry::default();
-        data_entry.set_data_type(data_type);
-        data_entry.set_value(val.get_data());
-        event.set_data(RepeatedField::from_slice(&[data_entry]));
-
-        let mut key_entry = Entry::default();
         let key = TypedValue::from_vec(&message.key);
-        key_entry.set_data_type(key.get_type());
-        key_entry.set_value(message.key.clone());
-        event.set_key(key_entry);
+        let val = TypedValue::from_slice_with_type(payload, data_type);
+        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
 
-        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
+        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+            job_id: Some(self.job_id.clone()),
+            key: Some(Entry {
+                data_type: key.get_type() as i32,
+                value: key.get_data(),
+            }),
+            to_operator_id: 0,
+            data: vec![Entry {
+                data_type: self.conf.data_type() as i32,
+                value: val.get_data(),
+            }],
+            event_time: Some(Timestamp {
+                seconds: datetime.naive_utc().timestamp(),
+                nanos: datetime.naive_utc().timestamp_subsec_nanos() as i32,
+            }),
+            process_time: None,
+            from_operator_id: self.connector_id,
+            window: None,
+        }))
     }
 }
 
 impl Source for Kafka {
     fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
-        self.consumer
-            .as_ref()
-            .and_then(|consumer| consumer.fetch(|message| self.process(message)))
+        match &self.consumer {
+            Some(consumer) => {
+                futures_executor::block_on(consumer.fetch(|message| self.process(message)))
+            }
+            None => None,
+        }
     }
 
     fn source_id(&self) -> SourceId {
@@ -666,31 +682,36 @@ impl Source for Kafka {
     }
 }
 
+#[tonic::async_trait]
 impl Sink for Kafka {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match &self.producer {
             Some(producer) => {
                 let messages_result = msg.get_kafka_message();
-                messages_result
-                    .map_err(|err| err.into())
-                    .and_then(|messages| {
+                match messages_result.map_err(|err| err.into()) {
+                    Ok(messages) => {
                         for msg in messages {
                             let send_result = producer.send(&msg.key, &msg.payload);
                             if send_result.is_err() {
                                 return send_result
-                                    .map(|_| DispatchDataEventStatusEnum::FAILURE)
+                                    .map(|_| DispatchDataEventStatusEnum::Failure)
                                     .map_err(|err| err.into());
                             }
                         }
 
-                        Ok(DispatchDataEventStatusEnum::DONE)
-                    })
+                        Ok(DispatchDataEventStatusEnum::Done)
+                    }
+                    Err(err) => Err(err),
+                }
             }
-            None => Ok(DispatchDataEventStatusEnum::DONE),
+            None => Ok(DispatchDataEventStatusEnum::Done),
         }
     }
 }
@@ -698,107 +719,138 @@ impl Sink for Kafka {
 #[derive(Clone)]
 pub struct Mysql {
     connector_id: SinkId,
-    conf: MysqlDesc,
+    statement: String,
+    extractors: Vec<String>,
+    connection_opts: mysql_desc::ConnectionOpts,
 }
 impl Mysql {
     fn with_config(connector_id: u32, conf: &MysqlDesc) -> Mysql {
+        let mut statement = conf.get_mysql_statement();
+        statement
+            .extractors
+            .sort_by(|v1, v2| v1.index.cmp(&v2.index));
+        let extractors = statement
+            .extractors
+            .iter()
+            .map(|e| e.extractor.clone())
+            .collect();
+
+        let statement = statement.statement;
+
+        let connection_opts = conf
+            .connection_opts
+            .as_ref()
+            .map(|opts| opts.clone())
+            .unwrap_or_default();
+
         Mysql {
             connector_id,
-            conf: conf.clone(),
+            statement,
+            extractors,
+            connection_opts,
         }
     }
 
     fn get_arguments(&self, msg: SinkableMessageImpl) -> Vec<Vec<TypedValue>> {
-        let mut extractors = self.conf.get_statement().get_extractors().to_vec();
-
-        extractors.sort_by(|v1, v2| v1.get_index().cmp(&v2.get_index()));
-
-        extract_arguments(
-            extractors
-                .iter()
-                .map(|e| e.get_extractor().to_string())
-                .collect::<Vec<String>>()
-                .as_slice(),
-            msg,
-            "mysql_extractor",
-        )
+        extract_arguments(self.extractors.as_slice(), msg, "mysql_extractor")
     }
 
     fn get_uri(&self) -> String {
-        let db = self.conf.get_connection_opts().get_database();
-        let user = self.conf.get_connection_opts().get_username();
-        let password = self.conf.get_connection_opts().get_password();
-        let host = self.conf.get_connection_opts().get_host();
+        let db = &self.connection_opts.database;
+        let user = &self.connection_opts.username;
+        let password = &self.connection_opts.password;
+        let host = &self.connection_opts.host;
 
         format!("mysql://{user}:{password}@{host}/{db}")
     }
 
     fn get_statement(&self) -> String {
-        self.conf.get_statement().get_statement().to_string()
+        self.statement.clone()
     }
 }
 
+#[tonic::async_trait]
 impl Sink for Mysql {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let row_arguments = self.get_arguments(msg);
-        let pool = futures_executor::block_on(MySqlPool::connect(self.get_uri().as_str()));
-        pool.and_then(|conn| {
-            for arguments in row_arguments {
-                let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
-                arguments.iter().for_each(|val| match val {
-                    TypedValue::String(v) => mysql_arg.add(v),
-                    TypedValue::BigInt(v) => mysql_arg.add(v),
-                    TypedValue::Boolean(v) => mysql_arg.add(v),
-                    TypedValue::Number(v) => mysql_arg.add(v),
-                    _ => {}
-                });
+        match MySqlPool::connect(self.get_uri().as_str()).await {
+            Ok(conn) => {
+                for arguments in row_arguments {
+                    let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
+                    arguments.iter().for_each(|val| match val {
+                        TypedValue::String(v) => mysql_arg.add(v),
+                        TypedValue::BigInt(v) => mysql_arg.add(v),
+                        TypedValue::Boolean(v) => mysql_arg.add(v),
+                        TypedValue::Number(v) => mysql_arg.add(v),
+                        _ => {}
+                    });
 
-                let result = futures_executor::block_on(
-                    sqlx::query_with(&self.get_statement(), mysql_arg).execute(&conn),
-                );
-                if result.is_err() {
-                    return result.map(|_| DispatchDataEventStatusEnum::FAILURE);
+                    let result = sqlx::query_with(&self.get_statement(), mysql_arg)
+                        .execute(&conn)
+                        .await
+                        .map_err(|err| err.into());
+
+                    if result.is_err() {
+                        return result.map(|_| DispatchDataEventStatusEnum::Failure);
+                    }
                 }
-            }
 
-            Ok(DispatchDataEventStatusEnum::DONE)
-        })
-        .map_err(|err| err.into())
+                Ok(DispatchDataEventStatusEnum::Done)
+            }
+            Err(err) => Err(err.into()),
+        }
     }
 }
 
 #[derive(Clone)]
 pub struct Redis {
     connector_id: SinkId,
-    conf: RedisDesc,
+    key_extractor: String,
+    value_extractor: String,
     client: RedisClient,
 }
 
 impl Redis {
-    pub fn with_config(connector_id: SinkId, conf: RedisDesc) -> Self {
+    pub fn with_config(connector_id: SinkId, conf: &RedisDesc) -> Self {
         let client = RedisClient::new(&conf);
+        let key_extractor = conf
+            .key_extractor
+            .as_ref()
+            .map(|func| func.function.clone())
+            .unwrap_or_default();
+        let value_extractor = conf
+            .value_extractor
+            .as_ref()
+            .map(|func| func.function.clone())
+            .unwrap_or_default();
         Self {
             connector_id,
-            conf,
+            key_extractor,
+            value_extractor,
             client,
         }
     }
 }
 
+#[tonic::async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    fn sink(&self, msg: SinkableMessageImpl) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        let key_extractor = self.conf.get_key_extractor().get_function().to_string();
-        let value_extractor = self.conf.get_value_extractor().get_function().to_string();
+    async fn sink(
+        &self,
+        msg: SinkableMessageImpl,
+    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let key_values = extract_arguments(
-            &[key_extractor, value_extractor],
+            &[self.key_extractor.clone(), self.value_extractor.clone()],
             msg.clone(),
             "redis_extractor",
         );
@@ -810,7 +862,7 @@ impl Sink for Redis {
                 let kvs = Vec::from_iter(key_values.iter().map(|kv| (&kv[0], &kv[1])));
                 self.client
                     .set_multiple(conn, kvs.as_slice())
-                    .map(|_| DispatchDataEventStatusEnum::DONE)
+                    .map(|_| DispatchDataEventStatusEnum::Done)
                     .map_err(|err| err.into())
             })
     }
@@ -826,25 +878,23 @@ fn extract_arguments(
     match message {
         SinkableMessageImpl::LocalMessage(event) => match event {
             LocalEvent::Terminate { .. } => vec![],
-            LocalEvent::KeyedDataStreamEvent(e) => {
-                Vec::from_iter(e.get_data().iter().map(|entry| {
-                    let val = TypedValue::from_slice(entry.get_value());
-                    extractors
-                        .iter()
-                        .map(|extractor| {
-                            let mut rt_engine =
-                                RuntimeEngine::new(extractor.as_str(), fn_name, scope);
-                            rt_engine.call_one_arg(&val).unwrap_or_default()
-                        })
-                        .collect::<Vec<TypedValue>>()
-                }))
-            }
+            LocalEvent::KeyedDataStreamEvent(e) => Vec::from_iter(e.data.iter().map(|entry| {
+                let val = TypedValue::from_slice(&entry.value);
+                extractors
+                    .iter()
+                    .map(|extractor| {
+                        let mut rt_engine = RuntimeEngine::new(extractor.as_str(), fn_name, scope);
+                        rt_engine.call_one_arg(&val).unwrap_or_default()
+                    })
+                    .collect::<Vec<TypedValue>>()
+            })),
         },
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use proto::common::{mysql_desc, operator_info::Details, sink, Entry};
 
     struct SetupGuard {}
 
@@ -868,43 +918,56 @@ mod tests {
 
     #[test]
     pub fn test_new_dataflow_context() {
-        use proto::common::common::ResourceId;
-        use proto::common::stream::DataflowMeta;
-        use proto::common::stream::OperatorInfo;
-        use proto::common::stream::{Filter, MysqlDesc, Sink};
+        use proto::common::DataflowMeta;
+        use proto::common::OperatorInfo;
+        use proto::common::ResourceId;
+        use proto::common::{Filter, MysqlDesc, Sink};
         use std::collections::BTreeMap;
 
         use crate::actor::DataflowContext;
 
         let mut metas = vec![];
         let mut meta = DataflowMeta::default();
-        meta.set_center(0);
-        meta.set_neighbors(vec![1]);
+        meta.center = 0;
+        meta.neighbors = vec![1];
 
         metas.push(meta);
         let mut meta = DataflowMeta::default();
-        meta.set_center(1);
-        meta.set_neighbors(vec![2]);
+        meta.center = 1;
+        meta.neighbors = vec![2];
 
         metas.push(meta);
 
         let mut nodes = BTreeMap::new();
         let mut node_1 = OperatorInfo::default();
-        node_1.set_operator_id(0);
+        node_1.operator_id = 0;
 
         nodes.insert(0, node_1);
 
         let mut op_1 = OperatorInfo::default();
-        op_1.set_operator_id(1);
-        op_1.set_filter(Filter::new());
+        op_1.operator_id = 1;
+        op_1.details = Some(Details::Filter(Filter::default()));
         nodes.insert(1, op_1);
 
-        let mut mysql = OperatorInfo::default();
-        mysql.set_operator_id(2);
-        let mut sink = Sink::default();
-        let desc = MysqlDesc::default();
-        sink.set_mysql(desc);
-        mysql.set_sink(sink);
+        let mysql = OperatorInfo {
+            operator_id: 2,
+            host_addr: None,
+            upstreams: vec![1],
+            details: Some(Details::Sink(Sink {
+                desc: Some(sink::Desc::Mysql(MysqlDesc {
+                    connection_opts: Some(mysql_desc::ConnectionOpts {
+                        host: "localhost".to_string(),
+                        username: "root".to_string(),
+                        password: "123".to_string(),
+                        database: "test".to_string(),
+                    }),
+                    statement: Some(mysql_desc::Statement {
+                        statement: "select".to_string(),
+                        extractors: vec![],
+                    }),
+                })),
+            })),
+        };
         nodes.insert(2, mysql);
 
         let ctx = DataflowContext::new(ResourceId::default(), metas, nodes);
@@ -914,37 +977,40 @@ mod tests {
 
     #[test]
     pub fn test_get_mysql_arguments() {
-        use proto::common::stream::{MysqlDesc, MysqlDesc_Statement};
-        use protobuf::RepeatedField;
+        use proto::common::MysqlDesc;
 
         use super::Mysql;
         use common::event::LocalEvent;
-        use proto::common::event::KeyedDataEvent;
+        use proto::common::KeyedDataEvent;
 
         use crate::actor::SinkableMessageImpl;
         use std::collections::BTreeMap;
 
         use common::types::TypedValue;
-        use proto::common::{event::Entry, stream::MysqlDesc_Statement_Extractor};
 
         let _setup_guard = setup_v8();
 
-        let mut desc = MysqlDesc::default();
-        let mut statement = MysqlDesc_Statement::default();
-        statement.set_statement("INSERT INTO table VALUES (?, ?)".to_string());
-        statement.set_extractors(RepeatedField::from_iter(
-            [
-                "function mysql_extractor(a) {return a.v1}",
-                "function mysql_extractor(a) {return a.v2}",
-            ]
-            .iter()
-            .map(|extractor| {
-                let mut new_extractor = MysqlDesc_Statement_Extractor::default();
-                new_extractor.set_extractor(extractor.to_string());
-                new_extractor
+        let desc = MysqlDesc {
+            connection_opts: Some(mysql_desc::ConnectionOpts {
+                host: "localhost".to_string(),
+                username: "root".to_string(),
+                password: "123".to_string(),
+                database: "test".to_string(),
             }),
-        ));
-        desc.set_statement(statement);
+            statement: Some(mysql_desc::Statement {
+                statement: "INSERT INTO table VALUES (?, ?)".to_string(),
+                extractors: vec![
+                    mysql_desc::statement::Extractor {
+                        index: 1,
+                        extractor: "function mysql_extractor(a) {return a.v1}".to_string(),
+                    },
+                    mysql_desc::statement::Extractor {
+                        index: 2,
+                        extractor: "function mysql_extractor(a) {return a.v2}".to_string(),
+                    },
+                ],
+            }),
+        };
 
         let mysql = Mysql::with_config(1, &desc);
         let mut event = KeyedDataEvent::default();
@@ -957,15 +1023,10 @@ mod tests {
         .for_each(|pair| {
             entry_1.insert(pair.0.to_string(), pair.1.clone());
         });
-        event.set_data(RepeatedField::from_iter(
-            [TypedValue::Object(entry_1)].iter().map(|value| {
-                let mut entry = Entry::default();
-                entry.set_data_type(value.get_type());
-                entry.set_value(value.get_data());
-
-                entry
-            }),
-        ));
+        event.data = Vec::from_iter([TypedValue::Object(entry_1)].iter().map(|value| Entry {
+            data_type: value.get_type() as i32,
+            value: value.get_data(),
+        }));
         let message = SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event));
         let arguments = mysql.get_arguments(message);
         assert_eq!(

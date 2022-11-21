@@ -194,7 +194,7 @@
             },
             "env": {
                 "RUST_LOG": "INFO",
-                "WORKER_1": "localhost"
+                "WORKER_1": "localhost",
             },
             "args": [],
             "cwd": "${workspaceFolder}"

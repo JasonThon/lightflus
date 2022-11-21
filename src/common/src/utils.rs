@@ -1,5 +1,4 @@
 use crate::{
-    err::DataflowValidateError,
     net::hostname,
     types::{
         BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL, STRING_SYMBOL,
@@ -7,11 +6,8 @@ use crate::{
     },
 };
 use bytes::BytesMut;
-use proto::common::{
-    common::{DataTypeEnum, ResourceId},
-    stream::{Dataflow, DataflowMeta, OperatorInfo},
-};
-use protobuf::Message;
+use prost::{DecodeError, Message};
+use proto::common::{DataTypeEnum, Dataflow, DataflowMeta, OperatorInfo, ResourceId};
 use serde::de::Error;
 use std::collections::HashMap;
 use std::env;
@@ -126,12 +122,15 @@ fn replace_by_env(value: &str) -> String {
 }
 
 pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
-    if operator.get_host_addr().get_host() == "localhost" || !operator.has_host_addr() {
+    let host_addr = &operator.host_addr.as_ref();
+    if host_addr.is_none() || host_addr.filter(|addr| &addr.host == "localhost").is_some() {
         return false;
     }
 
     hostname()
-        .map(|host| operator.get_host_addr().host != host)
+        .map(|host| {
+            operator.host_addr.is_some() && host_addr.filter(|addr| addr.host != host).is_some()
+        })
         .unwrap_or(false)
 }
 
@@ -140,86 +139,65 @@ pub fn to_dataflow(
     operators: &Vec<OperatorInfo>,
     meta: &[DataflowMeta],
 ) -> Dataflow {
-    let mut dataflow = Dataflow::new();
-    dataflow.set_job_id(job_id.clone());
-    dataflow.set_nodes(
-        operators
-            .iter()
-            .map(|entry| (entry.get_operator_id(), (*entry).clone()))
-            .collect(),
-    );
-    dataflow.set_meta(
-        meta.iter()
-            .filter(|elem| dataflow.get_nodes().contains_key(&elem.center))
-            .map(|elem| elem.clone())
-            .collect(),
-    );
+    let mut dataflow = Dataflow::default();
+
+    dataflow.job_id = Some(job_id.clone());
+    dataflow.nodes = operators
+        .iter()
+        .map(|entry| (entry.operator_id, (*entry).clone()))
+        .collect();
+
+    dataflow.meta = meta
+        .iter()
+        .filter(|elem| dataflow.nodes.contains_key(&elem.center))
+        .map(|elem| elem.clone())
+        .collect();
 
     dataflow
-}
-
-pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateError> {
-    let mut metas = dataflow.get_meta().to_vec();
-    metas.sort_by(|prev, next| prev.center.cmp(&next.center));
-
-    for meta in &metas {
-        if !dataflow.get_nodes().contains_key(&meta.center) {
-            return Err(DataflowValidateError::OperatorInfoMissing(format!(
-                "operatorInfo of node {} is missing",
-                meta.center
-            )));
-        }
-
-        for neighbor in meta.get_neighbors() {
-            if neighbor < &meta.center {
-                return Err(DataflowValidateError::CyclicDataflow);
-            }
-
-            if !dataflow.get_nodes().contains_key(neighbor) {
-                return Err(DataflowValidateError::OperatorInfoMissing(format!(
-                    "operatorInfo of node {} is missing",
-                    neighbor
-                )));
-            }
-        }
-    }
-
-    return Ok(());
 }
 
 pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
     let raw = symbol.as_str();
     if raw == STRING_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_STRING
+        DataTypeEnum::String
     } else if raw == NUMBER_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_NUMBER
+        DataTypeEnum::Number
     } else if raw == OBJECT_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+        DataTypeEnum::Object
     } else if raw == BOOLEAN_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+        DataTypeEnum::Boolean
     } else if raw == BIGINT_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_BIGINT
+        DataTypeEnum::Bigint
     } else if raw == NULL_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_NULL
+        DataTypeEnum::Null
     } else if raw == UNDEFINED_SYMBOL {
-        DataTypeEnum::DATA_TYPE_ENUM_NULL
+        DataTypeEnum::Unspecified
     } else {
-        DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+        DataTypeEnum::Unspecified
     }
 }
 
 pub fn pb_to_bytes_mut<T: Message>(message: T) -> BytesMut {
-    let ref mut raw_data = vec![];
     let mut bytes = BytesMut::new();
-    if message.write_to_vec(raw_data).is_ok() {
-        bytes.extend_from_slice(raw_data);
-    }
+    bytes.extend_from_slice(&message.encode_to_vec());
 
     bytes
 }
 
+pub fn from_pb_slice<T: Message + std::default::Default>(data: &[u8]) -> Result<T, DecodeError> {
+    prost::Message::decode(data)
+}
+
+pub fn uuid() -> String {
+    uuid::Uuid::new_v4().to_string()
+}
+
 #[cfg(test)]
 mod tests {
+    use proto::{
+        common::{operator_info::Details, ResourceId},
+        common_impl::DataflowValidateError,
+    };
 
     #[test]
     fn test_process_arg_success() {
@@ -261,65 +239,66 @@ mod tests {
 
     #[test]
     fn test_from_type_symbol() {
-        use proto::common::common::DataTypeEnum;
+        use proto::common::DataTypeEnum;
         assert_eq!(
             super::from_type_symbol(super::STRING_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_STRING
+            DataTypeEnum::String
         );
 
         assert_eq!(
             super::from_type_symbol(super::NUMBER_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_NUMBER
+            DataTypeEnum::Number
         );
 
         assert_eq!(
             super::from_type_symbol(super::OBJECT_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_OBJECT
+            DataTypeEnum::Object
         );
 
         assert_eq!(
             super::from_type_symbol(super::BOOLEAN_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_BOOLEAN
+            DataTypeEnum::Boolean
         );
 
         assert_eq!(
             super::from_type_symbol(super::BIGINT_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_BIGINT
+            DataTypeEnum::Bigint
         );
 
         assert_eq!(
             super::from_type_symbol(super::NULL_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_NULL
+            DataTypeEnum::Null
         );
 
         assert_eq!(
             super::from_type_symbol(super::UNDEFINED_SYMBOL.to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_NULL
+            DataTypeEnum::Unspecified
         );
 
         assert_eq!(
             super::from_type_symbol("sss".to_string()),
-            DataTypeEnum::DATA_TYPE_ENUM_UNSPECIFIED
+            DataTypeEnum::Unspecified
         );
     }
 
     #[test]
     fn test_to_dataflow() {
-        use proto::common::common::ResourceId;
-        use proto::common::stream::DataflowMeta;
-        use proto::common::stream::OperatorInfo;
+        use proto::common::DataflowMeta;
+        use proto::common::OperatorInfo;
+        use proto::common::ResourceId;
         use std::collections::HashMap;
 
         let job_id = ResourceId::default();
         let mut op1 = OperatorInfo::default();
-        op1.set_operator_id(0);
+        op1.operator_id = 0;
         let mut op2 = OperatorInfo::default();
-        op2.set_operator_id(1);
+        op2.operator_id = 1;
         let operators = vec![op1.clone(), op2.clone()];
 
-        let mut meta1 = DataflowMeta::default();
-        meta1.set_center(0);
-        meta1.set_neighbors(vec![1]);
+        let meta1 = DataflowMeta {
+            center: 0,
+            neighbors: vec![1],
+        };
 
         let dataflow = super::to_dataflow(&job_id, &operators, &[meta1.clone()]);
 
@@ -327,88 +306,95 @@ mod tests {
         nodes.insert(0, op1);
         nodes.insert(1, op2);
 
-        assert_eq!(dataflow.get_job_id(), &job_id);
-        assert_eq!(dataflow.get_meta(), &[meta1]);
-        assert_eq!(dataflow.get_nodes(), &nodes);
+        assert_eq!(dataflow.job_id, Some(job_id));
+        assert_eq!(dataflow.meta, &[meta1]);
+        assert_eq!(dataflow.nodes, nodes);
     }
 
     #[test]
     fn test_validate_dataflow_success() {
-        use crate::utils::validate_dataflow;
-        use proto::common::stream::Dataflow;
-        use proto::common::stream::DataflowMeta;
-        use proto::common::stream::OperatorInfo;
-        use protobuf::RepeatedField;
+        use proto::common::Dataflow;
+        use proto::common::DataflowMeta;
+        use proto::common::OperatorInfo;
         use std::collections::HashMap;
 
         let mut dataflow = Dataflow::default();
+        dataflow.job_id = Some(ResourceId {
+            resource_id: "resourceId".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        });
         let mut meta = DataflowMeta::default();
-        meta.set_center(0);
-        meta.set_neighbors(vec![1, 2, 3]);
+        meta.center = 0;
+        meta.neighbors = vec![1, 2, 3];
 
-        dataflow.set_meta(RepeatedField::from_slice(&[meta]));
+        dataflow.meta = vec![meta];
 
         let mut nodes = HashMap::default();
         let mut info_1 = OperatorInfo::default();
-        info_1.set_operator_id(0);
+        info_1.operator_id = 0;
+        info_1.details = Some(Details::Filter(Default::default()));
         nodes.insert(0, info_1);
-        dataflow.set_nodes(nodes.clone());
+        dataflow.nodes = nodes.clone();
 
-        let result = validate_dataflow(&dataflow);
+        let result = dataflow.validate();
         assert!(result.is_err());
         let err = result.unwrap_err();
         match err {
-            crate::err::DataflowValidateError::OperatorInfoMissing(_) => {}
+            DataflowValidateError::OperatorInfoMissing(_) => {}
             _ => panic!("unexpected error"),
         };
 
         (1..4).for_each(|index| {
             let mut info = OperatorInfo::default();
-            info.set_operator_id(index);
+            info.operator_id = index;
+            info.details = Some(Details::Filter(Default::default()));
             nodes.insert(index, info);
         });
 
-        dataflow.set_nodes(nodes);
-        let result = validate_dataflow(&dataflow);
+        dataflow.nodes = nodes;
+        let result = dataflow.validate();
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_dataflow_is_cyclic() {
-        use crate::utils::validate_dataflow;
-        use proto::common::stream::Dataflow;
-        use proto::common::stream::DataflowMeta;
-        use proto::common::stream::OperatorInfo;
-        use protobuf::RepeatedField;
+        use proto::common::Dataflow;
+        use proto::common::DataflowMeta;
+        use proto::common::OperatorInfo;
         use std::collections::HashMap;
 
         let mut dataflow = Dataflow::default();
         let mut meta = DataflowMeta::default();
-        meta.set_center(0);
-        meta.set_neighbors(vec![1, 2, 3]);
+        meta.center = 0;
+        meta.neighbors = vec![1, 2, 3];
         let mut meta_1 = DataflowMeta::default();
-        meta_1.set_center(1);
-        meta_1.set_neighbors(vec![2, 3, 4]);
+        meta_1.center = 1;
+        meta_1.neighbors = vec![2, 3, 4];
         let mut meta_2 = DataflowMeta::default();
-        meta_2.set_center(4);
-        meta_2.set_neighbors(vec![0]);
+        meta_2.center = 4;
+        meta_2.neighbors = vec![0];
 
-        dataflow.set_meta(RepeatedField::from_slice(&[meta, meta_1, meta_2]));
+        dataflow.meta = vec![meta, meta_1, meta_2];
+        dataflow.job_id = Some(ResourceId {
+            resource_id: "resourceId".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        });
         let mut nodes = HashMap::default();
 
         (0..5).for_each(|index| {
             let mut info = OperatorInfo::default();
-            info.set_operator_id(index);
+            info.operator_id = index;
+            info.details = Some(Details::Filter(Default::default()));
             nodes.insert(index, info);
         });
 
-        dataflow.set_nodes(nodes);
+        dataflow.nodes = nodes;
 
-        let result = validate_dataflow(&dataflow);
+        let result = dataflow.validate();
         assert!(result.is_err());
         let err = result.unwrap_err();
         match err {
-            crate::err::DataflowValidateError::CyclicDataflow => {}
+            DataflowValidateError::CyclicDataflow => {}
             _ => panic!("unexpected error"),
         };
     }

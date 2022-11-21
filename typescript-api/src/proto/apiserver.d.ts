@@ -1,6 +1,6 @@
 import * as $protobuf from "protobufjs";
 import Long = require("long");
-/** Namespace proto. */
+/** Namespace apiserver. */
 export namespace apiserver {
 
     /** Properties of a CreateResourceRequest. */
@@ -1156,9 +1156,6 @@ export namespace common {
         /** OperatorInfo hostAddr */
         hostAddr?: (common.IHostAddr|null);
 
-        /** OperatorInfo config */
-        config?: (common.IStreamConfig|null);
-
         /** OperatorInfo upstreams */
         upstreams?: (number[]|null);
 
@@ -1182,6 +1179,12 @@ export namespace common {
 
         /** OperatorInfo flatMap */
         flatMap?: (common.IFlatMap|null);
+
+        /** OperatorInfo window */
+        window?: (common.IWindow|null);
+
+        /** OperatorInfo trigger */
+        trigger?: (common.ITrigger|null);
     }
 
     /** OperatorInfo, stores detail information of an operator */
@@ -1198,9 +1201,6 @@ export namespace common {
 
         /** OperatorInfo hostAddr. */
         public hostAddr?: (common.IHostAddr|null);
-
-        /** OperatorInfo config. */
-        public config?: (common.IStreamConfig|null);
 
         /** OperatorInfo upstreams. */
         public upstreams: number[];
@@ -1226,8 +1226,14 @@ export namespace common {
         /** OperatorInfo flatMap. */
         public flatMap?: (common.IFlatMap|null);
 
+        /** OperatorInfo window. */
+        public window?: (common.IWindow|null);
+
+        /** OperatorInfo trigger. */
+        public trigger?: (common.ITrigger|null);
+
         /** OperatorInfo details. */
-        public details?: ("source"|"sink"|"mapper"|"filter"|"keyBy"|"reducer"|"flatMap");
+        public details?: ("source"|"sink"|"mapper"|"filter"|"keyBy"|"reducer"|"flatMap"|"window"|"trigger");
 
         /**
          * Creates a new OperatorInfo instance using the specified properties.
@@ -3196,11 +3202,14 @@ export namespace common {
             /** ConnectionOpts host */
             host?: (string|null);
 
+            /** ConnectionOpts username */
+            username?: (string|null);
+
             /** ConnectionOpts password */
             password?: (string|null);
 
             /** ConnectionOpts database */
-            database?: (string|null);
+            database?: (number|Long|null);
 
             /** ConnectionOpts tls */
             tls?: (boolean|null);
@@ -3218,11 +3227,14 @@ export namespace common {
             /** ConnectionOpts host. */
             public host: string;
 
+            /** ConnectionOpts username. */
+            public username: string;
+
             /** ConnectionOpts password. */
             public password: string;
 
             /** ConnectionOpts database. */
-            public database: string;
+            public database: (number|Long);
 
             /** ConnectionOpts tls. */
             public tls: boolean;
@@ -3423,109 +3435,6 @@ export namespace common {
         public static getTypeUrl(typeUrlPrefix?: string): string;
     }
 
-    /** Properties of a StreamConfig. */
-    interface IStreamConfig {
-
-        /** StreamConfig window */
-        window?: (common.IWindow|null);
-
-        /** StreamConfig trigger */
-        trigger?: (common.ITrigger|null);
-    }
-
-    /** Represents a StreamConfig. */
-    class StreamConfig implements IStreamConfig {
-
-        /**
-         * Constructs a new StreamConfig.
-         * @param [properties] Properties to set
-         */
-        constructor(properties?: common.IStreamConfig);
-
-        /** StreamConfig window. */
-        public window?: (common.IWindow|null);
-
-        /** StreamConfig trigger. */
-        public trigger?: (common.ITrigger|null);
-
-        /**
-         * Creates a new StreamConfig instance using the specified properties.
-         * @param [properties] Properties to set
-         * @returns StreamConfig instance
-         */
-        public static create(properties?: common.IStreamConfig): common.StreamConfig;
-
-        /**
-         * Encodes the specified StreamConfig message. Does not implicitly {@link common.StreamConfig.verify|verify} messages.
-         * @param message StreamConfig message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encode(message: common.IStreamConfig, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Encodes the specified StreamConfig message, length delimited. Does not implicitly {@link common.StreamConfig.verify|verify} messages.
-         * @param message StreamConfig message or plain object to encode
-         * @param [writer] Writer to encode to
-         * @returns Writer
-         */
-        public static encodeDelimited(message: common.IStreamConfig, writer?: $protobuf.Writer): $protobuf.Writer;
-
-        /**
-         * Decodes a StreamConfig message from the specified reader or buffer.
-         * @param reader Reader or buffer to decode from
-         * @param [length] Message length if known beforehand
-         * @returns StreamConfig
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): common.StreamConfig;
-
-        /**
-         * Decodes a StreamConfig message from the specified reader or buffer, length delimited.
-         * @param reader Reader or buffer to decode from
-         * @returns StreamConfig
-         * @throws {Error} If the payload is not a reader or valid buffer
-         * @throws {$protobuf.util.ProtocolError} If required fields are missing
-         */
-        public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): common.StreamConfig;
-
-        /**
-         * Verifies a StreamConfig message.
-         * @param message Plain object to verify
-         * @returns `null` if valid, otherwise the reason why it is not
-         */
-        public static verify(message: { [k: string]: any }): (string|null);
-
-        /**
-         * Creates a StreamConfig message from a plain object. Also converts values to their respective internal types.
-         * @param object Plain object
-         * @returns StreamConfig
-         */
-        public static fromObject(object: { [k: string]: any }): common.StreamConfig;
-
-        /**
-         * Creates a plain object from a StreamConfig message. Also converts values to other types if specified.
-         * @param message StreamConfig
-         * @param [options] Conversion options
-         * @returns Plain object
-         */
-        public static toObject(message: common.StreamConfig, options?: $protobuf.IConversionOptions): { [k: string]: any };
-
-        /**
-         * Converts this StreamConfig to JSON.
-         * @returns JSON object
-         */
-        public toJSON(): { [k: string]: any };
-
-        /**
-         * Gets the default type url for StreamConfig
-         * @param [typeUrlPrefix] your custom typeUrlPrefix(default "type.googleapis.com")
-         * @returns The default type url
-         */
-        public static getTypeUrl(typeUrlPrefix?: string): string;
-    }
-
     /** Properties of a Window. */
     interface IWindow {
 
@@ -3537,6 +3446,9 @@ export namespace common {
 
         /** Window session */
         session?: (common.Window.ISessionWindow|null);
+
+        /** Window trigger */
+        trigger?: (common.ITrigger|null);
     }
 
     /** Represents a Window. */
@@ -3556,6 +3468,9 @@ export namespace common {
 
         /** Window session. */
         public session?: (common.Window.ISessionWindow|null);
+
+        /** Window trigger. */
+        public trigger?: (common.ITrigger|null);
 
         /** Window value. */
         public value?: ("fixed"|"slide"|"session");
@@ -4043,8 +3958,8 @@ export namespace common {
         /** Properties of a Watermark. */
         interface IWatermark {
 
-            /** Watermark markTime */
-            markTime?: (common.ITime|null);
+            /** Watermark triggerTime */
+            triggerTime?: (common.ITime|null);
         }
 
         /** Represents a Watermark. */
@@ -4056,8 +3971,8 @@ export namespace common {
              */
             constructor(properties?: common.Trigger.IWatermark);
 
-            /** Watermark markTime. */
-            public markTime?: (common.ITime|null);
+            /** Watermark triggerTime. */
+            public triggerTime?: (common.ITime|null);
 
             /**
              * Creates a new Watermark instance using the specified properties.
@@ -4455,7 +4370,8 @@ export namespace common {
         DATA_TYPE_ENUM_NULL = 3,
         DATA_TYPE_ENUM_STRING = 4,
         DATA_TYPE_ENUM_BOOLEAN = 5,
-        DATA_TYPE_ENUM_OBJECT = 6
+        DATA_TYPE_ENUM_OBJECT = 6,
+        DATA_TYPE_ENUM_ARRAY = 7
     }
 
     /** Properties of a Time. */
@@ -4571,5 +4487,22 @@ export namespace common {
          * @returns The default type url
          */
         public static getTypeUrl(typeUrlPrefix?: string): string;
+    }
+
+    /** ErrorCode enum. */
+    enum ErrorCode {
+        ERROR_CODE_UNSPECIFIED = 0,
+        ERROR_CODE_RESOURCE_NOT_FOUND = 1,
+        ERROR_CODE_RPC_UNIMPLEMENTED = 2,
+        ERROR_CODE_RPC_UNAVAILABLE = 3,
+        ERROR_CODE_RPC_UNAUTHORIZED = 4,
+        ERROR_CODE_RPC_INVALID_ARGUMENT = 5,
+        ERROR_CODE_RPC_PERMISSION_DENIED = 6,
+        ERROR_CODE_INTERNAL_ERROR = 7,
+        ERROR_CODE_TOO_MANY_REQUEST = 8,
+        ERROR_CODE_RPC_BIND_FAILED = 9,
+        ERROR_CODE_GOOGLE_AUTH_FAILED = 10,
+        ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING = 11,
+        ERROR_CODE_CYCLIC_DATAFLOW = 12
     }
 }

@@ -1,17 +1,49 @@
-use std::thread::JoinHandle;
-
-use common::{err::ExecutionException, event::SinkableMessageImpl};
 use common::event::LocalEvent;
+use common::event::SinkableMessageImpl;
 use common::types::SinkId;
-use proto::common::common::ResourceId;
-use proto::common::event::KeyedDataEvent;
-use proto::worker::worker::DispatchDataEventStatusEnum;
-use stream::actor::{DataflowContext, Sink, SinkImpl};
+use proto::common::KeyedDataEvent;
+use proto::common::ResourceId;
+use proto::worker::DispatchDataEventStatusEnum;
+use rayon::prelude::*;
+use stream::actor::{DataflowContext, ExecutorImpl, Sink, SinkImpl};
+use tokio::task::JoinHandle;
+
+pub trait ExecutorManager {
+    fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum;
+    fn get_job_id(&self) -> ResourceId;
+}
+
+pub enum ExecutorManagerImpl {
+    Local(LocalExecutorManager),
+}
+
+impl ExecutorManager for ExecutorManagerImpl {
+    fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
+        match self {
+            ExecutorManagerImpl::Local(manager) => manager.dispatch_events(events),
+        }
+    }
+
+    fn get_job_id(&self) -> ResourceId {
+        match self {
+            ExecutorManagerImpl::Local(manager) => manager.get_job_id(),
+        }
+    }
+}
+
+impl ExecutorManagerImpl {
+    pub fn run(&mut self) {
+        match self {
+            ExecutorManagerImpl::Local(manager) => manager.run(),
+        }
+    }
+}
 
 pub struct LocalExecutorManager {
     pub job_id: ResourceId,
     handlers: Vec<JoinHandle<()>>,
     inner_sinks: Vec<SinkImpl>,
+    executors: Vec<ExecutorImpl>,
 }
 
 impl Drop for LocalExecutorManager {
@@ -22,7 +54,9 @@ impl Drop for LocalExecutorManager {
                 job_id: self.job_id.clone(),
                 to: sink.sink_id(),
             };
-            match sink.sink(SinkableMessageImpl::LocalMessage(event.clone())) {
+            match futures_executor::block_on(
+                sink.sink(SinkableMessageImpl::LocalMessage(event.clone())),
+            ) {
                 Err(err) => {
                     log::error!(
                         "termintate node {} failed. details: {:?}",
@@ -38,11 +72,11 @@ impl Drop for LocalExecutorManager {
     }
 }
 
-impl LocalExecutorManager {
-    pub fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
+impl ExecutorManager for LocalExecutorManager {
+    fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
         // only one sink will be dispatched
         let local_events = events
-            .iter()
+            .par_iter()
             .map(|e| LocalEvent::KeyedDataStreamEvent(e.clone()));
 
         events
@@ -56,37 +90,55 @@ impl LocalExecutorManager {
                     .next()
                     .map(|sink| {
                         local_events
-                            .map(|e| sink.sink(SinkableMessageImpl::LocalMessage(e)))
+                            .map(|e| {
+                                futures_executor::block_on(
+                                    sink.sink(SinkableMessageImpl::LocalMessage(e)),
+                                )
+                            })
                             .map(|result| match result {
                                 Ok(status) => status,
                                 Err(err) => {
                                     // TODO fault tolerant
                                     log::error!("dispatch event failed: {:?}", err);
-                                    DispatchDataEventStatusEnum::FAILURE
+                                    DispatchDataEventStatusEnum::Failure
                                 }
                             })
-                            .reduce(|accum, result| match accum {
-                                DispatchDataEventStatusEnum::FAILURE => accum,
-                                _ => result,
-                            })
-                            .unwrap_or(DispatchDataEventStatusEnum::DONE)
+                            .reduce(
+                                || DispatchDataEventStatusEnum::Done,
+                                |accum, result| match accum {
+                                    DispatchDataEventStatusEnum::Failure => accum,
+                                    _ => result,
+                                },
+                            )
                     })
-                    .unwrap_or(DispatchDataEventStatusEnum::DONE)
+                    .unwrap_or(DispatchDataEventStatusEnum::Done)
             })
-            .unwrap_or(DispatchDataEventStatusEnum::DONE)
+            .unwrap_or(DispatchDataEventStatusEnum::Done)
     }
 
-    pub fn new(ctx: DataflowContext) -> Result<Self, ExecutionException> {
-        if !ctx.validate() {
-            return Err(ExecutionException::invalid_dataflow(&ctx.job_id));
-        }
+    fn get_job_id(&self) -> ResourceId {
+        self.job_id.clone()
+    }
+}
 
+impl LocalExecutorManager {
+    pub fn new(ctx: DataflowContext) -> Self {
         let executors = ctx.create_executors();
 
-        Ok(Self {
+        Self {
             job_id: ctx.job_id.clone(),
             inner_sinks: executors.iter().map(|exec| exec.as_sinkable()).collect(),
-            handlers: executors.iter().map(|exec| exec.clone().run()).collect(),
-        })
+            handlers: vec![],
+            executors,
+        }
+    }
+
+    fn run(&mut self) {
+        self.handlers = self
+            .executors
+            .iter()
+            .map(|exec| exec.clone().run())
+            .collect();
+        self.executors.clear();
     }
 }

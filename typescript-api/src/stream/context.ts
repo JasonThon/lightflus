@@ -5,7 +5,6 @@ import Dataflow = common.Dataflow;
 import IDataflowMeta = common.IDataflowMeta;
 import IOperatorInfo = common.IOperatorInfo;
 import IWindow = common.IWindow;
-import StreamConfig = common.StreamConfig;
 import DataflowMeta = common.DataflowMeta;
 
 export class ExecutionContext {
@@ -48,10 +47,6 @@ export class ExecutionContext {
 
   setWindow(operator_id: number, window: IWindow) {
     let info = this.operatorInfo.get(operator_id);
-    if (info.config == undefined) {
-      info.config = new StreamConfig();
-    }
-    info.config.window = window;
     this.operatorInfo.set(operator_id, info);
   }
 

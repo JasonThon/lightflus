@@ -1,6 +1,6 @@
 use std::net::UdpSocket;
 
-use proto::common::common::HostAddr;
+use proto::common::HostAddr;
 
 pub const SUCCESS: i32 = 200;
 pub const BAD_REQUEST: i32 = 400;
@@ -35,10 +35,10 @@ impl PersistableHostAddr {
 }
 
 pub fn to_host_addr(hashable: &PersistableHostAddr) -> HostAddr {
-    let mut addr = HostAddr::new();
-    addr.set_host(hashable.host.clone());
-    addr.set_port(hashable.port as u32);
-    addr
+    HostAddr {
+        host: hashable.host.clone(),
+        port: hashable.port as u32,
+    }
 }
 
 pub fn hostname() -> Option<String> {
@@ -89,8 +89,8 @@ mod tests {
         };
 
         let host_addr = super::to_host_addr(&addr);
-        assert_eq!(host_addr.get_host(), "198.0.0.1");
-        assert_eq!(host_addr.get_port(), 8970);
+        assert_eq!(host_addr.host.as_str(), "198.0.0.1");
+        assert_eq!(host_addr.port, 8970);
 
         assert_eq!(addr.as_uri().as_str(), "198.0.0.1:8970");
         assert!(addr.is_valid());

@@ -1,7 +1,9 @@
-use std::{fs, sync};
+use std::fs;
 
-use common::{net::cluster::Cluster, utils};
-use proto::coordinator::coordinator_grpc;
+use api::CoordinatorApiImpl;
+use common::utils;
+use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
+use tonic::transport::Server;
 
 use crate::coord::Coordinator;
 
@@ -9,7 +11,7 @@ mod api;
 pub mod coord;
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let file_result =
@@ -40,26 +42,15 @@ async fn main() {
 
     let config = reader.unwrap();
 
-    let rt = tokio::runtime::Runtime::new().expect("thread pool allocate failed");
+    let mut coordinator = Coordinator::new(config.storage.to_dataflow_storage(), &config.cluster);
+    coordinator.probe_state();
+    let server = CoordinatorApiImpl::new(coordinator);
 
-    let coordinator = Coordinator::new(config.storage.to_dataflow_storage(), &config.cluster);
+    let addr = format!("0.0.0.0:{}", config.port).parse()?;
+    Server::builder()
+        .add_service(CoordinatorApiServer::new(server))
+        .serve(addr)
+        .await?;
 
-    let mut clusters = Cluster::new(&config.cluster);
-    clusters.probe_state();
-
-    let server = api::CoordinatorApiImpl::new(coordinator, clusters);
-    let service = coordinator_grpc::create_coordinator_api(server);
-    let mut grpc_server = grpcio::ServerBuilder::new(sync::Arc::new(grpcio::Environment::new(10)))
-        .register_service(service)
-        .bind("0.0.0.0", config.port as u16)
-        .build()
-        .expect("grpc server create failed");
-    grpc_server.start();
-    log::info!("service start at port: {}", &config.port);
-
-    let _ = tokio::signal::ctrl_c().await;
-
-    rt.shutdown_background();
-
-    let _ = grpc_server.shutdown().await;
+    Ok(())
 }

@@ -109,10 +109,8 @@ message KafkaDesc {
   DataTypeEnum data_type = 4;
 
   message KafkaOptions {
-    oneof opt {
-      string group = 1;
-      uint32 partition = 2;
-    }
+    optional string group = 1;
+    optional uint32 partition = 2;
   }
 }
 
@@ -141,9 +139,10 @@ message MysqlDesc {
 message RedisDesc {
   message ConnectionOpts {
     string host = 1;
-    string password = 2;
-    int64 database = 3;
-    bool tls = 4;
+    string username = 2;
+    string password = 3;
+    int64 database = 4;
+    bool tls = 5;
   }
 
   ConnectionOpts connection_opts = 1;
@@ -186,6 +185,8 @@ message Window {
   message SessionWindow {
     common.Time timeout = 1; // Only for Session Window
   }
+  
+  Trigger trigger = 4;
 }
 
 message Trigger {
@@ -194,6 +195,6 @@ message Trigger {
   }
 
   message Watermark {
-    common.Time mark_time = 1;
+    common.Time trigger_time = 1;
   }
 }

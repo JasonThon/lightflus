@@ -1,30 +1,23 @@
+use std::cell::RefCell;
+
 use crate::coord;
-use common::{err::Error, net::cluster};
-use grpcio::{RpcContext, RpcStatus, RpcStatusCode, UnarySink};
-use proto::common::probe;
-use proto::common::probe::{ProbeRequest, ProbeResponse};
-use proto::common::stream::{Dataflow, DataflowStatus};
-use proto::coordinator::coordinator::{
+use proto::common::{Dataflow, DataflowStatus};
+use proto::common::{ProbeRequest, ProbeResponse};
+use proto::coordinator::coordinator_api_server::CoordinatorApi;
+use proto::coordinator::{
     CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest,
     TerminateDataflowResponse,
 };
-use proto::coordinator::coordinator_grpc::CoordinatorApi;
-use std::sync;
 
 #[derive(Clone)]
 pub(crate) struct CoordinatorApiImpl {
-    coordinator: coord::Coordinator,
-    cluster: sync::Arc<sync::RwLock<cluster::Cluster>>,
+    coordinator: RefCell<coord::Coordinator>,
 }
 
 impl CoordinatorApiImpl {
-    pub(crate) fn new(
-        coordinator: coord::Coordinator,
-        cluster: cluster::Cluster,
-    ) -> CoordinatorApiImpl {
+    pub(crate) fn new(coordinator: coord::Coordinator) -> CoordinatorApiImpl {
         CoordinatorApiImpl {
-            coordinator: coordinator,
-            cluster: sync::Arc::new(sync::RwLock::new(cluster)),
+            coordinator: RefCell::new(coordinator),
         }
     }
 }
@@ -33,90 +26,63 @@ unsafe impl Send for CoordinatorApiImpl {}
 
 unsafe impl Sync for CoordinatorApiImpl {}
 
+#[tonic::async_trait]
 impl CoordinatorApi for CoordinatorApiImpl {
-    fn probe(&mut self, _ctx: RpcContext, req: ProbeRequest, sink: UnarySink<ProbeResponse>) {
-        match req.probeType {
-            probe::ProbeRequest_ProbeType::Readiness => match self.cluster.try_write() {
-                Ok(mut cluster) => {
-                    sink.success(ProbeResponse::default());
-                    cluster.probe_state();
-                }
-                Err(_) => {
-                    sink.success(ProbeResponse::default());
-                }
-            },
-            probe::ProbeRequest_ProbeType::Liveness => {
-                sink.success(ProbeResponse::default());
-            }
-        }
-    }
+    async fn probe(
+        &self,
+        _request: tonic::Request<ProbeRequest>,
+    ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
+        self.coordinator.borrow_mut().probe_state();
 
-    fn create_dataflow(
-        &mut self,
-        _ctx: RpcContext,
-        req: Dataflow,
-        sink: UnarySink<CreateDataflowResponse>,
-    ) {
-        match self.coordinator.create_dataflow(req) {
-            Ok(_) => {
-                let ref mut resp = CreateDataflowResponse::default();
-                resp.set_status(DataflowStatus::RUNNING);
-                sink.success(resp.clone());
-            }
-            Err(err) => {
-                let status = grpcio::RpcStatus::with_message(
-                    grpcio::RpcStatusCode::from(err.code),
-                    err.msg.clone(),
-                );
-                sink.fail(status);
-            }
-        }
+        Ok(tonic::Response::new(ProbeResponse {
+            memory: 1.0,
+            cpu: 1.0,
+            available: true,
+        }))
     }
-
-    fn terminate_dataflow(
-        &mut self,
-        _ctx: RpcContext,
-        _req: TerminateDataflowRequest,
-        sink: UnarySink<TerminateDataflowResponse>,
-    ) {
-        match self.coordinator.terminate_dataflow(_req.get_job_id()) {
-            Ok(status) => {
-                let mut resp = TerminateDataflowResponse::default();
-                resp.set_status(status);
-                sink.success(resp);
-            }
-            Err(err) => {
-                sink.fail(RpcStatus::with_message(
-                    RpcStatusCode::from(err.code),
-                    err.msg,
-                ));
-            }
-        }
+    async fn create_dataflow(
+        &self,
+        request: tonic::Request<Dataflow>,
+    ) -> Result<tonic::Response<CreateDataflowResponse>, tonic::Status> {
+        self.coordinator
+            .borrow_mut()
+            .create_dataflow(request.into_inner())
+            .map(|_| {
+                tonic::Response::new(CreateDataflowResponse {
+                    status: DataflowStatus::Initialized as i32,
+                })
+            })
     }
-
-    fn get_dataflow(
-        &mut self,
-        _ctx: RpcContext,
-        req: GetDataflowRequest,
-        sink: UnarySink<GetDataflowResponse>,
-    ) {
+    async fn terminate_dataflow(
+        &self,
+        request: tonic::Request<TerminateDataflowRequest>,
+    ) -> Result<tonic::Response<TerminateDataflowResponse>, tonic::Status> {
+        self.coordinator
+            .borrow_mut()
+            .terminate_dataflow(request.get_ref().job_id.as_ref().unwrap())
+            .map(|status| {
+                tonic::Response::new(TerminateDataflowResponse {
+                    status: status as i32,
+                })
+            })
+    }
+    async fn get_dataflow(
+        &self,
+        request: tonic::Request<GetDataflowRequest>,
+    ) -> Result<tonic::Response<GetDataflowResponse>, tonic::Status> {
         match self
             .coordinator
-            .get_dataflow(req.get_job_id())
-            .map(|dataflow| {
-                let mut resp = GetDataflowResponse::default();
-                resp.set_graph(dataflow.clone());
-                resp
-            }) {
-            Some(resp) => {
-                sink.success(resp);
-            }
-            None => {
-                sink.fail(RpcStatus::with_message(
-                    RpcStatusCode::NOT_FOUND,
-                    format!("dataflow {:?} does not found", req.get_job_id()),
-                ));
-            }
+            .borrow()
+            .get_dataflow(request.get_ref().job_id.as_ref().unwrap())
+        {
+            Some(resp) => Ok(tonic::Response::new(GetDataflowResponse {
+                status: DataflowStatus::Running as i32,
+                graph: Some(resp),
+            })),
+            None => Err(tonic::Status::not_found(format!(
+                "dataflow {:?} does not found",
+                request.get_ref().job_id.as_ref().unwrap()
+            ))),
         }
     }
 }

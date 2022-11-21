@@ -14,6 +14,13 @@ message KeyedDataEvent {
   google.protobuf.Timestamp event_time = 6;
   google.protobuf.Timestamp process_time = 7;
   uint32 from_operator_id = 8; // operator_id this event where be sent
+
+  message Window {
+    google.protobuf.Timestamp start_time = 1;
+    google.protobuf.Timestamp end_time = 2;
+  }
+
+  Window window = 9;
 }
 
 message Entry {

@@ -1,21 +1,18 @@
 use crate::collections::lang;
-use crate::err::ApiError;
+
 use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
 
-use proto::common::common::ResourceId;
-use proto::common::probe;
-use proto::common::stream::{Dataflow, DataflowMeta, DataflowStatus};
-use proto::worker::worker::{CreateDataflowRequest, StopDataflowRequest};
-use proto::worker::{self, cli};
-use protobuf::RepeatedField;
+use proto::common::probe_request::{NodeType, ProbeType};
+use proto::common::{Dataflow, DataflowMeta, DataflowStatus};
+use proto::common::{ProbeRequest, ResourceId};
+use proto::worker::task_worker_api_client::TaskWorkerApiClient;
+use proto::worker::{CreateSubDataflowRequest, StopDataflowRequest};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::vec;
-
-use super::status;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum NodeStatus {
@@ -32,24 +29,28 @@ struct Node {
 
 impl Node {
     pub(crate) fn probe_state(&mut self) {
-        let client = worker::cli::new_dataflow_worker_client(worker::cli::DataflowWorkerConfig {
-            host: None,
-            port: None,
-            uri: Some(self.host_addr.as_uri()),
-        });
+        let ref mut client =
+            futures_executor::block_on(TaskWorkerApiClient::connect(self.host_addr.as_uri()));
 
-        let ref mut request = probe::ProbeRequest::new();
-        request.set_nodeType(probe::ProbeRequest_NodeType::Coordinator);
-        request.set_probeType(probe::ProbeRequest_ProbeType::Liveness);
+        let request = ProbeRequest {
+            node_type: NodeType::Coordinator as i32,
+            probe_type: ProbeType::Liveness as i32,
+        };
 
-        match client.probe(request) {
-            Ok(resp) => {
-                if resp.available {
-                    self.status = NodeStatus::Running
-                } else {
-                    self.status = NodeStatus::Pending
+        match client {
+            Ok(cli) => match futures_executor::block_on(cli.probe(tonic::Request::new(request))) {
+                Ok(resp) => {
+                    if resp.get_ref().available {
+                        self.status = NodeStatus::Running
+                    } else {
+                        self.status = NodeStatus::Pending
+                    }
                 }
-            }
+                Err(err) => {
+                    log::error!("{}", err);
+                    self.status = NodeStatus::Unreachable
+                }
+            },
             Err(err) => {
                 log::error!("{}", err);
                 self.status = NodeStatus::Unreachable
@@ -111,38 +112,39 @@ impl Cluster {
         dataflow.nodes.iter_mut().for_each(|entry| {
             let addr = self.partition_key(&SingleKV::new(*entry.0));
             if addr.is_valid() {
-                entry.1.set_host_addr(to_host_addr(&addr));
+                entry.1.host_addr = Some(to_host_addr(&addr));
             }
         });
     }
 
-    pub fn terminate_dataflow(&self, job_id: &ResourceId) -> Result<DataflowStatus, ApiError> {
+    pub fn terminate_dataflow(&self, job_id: &ResourceId) -> Result<DataflowStatus, tonic::Status> {
         for worker in &self.workers {
             if !worker.is_available() {
                 continue;
             }
-            let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
-                host: None,
-                port: None,
-                uri: Some(worker.host_addr.as_uri()),
-            });
-            let ref mut req = StopDataflowRequest::default();
-            req.set_job_id(job_id.clone());
-            match client.stop_dataflow(req) {
-                Err(err) => return Err(ApiError::from(err)),
-                _ => {}
-            }
+            let ref mut client =
+                futures_executor::block_on(TaskWorkerApiClient::connect(worker.host_addr.as_uri()));
+            let req = StopDataflowRequest {
+                job_id: Some(job_id.clone()),
+            };
+
+            match client {
+                Ok(cli) => {
+                    match futures_executor::block_on(cli.stop_dataflow(tonic::Request::new(req))) {
+                        Err(err) => return Err(err),
+                        _ => {}
+                    }
+                }
+                Err(err) => return Err(tonic::Status::internal(err.to_string())),
+            };
         }
 
-        Ok(DataflowStatus::CLOSING)
+        Ok(DataflowStatus::Closing)
     }
 
-    pub fn create_dataflow(&self, dataflow: Dataflow) -> Result<(), ApiError> {
+    pub fn create_dataflow(&self, dataflow: &Dataflow) -> Result<(), tonic::Status> {
         if !self.is_available() {
-            return Err(ApiError {
-                code: status::CLUSTER_UNAVAILBALE,
-                msg: "cluster is unavailabe".to_string(),
-            });
+            return Err(tonic::Status::unavailable("worker is unavailable"));
         }
 
         let dataflows = self.split_into_subdataflow(dataflow);
@@ -152,30 +154,28 @@ impl Cluster {
             if !lang::any_match(&self.workers, |node| {
                 node.host_addr.as_uri() == uri && node.is_available()
             }) {
-                return Err(ApiError {
-                    code: status::WORKER_UNAVAILABLE,
-                    msg: "worker is unavailabe".to_string(),
-                });
+                return Err(tonic::Status::unavailable("worker is unavailable"));
             }
-            let client = cli::new_dataflow_worker_client(cli::DataflowWorkerConfig {
-                host: None,
-                port: None,
-                uri: Some(uri),
-            });
-            let ref mut req = CreateDataflowRequest::new();
-            req.set_job_id(elem.1.get_job_id().clone());
-            req.set_dataflow(elem.1.clone());
-            match client
-                .create_dataflow(req)
-                .map_err(|err| ApiError::from(err))
-                .and_then(|resp| {
-                    if resp.get_resp().get_status() == status::SUCCESS {
-                        Ok(())
-                    } else {
-                        Err(ApiError::from(resp.get_resp()))
-                    }
-                }) {
-                Ok(_) => {}
+            let ref mut client = futures_executor::block_on(TaskWorkerApiClient::connect(uri));
+            let dataflow = Some(elem.1.clone());
+            let req = CreateSubDataflowRequest {
+                job_id: elem.1.job_id,
+                dataflow,
+            };
+
+            let result = match client {
+                Ok(cli) => {
+                    futures_executor::block_on(cli.create_sub_dataflow(tonic::Request::new(req)))
+                        .map_err(|err| err)
+                }
+                Err(err) => Err(tonic::Status::internal(err.to_string())),
+            };
+
+            match result {
+                Ok(status) => log::debug!(
+                    "subdataflow status: {}",
+                    status.get_ref().status().as_str_name()
+                ),
                 Err(err) => return Err(err),
             }
         }
@@ -183,15 +183,23 @@ impl Cluster {
         Ok(())
     }
 
-    fn split_into_subdataflow(&self, dataflow: Dataflow) -> HashMap<PersistableHostAddr, Dataflow> {
+    fn split_into_subdataflow(
+        &self,
+        dataflow: &Dataflow,
+    ) -> HashMap<PersistableHostAddr, Dataflow> {
         let mut group = HashMap::<PersistableHostAddr, Vec<&DataflowMeta>>::new();
 
-        dataflow.get_meta().iter().for_each(|node| {
-            let operator = dataflow.get_nodes().get(&node.center).unwrap();
-            let addr = PersistableHostAddr {
-                host: operator.get_host_addr().get_host().to_string(),
-                port: operator.get_host_addr().get_port() as u16,
-            };
+        dataflow.meta.iter().for_each(|node| {
+            let operator = dataflow.nodes.get(&node.center).unwrap();
+            let addr = operator
+                .host_addr
+                .as_ref()
+                .map(|host_addr| PersistableHostAddr {
+                    host: host_addr.host.clone(),
+                    port: host_addr.port as u16,
+                })
+                .unwrap_or_default();
+
             if group.contains_key(&addr) {
                 group
                     .get_mut(&addr)
@@ -209,7 +217,7 @@ impl Cluster {
                 let mut nodes = HashMap::new();
                 entry.1.iter().for_each(|meta| {
                     dataflow
-                        .get_nodes()
+                        .nodes
                         .iter()
                         .filter(|entry| meta.center == *entry.0 || meta.neighbors.contains(entry.0))
                         .for_each(|entry| {
@@ -217,10 +225,8 @@ impl Cluster {
                         });
                 });
 
-                new_dataflow.set_meta(RepeatedField::from_iter(
-                    entry.1.iter().map(|meta| (*meta).clone()),
-                ));
-                new_dataflow.set_nodes(nodes);
+                new_dataflow.meta = entry.1.iter().map(|meta| (*meta).clone()).collect();
+                new_dataflow.nodes = nodes;
 
                 (entry.0.clone(), new_dataflow)
             })
@@ -268,11 +274,10 @@ mod cluster_tests {
     #[test]
     pub fn test_cluster_partition_dataflow() {
         use super::{Cluster, NodeConfig};
-        use proto::common::stream::Dataflow;
-        use protobuf::RepeatedField;
+        use proto::common::Dataflow;
         use std::collections::HashMap;
 
-        use proto::common::stream::{DataflowMeta, OperatorInfo};
+        use proto::common::{DataflowMeta, OperatorInfo};
 
         use crate::net::cluster::NodeStatus;
         let mut cluster = Cluster::new(&vec![
@@ -291,35 +296,35 @@ mod cluster_tests {
         ]);
         let mut dataflow = Dataflow::default();
 
-        let mut meta_1 = DataflowMeta::default();
-        meta_1.set_center(0);
-        meta_1.set_neighbors(vec![1, 2, 3]);
+        let meta_1 = DataflowMeta {
+            center: 0,
+            neighbors: vec![1, 2, 3],
+        };
 
         let mut nodes = HashMap::new();
         let mut op0 = OperatorInfo::default();
-        op0.set_operator_id(0);
+        op0.operator_id = 0;
         let mut op1 = OperatorInfo::default();
-        op1.set_operator_id(1);
+        op1.operator_id = 1;
 
         let mut op2 = OperatorInfo::default();
-        op2.set_operator_id(2);
+        op2.operator_id = 2;
 
         let mut op3 = OperatorInfo::default();
-        op3.set_operator_id(3);
+        op3.operator_id = 3;
 
         nodes.insert(0, op0);
         nodes.insert(1, op1);
         nodes.insert(2, op2);
         nodes.insert(3, op3);
 
-        dataflow.set_meta(RepeatedField::from_slice(&[meta_1]));
-        dataflow.set_nodes(nodes);
+        dataflow.meta = vec![meta_1];
+        dataflow.nodes = nodes;
 
         cluster.partition_dataflow(&mut dataflow);
 
-        dataflow.get_nodes().iter().for_each(|entry| {
-            assert!(entry.1.get_host_addr().get_host().is_empty());
-            assert_eq!(entry.1.get_host_addr().get_port(), 0);
+        dataflow.nodes.iter().for_each(|entry| {
+            assert!(entry.1.host_addr.is_none());
         });
 
         cluster
@@ -329,20 +334,21 @@ mod cluster_tests {
 
         cluster.partition_dataflow(&mut dataflow);
 
-        dataflow.get_nodes().iter().for_each(|entry| {
-            assert!(!entry.1.get_host_addr().get_host().is_empty());
-            assert_eq!(entry.1.get_host_addr().get_port(), 8080);
+        dataflow.nodes.iter().for_each(|entry| {
+            assert!(entry.1.host_addr.is_some());
+            let host_addr = entry.1.host_addr.as_ref().unwrap();
+            assert!(!host_addr.host.is_empty());
+            assert_eq!(host_addr.port, 8080);
         });
     }
 
     #[test]
     pub fn test_split_into_subdataflow() {
         use super::{Cluster, NodeConfig};
-        use proto::common::stream::Dataflow;
-        use protobuf::RepeatedField;
+        use proto::common::Dataflow;
         use std::collections::HashMap;
 
-        use proto::common::stream::{DataflowMeta, OperatorInfo};
+        use proto::common::{DataflowMeta, OperatorInfo};
 
         use crate::net::cluster::NodeStatus;
         let mut cluster = Cluster::new(&vec![
@@ -361,38 +367,45 @@ mod cluster_tests {
         ]);
         let mut dataflow = Dataflow::default();
 
-        let mut meta_1 = DataflowMeta::default();
-        meta_1.set_center(0);
-        meta_1.set_neighbors(vec![1, 2, 3]);
+        let meta_1 = DataflowMeta {
+            center: 0,
+            neighbors: vec![1, 2, 3],
+        };
 
-        let mut meta_2 = DataflowMeta::default();
-        meta_2.set_center(1);
+        let meta_2 = DataflowMeta {
+            center: 1,
+            neighbors: vec![],
+        };
 
-        let mut meta_3 = DataflowMeta::default();
-        meta_3.set_center(2);
+        let meta_3 = DataflowMeta {
+            center: 2,
+            neighbors: vec![],
+        };
 
-        let mut meta_4 = DataflowMeta::default();
-        meta_4.set_center(3);
+        let meta_4 = DataflowMeta {
+            center: 3,
+            neighbors: vec![],
+        };
 
         let mut nodes = HashMap::new();
         let mut op0 = OperatorInfo::default();
-        op0.set_operator_id(0);
+        op0.operator_id = 0;
         let mut op1 = OperatorInfo::default();
-        op1.set_operator_id(1);
+        op1.operator_id = 1;
 
         let mut op2 = OperatorInfo::default();
-        op2.set_operator_id(2);
+        op2.operator_id = 2;
 
         let mut op3 = OperatorInfo::default();
-        op3.set_operator_id(3);
+        op3.operator_id = 3;
 
         nodes.insert(0, op0);
         nodes.insert(1, op1);
         nodes.insert(2, op2);
         nodes.insert(3, op3);
 
-        dataflow.set_meta(RepeatedField::from_slice(&[meta_1, meta_2, meta_3, meta_4]));
-        dataflow.set_nodes(nodes);
+        dataflow.meta = vec![meta_1, meta_2, meta_3, meta_4];
+        dataflow.nodes = nodes;
 
         cluster
             .workers
@@ -401,7 +414,7 @@ mod cluster_tests {
 
         cluster.partition_dataflow(&mut dataflow);
 
-        let result = cluster.split_into_subdataflow(dataflow);
+        let result = cluster.split_into_subdataflow(&dataflow);
         assert!(!result.is_empty());
 
         assert_eq!(result.len(), 3);

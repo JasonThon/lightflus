@@ -31,6 +31,8 @@ jobs:
           ALLOW_PLAINTEXT_LISTENER: yes
       mysql:
         image: "bitnami/mysql:5.7"
+        ports:
+          - "3306:3306"
         env:
           ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: ci
@@ -82,6 +84,8 @@ jobs:
           ALLOW_PLAINTEXT_LISTENER: yes
       mysql:
         image: "bitnami/mysql:5.7"
+        ports:
+          - "3306:3306"
         env:
           ALLOW_EMPTY_PASSWORD: yes
           MYSQL_DATABASE: ci

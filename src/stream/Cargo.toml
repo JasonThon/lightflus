@@ -15,7 +15,7 @@ serde = { version = "1.0", features = ["derive"] }
 crossbeam-channel = "0.5"
 rocksdb = { version = "0.19.0", features=["lz4"] }
 v8 = "0.51.0"
-sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "mysql" ] }
+sqlx = { version = "0.6", features = [ "runtime-tokio-rustls" ] }
 futures-executor = "0.3"
 serde_json = "1.0.59"
 tonic = "0.8"

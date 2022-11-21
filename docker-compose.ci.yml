@@ -19,14 +19,14 @@ services:
     depends_on:
       - zookeeper
   mysql:
-    image: 'bitnami/mysql:latest'
+    image: 'bitnami/mysql:5.7'
     ports:
       - '3306:3306'
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
-      - MYSQL_DATABASE=ci_db
-      - MYSQL_USER=root
-      - MYSQL_PASSWORD=ci
+      - MYSQL_DATABASE=ci
+      - MYSQL_USER=ci
+      - MYSQL_PASSWORD=123
   redis:
     image: 'bitnami/redis:latest'
     ports:

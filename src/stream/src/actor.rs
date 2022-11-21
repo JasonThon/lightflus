@@ -4,6 +4,7 @@ use crate::state::new_state_mgt;
 use crate::v8_runtime::RuntimeEngine;
 
 use common::collections::lang;
+use common::db::MysqlConn;
 use common::event::{LocalEvent, SinkableMessage, SinkableMessageImpl};
 use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, KafkaProducer};
 
@@ -12,13 +13,11 @@ use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils;
 use prost_types::Timestamp;
 
-use proto::common::mysql_desc;
 use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc};
 use proto::common::{Entry, KeyedDataEvent};
 use proto::common::{HostAddr, ResourceId};
 use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
-use sqlx::{Arguments, MySqlPool};
 
 use std::collections::BTreeMap;
 
@@ -694,8 +693,8 @@ impl Sink for Kafka {
     ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match &self.producer {
             Some(producer) => {
-                let messages_result = msg.get_kafka_message();
-                match messages_result.map_err(|err| err.into()) {
+                let result = msg.get_kafka_message();
+                match result.map_err(|err| err.into()) {
                     Ok(messages) => {
                         for msg in messages {
                             let send_result = producer.send(&msg.key, &msg.payload);
@@ -721,7 +720,7 @@ pub struct Mysql {
     connector_id: SinkId,
     statement: String,
     extractors: Vec<String>,
-    connection_opts: mysql_desc::ConnectionOpts,
+    conn: MysqlConn,
 }
 impl Mysql {
     fn with_config(connector_id: u32, conf: &MysqlDesc) -> Mysql {
@@ -743,29 +742,18 @@ impl Mysql {
             .map(|opts| opts.clone())
             .unwrap_or_default();
 
+        let conn = MysqlConn::from(connection_opts);
+
         Mysql {
             connector_id,
             statement,
             extractors,
-            connection_opts,
+            conn,
         }
     }
 
     fn get_arguments(&self, msg: SinkableMessageImpl) -> Vec<Vec<TypedValue>> {
         extract_arguments(self.extractors.as_slice(), msg, "mysql_extractor")
-    }
-
-    fn get_uri(&self) -> String {
-        let db = &self.connection_opts.database;
-        let user = &self.connection_opts.username;
-        let password = &self.connection_opts.password;
-        let host = &self.connection_opts.host;
-
-        format!("mysql://{user}:{password}@{host}/{db}")
-    }
-
-    fn get_statement(&self) -> String {
-        self.statement.clone()
     }
 }
 
@@ -780,23 +768,15 @@ impl Sink for Mysql {
         msg: SinkableMessageImpl,
     ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         let row_arguments = self.get_arguments(msg);
-        match MySqlPool::connect(self.get_uri().as_str()).await {
+        let ref mut conn_result = self.conn.connect().await;
+        match conn_result {
             Ok(conn) => {
                 for arguments in row_arguments {
-                    let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
-                    arguments.iter().for_each(|val| match val {
-                        TypedValue::String(v) => mysql_arg.add(v),
-                        TypedValue::BigInt(v) => mysql_arg.add(v),
-                        TypedValue::Boolean(v) => mysql_arg.add(v),
-                        TypedValue::Number(v) => mysql_arg.add(v),
-                        _ => {}
-                    });
-
-                    let result = sqlx::query_with(&self.get_statement(), mysql_arg)
-                        .execute(&conn)
+                    let result = self
+                        .conn
+                        .execute(&self.statement, arguments, conn)
                         .await
                         .map_err(|err| err.into());
-
                     if result.is_err() {
                         return result.map(|_| DispatchDataEventStatusEnum::Failure);
                     }

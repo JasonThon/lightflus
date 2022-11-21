@@ -81,12 +81,12 @@ jobs:
           KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
           ALLOW_PLAINTEXT_LISTENER: yes
       mysql:
-        image: "bitnami/mysql:latest"
+        image: "bitnami/mysql:5.7"
         env:
           ALLOW_EMPTY_PASSWORD: yes
-          MYSQL_DATABASE: ci_db
-          MYSQL_USER: root
-          MYSQL_PASSWORD: ci
+          MYSQL_DATABASE: ci
+          MYSQL_USER: ci
+          MYSQL_PASSWORD: 123
       redis:
         image: "bitnami/redis:latest"
         ports:

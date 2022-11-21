@@ -514,6 +514,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sqlx",
  "tokio",
  "tonic",
  "uuid",

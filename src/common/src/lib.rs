@@ -6,3 +6,4 @@ pub mod utils;
 pub mod collections;
 pub mod kafka;
 pub mod redis;
+pub mod db;

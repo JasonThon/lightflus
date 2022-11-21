@@ -30,7 +30,7 @@ unsafe impl Sync for CoordinatorApiImpl {}
 impl CoordinatorApi for CoordinatorApiImpl {
     async fn probe(
         &self,
-        request: tonic::Request<ProbeRequest>,
+        _request: tonic::Request<ProbeRequest>,
     ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
         self.coordinator.borrow_mut().probe_state();
 

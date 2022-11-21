@@ -1,10 +1,7 @@
 use std::{cell::RefCell, collections::BTreeMap};
 
 use common::types::{NodeIdx, TypedValue};
-use proto::common::{
-    filter, flat_map, key_by, mapper, operator_info::Details, reducer, Entry, KeyedDataEvent,
-    OperatorInfo,
-};
+use proto::common::{operator_info::Details, Entry, KeyedDataEvent, OperatorInfo};
 use v8::HandleScope;
 
 use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine};
@@ -29,76 +26,46 @@ where
         let (rt_engine, operator) = if op_info.clone().details.is_some() {
             let detail = op_info.clone().details.unwrap();
             match detail {
-                Details::Mapper(map_value) => match map_value.value.as_ref() {
-                    Some(mapper::Value::Func(map_func)) => (
-                        RefCell::new(RuntimeEngine::new(
-                            &map_func.function,
-                            &get_function_name(&op_info),
-                            scope,
-                        )),
-                        OperatorImpl::Map(MapOperator::new(&op_info, state_manager)),
-                    ),
-                    None => (
-                        RefCell::new(RuntimeEngine::new("", "", scope)),
-                        OperatorImpl::Empty,
-                    ),
-                },
-                Details::Filter(filter_value) => match filter_value.value.as_ref() {
-                    Some(filter::Value::Func(filter_func)) => (
-                        RefCell::new(RuntimeEngine::new(
-                            &filter_func.function,
-                            &get_function_name(&op_info),
-                            scope,
-                        )),
-                        OperatorImpl::Filter(FilterOperator::new(&op_info, state_manager)),
-                    ),
-                    None => (
-                        RefCell::new(RuntimeEngine::new("", "", scope)),
-                        OperatorImpl::Empty,
-                    ),
-                },
-                Details::KeyBy(key_by_value) => match key_by_value.value.as_ref() {
-                    Some(key_by::Value::Func(key_by_func)) => (
-                        RefCell::new(RuntimeEngine::new(
-                            &key_by_func.function,
-                            &get_function_name(&op_info),
-                            scope,
-                        )),
-                        OperatorImpl::KeyBy(KeyByOperator::new(&op_info, state_manager)),
-                    ),
-                    None => (
-                        RefCell::new(RuntimeEngine::new("", "", scope)),
-                        OperatorImpl::Empty,
-                    ),
-                },
-                Details::Reducer(reduce_value) => match reduce_value.value.as_ref() {
-                    Some(reducer::Value::Func(reduce_fn)) => (
-                        RefCell::new(RuntimeEngine::new(
-                            &reduce_fn.function,
-                            &get_function_name(&op_info),
-                            scope,
-                        )),
-                        OperatorImpl::Reduce(ReduceOperator::new(&op_info, state_manager)),
-                    ),
-                    None => (
-                        RefCell::new(RuntimeEngine::new("", "", scope)),
-                        OperatorImpl::Empty,
-                    ),
-                },
-                Details::FlatMap(flat_map_value) => match flat_map_value.value.as_ref() {
-                    Some(flat_map::Value::Func(flat_map_fn)) => (
-                        RefCell::new(RuntimeEngine::new(
-                            &flat_map_fn.function,
-                            &get_function_name(&op_info),
-                            scope,
-                        )),
-                        OperatorImpl::FlatMap(FlatMapOperator::new(&op_info, state_manager)),
-                    ),
-                    None => (
-                        RefCell::new(RuntimeEngine::new("", "", scope)),
-                        OperatorImpl::Empty,
-                    ),
-                },
+                Details::Mapper(map_value) => (
+                    RefCell::new(RuntimeEngine::new(
+                        &map_value.get_func().function,
+                        &get_function_name(&op_info),
+                        scope,
+                    )),
+                    OperatorImpl::Map(MapOperator::new(&op_info, state_manager)),
+                ),
+                Details::Filter(filter_value) => (
+                    RefCell::new(RuntimeEngine::new(
+                        &filter_value.get_func().function,
+                        &get_function_name(&op_info),
+                        scope,
+                    )),
+                    OperatorImpl::Filter(FilterOperator::new(&op_info, state_manager)),
+                ),
+                Details::KeyBy(key_by_value) => (
+                    RefCell::new(RuntimeEngine::new(
+                        &key_by_value.get_func().function,
+                        &get_function_name(&op_info),
+                        scope,
+                    )),
+                    OperatorImpl::KeyBy(KeyByOperator::new(&op_info, state_manager)),
+                ),
+                Details::Reducer(reduce_value) => (
+                    RefCell::new(RuntimeEngine::new(
+                        &reduce_value.get_func().function,
+                        &get_function_name(&op_info),
+                        scope,
+                    )),
+                    OperatorImpl::Reduce(ReduceOperator::new(&op_info, state_manager)),
+                ),
+                Details::FlatMap(flat_map_value) => (
+                    RefCell::new(RuntimeEngine::new(
+                        &flat_map_value.get_func().function,
+                        &get_function_name(&op_info),
+                        scope,
+                    )),
+                    OperatorImpl::FlatMap(FlatMapOperator::new(&op_info, state_manager)),
+                ),
                 _ => (
                     RefCell::new(RuntimeEngine::new("", "", scope)),
                     OperatorImpl::Empty,

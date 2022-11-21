@@ -157,21 +157,13 @@ impl DataTypeEnum {
 pub enum ErrorCode {
     Unspecified = 0,
     ResourceNotFound = 1,
-    RpcUnimplemented = 2,
-    RpcUnavailable = 3,
-    RpcUnauthorized = 4,
-    RpcInvalidArgument = 5,
-    RpcPermissionDenied = 6,
-    InternalError = 7,
-    AlreadyExists = 8,
-    ResourceExhausted = 9,
-    FailedPrecondition = 10,
-    Aborted = 11,
-    OutOfRange = 12,
-    Cancelled = 13,
-    Unknown = 14,
-    DataflowOperatorInfoMissing = 15,
-    CyclicDataflow = 16,
+    RpcUnauthorized = 2,
+    RpcInvalidArgument = 3,
+    RpcPermissionDenied = 4,
+    InternalError = 5,
+    DataflowOperatorInfoMissing = 6,
+    CyclicDataflow = 7,
+    DataflowConfigurationMissing = 8,
 }
 impl ErrorCode {
     /// String value of the enum field names used in the ProtoBuf definition.
@@ -182,23 +174,17 @@ impl ErrorCode {
         match self {
             ErrorCode::Unspecified => "ERROR_CODE_UNSPECIFIED",
             ErrorCode::ResourceNotFound => "ERROR_CODE_RESOURCE_NOT_FOUND",
-            ErrorCode::RpcUnimplemented => "ERROR_CODE_RPC_UNIMPLEMENTED",
-            ErrorCode::RpcUnavailable => "ERROR_CODE_RPC_UNAVAILABLE",
             ErrorCode::RpcUnauthorized => "ERROR_CODE_RPC_UNAUTHORIZED",
             ErrorCode::RpcInvalidArgument => "ERROR_CODE_RPC_INVALID_ARGUMENT",
             ErrorCode::RpcPermissionDenied => "ERROR_CODE_RPC_PERMISSION_DENIED",
             ErrorCode::InternalError => "ERROR_CODE_INTERNAL_ERROR",
-            ErrorCode::AlreadyExists => "ERROR_CODE_ALREADY_EXISTS",
-            ErrorCode::ResourceExhausted => "ERROR_CODE_RESOURCE_EXHAUSTED",
-            ErrorCode::FailedPrecondition => "ERROR_CODE_FAILED_PRECONDITION",
-            ErrorCode::Aborted => "ERROR_CODE_ABORTED",
-            ErrorCode::OutOfRange => "ERROR_CODE_OUT_OF_RANGE",
-            ErrorCode::Cancelled => "ERROR_CODE_CANCELLED",
-            ErrorCode::Unknown => "ERROR_CODE_UNKNOWN",
             ErrorCode::DataflowOperatorInfoMissing => {
                 "ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING"
             }
             ErrorCode::CyclicDataflow => "ERROR_CODE_CYCLIC_DATAFLOW",
+            ErrorCode::DataflowConfigurationMissing => {
+                "ERROR_CODE_DATAFLOW_CONFIGURATION_MISSING"
+            }
         }
     }
 }

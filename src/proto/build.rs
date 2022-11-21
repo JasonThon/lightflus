@@ -1,5 +1,5 @@
 /**
- * If proto has been changed. You must delete all commented codes and rerun build.rs to generate new rust files
+ * If proto has been changed. You must remove all comments and rerun build.rs to generate new rust files
  */
 pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     // tonic_build::configure().out_dir("src").compile(

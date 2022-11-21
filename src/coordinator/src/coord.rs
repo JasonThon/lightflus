@@ -7,7 +7,6 @@ use common::net::cluster;
 
 use common::types::HashedResourceId;
 use common::utils;
-use common::utils::validate_dataflow;
 use prost::Message;
 use proto::common::Dataflow;
 use proto::common::DataflowStatus;
@@ -158,7 +157,7 @@ impl Coordinator {
     }
 
     pub fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), tonic::Status> {
-        validate_dataflow(&dataflow)
+        dataflow.validate()
             .map_err(|err| tonic::Status::invalid_argument(format!("{:?}", err)))
             .and_then(|_| {
                 self.cluster.partition_dataflow(&mut dataflow);

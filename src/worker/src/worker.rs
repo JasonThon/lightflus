@@ -72,9 +72,7 @@ impl TaskWorker {
         &self,
         events: &Vec<KeyedDataEvent>,
     ) -> Result<HashMap<String, DispatchDataEventStatusEnum>, TaskWorkerError> {
-        let group = lang::group(events, |e| {
-            HashedResourceId::from(e.job_id.clone().unwrap())
-        });
+        let group = lang::group(events, |e| HashedResourceId::from(e.get_job_id()));
 
         group
             .iter()

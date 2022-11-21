@@ -9,7 +9,7 @@ use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, Kaf
 
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
-use common::utils::{self, proto_utils};
+use common::utils;
 use prost_types::Timestamp;
 
 use proto::common::mysql_desc;
@@ -53,8 +53,8 @@ impl DataflowContext {
     fn create_source_sink(&self, source_sink_manager: &mut SourceSinkManger, executor_id: u32) {
         let operator_info = self.nodes.get(&executor_id);
         let remote_node = operator_info.filter(|operator| utils::is_remote_operator(*operator));
-        let external_source = operator_info.filter(|operator| proto_utils::has_source(*operator));
-        let external_sink = operator_info.filter(|operator| proto_utils::has_sink(*operator));
+        let external_source = operator_info.filter(|operator| (*operator).has_source());
+        let external_sink = operator_info.filter(|operator| (*operator).has_sink());
 
         if remote_node.is_some() {
             remote_node.iter().for_each(|operator| {
@@ -169,9 +169,7 @@ impl Executor for LocalExecutor {
                     match &msg {
                         LocalMessage(message) => match message {
                             KeyedDataStreamEvent(e) => {
-                                if proto_utils::has_source(&self.operator)
-                                    || proto_utils::has_sink(&self.operator)
-                                {
+                                if self.operator.has_source() || self.operator.has_sink() {
                                     self.sinks.par_iter().for_each(|sink| {
                                         let _ = futures_executor::block_on(sink.sink(msg.clone()));
                                     });
@@ -298,7 +296,7 @@ impl SourceSinkManger {
             *executor_id,
             SinkImpl::Remote(RemoteSink {
                 sink_id: *executor_id,
-                host_addr: proto_utils::get_host_addr(info),
+                host_addr: info.get_host_addr(),
             }),
         );
     }
@@ -311,7 +309,8 @@ impl SourceSinkManger {
         if self.sources.contains_key(executor_id) {
             return;
         }
-        proto_utils::get_source(operator)
+        operator
+            .get_source()
             .desc
             .iter()
             .for_each(|desc| match desc {
@@ -332,24 +331,21 @@ impl SourceSinkManger {
         if self.sinks.contains_key(executor_id) {
             return;
         }
-        proto_utils::get_sink(operator)
-            .desc
-            .iter()
-            .for_each(|desc| match desc {
-                sink::Desc::Kafka(kafka) => {
-                    self.sinks.insert(
-                        *executor_id,
-                        SinkImpl::Kafka(Kafka::with_sink_config(&self.job_id, *executor_id, kafka)),
-                    );
-                }
-                sink::Desc::Mysql(mysql) => {
-                    self.sinks.insert(
-                        *executor_id,
-                        SinkImpl::Mysql(Mysql::with_config(*executor_id, mysql)),
-                    );
-                }
-                sink::Desc::Redis(_) => todo!(),
-            });
+        operator.get_sink().desc.iter().for_each(|desc| match desc {
+            sink::Desc::Kafka(kafka) => {
+                self.sinks.insert(
+                    *executor_id,
+                    SinkImpl::Kafka(Kafka::with_sink_config(&self.job_id, *executor_id, kafka)),
+                );
+            }
+            sink::Desc::Mysql(mysql) => {
+                self.sinks.insert(
+                    *executor_id,
+                    SinkImpl::Mysql(Mysql::with_config(*executor_id, mysql)),
+                );
+            }
+            sink::Desc::Redis(_) => todo!(),
+        });
     }
 
     fn create_empty_source(&mut self, executor_id: &u32) {
@@ -601,7 +597,7 @@ impl Kafka {
                 .collect::<Vec<String>>()
                 .join(",")
                 .as_str(),
-            &proto_utils::get_kafka_group(config),
+            &config.get_kafka_group(),
             &config.topic,
         ) {
             Ok(consumer) => self_.consumer = Some(Arc::new(consumer)),
@@ -632,8 +628,8 @@ impl Kafka {
                 .join(",")
                 .as_str(),
             &config.topic,
-            &proto_utils::get_kafka_group(config),
-            proto_utils::get_kafka_partition(config) as i32,
+            &config.get_kafka_group(),
+            config.get_kafka_partition() as i32,
         ) {
             Ok(producer) => self_.producer = Some(producer),
             Err(err) => log::error!("kafka producer create failed: {}", err),
@@ -645,29 +641,29 @@ impl Kafka {
     fn process(&self, message: KafkaMessage) -> SinkableMessageImpl {
         let data_type = self.conf.data_type();
         let payload = message.payload.as_slice();
-        let val = TypedValue::from_slice_with_type(payload, data_type);
-        let mut event = KeyedDataEvent::default();
-        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
-        let mut event_time = Timestamp::default();
-
-        event_time.seconds = datetime.naive_utc().timestamp();
-        event_time.nanos = datetime.naive_utc().timestamp_subsec_nanos() as i32;
-        event.event_time = Some(event_time);
-        event.job_id = Some(self.job_id.clone());
-        event.from_operator_id = self.connector_id;
-
-        let mut data_entry = Entry::default();
-        data_entry.set_data_type(data_type);
-        data_entry.value = val.get_data();
-        event.data = vec![data_entry];
-
-        let mut key_entry = Entry::default();
         let key = TypedValue::from_vec(&message.key);
-        key_entry.set_data_type(key.get_type());
-        key_entry.value = message.key.clone();
-        event.key = Some(key_entry);
+        let val = TypedValue::from_slice_with_type(payload, data_type);
+        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
 
-        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(event))
+        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+            job_id: Some(self.job_id.clone()),
+            key: Some(Entry {
+                data_type: key.get_type() as i32,
+                value: key.get_data(),
+            }),
+            to_operator_id: 0,
+            data: vec![Entry {
+                data_type: self.conf.data_type() as i32,
+                value: val.get_data(),
+            }],
+            event_time: Some(Timestamp {
+                seconds: datetime.naive_utc().timestamp(),
+                nanos: datetime.naive_utc().timestamp_subsec_nanos() as i32,
+            }),
+            process_time: None,
+            from_operator_id: self.connector_id,
+            window: None,
+        }))
     }
 }
 
@@ -729,7 +725,7 @@ pub struct Mysql {
 }
 impl Mysql {
     fn with_config(connector_id: u32, conf: &MysqlDesc) -> Mysql {
-        let mut statement = proto_utils::get_mysql_statement(conf);
+        let mut statement = conf.get_mysql_statement();
         statement
             .extractors
             .sort_by(|v1, v2| v1.index.cmp(&v2.index));

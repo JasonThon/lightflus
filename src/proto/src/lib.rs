@@ -1,5 +1,8 @@
 #[cfg(feature = "proto-common")]
 pub mod common;
+#[cfg(feature = "proto-common")]
+pub mod common_impl;
+
 #[cfg(feature = "coordinator")]
 pub mod coordinator;
 

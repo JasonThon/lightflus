@@ -1,15 +1,15 @@
 use core::fmt;
 use std::io;
 
-use proto::common::{ErrorCode, ResourceId, Response};
+use proto::{
+    common::{ErrorCode, ResourceId, Response},
+    common_impl::DataflowValidateError,
+};
 
 use rdkafka::error::KafkaError;
 use tokio::sync::mpsc;
 
-use crate::{
-    event::LocalEvent,
-    types::{ExecutorId, SinkId},
-};
+use crate::{event::LocalEvent, types::SinkId};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct ApiError {
@@ -58,46 +58,25 @@ impl From<tonic::Status> for ApiError {
     fn from(err: tonic::Status) -> Self {
         let msg = format!("{}", err);
         match err.code() {
-            tonic::Code::Cancelled => todo!(),
-            tonic::Code::Unknown => todo!(),
             tonic::Code::InvalidArgument => Self {
                 code: ErrorCode::RpcInvalidArgument as i32,
                 msg,
             },
-            tonic::Code::DeadlineExceeded => todo!(),
             tonic::Code::NotFound => Self {
                 code: ErrorCode::ResourceNotFound as i32,
                 msg,
             },
-            tonic::Code::AlreadyExists => todo!(),
             tonic::Code::PermissionDenied => Self {
                 code: ErrorCode::RpcPermissionDenied as i32,
                 msg,
             },
-            tonic::Code::ResourceExhausted => todo!(),
-            tonic::Code::FailedPrecondition => todo!(),
-            tonic::Code::Aborted => todo!(),
-            tonic::Code::OutOfRange => todo!(),
-            tonic::Code::Unimplemented => Self {
-                code: ErrorCode::RpcUnimplemented as i32,
-                msg,
-            },
-            tonic::Code::Internal => Self {
-                code: ErrorCode::InternalError as i32,
-                msg,
-            },
-            tonic::Code::Unavailable => Self {
-                code: ErrorCode::RpcUnavailable as i32,
-                msg,
-            },
-            tonic::Code::DataLoss => todo!(),
             tonic::Code::Unauthenticated => Self {
                 code: ErrorCode::RpcUnauthorized as i32,
                 msg,
             },
             _ => Self {
-                code: ErrorCode::Unspecified as i32,
-                msg: "".to_string(),
+                code: ErrorCode::InternalError as i32,
+                msg,
             },
         }
     }
@@ -116,20 +95,10 @@ impl Error for DataflowValidateError {
         match self {
             DataflowValidateError::OperatorInfoMissing(_) => ErrorCode::DataflowOperatorInfoMissing,
             DataflowValidateError::CyclicDataflow => ErrorCode::CyclicDataflow,
-            DataflowValidateError::OperatorDetailMissing(_) => todo!(),
-            DataflowValidateError::MissingSourceDesc => todo!(),
-            DataflowValidateError::MissingKafkaBrokers => todo!(),
-            DataflowValidateError::MissingKafkaTypes => todo!(),
-            DataflowValidateError::MissingKafkaTopic => todo!(),
-            DataflowValidateError::MissingSinkDesc => todo!(),
-            DataflowValidateError::MissingRedisKeyExtractor => todo!(),
-            DataflowValidateError::MissingRedisValueExtractor => todo!(),
-            DataflowValidateError::MissingRedisHost => todo!(),
-            DataflowValidateError::MissingRedisConnectionOpts => todo!(),
-            DataflowValidateError::InvalidRedisTlsConfig => todo!(),
-            DataflowValidateError::MissingMysqlConnectionOpts => todo!(),
-            DataflowValidateError::MissingMysqlStatement => todo!(),
-            DataflowValidateError::MissingResourceId => todo!(),
+            DataflowValidateError::OperatorDetailMissing(_) => {
+                ErrorCode::DataflowOperatorInfoMissing
+            }
+            _ => ErrorCode::DataflowConfigurationMissing,
         }
     }
 }
@@ -337,26 +306,6 @@ impl std::fmt::Display for KafkaException {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.err.fmt(f)
     }
-}
-
-#[derive(Debug, serde::Serialize)]
-pub enum DataflowValidateError {
-    MissingResourceId,
-    OperatorInfoMissing(String),
-    CyclicDataflow,
-    OperatorDetailMissing(ExecutorId),
-    MissingSourceDesc,
-    MissingKafkaBrokers,
-    MissingKafkaTypes,
-    MissingKafkaTopic,
-    MissingSinkDesc,
-    MissingRedisKeyExtractor,
-    MissingRedisValueExtractor,
-    MissingRedisHost,
-    MissingRedisConnectionOpts,
-    InvalidRedisTlsConfig,
-    MissingMysqlConnectionOpts,
-    MissingMysqlStatement,
 }
 
 #[derive(Debug)]

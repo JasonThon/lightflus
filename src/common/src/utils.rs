@@ -1,17 +1,13 @@
 use crate::{
-    err::DataflowValidateError,
     net::hostname,
     types::{
-        ExecutorId, BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL,
-        STRING_SYMBOL, UNDEFINED_SYMBOL,
+        BIGINT_SYMBOL, BOOLEAN_SYMBOL, NULL_SYMBOL, NUMBER_SYMBOL, OBJECT_SYMBOL, STRING_SYMBOL,
+        UNDEFINED_SYMBOL,
     },
 };
 use bytes::BytesMut;
 use prost::{DecodeError, Message};
-use proto::common::{
-    operator_info::Details, sink, source, DataTypeEnum, Dataflow, DataflowMeta, KafkaDesc,
-    OperatorInfo, RedisDesc, ResourceId, Source,
-};
+use proto::common::{DataTypeEnum, Dataflow, DataflowMeta, OperatorInfo, ResourceId};
 use serde::de::Error;
 use std::collections::HashMap;
 use std::env;
@@ -160,133 +156,6 @@ pub fn to_dataflow(
     dataflow
 }
 
-fn check_operator_info(
-    node_id: ExecutorId,
-    dataflow: &Dataflow,
-) -> Result<(), DataflowValidateError> {
-    if !dataflow.nodes.contains_key(&node_id) {
-        Err(DataflowValidateError::OperatorInfoMissing(format!(
-            "operatorInfo of node {} is missing",
-            node_id
-        )))
-    } else {
-        let operator = dataflow.nodes.get(&node_id).unwrap();
-
-        match operator.details.as_ref() {
-            Some(detail) => match detail {
-                Details::Source(source) => check_source(source),
-                Details::Sink(sink) => check_sink(sink),
-                _ => Ok(()),
-            },
-            None => return Err(DataflowValidateError::OperatorDetailMissing(node_id)),
-        }
-    }
-}
-
-fn check_sink(sink: &proto::common::Sink) -> Result<(), DataflowValidateError> {
-    match sink.desc.as_ref() {
-        Some(desc) => match desc {
-            sink::Desc::Redis(redis) => check_redis_desc(redis),
-            sink::Desc::Kafka(kafka) => check_kafka_desc(kafka),
-            sink::Desc::Mysql(mysql) => check_mysql_desc(mysql),
-        },
-        None => Err(DataflowValidateError::MissingSinkDesc),
-    }
-}
-
-fn check_mysql_desc(mysql: &proto::common::MysqlDesc) -> Result<(), DataflowValidateError> {
-    if mysql.connection_opts.is_none() {
-        return Err(DataflowValidateError::MissingMysqlConnectionOpts);
-    } else if mysql.statement.is_none() {
-        return Err(DataflowValidateError::MissingMysqlStatement);
-    } else if mysql
-        .statement
-        .as_ref()
-        .filter(|statement| statement.statement.is_empty())
-        .is_some()
-    {
-        return Err(DataflowValidateError::MissingMysqlStatement);
-    } else {
-        Ok(())
-    }
-}
-
-fn check_kafka_desc(kafka: &KafkaDesc) -> Result<(), DataflowValidateError> {
-    if kafka.brokers.is_empty() {
-        Err(DataflowValidateError::MissingKafkaBrokers)
-    } else if kafka.data_type() == DataTypeEnum::Unspecified {
-        Err(DataflowValidateError::MissingKafkaTypes)
-    } else if kafka.topic.is_empty() {
-        Err(DataflowValidateError::MissingKafkaTopic)
-    } else {
-        Ok(())
-    }
-}
-
-fn check_redis_desc(redis: &RedisDesc) -> Result<(), DataflowValidateError> {
-    if redis.key_extractor.is_none() {
-        Err(DataflowValidateError::MissingRedisKeyExtractor)
-    } else if redis.value_extractor.is_none() {
-        Err(DataflowValidateError::MissingRedisValueExtractor)
-    } else if redis.connection_opts.is_none() {
-        Err(DataflowValidateError::MissingRedisConnectionOpts)
-    } else {
-        match redis.connection_opts.as_ref() {
-            Some(opts) => {
-                if opts.host.is_empty() {
-                    Err(DataflowValidateError::MissingRedisHost)
-                } else if opts.tls {
-                    if opts.username.is_empty() || opts.password.is_empty() {
-                        Err(DataflowValidateError::InvalidRedisTlsConfig)
-                    } else {
-                        Ok(())
-                    }
-                } else {
-                    Ok(())
-                }
-            }
-            None => Err(DataflowValidateError::MissingRedisConnectionOpts),
-        }
-    }
-}
-
-fn check_source(source: &Source) -> Result<(), DataflowValidateError> {
-    match source.desc.as_ref() {
-        Some(desc) => match desc {
-            source::Desc::Kafka(kafka) => check_kafka_desc(kafka),
-        },
-        None => Err(DataflowValidateError::MissingSourceDesc),
-    }
-}
-
-pub fn validate_dataflow(dataflow: &Dataflow) -> Result<(), DataflowValidateError> {
-    if dataflow.job_id.is_none() {
-        return Err(DataflowValidateError::MissingResourceId);
-    }
-    let mut metas = dataflow.meta.to_vec();
-    metas.sort_by(|prev, next| prev.center.cmp(&next.center));
-
-    for meta in &metas {
-        let result = check_operator_info(meta.center, dataflow);
-        if result.is_err() {
-            return result;
-        }
-
-        for neighbor in &meta.neighbors {
-            if neighbor < &meta.center {
-                return Err(DataflowValidateError::CyclicDataflow);
-            }
-
-            let result = check_operator_info(*neighbor, dataflow);
-            if result.is_err() {
-                return result;
-            }
-        }
-    }
-
-    return Ok(());
-}
-
 pub fn from_type_symbol(symbol: String) -> DataTypeEnum {
     let raw = symbol.as_str();
     if raw == STRING_SYMBOL {
@@ -315,89 +184,6 @@ pub fn pb_to_bytes_mut<T: Message>(message: T) -> BytesMut {
     bytes
 }
 
-pub mod proto_utils {
-    use proto::common::{
-        mysql_desc::Statement, operator_info::Details, HostAddr, KafkaDesc, MysqlDesc,
-        OperatorInfo, Sink, Source,
-    };
-
-    pub fn has_source(operator: &OperatorInfo) -> bool {
-        operator
-            .details
-            .as_ref()
-            .filter(|details| match details {
-                Details::Source(_) => true,
-                _ => false,
-            })
-            .is_some()
-    }
-
-    pub fn has_sink(operator: &OperatorInfo) -> bool {
-        operator
-            .details
-            .as_ref()
-            .filter(|details| match details {
-                Details::Sink(_) => true,
-                _ => false,
-            })
-            .is_some()
-    }
-
-    pub fn get_host_addr(operator: &OperatorInfo) -> HostAddr {
-        operator
-            .host_addr
-            .as_ref()
-            .map(|addr| addr.clone())
-            .unwrap_or_default()
-    }
-
-    pub fn get_source(operator: &OperatorInfo) -> Source {
-        operator
-            .details
-            .as_ref()
-            .and_then(|details| match details {
-                Details::Source(source) => Some(source.clone()),
-                _ => None,
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn get_sink(operator: &OperatorInfo) -> Sink {
-        operator
-            .details
-            .as_ref()
-            .and_then(|details| match details {
-                Details::Sink(sink) => Some(sink.clone()),
-                _ => None,
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn get_kafka_group(kafka: &KafkaDesc) -> String {
-        kafka
-            .opts
-            .as_ref()
-            .and_then(|opts| opts.group.clone())
-            .unwrap_or_default()
-    }
-
-    pub fn get_kafka_partition(kafka: &KafkaDesc) -> u32 {
-        kafka
-            .opts
-            .as_ref()
-            .and_then(|opts| opts.partition)
-            .unwrap_or_default()
-    }
-
-    pub fn get_mysql_statement(mysql: &MysqlDesc) -> Statement {
-        mysql
-            .statement
-            .as_ref()
-            .map(|statement| statement.clone())
-            .unwrap_or_default()
-    }
-}
-
 pub fn from_pb_slice<T: Message + std::default::Default>(data: &[u8]) -> Result<T, DecodeError> {
     prost::Message::decode(data)
 }
@@ -408,7 +194,10 @@ pub fn uuid() -> String {
 
 #[cfg(test)]
 mod tests {
-    use proto::common::{operator_info::Details, ResourceId};
+    use proto::{
+        common::{operator_info::Details, ResourceId},
+        common_impl::DataflowValidateError,
+    };
 
     #[test]
     fn test_process_arg_success() {
@@ -524,7 +313,6 @@ mod tests {
 
     #[test]
     fn test_validate_dataflow_success() {
-        use crate::utils::validate_dataflow;
         use proto::common::Dataflow;
         use proto::common::DataflowMeta;
         use proto::common::OperatorInfo;
@@ -548,11 +336,11 @@ mod tests {
         nodes.insert(0, info_1);
         dataflow.nodes = nodes.clone();
 
-        let result = validate_dataflow(&dataflow);
+        let result = dataflow.validate();
         assert!(result.is_err());
         let err = result.unwrap_err();
         match err {
-            crate::err::DataflowValidateError::OperatorInfoMissing(_) => {}
+            DataflowValidateError::OperatorInfoMissing(_) => {}
             _ => panic!("unexpected error"),
         };
 
@@ -564,13 +352,12 @@ mod tests {
         });
 
         dataflow.nodes = nodes;
-        let result = validate_dataflow(&dataflow);
+        let result = dataflow.validate();
         assert!(result.is_ok());
     }
 
     #[test]
     fn test_dataflow_is_cyclic() {
-        use crate::utils::validate_dataflow;
         use proto::common::Dataflow;
         use proto::common::DataflowMeta;
         use proto::common::OperatorInfo;
@@ -603,11 +390,11 @@ mod tests {
 
         dataflow.nodes = nodes;
 
-        let result = validate_dataflow(&dataflow);
+        let result = dataflow.validate();
         assert!(result.is_err());
         let err = result.unwrap_err();
         match err {
-            crate::err::DataflowValidateError::CyclicDataflow => {}
+            DataflowValidateError::CyclicDataflow => {}
             _ => panic!("unexpected error"),
         };
     }

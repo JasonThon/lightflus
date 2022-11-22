@@ -83,12 +83,13 @@ pub fn get_env(k: &str) -> Option<String> {
     match env::var(k.to_string()) {
         Ok(var) => Some(var),
         Err(err) => {
-            log::error!("{}", err);
+            tracing::error!("{}", err);
             None
         }
     }
 }
 
+#[cfg(not(tarpaulin_include))]
 pub fn from_reader<R: std::io::Read>(reader: R) -> serde_json::Result<String> {
     let ref mut buf = Default::default();
     let mut buf_reader = std::io::BufReader::new(reader);
@@ -184,10 +185,12 @@ pub fn pb_to_bytes_mut<T: Message>(message: T) -> BytesMut {
     bytes
 }
 
+#[cfg(not(tarpaulin_include))]
 pub fn from_pb_slice<T: Message + std::default::Default>(data: &[u8]) -> Result<T, DecodeError> {
     prost::Message::decode(data)
 }
 
+#[cfg(not(tarpaulin_include))]
 pub fn uuid() -> String {
     uuid::Uuid::new_v4().to_string()
 }

@@ -213,12 +213,12 @@ impl TypedValue {
                 vec![data]
             }
             TypedValue::Object(value) => serde_json::to_vec(value)
-                .map_err(|err| log::error!("serialize object failed: {}", err))
+                .map_err(|err| tracing::error!("serialize object failed: {}", err))
                 .unwrap_or_default(),
             TypedValue::Array(value) => {
                 let result = Vec::from_iter(value.iter().map(|value| value.get_data()));
                 serde_json::to_vec(&result)
-                    .map_err(|err| log::error!("serialize array failed: {}", err))
+                    .map_err(|err| tracing::error!("serialize array failed: {}", err))
                     .unwrap_or_default()
             }
             _ => vec![],
@@ -252,12 +252,12 @@ impl TypedValue {
             DataTypeEnum::Null => TypedValue::Null,
             DataTypeEnum::Object => TypedValue::Object(
                 serde_json::from_slice::<BTreeMap<String, TypedValue>>(&data[1..data.len()])
-                    .map_err(|err| log::error!("deserialize object failed: {}", err))
+                    .map_err(|err| tracing::error!("deserialize object failed: {}", err))
                     .unwrap_or_default(),
             ),
             DataTypeEnum::Array => {
                 let val = serde_json::from_slice::<Vec<Vec<u8>>>(&data[1..data.len()])
-                    .map_err(|err| log::error!("deserializ array failed:{}", err))
+                    .map_err(|err| tracing::error!("deserializ array failed:{}", err))
                     .unwrap_or_default();
                 TypedValue::Array(Vec::from_iter(
                     val.iter().map(|data| TypedValue::from_vec(data)),
@@ -290,12 +290,12 @@ impl TypedValue {
             DataTypeEnum::Null => TypedValue::Null,
             DataTypeEnum::Object => TypedValue::Object(
                 serde_json::from_slice::<BTreeMap<String, TypedValue>>(&data[1..data.len()])
-                    .map_err(|err| log::error!("{err}"))
+                    .map_err(|err| tracing::error!("{err}"))
                     .unwrap_or(Default::default()),
             ),
             DataTypeEnum::Array => {
                 let val = serde_json::from_slice::<Vec<Vec<u8>>>(&data[1..data.len()])
-                    .map_err(|err| log::error!("{err}"))
+                    .map_err(|err| tracing::error!("{err}"))
                     .unwrap_or_default();
                 TypedValue::Array(Vec::from_iter(
                     val.iter().map(|data| TypedValue::from_vec(data)),
@@ -339,7 +339,7 @@ impl TypedValue {
                 match value {
                     Ok(val) => Self::from_json_value(val),
                     Err(err) => {
-                        log::error!("deserialize json object failed: {}", err);
+                        tracing::error!("deserialize json object failed: {}", err);
                         Self::Object(Default::default())
                     }
                 }
@@ -349,7 +349,7 @@ impl TypedValue {
                 match value {
                     Ok(val) => Self::from_json_value(val),
                     Err(err) => {
-                        log::error!("deserialize json array failed: {}", err);
+                        tracing::error!("deserialize json array failed: {}", err);
                         Self::Array(Default::default())
                     }
                 }

@@ -53,7 +53,7 @@ impl DataflowStorage for RocksDataflowStorage {
             }) {
             Ok(result) => result,
             Err(err) => {
-                log::error!("get dataflow {:?} failed because: {:?}", job_id, err);
+                tracing::error!("get dataflow {:?} failed because: {:?}", job_id, err);
                 None
             }
         }
@@ -156,12 +156,16 @@ impl Coordinator {
         }
     }
 
-    pub fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), tonic::Status> {
-        dataflow.validate()
+    pub async fn create_dataflow(&mut self, mut dataflow: Dataflow) -> Result<(), tonic::Status> {
+        match dataflow
+            .validate()
             .map_err(|err| tonic::Status::invalid_argument(format!("{:?}", err)))
-            .and_then(|_| {
+        {
+            Ok(_) => {
                 self.cluster.partition_dataflow(&mut dataflow);
-                let terminate_result = self.terminate_dataflow(dataflow.job_id.as_ref().unwrap());
+                let terminate_result = self
+                    .terminate_dataflow(dataflow.job_id.as_ref().unwrap())
+                    .await;
                 if terminate_result.is_err() {
                     return terminate_result.map(|_| ());
                 }
@@ -171,24 +175,26 @@ impl Coordinator {
                     _ => {}
                 }
 
-                self.cluster.create_dataflow(&dataflow)
-            })
+                self.cluster.create_dataflow(&dataflow).await
+            }
+            Err(err) => Err(err),
+        }
     }
 
-    pub fn terminate_dataflow(
+    pub async fn terminate_dataflow(
         &mut self,
         job_id: &ResourceId,
     ) -> Result<DataflowStatus, tonic::Status> {
         if !self.dataflow_storage.may_exists(job_id) {
             Ok(DataflowStatus::Closed)
         } else {
-            self.dataflow_storage
-                .delete(job_id)
-                .map_err(|err| {
-                    log::error!("delete dataflow failed: {:?}", err);
-                    tonic::Status::internal(err.message)
-                })
-                .and_then(|_| self.cluster.terminate_dataflow(job_id))
+            match self.dataflow_storage.delete(job_id).map_err(|err| {
+                tracing::error!("delete dataflow failed: {:?}", err);
+                tonic::Status::internal(err.message)
+            }) {
+                Ok(_) => self.cluster.terminate_dataflow(job_id).await,
+                Err(err) => Err(err),
+            }
         }
     }
 
@@ -196,8 +202,8 @@ impl Coordinator {
         self.dataflow_storage.get(job_id)
     }
 
-    pub fn probe_state(&mut self) {
-        self.cluster.probe_state()
+    pub async fn probe_state(&mut self) {
+        self.cluster.probe_state().await
     }
 }
 

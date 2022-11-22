@@ -31,7 +31,7 @@ impl RocksStateManager {
     pub fn new<P: AsRef<Path>>(path: P) -> Self {
         Self {
             db: DB::open_default(path)
-                .map_err(|err| log::error!("rocks db open failed: {}", err))
+                .map_err(|err| tracing::error!("rocks db open failed: {}", err))
                 .unwrap(),
         }
     }
@@ -42,14 +42,14 @@ impl StateManager for RocksStateManager {
         self.db
             .get(key)
             .map(|value| value.unwrap_or(vec![]))
-            .map_err(|err| log::error!("get state failed: {}", err))
+            .map_err(|err| tracing::error!("get state failed: {}", err))
             .unwrap_or_default()
     }
 
     fn set_key_state(&self, key: &[u8], value: &[u8]) {
         self.db
             .put(key, value)
-            .map_err(|err| log::error!("set key state failed: {}", err))
+            .map_err(|err| tracing::error!("set key state failed: {}", err))
             .unwrap_or_default()
     }
 }

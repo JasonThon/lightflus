@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "signal"] }
 serde = { version = "1.0", features = ["derive"] }
-log = "0.4"
 common = { path = "../common" }
 proto = { path = "../proto", features = ["coordinator", "worker"] }
 serde_json = "1.0.59"
@@ -17,3 +16,5 @@ prost = "0.11"
 prost-types = "0.11"
 tonic = "0.8"
 rocksdb = { version = "0.19.0", features=["lz4"] }
+tracing = "0.1"
+tracing-subscriber = "0.3"

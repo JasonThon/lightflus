@@ -47,6 +47,15 @@ impl From<sqlx::Error> for SinkException {
     }
 }
 
+impl From<&mut sqlx::Error> for SinkException {
+    fn from(err: &mut sqlx::Error) -> Self {
+        Self {
+            kind: ErrorKind::SqlExecutionFailed,
+            msg: format!("{}", err),
+        }
+    }
+}
+
 impl From<&mut RedisException> for SinkException {
     fn from(err: &mut RedisException) -> Self {
         Self {

@@ -12,6 +12,7 @@ pub mod coord;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    tracing_subscriber::fmt::init();
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let file_result =
@@ -43,10 +44,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config = reader.unwrap();
 
     let mut coordinator = Coordinator::new(config.storage.to_dataflow_storage(), &config.cluster);
-    coordinator.probe_state();
+    coordinator.probe_state().await;
     let server = CoordinatorApiImpl::new(coordinator);
 
     let addr = format!("0.0.0.0:{}", config.port).parse()?;
+    tracing::info!("service will start at {}", config.port);
+
     Server::builder()
         .add_service(CoordinatorApiServer::new(server))
         .serve(addr)

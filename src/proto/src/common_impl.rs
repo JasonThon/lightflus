@@ -1,7 +1,8 @@
 use crate::common::{
-    mysql_desc::Statement, operator_info::Details, sink, source, DataTypeEnum, Dataflow, Func,
-    HostAddr, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Sink,
-    Source,
+    mysql_desc::{self, Statement},
+    operator_info::Details,
+    sink, source, DataTypeEnum, Dataflow, Func, HostAddr, KafkaDesc, KeyedDataEvent, MysqlDesc,
+    OperatorInfo, RedisDesc, ResourceId, Sink, Source,
 };
 
 impl OperatorInfo {
@@ -242,6 +243,17 @@ impl KeyedDataEvent {
         } else {
             self.job_id.as_ref().unwrap().clone()
         }
+    }
+}
+
+impl mysql_desc::ConnectionOpts {
+    pub fn get_uri(&self) -> String {
+        let db = &self.database;
+        let user = &self.username;
+        let password = &self.password;
+        let host = &self.host;
+
+        format!("mysql://{user}:{password}@{host}/{db}")
     }
 }
 

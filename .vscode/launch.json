@@ -235,7 +235,7 @@
             },
             "env": {
                 "RUST_LOG": "INFO",
-                "LIGHTFLUS_COORDINATOR_URI": "localhost:8791"
+                "LIGHTFLUS_COORDINATOR_URI": "http://localhost:8791"
             },
             "args": [],
             "cwd": "${workspaceFolder}"

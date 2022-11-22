@@ -1,12 +1,10 @@
-FROM rust:1.61.0-alpine as builder
+FROM rust:1.61.0 as builder
 WORKDIR /lightflus/runtime
 COPY . .
-RUN cargo install --path src/apiserver
-COPY target/release/apiserver /lightflus/runtime/apiserver
-COPY src/apiserver/etc /lightflus/runtime
+RUN cargo install --path /lightflus/runtime/src/apiserver --target-dir /lightflus/runtime/target
 
-FROM alpine:3.15
+FROM debian:buster-slim
 WORKDIR /lightflus/runtime
-COPY --from=builder /lightflus/runtime/etc /lightflus/runtime/etc
-COPY --from=builder /lightflus/runtime/apiserver /lightflus/runtime/apiserver
+COPY --from=builder /lightflus/runtime/src/apiserver/etc /lightflus/runtime
+COPY --from=builder /lightflus/runtime/target/release/apiserver /lightflus/runtime/apiserver
 CMD ["./apiserver", "-c", "etc/apiserver.json"]

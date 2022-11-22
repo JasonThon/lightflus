@@ -1,20 +1,16 @@
-FROM golang:1.17.7-alpine3.15 as tools-preparation
+FROM golang:1.17.7 as tools-preparation
 WORKDIR /lightflus/runtime/tools
 COPY ./tools .
 RUN go build -ldflags="-s -w" -o /lightflus/runtime/tools/healthcheck health-check/main.go
 
-FROM rust:1.61.0-alpine as builder
+FROM rust:1.61.0 as builder
 WORKDIR /lightflus/runtime
 COPY . .
-RUN apk add --update --no-cache musl-dev
-RUN cargo install --path src/worker
-COPY target/release/worker /lightflus/runtime/worker
-COPY src/worker/etc /lightflus/runtime
+RUN cargo install --path /lightflus/runtime/src/worker --target-dir /lightflus/runtime/target
 
-FROM alpine:3.16
-RUN apk add --update --no-cache rocksdb-dev
+FROM debian:buster-slim
 WORKDIR /lightflus/runtime
-COPY --from=builder /lightflus/runtime/etc /lightflus/runtime/etc
-COPY --from=builder /lightflus/runtime/worker /lightflus/runtime/worker
+COPY --from=builder /lightflus/runtime/src/worker/etc /lightflus/runtime
+COPY --from=builder /lightflus/runtime/target/release/worker /lightflus/runtime/worker
 COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
 CMD ["./worker", "-c", "etc/worker.json"]

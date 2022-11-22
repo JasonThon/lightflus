@@ -22,6 +22,8 @@ use proto::{
 use sqlx::Row;
 use stream::actor::{Kafka, Mysql, Redis, Sink, SinkImpl};
 
+static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
+
 struct SetupGuard {}
 
 impl Drop for SetupGuard {
@@ -29,11 +31,13 @@ impl Drop for SetupGuard {
 }
 
 fn setup() -> SetupGuard {
-    v8::V8::set_flags_from_string(
-        "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
-      );
-    v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
-    v8::V8::initialize();
+    MOD_TEST_START.call_once(|| {
+        v8::V8::set_flags_from_string(
+            "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
+          );
+        v8::V8::initialize_platform(v8::new_default_platform(1, false).make_shared());
+        v8::V8::initialize();
+    });
 
     SetupGuard {}
 }
@@ -145,10 +149,10 @@ async fn test_redis_sink_success() {
             tls: false,
         }),
         key_extractor: Some(Func {
-            function: "function redis_extractor(a) {return a.key}".to_string(),
+            function: "function redis_extractor(a) { return a.key }".to_string(),
         }),
         value_extractor: Some(Func {
-            function: "function redis_extractor(a) {return a.value}".to_string(),
+            function: "function redis_extractor(a) { return a.value }".to_string(),
         }),
     };
 
@@ -219,11 +223,6 @@ async fn test_redis_sink_success() {
     let value = result.expect("msg");
 
     assert_eq!(value.as_slice().get_i64(), 100);
-    unsafe {
-        v8::V8::dispose();
-    }
-
-    v8::V8::dispose_platform();
 }
 
 #[tokio::test]
@@ -341,9 +340,4 @@ async fn test_mysql_sink() {
         .await;
 
     assert!(result.is_ok());
-    unsafe {
-        v8::V8::dispose();
-    }
-
-    v8::V8::dispose_platform();
 }

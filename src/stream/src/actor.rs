@@ -177,9 +177,17 @@ impl Executor for LocalExecutor {
                                         Ok(results) => results.iter().for_each(|event| {
                                             let after_process = KeyedDataStreamEvent(event.clone());
                                             self.sinks.par_iter().for_each(|sink| {
-                                                let _ = futures_executor::block_on(
+                                                let result = futures_executor::block_on(
                                                     sink.sink(LocalMessage(after_process.clone())),
                                                 );
+                                                match result {
+                                                    Ok(_) => {}
+                                                    Err(err) => tracing::error!(
+                                                        "sink to node {} failed: {:?}",
+                                                        sink.sink_id(),
+                                                        err
+                                                    ),
+                                                }
                                             });
                                         }),
                                         Err(err) => {
@@ -343,7 +351,12 @@ impl SourceSinkManger {
                     SinkImpl::Mysql(Mysql::with_config(*executor_id, mysql)),
                 );
             }
-            sink::Desc::Redis(_) => todo!(),
+            sink::Desc::Redis(redis) => {
+                self.sinks.insert(
+                    *executor_id,
+                    SinkImpl::Redis(Redis::with_config(*executor_id, redis)),
+                );
+            }
         });
     }
 

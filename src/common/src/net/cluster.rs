@@ -245,6 +245,7 @@ impl Cluster {
 
                 new_dataflow.meta = entry.1.iter().map(|meta| (*meta).clone()).collect();
                 new_dataflow.nodes = nodes;
+                new_dataflow.job_id = dataflow.job_id.clone();
 
                 (entry.0.clone(), new_dataflow)
             })

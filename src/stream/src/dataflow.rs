@@ -289,7 +289,7 @@ impl<S: state::StateManager> IOperator for FlatMapOperator<S> {
     where
         'p: 'i,
     {
-        let flat_map_value = event.data.iter().flat_map(|entry| {
+        let flat_map_value = event.data.iter().map(|entry| {
             let val = TypedValue::from_slice(&entry.value);
             let result = rt_engine
                 .borrow_mut()
@@ -305,12 +305,17 @@ impl<S: state::StateManager> IOperator for FlatMapOperator<S> {
         let mut new_event = event.clone();
         new_event.data = flat_map_value
             .map(|val| {
-                let mut entry = Entry::default();
-                entry.set_data_type(val.get_type());
-                entry.value = val.get_data();
+                val.iter()
+                    .map(|value| {
+                        let mut entry = Entry::default();
+                        entry.set_data_type(value.get_type());
+                        entry.value = value.get_data();
 
-                entry
+                        entry
+                    })
+                    .collect::<Vec<Entry>>()
             })
+            .flatten()
             .collect();
 
         Ok(vec![new_event])
@@ -405,6 +410,8 @@ fn get_operator_state_key(operator_id: NodeIdx, operator: &str) -> Vec<u8> {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use proto::common::{
         filter, flat_map, key_by, mapper, operator_info::Details, reducer, OperatorInfo,
     };
@@ -690,7 +697,7 @@ mod tests {
 
         let _setup_guard = setup();
 
-        let mut op_info = OperatorInfo {
+        let op_info = OperatorInfo {
             operator_id: 0,
             host_addr: None,
             upstreams: Default::default(),
@@ -748,7 +755,7 @@ mod tests {
     }
 
     #[test]
-    fn test_flatmap_operator() {
+    fn test_flatmap_operator_return_array() {
         use super::FlatMapOperator;
         use crate::dataflow::get_function_name;
         use crate::dataflow::IOperator;
@@ -816,6 +823,77 @@ mod tests {
             entry_3.value = val.get_data();
 
             assert_eq!(new_events[0].data, vec![entry_1, entry_2, entry_3]);
+        }
+    }
+
+    #[test]
+    fn test_flatmap_operator_string_split() {
+        use super::FlatMapOperator;
+        use crate::dataflow::get_function_name;
+        use crate::dataflow::IOperator;
+        use crate::state::MemoryStateManager;
+        use crate::v8_runtime::RuntimeEngine;
+        use common::types::TypedValue;
+        use proto::common::Func;
+        use proto::common::{Entry, KeyedDataEvent};
+        use proto::common::{FlatMap, OperatorInfo};
+        use std::cell::RefCell;
+
+        let _setup_guard = setup();
+
+        let op_info = OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(Details::FlatMap(FlatMap {
+                value: Some(flat_map::Value::Func(Func {
+                    function: "function _operator_flatMap_process(value) { return value.split(\" \").map(v => { return { t0: 1, t1: v }; }) }".to_string(),
+                })),
+            })),
+        };
+
+        let state_manager = MemoryStateManager::new();
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let isolated_scope = &mut v8::HandleScope::new(isolate);
+        let rt_engine = RefCell::new(RuntimeEngine::new(
+            "function _operator_flatMap_process(value) { return value.split(\" \").map(v => { return { t0: 1, t1: v }; }) }",
+            &get_function_name(&op_info),
+            isolated_scope,
+        ));
+        let operator = FlatMapOperator::new(&op_info, state_manager);
+
+        let mut event = KeyedDataEvent::default();
+        event.from_operator_id = 0;
+
+        let mut entry = Entry::default();
+        let val = TypedValue::String("value value value".to_string());
+        entry.set_data_type(val.get_type());
+        entry.value = val.get_data();
+
+        event.data = vec![entry.clone()];
+        let result = operator.call_fn(&event, &rt_engine);
+
+        {
+            assert!(result.is_ok());
+            let new_events = result.expect("");
+            assert_eq!(new_events.len(), 1);
+            let mut entry_1 = Entry::default();
+            let val = TypedValue::Object(BTreeMap::from_iter(
+                [
+                    ("t1".to_string(), TypedValue::String("value".to_string())),
+                    ("t0".to_string(), TypedValue::Number(1.0)),
+                ]
+                .iter()
+                .map(|entry| (entry.0.clone(), entry.1.clone())),
+            ));
+            entry_1.set_data_type(val.get_type());
+            entry_1.value = val.get_data();
+
+            assert_eq!(
+                new_events[0].data,
+                vec![entry_1.clone(), entry_1.clone(), entry_1.clone()]
+            );
         }
     }
 }

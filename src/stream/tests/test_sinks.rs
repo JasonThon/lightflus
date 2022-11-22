@@ -218,7 +218,12 @@ async fn test_redis_sink_success() {
     assert!(result.is_ok());
     let value = result.expect("msg");
 
-    assert_eq!(value.as_slice().get_i64(), 100)
+    assert_eq!(value.as_slice().get_i64(), 100);
+    unsafe {
+        v8::V8::dispose();
+    }
+
+    v8::V8::dispose_platform();
 }
 
 #[tokio::test]
@@ -334,5 +339,11 @@ async fn test_mysql_sink() {
     let result = conn
         .execute("drop table if exists person", vec![], mysql_conn)
         .await;
+
     assert!(result.is_ok());
+    unsafe {
+        v8::V8::dispose();
+    }
+
+    v8::V8::dispose_platform();
 }

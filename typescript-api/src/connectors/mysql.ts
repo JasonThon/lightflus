@@ -65,14 +65,14 @@ export class Statement<T> {
     let extractors = Array.from(this._string_extractors.entries()).map((entry) => {
       return new Extractor({
         index: entry[0],
-        extractor: injectFunctionName("_mysql_string_extractor", entry[1].toString())
+        extractor: injectFunctionName("mysql_extractor", entry[1].toString())
       });
     });
 
     let numberExtractors = Array.from(this._number_extractors.entries()).map((entry) => {
       return new Extractor({
         index: entry[0],
-        extractor: injectFunctionName("_mysql_number_extractor", entry[1].toString())
+        extractor: injectFunctionName("mysql_extractor", entry[1].toString())
       });
     });
 

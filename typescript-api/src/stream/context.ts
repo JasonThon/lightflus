@@ -1,4 +1,5 @@
 import { apiserver, common } from "../proto/apiserver";
+import { randomUUID } from "crypto";
 import ICreateDataflowOptions = apiserver.ICreateDataflowOptions;
 import CreateDataflowOptions = apiserver.CreateDataflowOptions;
 import Dataflow = common.Dataflow;
@@ -53,6 +54,10 @@ export class ExecutionContext {
   getCreateDataflowOptions(): ICreateDataflowOptions {
     let options = new CreateDataflowOptions();
     let df = new Dataflow();
+    df.jobId = {
+      resourceId: randomUUID(),
+      namespaceId: "default"
+    };
     df.meta = this.adjacentList;
 
     this.operatorInfo.forEach((val, key) => {

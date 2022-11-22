@@ -1,10 +1,9 @@
 import { ExecutionContext } from "./context";
 import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
-import { apiserver, common } from "../proto/apiserver";
+import { apiserver } from "../proto/apiserver";
 import { Sink } from "../connectors/definition";
-import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
 import axios from "axios";
-import IWindow = common.IWindow;
+import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
 import CreateResourceRequest = apiserver.CreateResourceRequest;
 import ResourceTypeEnum = apiserver.ResourceTypeEnum;
 
@@ -73,11 +72,6 @@ export class KeyedDataflow<K, T> extends Dataflow<T> {
   reduce(callbackFn: (agg: T, current: T) => T): KeyedDataflow<K, T> {
     this.ctx.addChild(this.operator_id, new Reduce(this.ctx.incrementAndGetId(), callbackFn).toOperatorInfo());
     return new KeyedDataflow<K, T>(this.ctx);
-  }
-
-  window(window: IWindow): KeyedDataflow<K, T> {
-    this.ctx.setWindow(this.operator_id, window);
-    return this;
   }
 
   filter(callbackFn: (value: T) => boolean): Dataflow<T> {

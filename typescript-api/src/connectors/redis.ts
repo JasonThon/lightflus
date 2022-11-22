@@ -48,10 +48,10 @@ export class Redis<V> extends Sink<V> {
           tls: this._tls
         },
         keyExtractor: {
-          function: injectFunctionName("_redis_key_extractor", this._keyExtractor.toString())
+          function: injectFunctionName("redis_extractor", this._keyExtractor.toString())
         },
         valueExtractor: {
-          function: injectFunctionName("_redis_value_extractor", this._valueExtractor.toString())
+          function: injectFunctionName("redis_extractor", this._valueExtractor.toString())
         }
       }
     };

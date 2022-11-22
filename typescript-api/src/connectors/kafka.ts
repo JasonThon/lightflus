@@ -4,6 +4,18 @@ import ISource = common.ISource;
 import DataTypeEnum = common.DataTypeEnum;
 
 export class Kafka<T> extends Source<T> {
+  private _partition: number = 0;
+
+  set partition(value: number) {
+    this._partition = value;
+  }
+
+  private _group: string;
+
+  set group(value: string) {
+    this._group = value;
+  }
+
   private _topic: string;
 
   set topic(value: string) {
@@ -31,7 +43,11 @@ export class Kafka<T> extends Source<T> {
       kafka: {
         topic: this._topic,
         brokers: this._brokers,
-        dataType: this.getDataType()
+        dataType: this.getDataType(),
+        opts: {
+          partition: this._partition,
+          group: this._group
+        }
       }
     };
   }
@@ -66,6 +82,8 @@ export class Kafka<T> extends Source<T> {
 export class KafkaBuilder {
   private _brokers: string[];
   private _topic: string;
+  private _group: string;
+  private _partition: number = 0;
 
   brokers(brokers: string[]): KafkaBuilder {
     this._brokers = brokers;
@@ -74,6 +92,16 @@ export class KafkaBuilder {
 
   topic(topic: string): KafkaBuilder {
     this._topic = topic;
+    return this;
+  }
+
+  group(group: string): KafkaBuilder {
+    this._group = group;
+    return this;
+  }
+
+  partition(partition: number): KafkaBuilder {
+    this._partition = partition;
     return this;
   }
 

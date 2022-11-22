@@ -13,6 +13,16 @@ export class Node {
 
 export function injectFunctionName(name: string, func: string): string {
   let prefix = "function ";
-  let indexOf = func.indexOf(prefix);
-  return prefix.concat(name.concat(" ").concat(func.slice(indexOf + prefix.length)));
+  let split_start = func.indexOf("=>");
+  let split_end = split_start + 2;
+  let afterSpit = func.slice(split_end);
+  if (afterSpit.trim().indexOf("{") != 0) {
+    afterSpit = " { ".concat("return ").concat(afterSpit).concat(" }");
+  }
+  let beforeSplit = func.slice(0, split_start);
+  if (beforeSplit.trim().indexOf("(") != 0) {
+    beforeSplit = "(".concat(beforeSplit.trim()).concat(")");
+  }
+
+  return prefix.concat(name.concat(" ")).concat(beforeSplit).concat(afterSpit);
 }

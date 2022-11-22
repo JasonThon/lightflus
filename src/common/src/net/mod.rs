@@ -92,7 +92,7 @@ mod tests {
         assert_eq!(host_addr.host.as_str(), "198.0.0.1");
         assert_eq!(host_addr.port, 8970);
 
-        assert_eq!(addr.as_uri().as_str(), "198.0.0.1:8970");
+        assert_eq!(addr.as_uri().as_str(), "http://198.0.0.1:8970");
         assert!(addr.is_valid());
 
         addr.host = "".to_string();

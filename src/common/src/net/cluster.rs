@@ -30,6 +30,7 @@ struct Node {
 }
 
 impl Node {
+    #[cfg(not(tarpaulin_include))]
     async fn try_connect(&mut self) {
         let ref mut client = TaskWorkerApiClient::connect(self.host_addr.as_uri()).await;
         match client {
@@ -42,6 +43,7 @@ impl Node {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub(crate) async fn probe_state(&mut self) {
         let request = ProbeRequest {
             node_type: NodeType::Coordinator as i32,
@@ -118,6 +120,7 @@ impl Cluster {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub async fn probe_state(&mut self) {
         for node in &mut self.workers {
             node.probe_state().await
@@ -133,6 +136,7 @@ impl Cluster {
         });
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub async fn terminate_dataflow(
         &mut self,
         job_id: &ResourceId,
@@ -155,6 +159,7 @@ impl Cluster {
         Ok(DataflowStatus::Closing)
     }
 
+    #[cfg(not(tarpaulin_include))]
     pub async fn create_dataflow(&mut self, dataflow: &Dataflow) -> Result<(), tonic::Status> {
         if !self.is_available() {
             return Err(tonic::Status::unavailable("worker is unavailable"));
@@ -255,27 +260,14 @@ pub struct NodeConfig {
 
 impl NodeConfig {
     fn to_node(&self) -> Node {
-        let mut self_ = Node {
+        Node {
             status: NodeStatus::Pending,
             host_addr: PersistableHostAddr {
                 host: self.host.clone(),
                 port: self.port,
             },
             client: None,
-        };
-        let ref mut client =
-            futures_executor::block_on(TaskWorkerApiClient::connect(self_.host_addr.as_uri()));
-        match client {
-            Ok(cli) => {
-                self_.client = Some(cli.clone());
-                self_.status = NodeStatus::Running
-            }
-            Err(err) => {
-                tracing::error!("{}", err);
-                self_.status = NodeStatus::Unreachable
-            }
         }
-        self_
     }
 }
 

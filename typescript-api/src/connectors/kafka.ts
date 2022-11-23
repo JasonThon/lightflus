@@ -107,11 +107,14 @@ export class KafkaBuilder {
 
   build<T>(ctor?: new() => T, type?: string): Kafka<T> {
     let kafka = new Kafka<T>();
-    if (type != null) {
-      kafka.type = type;
-    } else if (ctor != null) {
+    if (ctor != null) {
       kafka.type = typeof new ctor();
+    } else if (type != null) {
+      kafka.type = type;
+    } else {
+      throw "undefined kafka type";
     }
+
     kafka.topic = this._topic;
     kafka.brokers = this._brokers;
     return kafka;

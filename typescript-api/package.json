@@ -1,9 +1,8 @@
 {
-  "name": "alpha",
+  "name": "lightflus-api",
   "version": "0.0.1",
   "description": "",
   "author": "",
-  "private": true,
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "rimraf dist",

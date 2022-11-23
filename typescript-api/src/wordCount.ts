@@ -8,7 +8,7 @@ async function wordCount(ctx: ExecutionContext) {
     .builder()
     .brokers(["localhost:9092"])
     .topic("topic")
-    .build<string>(null, typeof "");
+    .build<string>(undefined, typeof "");
 
 
   let sink = Redis.new<{ t0: number, t1: string }>()

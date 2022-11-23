@@ -128,7 +128,7 @@ jobs:
           token: ${{secrets.CODECOV_TOKEN}}
           fail_ci_if_error: false
 
-  build_docker_image:
+  release_lightflus:
     if: ${{ github.event_name == 'release' }}
 
     needs: [runtime_test_and_build]
@@ -151,3 +151,10 @@ jobs:
           docker push lightflus/worker:${{ github.event.release.tag_name }}
           docker push lightflus/coordinator:${{ github.event.release.tag_name }}
           docker push lightflus/apiserver:${{ github.event.release.tag_name }}
+      - name: Publish API
+        working-directory: ./typescript-api
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          yarn
+          yarn publish

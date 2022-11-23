@@ -1,10 +1,10 @@
 import { apiserver, common } from "../proto/apiserver";
+import { randomUUID } from "crypto";
 import ICreateDataflowOptions = apiserver.ICreateDataflowOptions;
 import CreateDataflowOptions = apiserver.CreateDataflowOptions;
 import Dataflow = common.Dataflow;
 import IDataflowMeta = common.IDataflowMeta;
 import IOperatorInfo = common.IOperatorInfo;
-import IWindow = common.IWindow;
 import DataflowMeta = common.DataflowMeta;
 
 export class ExecutionContext {
@@ -45,14 +45,13 @@ export class ExecutionContext {
     });
   }
 
-  setWindow(operator_id: number, window: IWindow) {
-    let info = this.operatorInfo.get(operator_id);
-    this.operatorInfo.set(operator_id, info);
-  }
-
   getCreateDataflowOptions(): ICreateDataflowOptions {
     let options = new CreateDataflowOptions();
     let df = new Dataflow();
+    df.jobId = {
+      resourceId: randomUUID(),
+      namespaceId: "default"
+    };
     df.meta = this.adjacentList;
 
     this.operatorInfo.forEach((val, key) => {
@@ -68,4 +67,31 @@ export class ExecutionContext {
       this.adjacentList.push(new DataflowMeta({ center: operator.operatorId, neighbors: [] }));
     }
   }
+
+  validate() {
+    function validateOperatorInfo(nodeId: number, operatorInfos: Map<number, IOperatorInfo>) {
+      if (!operatorInfos.has(nodeId)) {
+        let error = new DataflowValidateError();
+        error.kind = ValidateErrorKind.MissingOperatorInfo;
+        error.message = `missing operator info for node index ${nodeId}`;
+        throw error;
+      }
+    }
+
+    this.adjacentList.forEach((node) => {
+      validateOperatorInfo(node.center, this.operatorInfo);
+      node.neighbors.forEach((nodeId) => {
+        validateOperatorInfo(nodeId, this.operatorInfo);
+      });
+    });
+  }
+}
+
+class DataflowValidateError {
+  kind: ValidateErrorKind;
+  message: string;
+}
+
+enum ValidateErrorKind {
+  MissingOperatorInfo,
 }

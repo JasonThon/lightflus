@@ -9,7 +9,7 @@ on:
     types: [published]
 
 jobs:
-  test_and_build:
+  runtime_test_and_build:
     runs-on: ubuntu-latest
 
     services:
@@ -61,6 +61,19 @@ jobs:
           KAFKA_HOST: localhost
           REDIS_HOST: localhost
           MYSQL_HOST: localhost
+
+  api_test_and_build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Build package
+        working-directory: ./typescript-api
+        run: |
+          yarn
+          yarn tsc -p .
+      - name: Run tests
+        working-directory: ./typescript-api
+        run: yarn test
 
   coverage:
     runs-on: ubuntu-latest
@@ -115,10 +128,10 @@ jobs:
           token: ${{secrets.CODECOV_TOKEN}}
           fail_ci_if_error: false
 
-  build_docker_image:
+  release_lightflus:
     if: ${{ github.event_name == 'release' }}
 
-    needs: [test_and_build]
+    needs: [runtime_test_and_build, api_test_and_build]
 
     runs-on: ubuntu-latest
 
@@ -138,3 +151,10 @@ jobs:
           docker push lightflus/worker:${{ github.event.release.tag_name }}
           docker push lightflus/coordinator:${{ github.event.release.tag_name }}
           docker push lightflus/apiserver:${{ github.event.release.tag_name }}
+      - name: Publish API
+        working-directory: ./typescript-api
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
+        run: |
+          yarn
+          yarn publish

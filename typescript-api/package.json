@@ -1,9 +1,8 @@
 {
-  "name": "alpha",
+  "name": "lightflus-api",
   "version": "0.0.1",
   "description": "",
   "author": "",
-  "private": true,
   "license": "UNLICENSED",
   "scripts": {
     "prebuild": "rimraf dist",
@@ -58,8 +57,8 @@
       "json",
       "ts"
     ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
+    "rootDir": "test",
+    "testRegex": ".e2e-spec.ts$$",
     "transform": {
       "^.+\\.(t|j)s$": "ts-jest"
     },

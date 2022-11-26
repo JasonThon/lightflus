@@ -7,7 +7,7 @@
     }
   ],
   "storage":{
-    "RocksDB": {
+    "Persist": {
       "dataflow_store_path": "${HOME}/lightflus/dataflow"
     }
   } 

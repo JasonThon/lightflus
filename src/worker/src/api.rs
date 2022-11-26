@@ -48,6 +48,7 @@ impl TaskWorkerApi for TaskWorkerApiImpl {
     ) -> Result<tonic::Response<DispatchDataEventsResponse>, tonic::Status> {
         self.worker
             .dispatch_events(&request.get_ref().events)
+            .await
             .map(|status_set| {
                 tonic::Response::new(DispatchDataEventsResponse {
                     status_set: status_set
@@ -66,6 +67,7 @@ impl TaskWorkerApi for TaskWorkerApiImpl {
             Some(job_id) => self
                 .worker
                 .stop_dataflow(job_id)
+                .await
                 .map(|_| tonic::Response::new(StopDataflowResponse { resp: None }))
                 .map_err(|err| err.into_grpc_status()),
             None => Ok(tonic::Response::new(StopDataflowResponse { resp: None })),

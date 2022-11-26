@@ -210,7 +210,8 @@ impl<S: state::StateManager> IOperator for ReduceOperator<S> {
     where
         'p: 'i,
     {
-        let key = get_operator_state_key(self.operator_id, "reduce");
+        let key =
+            get_operator_state_key(self.operator_id, "reduce", event.get_key().value.as_slice());
         let state = self.state_manager.get_keyed_state(key.as_slice());
 
         let accum = if state.is_empty() {
@@ -404,8 +405,10 @@ new_operator!(KeyByOperator);
 define_operator!(ReduceOperator);
 new_operator!(ReduceOperator);
 
-fn get_operator_state_key(operator_id: NodeIdx, operator: &str) -> Vec<u8> {
-    format!("{}-{}", operator, operator_id).as_bytes().to_vec()
+fn get_operator_state_key(operator_id: NodeIdx, operator: &str, reference: &[u8]) -> Vec<u8> {
+    let mut prefix = format!("{}-{}", operator, operator_id).as_bytes().to_vec();
+    prefix.append(&mut reference.to_vec());
+    prefix
 }
 
 #[cfg(test)]
@@ -749,7 +752,11 @@ mod tests {
             assert_eq!(new_events[0].data, vec![entry]);
             let state = operator
                 .state_manager
-                .get_keyed_state(&get_operator_state_key(operator.operator_id, "reduce"));
+                .get_keyed_state(&get_operator_state_key(
+                    operator.operator_id,
+                    "reduce",
+                    new_events[0].get_key().value.as_slice(),
+                ));
             assert_eq!(TypedValue::from_vec(&state), val);
         }
     }

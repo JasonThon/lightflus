@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::sync::Arc;
 
 use common::err::CommonException;
 use common::err::ErrorKind;
@@ -11,7 +10,6 @@ use prost::Message;
 use proto::common::Dataflow;
 use proto::common::DataflowStatus;
 use proto::common::ResourceId;
-use rocksdb::DB;
 
 pub(crate) trait DataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException>;
@@ -21,14 +19,14 @@ pub(crate) trait DataflowStorage {
 }
 
 #[derive(Clone, Debug)]
-pub struct RocksDataflowStorage {
-    db: Arc<DB>,
+pub struct PersistDataflowStorage {
+    db: sled::Db,
 }
 
-impl DataflowStorage for RocksDataflowStorage {
+impl DataflowStorage for PersistDataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
         self.db
-            .put(
+            .insert(
                 dataflow
                     .job_id
                     .as_ref()
@@ -36,9 +34,10 @@ impl DataflowStorage for RocksDataflowStorage {
                     .unwrap_or_default(),
                 dataflow.encode_to_vec(),
             )
+            .map(|_| {})
             .map_err(|err| CommonException {
                 kind: ErrorKind::SaveDataflowFailed,
-                message: err.into_string(),
+                message: err.to_string(),
             })
     }
 
@@ -49,7 +48,7 @@ impl DataflowStorage for RocksDataflowStorage {
             .map(|data| data.and_then(|buf| utils::from_pb_slice(&buf).ok()))
             .map_err(|err| CommonException {
                 kind: ErrorKind::GetDataflowFailed,
-                message: err.into_string(),
+                message: err.to_string(),
             }) {
             Ok(result) => result,
             Err(err) => {
@@ -60,15 +59,18 @@ impl DataflowStorage for RocksDataflowStorage {
     }
 
     fn may_exists(&self, job_id: &ResourceId) -> bool {
-        self.db.key_may_exist(job_id.encode_to_vec())
+        self.db
+            .contains_key(job_id.encode_to_vec())
+            .unwrap_or(false)
     }
 
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
         self.db
-            .delete(job_id.encode_to_vec())
+            .remove(job_id.encode_to_vec())
+            .map(|_| {})
             .map_err(|err| CommonException {
                 kind: ErrorKind::DeleteDataflowFailed,
-                message: err.into_string(),
+                message: err.to_string(),
             })
     }
 }
@@ -105,35 +107,35 @@ impl DataflowStorage for MemDataflowStorage {
 
 #[derive(Clone, Debug)]
 pub enum DataflowStorageImpl {
-    RocksDB(RocksDataflowStorage),
+    Persist(PersistDataflowStorage),
     Memory(MemDataflowStorage),
 }
 
 impl DataflowStorageImpl {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
         match self {
-            Self::RocksDB(storage) => storage.save(dataflow),
+            Self::Persist(storage) => storage.save(dataflow),
             Self::Memory(storage) => storage.save(dataflow),
         }
     }
 
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
         match self {
-            Self::RocksDB(storage) => storage.get(job_id),
+            Self::Persist(storage) => storage.get(job_id),
             Self::Memory(storage) => storage.get(job_id),
         }
     }
 
     fn may_exists(&self, job_id: &ResourceId) -> bool {
         match self {
-            Self::RocksDB(storage) => storage.may_exists(job_id),
+            Self::Persist(storage) => storage.may_exists(job_id),
             Self::Memory(storage) => storage.may_exists(job_id),
         }
     }
 
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
         match self {
-            DataflowStorageImpl::RocksDB(storage) => storage.delete(job_id),
+            DataflowStorageImpl::Persist(storage) => storage.delete(job_id),
             DataflowStorageImpl::Memory(storage) => storage.delete(job_id),
         }
     }
@@ -216,17 +218,17 @@ pub struct CoordinatorConfig {
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub enum DataflowStorageConfig {
-    RocksDB { dataflow_store_path: String },
+    Persist { dataflow_store_path: String },
     Memory,
 }
 
 impl DataflowStorageConfig {
     pub fn to_dataflow_storage(&self) -> DataflowStorageImpl {
         match self {
-            Self::RocksDB {
+            Self::Persist {
                 dataflow_store_path,
-            } => DataflowStorageImpl::RocksDB(RocksDataflowStorage {
-                db: Arc::new(DB::open_default(dataflow_store_path).expect("open rocksdb failed")),
+            } => DataflowStorageImpl::Persist(PersistDataflowStorage {
+                db: sled::open(dataflow_store_path).expect("open rocksdb failed"),
             }),
             Self::Memory => DataflowStorageImpl::Memory(Default::default()),
         }

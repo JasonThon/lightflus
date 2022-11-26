@@ -1,6 +1,7 @@
 use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 use sled::Db;
+use proto::common::ResourceId;
 
 const KEY_VALUE: &str = "key_value";
 const STATE_MANAGER: &str = "STATE_MANAGER";
@@ -11,14 +12,18 @@ pub trait StateManager {
     fn set_key_state(&self, key: &[u8], value: &[u8]);
 }
 
-fn new_key_value_state_mgt() -> KeyValueStateManager {
-    let path = common::utils::get_env(KEY_VALUE_STATE_PATH).unwrap_or(DEFAULT_STATE_PATH.to_string());
+fn new_key_value_state_mgt(resource_id: &ResourceId) -> KeyValueStateManager {
+    let mut path =
+        common::utils::get_env(KEY_VALUE_STATE_PATH).unwrap_or(DEFAULT_STATE_PATH.to_string());
+    path.push_str("/");
+    path.push_str(&resource_id.namespace_id);
+    path.push_str(&resource_id.resource_id);
     KeyValueStateManager::new(path)
 }
 
-pub fn new_state_mgt() -> impl StateManager {
+pub fn new_state_mgt(resource_id: &ResourceId) -> impl StateManager {
     match state_mgt_type() {
-        StateMangerType::KeyValue => StateManagerEnum::RocksDb(new_key_value_state_mgt()),
+        StateMangerType::KeyValue => StateManagerEnum::KeyValue(new_key_value_state_mgt(resource_id)),
         StateMangerType::Memory => StateManagerEnum::Memory(MemoryStateManager::new()),
     }
 }
@@ -73,21 +78,21 @@ pub fn state_mgt_type() -> StateMangerType {
 }
 
 pub enum StateManagerEnum {
-    RocksDb(KeyValueStateManager),
+    KeyValue(KeyValueStateManager),
     Memory(MemoryStateManager),
 }
 
 impl StateManager for StateManagerEnum {
     fn get_keyed_state(&self, key: &[u8]) -> Vec<u8> {
         match self {
-            StateManagerEnum::RocksDb(manager) => manager.get_keyed_state(key),
+            StateManagerEnum::KeyValue(manager) => manager.get_keyed_state(key),
             StateManagerEnum::Memory(manager) => manager.get_keyed_state(key),
         }
     }
 
     fn set_key_state(&self, key: &[u8], value: &[u8]) {
         match self {
-            StateManagerEnum::RocksDb(manager) => manager.set_key_state(key, value),
+            StateManagerEnum::KeyValue(manager) => manager.set_key_state(key, value),
             StateManagerEnum::Memory(manager) => manager.set_key_state(key, value),
         }
     }

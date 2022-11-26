@@ -93,6 +93,7 @@ impl DataflowContext {
 
         self.meta.iter().for_each(|meta| {
             executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+                &self.job_id,
                 meta.center as ExecutorId,
                 source_sink_manager.get_sinks_by_ids(meta.neighbors.clone()),
                 source_sink_manager
@@ -108,6 +109,7 @@ impl DataflowContext {
                         .map(|slice| (*slice).to_vec())
                         .unwrap_or(vec![]);
                     executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+                        &self.job_id,
                         *id as ExecutorId,
                         source_sink_manager.get_sinks_by_ids(neighbors),
                         source_sink_manager.get_source_by_id(*id).unwrap(),
@@ -131,6 +133,7 @@ pub trait Executor {
 
 #[derive(Clone)]
 pub struct LocalExecutor {
+    pub job_id: ResourceId,
     pub executor_id: ExecutorId,
     pub(crate) operator: OperatorInfo,
 
@@ -140,12 +143,14 @@ pub struct LocalExecutor {
 
 impl LocalExecutor {
     pub fn with_source_and_sink(
+        job_id: &ResourceId,
         executor_id: ExecutorId,
         sinks: Vec<SinkImpl>,
         source: SourceImpl,
         operator: OperatorInfo,
     ) -> Self {
         Self {
+            job_id: job_id.clone(),
             executor_id,
             operator,
             source,
@@ -162,7 +167,7 @@ impl Executor for LocalExecutor {
         tokio::spawn(async move {
             let isolate = &mut v8::Isolate::new(Default::default());
             let scope = &mut v8::HandleScope::new(isolate);
-            let task = DataflowTask::new(self.operator.clone(), new_state_mgt(), scope);
+            let task = DataflowTask::new(self.operator.clone(), new_state_mgt(&self.job_id), scope);
             'outside: loop {
                 while let Some(msg) = self.source.fetch_msg() {
                     match &msg {
@@ -196,8 +201,6 @@ impl Executor for LocalExecutor {
                                         }
                                     }
                                 }
-
-                                tracing::info!("nodeId: {}, msg: {:?}", &self.executor_id, e)
                             }
                             LocalEvent::Terminate { job_id, to } => {
                                 tracing::info!("stopping {:?} at node id {}", job_id, to);

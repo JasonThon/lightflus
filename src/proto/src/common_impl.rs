@@ -1,8 +1,8 @@
 use crate::common::{
     mysql_desc::{self, Statement},
     operator_info::Details,
-    sink, source, DataTypeEnum, Dataflow, Func, HostAddr, KafkaDesc, KeyedDataEvent, MysqlDesc,
-    OperatorInfo, RedisDesc, ResourceId, Sink, Source,
+    sink, source, DataTypeEnum, Dataflow, Entry, Func, HostAddr, KafkaDesc, KeyedDataEvent,
+    MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Sink, Source,
 };
 
 impl OperatorInfo {
@@ -243,6 +243,10 @@ impl KeyedDataEvent {
         } else {
             self.job_id.as_ref().unwrap().clone()
         }
+    }
+
+    pub fn get_key(&self) -> Entry {
+        self.key.as_ref().map(|key| key.clone()).unwrap_or_default()
     }
 }
 

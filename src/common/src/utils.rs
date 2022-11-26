@@ -83,7 +83,7 @@ pub fn get_env(k: &str) -> Option<String> {
     match env::var(k.to_string()) {
         Ok(var) => Some(var),
         Err(err) => {
-            tracing::error!("{}", err);
+            tracing::error!("env var {} not found: {}", k, err);
             None
         }
     }

@@ -159,23 +159,17 @@ where
             let v8_undefined = v8::undefined(scope);
             v8::Local::<v8::Value>::from(v8_undefined)
         }
-        TypedValue::Array(values) => {
+        TypedValue::Array(_) => {
+            let val = serde_json::to_string(&typed_val.to_json_value()).unwrap();
+            let val = v8::String::new(scope, &val).unwrap();
+
             let ctx = v8::Context::new(scope);
             let context_scope = &mut v8::ContextScope::new(scope, ctx);
 
-            let v8_array = v8::Array::new(context_scope, values.len() as i32);
-            let length = values.len();
-
-            let ref mut isolate = v8::Isolate::new(Default::default());
-            let ref mut isolated_scope = v8::HandleScope::new(isolate);
-            (0..length).for_each(|index| {
-                v8_array.set_index(
-                    context_scope,
-                    index as u32,
-                    wrap_value(&values[index], isolated_scope),
-                );
-            });
-            v8::Local::<v8::Value>::from(v8_array)
+            match v8::json::parse(context_scope, v8::Local::<v8::String>::from(val)) {
+                Some(local) => local,
+                None => v8::Local::from(v8::undefined(context_scope)),
+            }
         }
     }
 }
@@ -187,6 +181,9 @@ pub fn to_typed_value<'s>(
     local: v8::Local<v8::Value>,
     handle_scope: &'s mut v8::HandleScope,
 ) -> Option<TypedValue> {
+    if local.is_undefined() {
+        return Some(TypedValue::Invalid);
+    }
     if local.is_big_int() {
         return local
             .to_big_int(handle_scope)
@@ -574,7 +571,7 @@ mod tests {
         let ctx = v8::Context::new(scope);
         let context_scope = &mut v8::ContextScope::new(scope, ctx);
         let ref mut scope = v8::HandleScope::new(context_scope);
-        eval(scope, "var a = [1, 2, 3]");
+        eval(scope, "var a = [{id: \"111\", serial: 1}, {id: \"112\", serial: 2}, {id: \"113\", serial: 3}]");
         let key = v8::String::new(scope, "a").unwrap();
         let obj = ctx.global(scope).get(scope, key.into()).unwrap();
 
@@ -591,9 +588,30 @@ mod tests {
                     assert_eq!(
                         v,
                         vec![
-                            TypedValue::Number(1.0),
-                            TypedValue::Number(2.0),
-                            TypedValue::Number(3.0)
+                            TypedValue::Object(BTreeMap::from_iter(
+                                [
+                                    ("id", TypedValue::String("111".to_string())),
+                                    ("serial", TypedValue::Number(1.0))
+                                ]
+                                .iter()
+                                .map(|entry| (entry.0.to_string(), entry.1.clone()))
+                            )),
+                            TypedValue::Object(BTreeMap::from_iter(
+                                [
+                                    ("id", TypedValue::String("112".to_string())),
+                                    ("serial", TypedValue::Number(2.0))
+                                ]
+                                .iter()
+                                .map(|entry| (entry.0.to_string(), entry.1.clone()))
+                            )),
+                            TypedValue::Object(BTreeMap::from_iter(
+                                [
+                                    ("id", TypedValue::String("113".to_string())),
+                                    ("serial", TypedValue::Number(3.0))
+                                ]
+                                .iter()
+                                .map(|entry| (entry.0.to_string(), entry.1.clone()))
+                            ))
                         ]
                     )
                 }
@@ -616,6 +634,27 @@ mod tests {
 
         let mut val = BTreeMap::default();
         val.insert("foo".to_string(), TypedValue::String("bar".to_string()));
+        val.insert(
+            "weights".to_string(),
+            TypedValue::Array(vec![
+                TypedValue::Object(BTreeMap::from_iter(
+                    [
+                        ("id", TypedValue::String("111".to_string())),
+                        ("serial", TypedValue::Number(1.0)),
+                    ]
+                    .iter()
+                    .map(|entry| (entry.0.to_string(), entry.1.clone())),
+                )),
+                TypedValue::Object(BTreeMap::from_iter(
+                    [
+                        ("id", TypedValue::String("112".to_string())),
+                        ("serial", TypedValue::Number(2.0)),
+                    ]
+                    .iter()
+                    .map(|entry| (entry.0.to_string(), entry.1.clone())),
+                )),
+            ]),
+        );
         let val = TypedValue::Object(val);
         let val = wrap_value(&val, scope);
 
@@ -627,7 +666,34 @@ mod tests {
             TypedValue::Object(v) => {
                 assert!(v.contains_key(&"foo".to_string()));
                 let value = v.get(&"foo".to_string()).map(|data| data.clone()).unwrap();
-                assert_eq!(value, TypedValue::String("bar".to_string()))
+                assert_eq!(value, TypedValue::String("bar".to_string()));
+
+                assert!(v.contains_key(&"weights".to_string()));
+                let value = v
+                    .get(&"weights".to_string())
+                    .map(|data| data.clone())
+                    .unwrap();
+                assert_eq!(
+                    value,
+                    TypedValue::Array(vec![
+                        TypedValue::Object(BTreeMap::from_iter(
+                            [
+                                ("id", TypedValue::String("111".to_string())),
+                                ("serial", TypedValue::Number(1.0)),
+                            ]
+                            .iter()
+                            .map(|entry| (entry.0.to_string(), entry.1.clone())),
+                        )),
+                        TypedValue::Object(BTreeMap::from_iter(
+                            [
+                                ("id", TypedValue::String("112".to_string())),
+                                ("serial", TypedValue::Number(2.0)),
+                            ]
+                            .iter()
+                            .map(|entry| (entry.0.to_string(), entry.1.clone())),
+                        )),
+                    ])
+                );
             }
             _ => panic!("unexpected type"),
         }

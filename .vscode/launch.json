@@ -154,6 +154,7 @@
             },
             "env": {
                 "RUST_LOG": "INFO",
+                "KEY_VALUE_STATE_PATH": "${HOME}/lightflus/state"
             },
             "args": [],
             "cwd": "${workspaceFolder}"

@@ -1,5 +1,4 @@
 use std::collections::{BTreeMap, HashMap};
-use std::sync;
 
 use common::collections::lang;
 use common::err::TaskWorkerError;
@@ -12,10 +11,10 @@ use stream::actor::DataflowContext;
 
 use crate::manager::{ExecutorManager, ExecutorManagerImpl, LocalExecutorManager};
 
-type DataflowCacheRef = sync::RwLock<BTreeMap<HashedResourceId, ExecutorManagerImpl>>;
+type DataflowCache = tokio::sync::RwLock<BTreeMap<HashedResourceId, ExecutorManagerImpl>>;
 
 pub struct TaskWorker {
-    cache: DataflowCacheRef,
+    cache: DataflowCache,
 }
 
 struct TaskWorkerBuilder {}
@@ -27,14 +26,11 @@ impl TaskWorker {
         }
     }
 
-    pub fn stop_dataflow(&self, job_id: &ResourceId) -> Result<(), TaskWorkerError> {
+    pub async fn stop_dataflow(&self, job_id: &ResourceId) -> Result<(), TaskWorkerError> {
         let ref hashable_job_id = job_id.into();
-        self.cache
-            .try_write()
-            .map(|mut managers| {
-                managers.remove(hashable_job_id);
-            })
-            .map_err(|err| TaskWorkerError::ExecutionError(err.to_string()))
+        let mut managers = self.cache.write().await;
+        managers.remove(hashable_job_id);
+        Ok(())
     }
 
     pub async fn create_dataflow(
@@ -54,51 +50,42 @@ impl TaskWorker {
 
         let manager = LocalExecutorManager::new(ctx);
 
-        match self.cache.try_write() {
-            Ok(mut managers) => {
-                managers.insert(job_id.clone().into(), ExecutorManagerImpl::Local(manager));
-                managers
-                    .get_mut(&job_id.into())
-                    .iter_mut()
-                    .for_each(|manager| manager.run());
+        let mut managers = self.cache.write().await;
 
-                Ok(())
-            }
-            Err(err) => Err(TaskWorkerError::ExecutionError(err.to_string())),
-        }
+        managers.insert(job_id.clone().into(), ExecutorManagerImpl::Local(manager));
+        managers
+            .get_mut(&job_id.into())
+            .iter_mut()
+            .for_each(|manager| manager.run());
+
+        Ok(())
     }
 
-    pub fn dispatch_events(
+    pub async fn dispatch_events(
         &self,
         events: &Vec<KeyedDataEvent>,
     ) -> Result<HashMap<String, DispatchDataEventStatusEnum>, TaskWorkerError> {
         let group = lang::group(events, |e| HashedResourceId::from(e.get_job_id()));
+        let managers = self.cache.read().await;
 
         group
             .iter()
             .map(|pair| {
-                self.cache
-                    .try_read()
-                    .map(|managers| {
-                        managers
-                            .get(pair.0)
-                            .map(|manager| {
-                                (
-                                    format!("{:?}", &manager.get_job_id()),
-                                    manager.dispatch_events(
-                                        &group
-                                            .get(&manager.get_job_id().into())
-                                            .map(|events| {
-                                                events.iter().map(|e| (*e).clone()).collect()
-                                            })
-                                            .unwrap(),
-                                    ),
-                                )
-                            })
-                            .map(|pair| HashMap::from([pair]))
-                            .unwrap_or_else(|| Default::default())
+                Ok(managers
+                    .get(pair.0)
+                    .map(|manager| {
+                        (
+                            format!("{:?}", &manager.get_job_id()),
+                            manager.dispatch_events(
+                                &group
+                                    .get(&manager.get_job_id().into())
+                                    .map(|events| events.iter().map(|e| (*e).clone()).collect())
+                                    .unwrap(),
+                            ),
+                        )
                     })
-                    .map_err(|err| TaskWorkerError::ExecutionError(format!("{:?}", err)))
+                    .map(|pair| HashMap::from([pair]))
+                    .unwrap_or_else(|| Default::default()))
             })
             .next()
             .unwrap_or_else(|| Ok(Default::default()))

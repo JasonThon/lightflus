@@ -1,7 +1,8 @@
-use crate::dataflow::DataflowTask;
+use crate::dataflow::{DataflowTask, KeyedWindow, WindowAssignerImpl};
 use crate::err::{ErrorKind::RemoteSinkFailed, SinkException};
-use crate::state::new_state_mgt;
+use crate::state::{new_state_mgt, StateManager};
 use crate::v8_runtime::RuntimeEngine;
+use crate::{EventReceiver, EventSender};
 
 use common::collections::lang;
 use common::db::MysqlConn;
@@ -19,15 +20,13 @@ use proto::common::{HostAddr, ResourceId};
 use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
 
-use std::collections::BTreeMap;
+use std::cell::{RefCell, RefMut};
+use std::collections::{BTreeMap, VecDeque};
 
 use rayon::prelude::*;
 use std::sync::Arc;
 use std::time::SystemTime;
 use std::vec;
-
-pub type EventReceiver<Input> = crossbeam_channel::Receiver<Input>;
-pub type EventSender<Input> = crossbeam_channel::Sender<Input>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct DataflowContext {
@@ -92,7 +91,7 @@ impl DataflowContext {
         let mut executors = vec![];
 
         self.meta.iter().for_each(|meta| {
-            executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+            executors.push(ExecutorImpl::with_source_and_sink_config(
                 &self.job_id,
                 meta.center as ExecutorId,
                 source_sink_manager.get_sinks_by_ids(meta.neighbors.clone()),
@@ -100,7 +99,7 @@ impl DataflowContext {
                     .get_source_by_id(meta.center.clone())
                     .unwrap(),
                 self.nodes.get(&meta.center).unwrap().clone(),
-            )));
+            ));
 
             meta.neighbors.iter().for_each(|id| {
                 if !meta_map.contains_key(id) {
@@ -108,13 +107,13 @@ impl DataflowContext {
                         .get(id)
                         .map(|slice| (*slice).to_vec())
                         .unwrap_or(vec![]);
-                    executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+                    executors.push(ExecutorImpl::with_source_and_sink_config(
                         &self.job_id,
                         *id as ExecutorId,
                         source_sink_manager.get_sinks_by_ids(neighbors),
                         source_sink_manager.get_source_by_id(*id).unwrap(),
                         self.nodes.get(id).unwrap().clone(),
-                    )))
+                    ))
                 }
             })
         });
@@ -157,6 +156,35 @@ impl LocalExecutor {
             sinks,
         }
     }
+
+    fn process_single_event<'s, 'i, S: StateManager>(
+        &self,
+        task: &DataflowTask<'s, 'i, S>,
+        event: &KeyedDataEvent,
+    ) {
+        use LocalEvent::KeyedDataStreamEvent;
+        use SinkableMessageImpl::LocalMessage;
+
+        match task.process(event) {
+            Ok(results) => results.iter().for_each(|event| {
+                let after_process = KeyedDataStreamEvent(event.clone());
+                self.sinks.par_iter().for_each(|sink| {
+                    let result =
+                        futures_executor::block_on(sink.sink(LocalMessage(after_process.clone())));
+                    match result {
+                        Ok(_) => {}
+                        Err(err) => {
+                            tracing::error!("sink to node {} failed: {:?}", sink.sink_id(), err)
+                        }
+                    }
+                });
+            }),
+            Err(err) => {
+                tracing::error!("process msg failed: {:?}", err);
+                // TODO fault tolerance
+            }
+        }
+    }
 }
 
 impl Executor for LocalExecutor {
@@ -178,28 +206,7 @@ impl Executor for LocalExecutor {
                                         let _ = futures_executor::block_on(sink.sink(msg.clone()));
                                     });
                                 } else {
-                                    match task.process(e) {
-                                        Ok(results) => results.iter().for_each(|event| {
-                                            let after_process = KeyedDataStreamEvent(event.clone());
-                                            self.sinks.par_iter().for_each(|sink| {
-                                                let result = futures_executor::block_on(
-                                                    sink.sink(LocalMessage(after_process.clone())),
-                                                );
-                                                match result {
-                                                    Ok(_) => {}
-                                                    Err(err) => tracing::error!(
-                                                        "sink to node {} failed: {:?}",
-                                                        sink.sink_id(),
-                                                        err
-                                                    ),
-                                                }
-                                            });
-                                        }),
-                                        Err(err) => {
-                                            tracing::error!("process msg failed: {:?}", err);
-                                            // TODO fault tolerance
-                                        }
-                                    }
+                                    self.process_single_event(&task, e)
                                 }
                             }
                             LocalEvent::Terminate { job_id, to } => {
@@ -222,20 +229,138 @@ impl Executor for LocalExecutor {
 }
 
 #[derive(Clone)]
+pub struct WindowExecutor {
+    pub job_id: ResourceId,
+    source: SourceImpl,
+    executor_id: ExecutorId,
+    sinks: Vec<SinkImpl>,
+    assigner: WindowAssignerImpl,
+    windows: RefCell<VecDeque<KeyedWindow>>,
+}
+
+impl WindowExecutor {
+    fn with_source_and_sink(
+        job_id: &ResourceId,
+        executor_id: u32,
+        sinks: Vec<SinkImpl>,
+        source: SourceImpl,
+        operator: OperatorInfo,
+    ) -> Self {
+        let assigner = WindowAssignerImpl::new(&operator);
+
+        Self {
+            job_id: job_id.clone(),
+            source,
+            executor_id,
+            sinks,
+            assigner,
+            windows: Default::default(),
+        }
+    }
+}
+
+impl Executor for WindowExecutor {
+    fn run(self) -> tokio::task::JoinHandle<()> {
+        tokio::spawn(async move {
+            'outside: loop {
+                tokio::select! {
+                    biased;
+                    _ = self.assigner.trigger() => {
+                        RefMut::map(self.windows.borrow_mut(), |keyed_windows| {
+                            let ref mut merged_windows = self.assigner.group_by_key_and_window(keyed_windows);
+                            keyed_windows.clear();
+                            merged_windows
+                                .par_iter_mut()
+                                .map(|keyed_window| keyed_window.as_event())
+                                .for_each(|event| {
+                                    self.sinks.par_iter().for_each(|sink| {
+                                        match futures_executor::block_on(sink.sink(
+                                            SinkableMessageImpl::LocalMessage(
+                                                LocalEvent::KeyedDataStreamEvent(event.clone()),
+                                            ),
+                                        )) {
+                                            Ok(_) => {}
+                                            Err(err) => tracing::error!("sink message failed: {:?}", err),
+                                        }
+                                    })
+                                });
+                            keyed_windows
+                        });
+                    },
+
+                    Some(msg) = async { self.source.fetch_msg() } => {
+                    match msg {
+                        SinkableMessageImpl::LocalMessage(event) => match event {
+                            LocalEvent::Terminate { job_id, to } => break 'outside,
+                            LocalEvent::KeyedDataStreamEvent(keyed_event) => {
+                                let windows = self.assigner.assign_windows(&keyed_event);
+                                let mut keyed_windows = self.windows.borrow_mut();
+                                keyed_windows.extend(windows);
+                            },
+                        },
+                    }
+                   },
+                   else => continue
+                }
+            }
+        })
+    }
+
+    fn as_sinkable(&self) -> SinkImpl {
+        SinkImpl::Local(LocalSink {
+            sender: self.source.create_msg_sender(),
+            sink_id: self.executor_id as u32,
+        })
+    }
+}
+
+#[derive(Clone)]
 pub enum ExecutorImpl {
     Local(LocalExecutor),
+    Window(WindowExecutor),
 }
+
+unsafe impl Sync for ExecutorImpl {}
+unsafe impl Send for ExecutorImpl {}
 
 impl ExecutorImpl {
     pub fn run(self) -> tokio::task::JoinHandle<()> {
         match self {
             ExecutorImpl::Local(exec) => exec.run(),
+            ExecutorImpl::Window(exec) => exec.run(),
         }
     }
 
     pub fn as_sinkable(&self) -> SinkImpl {
         match self {
             ExecutorImpl::Local(exec) => exec.as_sinkable(),
+            ExecutorImpl::Window(exec) => exec.as_sinkable(),
+        }
+    }
+
+    fn with_source_and_sink_config(
+        job_id: &ResourceId,
+        executor_id: ExecutorId,
+        sinks: Vec<SinkImpl>,
+        source: SourceImpl,
+        operator: OperatorInfo,
+    ) -> Self {
+        if operator.has_window() {
+            Self::Window(WindowExecutor::with_source_and_sink(
+                job_id,
+                executor_id,
+                sinks,
+                source,
+                operator,
+            ))
+        } else {
+            Self::Local(LocalExecutor::with_source_and_sink(
+                job_id,
+                executor_id,
+                sinks,
+                source,
+                operator,
+            ))
         }
     }
 }

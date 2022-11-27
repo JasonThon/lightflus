@@ -56,7 +56,7 @@ where
 /// ]));
 /// assert!(deque.is_empty())
 /// ```
-pub fn group_deque_as_btree_map<N, T, F: FnMut(&N) -> T>(
+pub fn group_deque_as_btree_map<N, T, F: FnMut(&mut N) -> T>(
     deque: &mut VecDeque<N>,
     mut key_extractor: F,
 ) -> collections::BTreeMap<T, Vec<N>>
@@ -65,8 +65,8 @@ where
 {
     let mut result = collections::BTreeMap::new();
 
-    while let Some(elem) = deque.pop_front() {
-        let key = key_extractor(&elem);
+    while let Some(mut elem) = deque.pop_front() {
+        let key = key_extractor(&mut elem);
         match result.get_mut(&key) {
             None => {
                 result.insert(key, vec![elem]);

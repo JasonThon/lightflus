@@ -1,10 +1,21 @@
-use std::{cell::RefCell, collections::BTreeMap};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, VecDeque},
+};
 
-use common::types::{NodeIdx, TypedValue};
-use proto::common::{operator_info::Details, Entry, KeyedDataEvent, OperatorInfo};
+use chrono::Duration;
+use common::{
+    collections::lang,
+    types::{NodeIdx, TypedValue},
+};
+use prost_types::Timestamp;
+use proto::common::{
+    keyed_data_event, operator_info::Details, Entry, KeyedDataEvent, OperatorInfo,
+};
+use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 use v8::HandleScope;
 
-use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine};
+use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine, DETAULT_WATERMARK};
 
 pub struct DataflowTask<'s, 'i, S: state::StateManager>
 where
@@ -411,13 +422,349 @@ fn get_operator_state_key(operator_id: NodeIdx, operator: &str, reference: &[u8]
     prefix
 }
 
+#[derive(Clone)]
+pub enum WindowAssignerImpl {
+    Fixed(FixedKeyedWindowAssigner),
+    Slide(SlideKeyedWindowAssigner),
+    Session(SessionKeyedWindowAssigner),
+    Empty,
+}
+
+impl WindowAssignerImpl {
+    pub fn new(operator: &OperatorInfo) -> Self {
+        let window = operator.get_window();
+        let trigger = window.get_trigger();
+        match window.get_value() {
+            Some(window) => match window {
+                proto::common::window::Value::Fixed(fixed) => {
+                    Self::Fixed(FixedKeyedWindowAssigner::new(fixed, trigger))
+                }
+                proto::common::window::Value::Slide(slide) => {
+                    Self::Slide(SlideKeyedWindowAssigner::new(slide, trigger))
+                }
+                proto::common::window::Value::Session(session) => {
+                    Self::Session(SessionKeyedWindowAssigner::new(session, trigger))
+                }
+            },
+            None => Self::Empty,
+        }
+    }
+
+    pub(crate) fn assign_windows(&self, keyed_event: &KeyedDataEvent) -> Vec<KeyedWindow> {
+        match self {
+            WindowAssignerImpl::Fixed(assigner) => assigner.assign_windows(keyed_event),
+            WindowAssignerImpl::Slide(assigner) => assigner.assign_windows(keyed_event),
+            WindowAssignerImpl::Session(assigner) => assigner.assign_windows(keyed_event),
+            WindowAssignerImpl::Empty => {
+                vec![KeyedWindow {
+                    inner: keyed_event.clone(),
+                    event_time: keyed_event.event_time.as_ref().map(|timestamp| {
+                        let naive_time = chrono::NaiveDateTime::from_timestamp(
+                            timestamp.seconds,
+                            timestamp.nanos as u32,
+                        );
+                        chrono::DateTime::from_utc(naive_time, chrono::Utc)
+                    }),
+                    window_start: None,
+                    window_end: None,
+                }]
+            }
+        }
+    }
+
+    pub(crate) fn group_by_key_and_window(
+        &self,
+        keyed_windows: &mut VecDeque<KeyedWindow>,
+    ) -> Vec<KeyedWindow> {
+        match self {
+            WindowAssignerImpl::Fixed(assigner) => assigner.group_by_key_and_window(keyed_windows),
+            WindowAssignerImpl::Slide(assigner) => assigner.group_by_key_and_window(keyed_windows),
+            WindowAssignerImpl::Session(assigner) => {
+                assigner.group_by_key_and_window(keyed_windows)
+            }
+            WindowAssignerImpl::Empty => keyed_windows.iter().map(|w| w.clone()).collect(),
+        }
+    }
+
+    pub(crate) async fn trigger(&self) {}
+}
+
+#[tonic::async_trait]
+pub trait KeyedWindowAssigner {
+    fn assign_windows(&self, event: &KeyedDataEvent) -> Vec<KeyedWindow>;
+    fn group_by_key_and_window(&self, windows: &mut VecDeque<KeyedWindow>) -> Vec<KeyedWindow> {
+        // GroupByKey
+        let ref mut group_by_key = lang::group_deque_as_btree_map(windows, |item| {
+            item.inner.window = None;
+            item.inner.get_key().value.clone()
+        });
+
+        // MergeWindows
+        self.merge_windows(group_by_key);
+
+        group_by_key
+            .iter_mut()
+            .map(|entry| {
+                let mut results = vec![];
+                // GroupAlsoByWindow
+                while let Some(mut window) = entry.1.pop() {
+                    if results.is_empty() {
+                        results.push(window)
+                    } else {
+                        let mut filtered = results.iter_mut().filter(|w| {
+                            w.window_start == window.window_start
+                                && w.window_end == window.window_end
+                        });
+
+                        if filtered.next().is_none() {
+                            results.push(window)
+                        } else {
+                            filtered.for_each(|w| w.inner.data.append(&mut window.inner.data));
+                        }
+                    }
+                }
+
+                results.iter_mut().for_each(|w| {
+                    w.event_time = w.window_end.clone();
+                });
+
+                results
+            })
+            .reduce(|mut accum, mut current| {
+                // ExpandToElements
+                accum.append(&mut current);
+                accum
+            })
+            .unwrap_or_default()
+    }
+
+    fn merge_windows(&self, group_by_key: &mut BTreeMap<Vec<u8>, Vec<KeyedWindow>>);
+
+    async fn trigger(&self);
+}
+
+#[derive(Clone)]
+pub struct FixedKeyedWindowAssigner {
+    size: Duration,
+    trigger: TriggerImpl,
+}
+
+impl FixedKeyedWindowAssigner {
+    fn new(
+        fixed: &proto::common::window::FixedWindow,
+        trigger: Option<&proto::common::Trigger>,
+    ) -> FixedKeyedWindowAssigner {
+        let duration = fixed.get_size().to_duration();
+
+        let trigger = trigger
+            .and_then(|t| t.value.as_ref().map(|val| TriggerImpl::new(val)))
+            .unwrap_or(TriggerImpl::default(&duration));
+
+        FixedKeyedWindowAssigner {
+            size: duration,
+            trigger,
+        }
+    }
+}
+
+#[tonic::async_trait]
+impl KeyedWindowAssigner for FixedKeyedWindowAssigner {
+    fn assign_windows(&self, event: &KeyedDataEvent) -> Vec<KeyedWindow> {
+        let event_time = event.get_event_time();
+        vec![KeyedWindow {
+            inner: event.clone(),
+            event_time: event_time.clone(),
+            window_start: event_time.clone(),
+            window_end: event_time.and_then(|event_time| event_time.checked_add_signed(self.size)),
+        }]
+    }
+
+    fn merge_windows(&self, group_by_key: &mut BTreeMap<Vec<u8>, Vec<KeyedWindow>>) {
+        group_by_key.par_iter_mut().for_each(|entry| {
+            let mut results = vec![];
+            entry.1.sort_by(|a, b| b.window_start.cmp(&a.window_start));
+
+            while let Some(mut window) = entry.1.pop() {
+                if results.is_empty() {
+                    results.push(window);
+                } else {
+                    let mut filter = results.iter_mut().filter(|w| {
+                        (*w).window_end > window.window_start
+                            && (*w).window_start <= window.window_start
+                    });
+                    let mut next = filter.next();
+                    if next.is_none() {
+                        results.push(window);
+                    } else {
+                        next.iter_mut().for_each(|w| {
+                            w.inner.data.append(&mut window.inner.data);
+                        })
+                    }
+                }
+            }
+
+            entry.1.append(&mut results);
+        })
+    }
+
+    async fn trigger(&self) {
+        self.trigger.emit()
+    }
+}
+
+#[derive(Clone, PartialEq, Debug)]
+pub struct KeyedWindow {
+    inner: KeyedDataEvent,
+    event_time: Option<chrono::DateTime<chrono::Utc>>,
+    window_start: Option<chrono::DateTime<chrono::Utc>>,
+    window_end: Option<chrono::DateTime<chrono::Utc>>,
+}
+impl KeyedWindow {
+    pub(crate) fn as_event(&mut self) -> &KeyedDataEvent {
+        self.inner.event_time = self.event_time.map(|time| Timestamp {
+            seconds: time.timestamp(),
+            nanos: time.timestamp_subsec_nanos() as i32,
+        });
+
+        self.inner.window = self
+            .window_end
+            .iter()
+            .zip(self.window_start.iter())
+            .map(|pair| keyed_data_event::Window {
+                start_time: Some(Timestamp {
+                    seconds: pair.1.timestamp(),
+                    nanos: pair.1.timestamp_subsec_nanos() as i32,
+                }),
+                end_time: Some(Timestamp {
+                    seconds: pair.0.timestamp(),
+                    nanos: pair.0.timestamp_subsec_nanos() as i32,
+                }),
+            })
+            .next();
+
+        &self.inner
+    }
+}
+
+#[derive(Clone)]
+pub struct SlideKeyedWindowAssigner {}
+
+impl SlideKeyedWindowAssigner {
+    fn new(
+        slide: &proto::common::window::SlidingWindow,
+        trigger: Option<&proto::common::Trigger>,
+    ) -> SlideKeyedWindowAssigner {
+        SlideKeyedWindowAssigner {}
+    }
+}
+
+#[tonic::async_trait]
+impl KeyedWindowAssigner for SlideKeyedWindowAssigner {
+    fn assign_windows(&self, event: &KeyedDataEvent) -> Vec<KeyedWindow> {
+        todo!()
+    }
+
+    fn merge_windows(&self, group_by_key: &mut BTreeMap<Vec<u8>, Vec<KeyedWindow>>) {}
+    async fn trigger(&self) {}
+}
+
+#[derive(Clone)]
+pub struct SessionKeyedWindowAssigner {}
+
+impl SessionKeyedWindowAssigner {
+    fn new(
+        session: &proto::common::window::SessionWindow,
+        trigger: Option<&proto::common::Trigger>,
+    ) -> SessionKeyedWindowAssigner {
+        SessionKeyedWindowAssigner {}
+    }
+}
+
+#[tonic::async_trait]
+impl KeyedWindowAssigner for SessionKeyedWindowAssigner {
+    fn assign_windows(&self, event: &KeyedDataEvent) -> Vec<KeyedWindow> {
+        todo!()
+    }
+
+    fn merge_windows(&self, group_by_key: &mut BTreeMap<Vec<u8>, Vec<KeyedWindow>>) {}
+    async fn trigger(&self) {}
+}
+
+#[derive(Clone)]
+pub enum TriggerImpl {
+    Watermark {
+        rx: crossbeam_channel::Receiver<()>,
+        terminator: crossbeam_channel::Sender<()>,
+    },
+}
+impl TriggerImpl {
+    fn new(val: &proto::common::trigger::Value) -> Self {
+        match val {
+            proto::common::trigger::Value::Watermark(watermark) => {
+                let trigger_time = watermark.get_trigger_time().to_duration();
+
+                Self::new_watermark(&trigger_time)
+            }
+        }
+    }
+
+    fn default(duration: &Duration) -> Self {
+        Self::new_watermark(&duration)
+    }
+
+    fn new_watermark(duration: &Duration) -> Self {
+        let trigger_time = duration.to_std().unwrap_or(DETAULT_WATERMARK);
+        let (tx, rx) = crossbeam_channel::bounded(1);
+
+        let (terminator_tx, terminator_rx) = crossbeam_channel::bounded::<()>(1);
+
+        tokio::spawn(async move {
+            let sleep = tokio::time::sleep(trigger_time);
+            tokio::pin!(sleep);
+            loop {
+                tokio::select! {
+                    Ok(_) = async { terminator_rx.recv() } => {
+                        drop(tx);
+                        break;
+                    },
+                    _ = &mut sleep => {
+                        let _ = tx.send(());
+                    }
+                }
+            }
+        });
+
+        Self::Watermark {
+            rx,
+            terminator: terminator_tx,
+        }
+    }
+
+    fn emit(&self) {
+        match self {
+            TriggerImpl::Watermark { rx, terminator } => match rx.recv() {
+                Ok(_) => {}
+                Err(_) => {
+                    let _ = terminator.send(());
+                }
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, VecDeque};
 
+    use prost_types::Timestamp;
     use proto::common::{
-        filter, flat_map, key_by, mapper, operator_info::Details, reducer, OperatorInfo,
+        filter, flat_map, key_by, mapper, operator_info::Details, reducer, window::FixedWindow,
+        Entry, KeyedDataEvent, OperatorInfo, Time,
     };
+
+    use crate::dataflow::KeyedWindow;
+
+    use super::WindowAssignerImpl;
 
     fn get_opeartor_code(op_info: &OperatorInfo) -> String {
         match op_info.details.as_ref() {
@@ -901,6 +1248,288 @@ mod tests {
                 new_events[0].data,
                 vec![entry_1.clone(), entry_1.clone(), entry_1.clone()]
             );
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fixed_window_assigner() {
+        let fixed = FixedWindow {
+            size: Some(Time {
+                millis: 300,
+                seconds: 0,
+                minutes: 0,
+                hours: 0,
+            }),
+        };
+
+        let assigner =
+            WindowAssignerImpl::Fixed(super::FixedKeyedWindowAssigner::new(&fixed, None));
+
+        // test assign_windows()
+        {
+            let now = chrono::Utc::now();
+            let event_time = Timestamp {
+                seconds: now.timestamp(),
+                nanos: now.timestamp_subsec_nanos() as i32,
+            };
+            let event = KeyedDataEvent {
+                job_id: None,
+                key: None,
+                to_operator_id: 1,
+                data: vec![],
+                event_time: Some(event_time),
+                process_time: None,
+                from_operator_id: 0,
+                window: None,
+            };
+
+            let windows = assigner.assign_windows(&event);
+
+            assert_eq!(
+                windows,
+                vec![KeyedWindow {
+                    inner: event,
+                    event_time: Some(now.clone()),
+                    window_start: Some(now.clone()),
+                    window_end: now.checked_add_signed(chrono::Duration::milliseconds(300))
+                }]
+            );
+        }
+
+        // test group_by_key_and_window()
+        {
+            let now = chrono::Utc::now();
+
+            // unordered event input
+            let events = vec![
+                KeyedDataEvent {
+                    job_id: None,
+                    key: Some(Entry {
+                        data_type: 1,
+                        value: vec![1],
+                    }),
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![2],
+                    }],
+                    event_time: Some(Timestamp {
+                        seconds: now.timestamp(),
+                        nanos: now.timestamp_subsec_nanos() as i32,
+                    }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                },
+                KeyedDataEvent {
+                    job_id: None,
+                    key: Some(Entry {
+                        data_type: 1,
+                        value: vec![1],
+                    }),
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![3],
+                    }],
+                    event_time: now
+                        .checked_add_signed(chrono::Duration::milliseconds(35))
+                        .map(|t| Timestamp {
+                            seconds: t.timestamp(),
+                            nanos: t.timestamp_subsec_nanos() as i32,
+                        }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                },
+                KeyedDataEvent {
+                    job_id: None,
+                    key: Some(Entry {
+                        data_type: 1,
+                        value: vec![1],
+                    }),
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![4],
+                    }],
+                    event_time: now
+                        .checked_add_signed(chrono::Duration::milliseconds(10))
+                        .map(|t| Timestamp {
+                            seconds: t.timestamp(),
+                            nanos: t.timestamp_subsec_nanos() as i32,
+                        }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                },
+                KeyedDataEvent {
+                    job_id: None,
+                    key: Some(Entry {
+                        data_type: 1,
+                        value: vec![2],
+                    }),
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![5],
+                    }],
+                    event_time: now
+                        .checked_add_signed(chrono::Duration::milliseconds(20))
+                        .map(|t| Timestamp {
+                            seconds: t.timestamp(),
+                            nanos: t.timestamp_subsec_nanos() as i32,
+                        }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                },
+                KeyedDataEvent {
+                    job_id: None,
+                    key: Some(Entry {
+                        data_type: 1,
+                        value: vec![2],
+                    }),
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![6],
+                    }],
+                    event_time: now
+                        .checked_add_signed(chrono::Duration::milliseconds(350))
+                        .map(|t| Timestamp {
+                            seconds: t.timestamp(),
+                            nanos: t.timestamp_subsec_nanos() as i32,
+                        }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                },
+                KeyedDataEvent {
+                    job_id: None,
+                    key: Some(Entry {
+                        data_type: 1,
+                        value: vec![3],
+                    }),
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![7],
+                    }],
+                    event_time: now
+                        .checked_add_signed(chrono::Duration::milliseconds(250))
+                        .map(|t| Timestamp {
+                            seconds: t.timestamp(),
+                            nanos: t.timestamp_subsec_nanos() as i32,
+                        }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                },
+            ];
+
+            let windows = events
+                .iter()
+                .map(|event| assigner.assign_windows(event))
+                .reduce(|mut accum, mut current| {
+                    accum.append(&mut current);
+                    accum
+                });
+
+            assert!(windows.is_some());
+            let windows = windows.unwrap();
+
+            let windows = assigner.group_by_key_and_window(&mut VecDeque::from(windows));
+
+            {
+                let mut key_1_filter = windows.iter().filter(|w| {
+                    w.inner.key
+                        == Some(Entry {
+                            data_type: 1,
+                            value: vec![1],
+                        })
+                });
+
+                let next = key_1_filter.next();
+                assert_eq!(
+                    next,
+                    Some(&KeyedWindow {
+                        inner: KeyedDataEvent {
+                            job_id: None,
+                            key: Some(Entry {
+                                data_type: 1,
+                                value: vec![1]
+                            }),
+                            to_operator_id: 1,
+                            data: vec![
+                                Entry {
+                                    data_type: 1,
+                                    value: vec![2]
+                                },
+                                Entry {
+                                    data_type: 1,
+                                    value: vec![4]
+                                },
+                                Entry {
+                                    data_type: 1,
+                                    value: vec![3]
+                                }
+                            ],
+                            event_time: Some(Timestamp {
+                                seconds: now.timestamp(),
+                                nanos: now.timestamp_subsec_nanos() as i32,
+                            }),
+                            process_time: None,
+                            from_operator_id: 0,
+                            window: None
+                        },
+                        event_time: now.checked_add_signed(chrono::Duration::milliseconds(300)),
+                        window_start: Some(now.clone()),
+                        window_end: now.checked_add_signed(chrono::Duration::milliseconds(300))
+                    })
+                )
+            }
+
+            {
+                let mut key_3_filter = windows.iter().filter(|w| {
+                    w.inner.key
+                        == Some(Entry {
+                            data_type: 1,
+                            value: vec![3],
+                        })
+                });
+
+                let next = key_3_filter.next();
+                assert_eq!(
+                    next,
+                    Some(&KeyedWindow {
+                        inner: KeyedDataEvent {
+                            job_id: None,
+                            key: Some(Entry {
+                                data_type: 1,
+                                value: vec![3]
+                            }),
+                            to_operator_id: 1,
+                            data: vec![Entry {
+                                data_type: 1,
+                                value: vec![7]
+                            }],
+                            event_time: now
+                                .checked_add_signed(chrono::Duration::milliseconds(250))
+                                .map(|t| Timestamp {
+                                    seconds: t.timestamp(),
+                                    nanos: t.timestamp_subsec_nanos() as i32,
+                                }),
+                            process_time: None,
+                            from_operator_id: 0,
+                            window: None
+                        },
+                        event_time: now.checked_add_signed(chrono::Duration::milliseconds(550)),
+                        window_start: now.checked_add_signed(chrono::Duration::milliseconds(250)),
+                        window_end: now.checked_add_signed(chrono::Duration::milliseconds(550))
+                    })
+                )
+            }
         }
     }
 }

@@ -8,6 +8,7 @@ async function wordCount(ctx: ExecutionContext) {
     .builder()
     .brokers(["localhost:9092"])
     .topic("topic")
+    .group("word_count")
     .build<string>(undefined, typeof "");
 
 
@@ -22,6 +23,13 @@ async function wordCount(ctx: ExecutionContext) {
     return { t0: 1, t1: v };
   }))
     .keyBy(v => v.t0)
+    .window({
+      fixed: {
+        size: {
+          seconds: 3
+        }
+      }
+    })
     .reduce((v1, v2) => {
       return { t0: v1.t0, t1: v1.t1 + v2.t1 };
     })

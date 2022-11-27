@@ -1182,9 +1182,6 @@ export namespace common {
 
         /** OperatorInfo window */
         window?: (common.IWindow|null);
-
-        /** OperatorInfo trigger */
-        trigger?: (common.ITrigger|null);
     }
 
     /** OperatorInfo, stores detail information of an operator */
@@ -1229,11 +1226,8 @@ export namespace common {
         /** OperatorInfo window. */
         public window?: (common.IWindow|null);
 
-        /** OperatorInfo trigger. */
-        public trigger?: (common.ITrigger|null);
-
         /** OperatorInfo details. */
-        public details?: ("source"|"sink"|"mapper"|"filter"|"keyBy"|"reducer"|"flatMap"|"window"|"trigger");
+        public details?: ("source"|"sink"|"mapper"|"filter"|"keyBy"|"reducer"|"flatMap"|"window");
 
         /**
          * Creates a new OperatorInfo instance using the specified properties.
@@ -2573,8 +2567,11 @@ export namespace common {
             /** KafkaOptions partition. */
             public partition?: (number|null);
 
-            /** KafkaOptions opt. */
-            public opt?: ("group"|"partition");
+            /** KafkaOptions _group. */
+            public _group?: "group";
+
+            /** KafkaOptions _partition. */
+            public _partition?: "partition";
 
             /**
              * Creates a new KafkaOptions instance using the specified properties.
@@ -4493,16 +4490,12 @@ export namespace common {
     enum ErrorCode {
         ERROR_CODE_UNSPECIFIED = 0,
         ERROR_CODE_RESOURCE_NOT_FOUND = 1,
-        ERROR_CODE_RPC_UNIMPLEMENTED = 2,
-        ERROR_CODE_RPC_UNAVAILABLE = 3,
-        ERROR_CODE_RPC_UNAUTHORIZED = 4,
-        ERROR_CODE_RPC_INVALID_ARGUMENT = 5,
-        ERROR_CODE_RPC_PERMISSION_DENIED = 6,
-        ERROR_CODE_INTERNAL_ERROR = 7,
-        ERROR_CODE_TOO_MANY_REQUEST = 8,
-        ERROR_CODE_RPC_BIND_FAILED = 9,
-        ERROR_CODE_GOOGLE_AUTH_FAILED = 10,
-        ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING = 11,
-        ERROR_CODE_CYCLIC_DATAFLOW = 12
+        ERROR_CODE_RPC_UNAUTHORIZED = 2,
+        ERROR_CODE_RPC_INVALID_ARGUMENT = 3,
+        ERROR_CODE_RPC_PERMISSION_DENIED = 4,
+        ERROR_CODE_INTERNAL_ERROR = 5,
+        ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING = 6,
+        ERROR_CODE_CYCLIC_DATAFLOW = 7,
+        ERROR_CODE_DATAFLOW_CONFIGURATION_MISSING = 8
     }
 }

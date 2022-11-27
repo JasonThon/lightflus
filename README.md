@@ -59,28 +59,63 @@ You can get the Roadmap in this [Jira Dashboard](https://lightflus.atlassian.net
 
 You can join [Gitter](https://gitter.im/lightflus/community) community!
 
-## Set Up
 
-If you want to start Lightflus on your computer, there are two ways:
+## Set Up Lightflus Services
 
-1. Start by Binary Packages (**Not Recommanded**)
-
-```shell
-$ cargo install --path src/worker
-
-$ cargo install --path src/coordinator
-```
-
-Then Run by command
+### Running by Cargo
 
 ```shell
-$ target/release/worker
+$ cargo run --manifest-path src/worker/Cargo.toml
 
-$ target/release/coordinator
+$ cargo run --manifest-path src/coordinator/Cargo.toml
+
+$ cargo run --manifest-path src/apiserver/Cargo.toml
 ```
 
-2. Start by Docker Compose (**Recommended For Running Background**)
+### Running by Docker Compose (**Recommended For Running Background**)
 
 ```shell
 $ docker-compose up
 ```
+
+### Try to deploy the example dataflow
+
+You can deploy two example dataflow tasks `wordCount`, `userAction` where the code files are in the path `typescript-api/src` follow next steps:
+
+1. install dependencies
+
+```shell
+$ cd typescript-api
+
+$ npm install
+```
+
+2. compile typescript codes
+
+```shell
+$ npx tsc -p .
+```
+
+3. set environment variables
+
+```shell
+$ export LIGHTFLUS_ENDPOINT=localhost:8080
+```
+
+4. run compiled Javascript code
+
+```shell
+$ node dist/src/wordCount.js
+
+$ node dist/src/userAction.js
+```
+
+### Triggering Dataflow
+
+1. Word Count
+
+You can send string messages to Kafka queue (if it has been started), and you can get the word count results in the redis;
+
+2. User Actions
+
+You can send object messages to Kafka queue (if it has been started), and you will get the result of user actions model in the redis;

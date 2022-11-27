@@ -25,7 +25,7 @@ async function wordCount(ctx: ExecutionContext) {
   await stream.flatMap(value => value.split(" ").map(v => {
     return { t0: 1, t1: v };
   }))
-    .keyBy(v => v.t0)
+    .keyBy(v => v.t1)
     .window({
       fixed: {
         size: {

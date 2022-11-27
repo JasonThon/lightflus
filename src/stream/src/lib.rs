@@ -7,11 +7,9 @@ pub mod v8_runtime;
 pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1000;
 
-pub type EventReceiver<Input> = tokio::sync::mpsc::Receiver<Input>;
-pub type EventSender<Input> = tokio::sync::mpsc::Sender<Input>;
+pub(crate) type EventReceiver<Input> = tokio::sync::mpsc::Receiver<Input>;
+pub(crate) type EventSender<Input> = tokio::sync::mpsc::Sender<Input>;
 
-pub(crate) type EventReceiver<Input> = crossbeam_channel::Receiver<Input>;
-pub(crate) type EventSender<Input> = crossbeam_channel::Sender<Input>;
 pub(crate) const DETAULT_WATERMARK: std::time::Duration = std::time::Duration::from_millis(100);
 
 pub fn initialize_v8() {

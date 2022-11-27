@@ -23,12 +23,11 @@ use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
 
 use std::collections::{BTreeMap, VecDeque};
-
 use std::rc::Rc;
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use std::vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -134,7 +133,6 @@ pub trait Executor {
     fn close(&mut self);
 }
 
-#[derive(Clone)]
 pub struct LocalExecutor {
     pub job_id: ResourceId,
     pub executor_id: ExecutorId,
@@ -262,14 +260,13 @@ impl Executor for LocalExecutor {
     }
 }
 
-#[derive(Clone)]
 pub struct WindowExecutor {
     pub job_id: ResourceId,
     source: SourceImpl,
     executor_id: ExecutorId,
     sinks: Vec<SinkImpl>,
     assigner: WindowAssignerImpl,
-    windows: RefCell<VecDeque<KeyedWindow>>,
+    windows: VecDeque<KeyedWindow>,
 }
 
 impl WindowExecutor {
@@ -294,47 +291,38 @@ impl WindowExecutor {
 }
 
 impl Executor for WindowExecutor {
-    fn run(self) -> tokio::task::JoinHandle<()> {
-        tokio::spawn(async move {
-            'outside: loop {
+    fn run(&mut self) {
+        futures_executor::block_on(async {
+            loop {
                 tokio::select! {
                     biased;
                     _ = self.assigner.trigger() => {
-                        RefMut::map(self.windows.borrow_mut(), |keyed_windows| {
-                            let ref mut merged_windows = self.assigner.group_by_key_and_window(keyed_windows);
-                            keyed_windows.clear();
-                            merged_windows
-                                .par_iter_mut()
-                                .map(|keyed_window| keyed_window.as_event())
-                                .for_each(|event| {
-                                    self.sinks.par_iter().for_each(|sink| {
-                                        match futures_executor::block_on(sink.sink(
-                                            SinkableMessageImpl::LocalMessage(
-                                                LocalEvent::KeyedDataStreamEvent(event.clone()),
-                                            ),
-                                        )) {
-                                            Ok(_) => {}
-                                            Err(err) => tracing::error!("sink message failed: {:?}", err),
-                                        }
-                                    })
-                                });
-                            keyed_windows
+                        let ref mut merged_windows = self.assigner.group_by_key_and_window(&mut self.windows);
+                        self.windows.clear();
+                        merged_windows.into_par_iter().for_each(|keyed_window| {
+                            let event = keyed_window.as_event();
+                            self.sinks.par_iter().for_each(|sink| {
+                                match futures_executor::block_on(sink.sink(SinkableMessageImpl::LocalMessage(
+                                    LocalEvent::KeyedDataStreamEvent(event.clone()),
+                                ))) {
+                                    Ok(_) => {}
+                                    Err(err) => tracing::error!("sink message failed: {:?}", err),
+                                }
+                            })
                         });
                     },
 
                     Some(msg) = async { self.source.fetch_msg() } => {
                     match msg {
                         SinkableMessageImpl::LocalMessage(event) => match event {
-                            LocalEvent::Terminate { job_id, to } => break 'outside,
+                            LocalEvent::Terminate { job_id, to } => return,
                             LocalEvent::KeyedDataStreamEvent(keyed_event) => {
                                 let windows = self.assigner.assign_windows(&keyed_event);
-                                let mut keyed_windows = self.windows.borrow_mut();
-                                keyed_windows.extend(windows);
+                                self.windows.extend(windows);
                             },
                         },
                     }
                    },
-                   else => continue
                 }
             }
         })
@@ -346,22 +334,25 @@ impl Executor for WindowExecutor {
             sink_id: self.executor_id as u32,
         })
     }
+
+    fn close(&mut self) {
+        todo!()
+    }
 }
 
-#[derive(Clone)]
 pub enum ExecutorImpl {
     Local(LocalExecutor),
     Window(WindowExecutor),
 }
 
-unsafe impl Send for ExecutorImpl {}
 unsafe impl Sync for ExecutorImpl {}
+unsafe impl Send for ExecutorImpl {}
 
 impl ExecutorImpl {
     pub fn run(self) {
         match self {
-            ExecutorImpl::Window(exec) => exec.run(),
             ExecutorImpl::Local(mut exec) => exec.run(),
+            ExecutorImpl::Window(mut exec) => exec.run(),
         }
     }
 
@@ -891,7 +882,6 @@ impl Kafka {
         let payload = message.payload.as_slice();
         let key = TypedValue::from_vec(&message.key);
         let val = TypedValue::from_slice_with_type(payload, data_type);
-        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
 
         let result =
             SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
@@ -905,10 +895,18 @@ impl Kafka {
                     data_type: self.conf.data_type() as i32,
                     value: val.get_data(),
                 }],
-                event_time: Some(Timestamp {
-                    seconds: datetime.naive_utc().timestamp(),
-                    nanos: datetime.naive_utc().timestamp_subsec_nanos() as i32,
-                }),
+                event_time: message
+                    .timestamp
+                    .map(|millis| Duration::from_millis(millis as u64))
+                    .and_then(|duration| {
+                        SystemTime::UNIX_EPOCH
+                            .checked_add(duration)
+                            .map(|time| chrono::DateTime::<chrono::Utc>::from(time))
+                    })
+                    .map(|time| Timestamp {
+                        seconds: time.naive_utc().timestamp(),
+                        nanos: time.naive_utc().timestamp_subsec_nanos() as i32,
+                    }),
                 process_time: None,
                 from_operator_id: self.connector_id,
                 window: None,
@@ -943,7 +941,7 @@ impl Source for Kafka {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl Sink for Kafka {
     fn sink_id(&self) -> SinkId {
         self.connector_id
@@ -1097,7 +1095,7 @@ impl Redis {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
         self.connector_id

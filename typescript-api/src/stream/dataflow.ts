@@ -1,5 +1,6 @@
 import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
 import { apiserver } from "../proto/apiserver";
+
 import axios from "axios";
 import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
 import { connectors } from "../connectors/connectors";
@@ -10,6 +11,7 @@ import CreateResourceResponse = apiserver.CreateResourceResponse;
 import IWindow = common.IWindow;
 import Sink = connectors.Sink;
 import ExecutionContext = context.ExecutionContext;
+import IWindow = common.IWindow;
 
 export class Dataflow<T> {
   protected ctx: ExecutionContext;

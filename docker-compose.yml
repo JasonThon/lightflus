@@ -24,7 +24,7 @@ services:
       context: .
       dockerfile: docker/coordinator/Dockerfile
     ports:
-      - "18091:18091"
+      - "8791:8791"
     environment:
       RUST_LOG: INFO
       WORKER_NODE_1: worker-1
@@ -36,7 +36,7 @@ services:
           "CMD-SHELL",
           "/lightflus/runtime/tools/healthcheck",
           "-TARGET localhost:8791",
-          "-METHOD /proto.CoordinatorApi/Probe",
+          "-METHOD /coordinator.CoordinatorApi/Probe",
           "-SERVICE 0",
           "-PROBE 1"
         ]
@@ -53,14 +53,14 @@ services:
     environment:
       RUST_LOG: INFO
     ports:
-      - "18090:18090"
+      - "8792:8792"
     healthcheck:
       test:
         [
           "CMD-SHELL",
           "/lightflus/runtime/tools/healthcheck",
-          "-TARGET localhost:18090",
-          "-METHOD /proto.TaskWorkerApi/Probe",
+          "-TARGET localhost:8792",
+          "-METHOD /worker.TaskWorkerApi/Probe",
           "-SERVICE 1",
           "-PROBE 0"
         ]
@@ -77,6 +77,6 @@ services:
     environment:
       RUST_LOG: INFO
     ports:
-      - "18090:18090"
+      - "8080:8080"
     depends_on:
       - coordinator

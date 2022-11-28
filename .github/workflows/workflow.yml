@@ -157,4 +157,5 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
           yarn
+          pbjs -t static-module -p ../proto -w commonjs -o src/proto/apiserver.js ../proto/apiserver/apiserver.proto
           yarn publish

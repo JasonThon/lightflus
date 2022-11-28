@@ -5,8 +5,8 @@ import ISink = common.ISink;
 
 export class Redis<V> extends Sink<V> {
   private _host: string;
-  private _keyExtractor: (val: V) => string;
-  private _valueExtractor: (val: V) => string;
+  private _keyExtractor: (val: V) => any;
+  private _valueExtractor: (val: V) => any;
   private _tls: boolean;
 
   private _password: string;
@@ -24,12 +24,12 @@ export class Redis<V> extends Sink<V> {
     return this;
   }
 
-  valueExtractor(value: (val: V) => string): Redis<V> {
+  valueExtractor(value: (val: V) => any): Redis<V> {
     this._valueExtractor = value;
     return this;
   }
 
-  keyExtractor(value: (val: V) => string): Redis<V> {
+  keyExtractor(value: (val: V) => any): Redis<V> {
     this._keyExtractor = value;
     return this;
   }

@@ -21,8 +21,7 @@
 
 1. Large-scale real-time computation;
 2. CDC (Change Data Capture);
-3. Data Integration Pipeline;
-
+3. Data Pipeline;
 
 
 ## Design Philosophy
@@ -84,7 +83,7 @@ You can run two example dataflow tasks `wordCount`, `userAction` where the code 
 
 1. install dependencies
 
-```shell
+```bash
 $ cd typescript-api
 
 $ npm install
@@ -117,7 +116,7 @@ $ node dist/src/userAction.js
 
 You can send string messages to Kafka
 
-```json
+```text
 hello hello hello world world world
 ```
 
@@ -135,7 +134,7 @@ redis> GET world
 
 You can send object messages to Kafka
 
-```text
+```json
 {
   "userId": "user1",
   "itemId": "xxxx",
@@ -148,5 +147,5 @@ And you can get values in Redis
 
 ```bash
 redis> GET user1
-"[{\"userId\": \"user1\", \"weights\": [{\"action\": 1, \"itemId\": \"xxxx\", \"timestamp\": \"16422xxx\"}]}]"
+"[{\"userId\": \"user1\", \"weights\": [{\"factor\": 1,\"action\": 1, \"itemId\": \"xxxx\", \"timestamp\": \"16422xxx\"}]}]"
 ```

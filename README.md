@@ -21,8 +21,7 @@
 
 1. Large-scale real-time computation;
 2. CDC (Change Data Capture);
-3. Data Integration Pipeline;
-
+3. Data Pipeline;
 
 
 ## Design Philosophy
@@ -64,27 +63,27 @@ You can join [Gitter](https://gitter.im/lightflus/community) community!
 
 ### Running by Cargo
 
-```shell
+```bash
 $ cargo run --manifest-path src/worker/Cargo.toml
-
 $ cargo run --manifest-path src/coordinator/Cargo.toml
-
 $ cargo run --manifest-path src/apiserver/Cargo.toml
 ```
 
-### Running by Docker Compose (**Recommended For Running Background**)
+### Running by Docker Compose (**Recommended**)
 
-```shell
+```bash
 $ docker-compose up
 ```
 
-### Try to deploy the example dataflow
+## Try The Example
 
-You can deploy two example dataflow tasks `wordCount`, `userAction` where the code files are in the path `typescript-api/src` follow next steps:
+### Preparation
+
+You can run two example dataflow tasks `wordCount`, `userAction` where the code files are in the path `typescript-api/src` follow next steps:
 
 1. install dependencies
 
-```shell
+```bash
 $ cd typescript-api
 
 $ npm install
@@ -110,12 +109,43 @@ $ node dist/src/wordCount.js
 $ node dist/src/userAction.js
 ```
 
-### Triggering Dataflow
+### Make the Dataflow Work
+
 
 1. Word Count
 
-You can send string messages to Kafka queue (if it has been started), and you can get the word count results in the redis;
+You can send string messages to Kafka
+
+```text
+hello hello hello world world world
+```
+
+And you can get value in Redis
+
+```bash
+redis> GET hello
+"3"
+
+redis> GET world
+"3"
+```
 
 2. User Actions
 
-You can send object messages to Kafka queue (if it has been started), and you will get the result of user actions model in the redis;
+You can send object messages to Kafka
+
+```json
+{
+  "userId": "user1",
+  "itemId": "xxxx",
+  "action": 1,
+  "timestamp": "16422xxx"
+}
+```
+
+And you can get values in Redis
+
+```bash
+redis> GET user1
+"[{\"userId\": \"user1\", \"weights\": [{\"factor\": 1,\"action\": 1, \"itemId\": \"xxxx\", \"timestamp\": \"16422xxx\"}]}]"
+```

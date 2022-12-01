@@ -77,12 +77,17 @@ export class KeyedDataflow<K, T> extends Dataflow<T> {
     super(ctx);
   }
 
+  map<U>(callbackFn: (value: T) => U): KeyedDataflow<K, U> {
+    super.map(callbackFn);
+    return new KeyedDataflow<K, U>(this.ctx);
+  }
+
   reduce(callbackFn: (agg: T, current: T) => T): KeyedDataflow<K, T> {
     super.reduce(callbackFn);
     return new KeyedDataflow<K, T>(this.ctx);
   }
 
-  filter(callbackFn: (value: T) => boolean): Dataflow<T> {
+  filter(callbackFn: (value: T) => boolean): KeyedDataflow<K, T> {
     super.filter(callbackFn);
     return new KeyedDataflow<K, T>(this.ctx);
   }

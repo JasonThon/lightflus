@@ -117,6 +117,8 @@ export class KafkaBuilder {
 
     kafka.topic = this._topic;
     kafka.brokers = this._brokers;
+    kafka.partition = this._partition;
+    kafka.group = this._group;
     return kafka;
   }
 }

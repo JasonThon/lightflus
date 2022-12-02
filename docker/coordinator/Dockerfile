@@ -11,6 +11,6 @@ RUN cargo install --path /lightflus/runtime/src/coordinator --target-dir /lightf
 FROM debian:buster-slim
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/src/coordinator/etc /lightflus/runtime
-COPY --from=builder /lightflus/runtime/arget/release/coordinator /lightflus/runtime/coordinator
+COPY --from=builder /lightflus/runtime/target/release/coordinator /lightflus/runtime/coordinator
 COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
 CMD ["./coordinator", "-c", "etc/coordinator.json"]

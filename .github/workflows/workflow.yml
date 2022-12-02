@@ -152,11 +152,12 @@ jobs:
           docker push lightflus/worker:${{ github.event.release.tag_name }}
           docker push lightflus/coordinator:${{ github.event.release.tag_name }}
           docker push lightflus/apiserver:${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v3
       - name: Publish API
         working-directory: ./typescript-api
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
-          yarn
+          npm install
           pbjs -t static-module -p ../proto -w commonjs -o src/proto/apiserver.js ../proto/apiserver/apiserver.proto
-          yarn publish
+          npm publish

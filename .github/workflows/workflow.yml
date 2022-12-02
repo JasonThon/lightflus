@@ -136,6 +136,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v3
       - name: Build images
         run: |
           docker build . --file docker/coordinator/Dockerfile --tag lightflus/coordinator:${{ github.event.release.tag_name }}

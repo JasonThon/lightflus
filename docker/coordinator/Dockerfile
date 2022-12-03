@@ -14,4 +14,4 @@ COPY --from=builder /lightflus/runtime/src/coordinator/etc /lightflus/runtime
 COPY --from=builder /lightflus/runtime/target/release/coordinator /lightflus/runtime/coordinator
 COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
 EXPOSE 8791
-CMD ["./coordinator", "-c", "etc/coord.json"]
+CMD ["./coordinator", "-c", "/lightflus/runtime/etc/coord.json"]

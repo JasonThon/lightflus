@@ -159,5 +159,7 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
         run: |
           npm install
+          npm install protobufjs
+          npm install protobufjs-cli
           pbjs -t static-module -p ../proto -w commonjs -o src/proto/apiserver.js ../proto/apiserver/apiserver.proto
           npm publish

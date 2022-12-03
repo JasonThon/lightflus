@@ -20,11 +20,6 @@ services:
       - zookeeper
   coordinator:
     image: lightflus/coordinator:latest
-    build:
-      context: .
-      dockerfile: docker/coordinator/Dockerfile
-    ports:
-      - "8791:8791"
     environment:
       RUST_LOG: INFO
       WORKER_NODE_1: worker-1
@@ -47,13 +42,8 @@ services:
   worker:
     image: lightflus/worker:latest
     hostname: worker-1
-    build:
-      context: .
-      dockerfile: docker/worker/Dockerfile
     environment:
       RUST_LOG: INFO
-    ports:
-      - "8792:8792"
     healthcheck:
       test:
         [
@@ -71,9 +61,6 @@ services:
   apiserver:
     image: lightflus/apiserver:latest
     hostname: apiserver-1
-    build:
-      context: .
-      dockerfile: docker/apiserver/Dockerfile
     environment:
       RUST_LOG: INFO
     ports:

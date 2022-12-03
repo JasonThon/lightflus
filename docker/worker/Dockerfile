@@ -8,9 +8,10 @@ WORKDIR /lightflus/runtime
 COPY . .
 RUN cargo install --path /lightflus/runtime/src/worker --target-dir /lightflus/runtime/target
 
-FROM debian:buster-slim
+FROM debian:buster
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/src/worker/etc /lightflus/runtime
 COPY --from=builder /lightflus/runtime/target/release/worker /lightflus/runtime/worker
 COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
+EXPOSE 8792
 CMD ["./worker", "-c", "etc/worker.json"]

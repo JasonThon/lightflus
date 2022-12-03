@@ -69,8 +69,7 @@ jobs:
       - name: Build package
         working-directory: ./typescript-api
         run: |
-          yarn
-          yarn tsc -p .
+          yarn run build
       - name: Run tests
         working-directory: ./typescript-api
         run: yarn test
@@ -152,14 +151,3 @@ jobs:
           docker push lightflus/worker:${{ github.event.release.tag_name }}
           docker push lightflus/coordinator:${{ github.event.release.tag_name }}
           docker push lightflus/apiserver:${{ github.event.release.tag_name }}
-      - uses: actions/setup-node@v3
-      - name: Publish API
-        working-directory: ./typescript-api
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_AUTH_TOKEN }}
-        run: |
-          npm install
-          npm install protobufjs
-          npm install protobufjs-cli
-          pbjs -t static-module -p ../proto -w commonjs -o src/proto/apiserver.js ../proto/apiserver/apiserver.proto
-          npm publish

@@ -1,12 +1,14 @@
-import { ExecutionContext } from "./context";
 import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
 import { apiserver } from "../proto/apiserver";
-import { Sink } from "../connectors/definition";
 import axios from "axios";
 import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
+import { connectors } from "../connectors/connectors";
+import { context } from "./context";
 import CreateResourceRequest = apiserver.CreateResourceRequest;
 import ResourceTypeEnum = apiserver.ResourceTypeEnum;
 import CreateResourceResponse = apiserver.CreateResourceResponse;
+import Sink = connectors.Sink;
+import ExecutionContext = context.ExecutionContext;
 
 export class Dataflow<T> {
   protected ctx: ExecutionContext;
@@ -53,7 +55,7 @@ export class Dataflow<T> {
         console.log(`{status: ${resp.status}, response: ${JSON.stringify(response)}`);
       }).catch((err) => {
         if (axios.isAxiosError(err)) {
-          console.log(`{status: ${err.status}, errMsg: ${JSON.stringify(err.response.data)}`);
+          console.log(`${JSON.stringify(err)}`);
         } else {
           console.log(err);
         }

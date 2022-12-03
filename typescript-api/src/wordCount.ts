@@ -1,8 +1,11 @@
-import { ExecutionContext } from "./stream/context";
-import { Kafka } from "./connectors/kafka";
-import { Redis } from "./connectors/redis";
-
 // wordCount example
+
+import { context } from "./stream/context";
+import { kafka, redis } from "./connectors/connectors";
+import ExecutionContext = context.ExecutionContext;
+import Kafka = kafka.Kafka;
+import Redis = redis.Redis;
+
 async function wordCount(ctx: ExecutionContext) {
   let source = Kafka
     .builder()

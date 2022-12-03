@@ -1,23 +1,13 @@
 {
   "name": "lightflus-api",
-  "version": "1.0.0-alpha",
+  "version": "1.0.9-alpha",
   "description": "",
   "author": "",
   "license": "UNLICENSED",
   "scripts": {
-    "prebuild": "rimraf dist",
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "prebuild": "npm install && pbjs -t static-module -p ../proto -w commonjs -o src/proto/apiserver.js ../proto/apiserver/apiserver.proto ",
+    "build": "npx tsc -p .",
+    "clean": "rm -rf src/*.d.ts src/*.js src/*.js.map src/*/*.d.ts src/*/*.js src/*/*.js.map test/*/*spec.d.ts test/**/*spec.js test/*spec.d.ts test/**/*spec.js.map test/*spec.js test/*spec.js.map && pbjs -t static-module -p ../proto -w commonjs -o src/proto/apiserver.js ../proto/apiserver/apiserver.proto && pbts -o src/proto/apiserver.d.ts src/proto/apiserver.js && rm -rf src/proto/apiserver.js && rm -rf tsconfig.tsbuildinfo"
   },
   "dependencies": {
     "@grpc/grpc-js": "^1.7.3",
@@ -67,5 +57,9 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  }
+  },
+  "files": [
+    "src/**/*.d.ts",
+    "src/**/*.js"
+  ]
 }

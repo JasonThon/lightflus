@@ -1,6 +1,8 @@
-import { ExecutionContext } from "./stream/context";
-import { Kafka } from "./connectors/kafka";
-import { Redis } from "./connectors/redis";
+import { context } from "./stream/context";
+import ExecutionContext = context.ExecutionContext;
+import { kafka, redis } from "./connectors/connectors";
+import Kafka = kafka.Kafka;
+import Redis = redis.Redis;
 
 class UserAction {
   userId: string;
@@ -8,7 +10,6 @@ class UserAction {
   action: number;
   timestamp: string;
 }
-
 
 function userAction(ctx: ExecutionContext) {
   let source = Kafka

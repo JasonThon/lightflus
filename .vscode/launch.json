@@ -156,7 +156,10 @@
                 "RUST_LOG": "INFO",
                 "KEY_VALUE_STATE_PATH": "${HOME}/lightflus/state"
             },
-            "args": [],
+            "args": [
+                "-c",
+                "src/worker/etc/worker.json"
+            ],
             "cwd": "${workspaceFolder}"
         },
         {

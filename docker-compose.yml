@@ -18,51 +18,83 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     depends_on:
       - zookeeper
+  mysql:
+    image: 'bitnami/mysql:5.7'
+    ports:
+      - '3306:3306'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+      - MYSQL_DATABASE=ci
+      - MYSQL_USER=ci
+      - MYSQL_PASSWORD=123
+  redis:
+    image: 'bitnami/redis:latest'
+    ports:
+      - '6379:6379'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
   coordinator:
-    image: lightflus/coordinator
+    image: lightflus/coordinator:v1.0.0-alpha
+    ports:
+      - '8971:8971'
     environment:
       RUST_LOG: INFO
-      WORKER_NODE_1: worker-1
+      WORKER_1: worker
     depends_on:
       - worker
     healthcheck:
       test:
         [
-          "CMD-SHELL",
+          "CMD",
           "/lightflus/runtime/tools/healthcheck",
-          "-TARGET localhost:8791",
-          "-METHOD /coordinator.CoordinatorApi/Probe",
-          "-SERVICE 0",
-          "-PROBE 1"
+          "-TARGET",
+          "localhost:8791",
+          "-METHOD",
+          "/coordinator.CoordinatorApi/Probe",
+          "-SERVICE",
+          "0",
+          "-PROBE",
+          "1",
+          "||",
+          "exit",
+          "1"
         ]
       interval: 3s
       timeout: 5s
       retries: 3
-      start_period: 2s
+      start_period: 5s
   worker:
-    image: lightflus/worker
-    hostname: worker-1
+    image: lightflus/worker:v1.0.0-alpha
+    ports:
+      - '8972:8972'
     environment:
       RUST_LOG: INFO
     healthcheck:
       test:
         [
-          "CMD-SHELL",
+          "CMD",
           "/lightflus/runtime/tools/healthcheck",
-          "-TARGET localhost:8792",
-          "-METHOD /worker.TaskWorkerApi/Probe",
-          "-SERVICE 1",
-          "-PROBE 0"
+          "-TARGET",
+          "localhost:8792",
+          "-METHOD",
+          "/worker.TaskWorkerApi/Probe",
+          "-SERVICE",
+          "1",
+          "-PROBE",
+          "0",
+          "||",
+          "exit",
+          "1"
         ]
       interval: 2s
       timeout: 1s
       retries: 3
-      start_period: 2s
+      start_period: 5s
   apiserver:
-    image: lightflus/apiserver
-    hostname: apiserver-1
+    image: lightflus/apiserver:v1.0.0-alpha
     environment:
       RUST_LOG: INFO
+      LIGHTFLUS_COORDINATOR_URI: http://coordinator:8791
     ports:
       - "8080:8080"
     depends_on:

@@ -5,43 +5,37 @@ import (
 	"flag"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
-	"strconv"
+	"google.golang.org/grpc/credentials/insecure"
 	"tableflow/alpha/common/probe"
 	"time"
 )
 
 var (
 	target      = flag.String("TARGET", "", "healthcheck target")
-	serviceEnum = flag.String("SERVICE", "", "healthcheck service")
-	probeEnum   = flag.String("PROBE", "", "healthcheck probe")
+	serviceEnum = flag.Int("SERVICE", 0, "healthcheck service")
+	probeEnum   = flag.Int("PROBE", 0, "healthcheck probe")
 	methodName  = flag.String("METHOD", "", "healthcheck method name")
 )
 
 func main() {
-	service, err := strconv.Atoi(*serviceEnum)
-	if err != nil {
-		log.Fatal(err)
-	}
+	flag.Parse()
 
-	nodeType := probe.ProbeRequest_NodeType(service)
-
-	probeType, err := strconv.Atoi(*probeEnum)
-	if err != nil {
-		log.Fatal(err)
-	}
+	nodeType := probe.ProbeRequest_NodeType(*serviceEnum)
 
 	ctx, cancelFunc := context.WithTimeout(context.Background(), time.Second*5)
 	defer cancelFunc()
 
-	conn, err := grpc.Dial(*target)
+	conn, err := grpc.Dial(*target, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatal(err)
 	}
 	var resp probe.ProbeResponse
 	err = conn.Invoke(ctx, *methodName, &probe.ProbeRequest{
 		NodeType:  nodeType,
-		ProbeType: probe.ProbeRequest_ProbeType(probeType),
+		ProbeType: probe.ProbeRequest_ProbeType(*probeEnum),
 	}, &resp)
 
-	log.Fatalf("health check failed: %v", err)
+	if err != nil {
+		log.Fatalf("health check failed: %v", err)
+	}
 }

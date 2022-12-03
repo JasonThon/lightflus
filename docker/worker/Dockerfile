@@ -10,8 +10,8 @@ RUN cargo install --path /lightflus/runtime/src/worker --target-dir /lightflus/r
 
 FROM debian:bullseye-slim
 WORKDIR /lightflus/runtime
-COPY --from=builder /lightflus/runtime/src/worker/etc /lightflus/runtime
+COPY --from=builder /lightflus/runtime/src/worker/etc /lightflus/runtime/etc
 COPY --from=builder /lightflus/runtime/target/release/worker /lightflus/runtime/worker
 COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
 EXPOSE 8792
-CMD ["./worker", "-c", "/lightflus/runtime/etc/worker.json"]
+CMD ["./worker", "-c", "etc/worker.json"]

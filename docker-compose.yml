@@ -19,7 +19,7 @@ services:
     depends_on:
       - zookeeper
   coordinator:
-    image: lightflus/coordinator:latest
+    image: lightflus/coordinator
     environment:
       RUST_LOG: INFO
       WORKER_NODE_1: worker-1
@@ -38,9 +38,9 @@ services:
       interval: 3s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 2s
   worker:
-    image: lightflus/worker:latest
+    image: lightflus/worker
     hostname: worker-1
     environment:
       RUST_LOG: INFO
@@ -57,9 +57,9 @@ services:
       interval: 2s
       timeout: 1s
       retries: 3
-      start_period: 5s
+      start_period: 2s
   apiserver:
-    image: lightflus/apiserver:latest
+    image: lightflus/apiserver
     hostname: apiserver-1
     environment:
       RUST_LOG: INFO

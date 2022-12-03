@@ -3,7 +3,7 @@ WORKDIR /lightflus/runtime
 COPY . .
 RUN cargo install --path /lightflus/runtime/src/apiserver --target-dir /lightflus/runtime/target
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/target/release/apiserver /lightflus/runtime/apiserver
 EXPOSE 8080

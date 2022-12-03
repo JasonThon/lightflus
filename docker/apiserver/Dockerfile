@@ -6,4 +6,5 @@ RUN cargo install --path /lightflus/runtime/src/apiserver --target-dir /lightflu
 FROM debian:buster-slim
 WORKDIR /lightflus/runtime
 COPY --from=builder /lightflus/runtime/target/release/apiserver /lightflus/runtime/apiserver
+EXPOSE 8080
 CMD ["./apiserver"]

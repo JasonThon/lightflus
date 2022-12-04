@@ -5,6 +5,7 @@ RUN go build -ldflags="-s -w" -o /lightflus/runtime/tools/healthcheck health-che
 
 FROM rust:1.62.0 as builder
 WORKDIR /lightflus/runtime
+RUN apt-get update && apt-get -y install make build-essential cmake curl pkg-config bash lld librdkafka-dev
 COPY . .
 # for local build
 # COPY docker/cargo ${CARGO_HOME}/config
@@ -12,7 +13,6 @@ RUN cargo build --manifest-path /lightflus/runtime/src/worker/Cargo.toml --targe
 
 FROM debian:bullseye
 WORKDIR /lightflus/runtime
-RUN apt-get update && apt-get -y install make build-essential cmake curl pkg-config bash lld librdkafka-dev
 COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/tools/healthcheck 
 COPY --from=builder /lightflus/runtime/target/release/worker /lightflus/runtime/worker 
 COPY --from=builder /lightflus/runtime/src/worker/etc /lightflus/runtime/etc

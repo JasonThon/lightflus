@@ -47,6 +47,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: install dependencies
+        run: apt-get update && apt-get -y install make build-essential cmake curl pkg-config bash lld
       - name: Check packages
         run: |
           cargo check --manifest-path src/proto/Cargo.toml --all-features
@@ -113,6 +115,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: install dependencies
+        run: apt-get update && apt-get -y install make build-essential cmake pkg-config bash lld
       - name: Install tarpaulin
         run: cargo install cargo-tarpaulin
       - name: Generate code coverage

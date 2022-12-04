@@ -10,7 +10,7 @@ COPY docker/config ${CARGO_HOME}/config
 COPY . .
 # for local build
 # COPY docker/cargo ${CARGO_HOME}/config
-RUN cargo build --manifest-path /lightflus/runtime/src/worker/Cargo.toml --target-dir /lightflus/runtime/target
+RUN cargo build --manifest-path /lightflus/runtime/src/worker/Cargo.toml --target-dir /lightflus/runtime/target --release
 
 FROM debian:bullseye
 WORKDIR /lightflus/runtime

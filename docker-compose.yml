@@ -35,8 +35,9 @@ services:
       - ALLOW_EMPTY_PASSWORD=yes
   coordinator:
     image: lightflus/coordinator:v1.0.0-alpha
+    hostname: coordinator
     ports:
-      - '8971:8971'
+      - '8791:8791'
     environment:
       RUST_LOG: INFO
       WORKER_1: worker
@@ -65,8 +66,9 @@ services:
       start_period: 5s
   worker:
     image: lightflus/worker:v1.0.0-alpha
+    hostname: worker
     ports:
-      - '8972:8972'
+      - '8792:8792'
     environment:
       RUST_LOG: INFO
     healthcheck:

@@ -8,7 +8,7 @@ WORKDIR /lightflus/runtime
 COPY . .
 # for local build
 # COPY docker/cargo ${CARGO_HOME}/config
-RUN cargo build --target-dir /lightflus/runtime/src/worker --target-dir /lightflus/runtime/target
+RUN cargo build --manifest-path /lightflus/runtime/src/worker --target-dir /lightflus/runtime/target
 
 FROM debian:bullseye
 WORKDIR /lightflus/runtime

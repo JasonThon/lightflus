@@ -61,12 +61,16 @@ pub(crate) async fn get_dataflow(args: &GetResourceArgs) -> actix_web::Result<Ht
     let uri = common::utils::get_env(COORDINATOR_URI_ENV).unwrap();
     let mut cli = CoordinatorApiClient::connect(uri).await;
 
-    cli.as_mut()
+    match cli
+        .as_mut()
         .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
-        .and_then(|client| {
+    {
+        Ok(client) => {
             let mut req = GetDataflowRequest::default();
             req.job_id = Some(args.to_resource_id());
-            futures_executor::block_on(client.get_dataflow(tonic::Request::new(req)))
+            client
+                .get_dataflow(tonic::Request::new(req))
+                .await
                 .map_err(|err| ErrorInternalServerError(ApiError::from(err)))
                 .and_then(|resp| {
                     let mut response = GetResourceResponse::default();
@@ -82,5 +86,7 @@ pub(crate) async fn get_dataflow(args: &GetResourceArgs) -> actix_web::Result<Ht
                     }
                 })
                 .map(|response| resp.body(pb_to_bytes_mut(response)))
-        })
+        }
+        Err(err) => Err(err),
+    }
 }

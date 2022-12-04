@@ -1,4 +1,4 @@
-use std::fs;
+use std::{fs, time::Duration};
 
 use api::CoordinatorApiImpl;
 use common::utils;
@@ -51,6 +51,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing::info!("service will start at {}", config.port);
 
     Server::builder()
+        .timeout(Duration::from_secs(3))
+        .concurrency_limit_per_connection(5)
         .add_service(CoordinatorApiServer::new(server))
         .serve(addr)
         .await?;

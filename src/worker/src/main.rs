@@ -1,6 +1,6 @@
 use common::utils;
 use proto::worker::task_worker_api_server::TaskWorkerApiServer;
-use std::fs;
+use std::{fs, time::Duration};
 use stream::initialize_v8;
 use tonic::transport::Server;
 
@@ -51,7 +51,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     tracing::info!("service will start at {}", config.port);
 
-    Server::builder().add_service(server).serve(addr).await?;
+    Server::builder()
+        .timeout(Duration::from_secs(3))
+        .add_service(server)
+        .serve(addr)
+        .await?;
 
     let _ = tokio::signal::ctrl_c().await;
     Ok(())

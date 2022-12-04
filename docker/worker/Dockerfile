@@ -14,7 +14,7 @@ FROM debian:bullseye
 
 WORKDIR /lightflus
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install make build-essential cmake curl pkg-config bash lld
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -y
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- --no-modify-path --default-toolchain none -y
 COPY . /lightflus/runtime
 
 # for local build

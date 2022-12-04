@@ -5,7 +5,8 @@ RUN go build -ldflags="-s -w" -o /lightflus/runtime/tools/healthcheck health-che
 
 FROM rust:1.62.0 as builder
 WORKDIR /lightflus/runtime
-RUN apt-get update && apt-get -y install make build-essential cmake curl pkg-config bash lld librdkafka-dev
+RUN apt-get update && apt-get -y install make build-essential cmake curl pkg-config bash lld
+ENV CARGO_ENCODED_RUSTFLAGS -Clink-arg=-fuse-ld=lld -Clink-arg=-Wl,--no-rosegment
 COPY . .
 # for local build
 # COPY docker/cargo ${CARGO_HOME}/config

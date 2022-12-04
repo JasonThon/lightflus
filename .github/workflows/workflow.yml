@@ -73,7 +73,7 @@ jobs:
           yarn tsc -p .
       - name: Run tests
         working-directory: ./typescript-api
-        run: yarn test
+        run: yarn jest
 
   coverage:
     runs-on: ubuntu-latest

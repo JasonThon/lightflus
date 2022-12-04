@@ -16,7 +16,7 @@ WORKDIR /lightflus
 RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get -y install make build-essential cmake curl pkg-config bash lld
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
-ENV PATH=${HOME}/.cargo/bin/:$PATH
+ENV PATH $HOME/.cargo/bin/:$PATH
 COPY . /lightflus/runtime
 
 # for local build

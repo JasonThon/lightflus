@@ -1,23 +1,5 @@
-[source.crates-io]
-registry = "https://github.com/rust-lang/crates.io-index"
-# 指定镜像
-replace-with = 'ustc' # 如：tuna、sjtu、ustc，或者 rustcc
-
-# 注：以下源配置一个即可，无需全部
-# 目前 sjtu 相对稳定些
-
-# 中国科学技术大学
-[source.ustc]
-registry = "https://mirrors.ustc.edu.cn/crates.io-index"
-
-# 上海交通大学
-[source.sjtu]
-registry = "https://mirrors.sjtug.sjtu.edu.cn/git/crates.io-index/"
-
-# 清华大学
-[source.tuna]
-registry = "https://mirrors.tuna.tsinghua.edu.cn/git/crates.io-index.git"
-
-# rustcc社区
-[source.rustcc]
-registry = "https://code.aliyun.com/rustcc/crates.io-index.git"
+[target.'cfg(target_os = "linux")']
+rustflags = [
+    "-Clink-arg=-fuse-ld=lld",       #2781
+    "-Clink-arg=-Wl,--no-rosegment", #4574
+]

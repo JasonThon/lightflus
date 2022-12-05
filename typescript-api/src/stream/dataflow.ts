@@ -52,8 +52,12 @@ export class Dataflow<T> {
       CreateResourceRequest.encode(request).finish(),
       { headers: { "Content-Type": ApplicationStream } })
       .then((resp) => {
-        let response = CreateResourceResponse.decode(resp.data);
-        console.log(`{status: ${resp.status}, response: ${JSON.stringify(response)}`);
+        if (resp.status < 300) {
+          console.log(`You deploy dataflow { name: ${options.dataflow.jobId.resourceId}, namespace: ${options.dataflow.jobId.namespaceId} successfully!`);
+        } else {
+          let response = CreateResourceResponse.decode(resp.data);
+          console.log(`{status: ${resp.status}, response: ${JSON.stringify(response)}`);
+        }
       }).catch((err) => {
         if (axios.isAxiosError(err)) {
           console.log(`${JSON.stringify(err)}`);

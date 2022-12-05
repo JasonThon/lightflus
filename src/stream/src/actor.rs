@@ -20,10 +20,11 @@ use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
 
 use std::collections::BTreeMap;
+use std::future::Future;
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use std::vec;
 
 pub type EventReceiver<Input> = crossbeam_channel::Receiver<Input>;

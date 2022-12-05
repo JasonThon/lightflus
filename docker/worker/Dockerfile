@@ -14,7 +14,7 @@ RUN cargo build --manifest-path /lightflus/runtime/src/worker/Cargo.toml --targe
 
 FROM debian:bullseye
 WORKDIR /lightflus/runtime
-COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/tools/healthcheck 
+COPY --from=tools-preparation /lightflus/runtime/tools/healthcheck /lightflus/runtime/tools/healthcheck 
 COPY --from=builder /lightflus/runtime/target/release/worker /lightflus/runtime/worker 
 COPY --from=builder /lightflus/runtime/src/worker/etc /lightflus/runtime/etc
 EXPOSE 8792

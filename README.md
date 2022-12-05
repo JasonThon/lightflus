@@ -12,16 +12,16 @@
 
 **Important Notes**
 
-1. Lightflus is in **preview** now, some features are still in developing. If you want to try a better Lightflus, please wait for the demo version released.
+1. Lightflus has released the **demo version**. Welcome to try it! 
 
-2. We will be very appreciate if you can give us any feedback, including design, features support and more;
+2. Your feedback is very important and we will take very serious to any of your advice!
 
 
 ## Scenarios for Lightflus
 
 1. Large-scale real-time computation;
 2. CDC (Change Data Capture);
-3. Data Pipeline;
+3. Real-Time Data Pipeline Integration;
 
 
 ## Design Philosophy
@@ -42,11 +42,6 @@ Lightflus is mainly based on Google's Paper [The Dataflow Model: A Practical App
 
 ## Document
 You can read the [document](https://humorous-bream-e48.notion.site/Lightflus-Document-217eedc73610413ba2a4f0c374d66c77) for more details about Lightflus;
-
-### Notes
-
-The document of Lightflus is for the demo version. In preview version, some features are still *in developing*. Therefore, **we recommand you to try Lightflus after Demo released**;
-
 
 ## Roadmap
 
@@ -92,7 +87,7 @@ $ docker-compose up
    npm i lightflus-api
    ```
 
-### Write The Lightflus Task
+### Deploy Your first Lightflus Task
 We use `word count` as the example to show you how to deploy a Lightflus dataflow task
 
 1. Modify `tsconfig.json`
@@ -118,7 +113,7 @@ We recommand you to set up properties in `tsconfig.json` file like below:
 
 ```
 
-1. Implement Word Count
+2. Implement Word Count
 
 ```typescript
 // wordCount example
@@ -167,19 +162,19 @@ async function wordCount(ctx: ExecutionContext) {
 wordCount(ExecutionContext.new("wordCount", "default")).then();
 ```
 
-3. compile typescript codes
+3. Compile typescript codes
 
 ```bash
 $ yarn tsc -p .
 ```
 
-4. set environment variables
+4. Set environment variables
 
 ```bash
 $ export LIGHTFLUS_ENDPOINT=localhost:8080
 ```
 
-5. run Javascript code after compilation
+5. Run Javascript code after compilation
 
 ```bash
 $ node wordCount.js

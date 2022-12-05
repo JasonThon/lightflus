@@ -22,15 +22,7 @@ use super::COORDINATOR_URI_ENV;
 pub(crate) async fn create_dataflow(
     req: CreateResourceRequest,
 ) -> Result<CreateResourceResponse, actix_web::Error> {
-    let mut req = req.clone();
-    let mut resource_id = ResourceId::default();
-    resource_id.resource_id = uuid();
-    req.options.iter_mut().for_each(|options| match options {
-        Options::Dataflow(dataflow) => dataflow
-            .dataflow
-            .iter_mut()
-            .for_each(|df| df.job_id = Some(resource_id.clone())),
-    });
+    let req = req.clone();
 
     if req.is_dataflow_empty() {
         return Err(ErrorBadRequest("empty dataflow"));

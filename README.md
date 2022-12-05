@@ -59,9 +59,9 @@ You can get the Roadmap in this [Jira Dashboard](https://lightflus.atlassian.net
 You can join [Gitter](https://gitter.im/lightflus/community) community!
 
 
-## Set Up Lightflus Services
+## Set Up Lightflus
 
-### Running by Cargo
+### Start from Source
 
 ```bash
 $ cargo run --manifest-path src/worker/Cargo.toml
@@ -69,58 +69,131 @@ $ cargo run --manifest-path src/coordinator/Cargo.toml
 $ cargo run --manifest-path src/apiserver/Cargo.toml
 ```
 
-### Running by Docker Compose (**Recommended**)
+### Start by Docker (**Recommended**)
 
 ```bash
 $ docker-compose up
 ```
 
-## Try The Example
+## Try Lightflus
 
 ### Preparation
 
-You can run two example dataflow tasks `wordCount`, `userAction` where the code files are in the path `typescript-api/src` follow next steps:
+1. Install Node.JS environment
+2. Use WebStorm / VS Code to create a new Node.JS project
+3. intialize typescript project
+   1. install typescript dependency: `npm install typescript`
+   2. initialize `tsconfig.json`: 
+    ```bash 
+    yarn tsc -p .
+    ```
+4. install `lightflus-api` dependency: 
+   ```bash 
+   npm i lightflus-api
+   ```
 
-1. install dependencies
+### Write The Lightflus Task
+We use `word count` as the example to show you how to deploy a Lightflus dataflow task
+
+1. Modify `tsconfig.json`
+
+We recommand you to set up properties in `tsconfig.json` file like below:
+
+```json
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2016",
+    "sourceMap": true,
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "forceConsistentCasingInFileNames": false,
+    "strictPropertyInitialization": false,
+    "esModuleInterop": true,
+    "moduleResolution": "node"
+  }
+}
+
+```
+
+1. Implement Word Count
+
+```typescript
+// wordCount example
+
+import {context} from "lightflus-api/src/stream/context";
+import {kafka, redis} from "lightflus-api/src/connectors/connectors";
+import ExecutionContext = context.ExecutionContext;
+import Kafka = kafka.Kafka;
+import Redis = redis.Redis;
+
+async function wordCount(ctx: ExecutionContext) {
+    // fetch string stream from kafka
+    let source = Kafka
+        .builder()
+        .brokers(["kafka:9092"])
+        // 消费的 topic 为 topic
+        .topic("topic_2")
+        // groupId 为 word_count
+        .group("word_count")
+        // 反序列化的类型
+        .build<string>(undefined, typeof "");
+
+    // It will persist the counting values in Redis
+    let sink = Redis.new<{ t0: number, t1: string }>()
+        .host("redis")
+        .keyExtractor((v) => v.t1)
+        .valueExtractor((v) => v.t0.toString());
+
+    // create a Dataflow
+    let stream = source.createFlow(ctx);
+
+    // We design the Dataflow
+    await stream.flatMap(value => value.split(" ").map(v => {
+        return {t0: 1, t1: v};
+    }))
+        .keyBy(v => v.t1)
+        .reduce((v1, v2) => {
+            return {t1: v1.t1, t0: v1.t0 + v2.t0};
+        })
+        // write the results into Redis sink
+        .sink(sink)
+        // Then execute
+        .execute();
+}
+
+wordCount(ExecutionContext.new("wordCount", "default")).then();
+```
+
+3. compile typescript codes
 
 ```bash
-$ cd typescript-api
-
-$ npm install
+$ yarn tsc -p .
 ```
 
-2. compile typescript codes
+4. set environment variables
 
-```shell
-$ npx tsc -p .
-```
-
-3. set environment variables
-
-```shell
+```bash
 $ export LIGHTFLUS_ENDPOINT=localhost:8080
 ```
 
-4. run compiled Javascript code
+5. run Javascript code after compilation
 
-```shell
-$ node dist/src/wordCount.js
-
-$ node dist/src/userAction.js
+```bash
+$ node wordCount.js
 ```
 
-### Make the Dataflow Work
+### Make the Dataflow Run!
 
-
-1. Word Count
-
-You can send string messages to Kafka
+You can send message to Kafka
 
 ```text
 hello hello hello world world world
 ```
 
-And you can get value in Redis
+And you can get values in Redis
 
 ```bash
 redis> GET hello
@@ -128,24 +201,4 @@ redis> GET hello
 
 redis> GET world
 "3"
-```
-
-2. User Actions
-
-You can send object messages to Kafka
-
-```json
-{
-  "userId": "user1",
-  "itemId": "xxxx",
-  "action": 1,
-  "timestamp": "16422xxx"
-}
-```
-
-And you can get values in Redis
-
-```bash
-redis> GET user1
-"[{\"userId\": \"user1\", \"weights\": [{\"factor\": 1,\"action\": 1, \"itemId\": \"xxxx\", \"timestamp\": \"16422xxx\"}]}]"
 ```

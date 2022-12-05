@@ -174,27 +174,33 @@ impl Cluster {
             }) {
                 return Err(tonic::Status::unavailable("worker is unavailable"));
             }
-            let group = lang::map_self(&self.workers, |worker| worker.host_addr.as_uri());
-            let worker = group.get(&uri).unwrap();
 
-            let ref mut client = worker.client.clone().unwrap();
+            for node in self
+                .workers
+                .iter_mut()
+                .filter(|worker| worker.host_addr.as_uri() == uri)
+            {
+                let client = node.client.as_mut().unwrap();
+                let dataflow = Some(elem.1.clone());
+                let req = CreateSubDataflowRequest {
+                    job_id: elem.1.job_id.clone(),
+                    dataflow,
+                };
 
-            let dataflow = Some(elem.1.clone());
-            let req = CreateSubDataflowRequest {
-                job_id: elem.1.job_id,
-                dataflow,
-            };
-
-            let result = client
-                .create_sub_dataflow(tonic::Request::new(req))
-                .await
-                .map_err(|err| err);
-            match result {
-                Ok(status) => tracing::debug!(
-                    "subdataflow status: {}",
-                    status.get_ref().status().as_str_name()
-                ),
-                Err(err) => return Err(err),
+                let result = client
+                    .create_sub_dataflow(tonic::Request::new(req))
+                    .await
+                    .map_err(|err| err);
+                match result {
+                    Ok(status) => tracing::debug!(
+                        "subdataflow status: {}",
+                        status.get_ref().status().as_str_name()
+                    ),
+                    Err(err) => {
+                        tracing::error!("fail to create sub dataflow {}", err);
+                        return Err(err);
+                    }
+                }
             }
         }
 

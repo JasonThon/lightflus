@@ -1,4 +1,4 @@
-use common::utils;
+use common::utils::{self, get_env};
 use proto::worker::task_worker_api_server::TaskWorkerApiServer;
 use std::{fs, time::Duration};
 use stream::initialize_v8;
@@ -8,10 +8,9 @@ mod api;
 pub mod manager;
 pub mod worker;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    initialize_v8();
-    tracing_subscriber::fmt::init();
+const DEFAULT_WORKER_THREADS_NUM: usize = 100;
+
+fn main() {
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let result =
@@ -43,20 +42,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     }
 
+    let worker_threads = get_env("WORKER_THREADS")
+        .and_then(|num| num.parse::<usize>().ok())
+        .unwrap_or(DEFAULT_WORKER_THREADS_NUM);
+
     let ref mut config = reader.unwrap();
-    let task_worker = worker::new_worker();
+    tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(worker_threads)
+        .enable_all()
+        .build()
+        .unwrap()
+        .block_on(async {
+            tracing_subscriber::fmt::init();
+            let task_worker = worker::new_worker();
 
-    let server = TaskWorkerApiServer::new(api::TaskWorkerApiImpl::new(task_worker));
-    let addr = format!("0.0.0.0:{}", config.port).parse()?;
+            let server = TaskWorkerApiServer::new(api::TaskWorkerApiImpl::new(task_worker));
+            let addr = format!("0.0.0.0:{}", config.port).parse().unwrap();
 
-    tracing::info!("service will start at {}", config.port);
+            tracing::info!("service will start at {}", config.port);
 
-    Server::builder()
-        .timeout(Duration::from_secs(3))
-        .add_service(server)
-        .serve(addr)
-        .await?;
-
-    let _ = tokio::signal::ctrl_c().await;
-    Ok(())
+            initialize_v8();
+            let _ = Server::builder()
+                .timeout(Duration::from_secs(3))
+                .concurrency_limit_per_connection(3)
+                .add_service(server)
+                .serve(addr)
+                .await;
+        });
 }

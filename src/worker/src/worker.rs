@@ -50,7 +50,7 @@ impl TaskWorker {
 
         let manager = LocalExecutorManager::new(ctx);
         let mut managers = self.cache.write().await;
-        
+
         managers.insert(job_id.clone().into(), ExecutorManagerImpl::Local(manager));
         managers
             .get_mut(&job_id.into())

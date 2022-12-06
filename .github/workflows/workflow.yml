@@ -151,3 +151,9 @@ jobs:
           docker push lightflus/worker:${{ github.event.release.tag_name }}
           docker push lightflus/coordinator:${{ github.event.release.tag_name }}
           docker push lightflus/apiserver:${{ github.event.release.tag_name }}
+          docker tag lightflus/worker:${{ github.event.release.tag_name }} lightflus/worker:latest
+          docker tag lightflus/coordinator:${{ github.event.release.tag_name }} lightflus/coordinator:latest
+          docker tag lightflus/apiserver:${{ github.event.release.tag_name }} lightflus/apiserver:latest
+          docker push lightflus/worker:latest
+          docker push lightflus/coordinator:latest
+          docker push lightflus/apiserver:latest

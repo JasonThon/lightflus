@@ -2,7 +2,7 @@ use common::{
     err::{KafkaException, RedisException},
     event::{KafkaEventError, SinkableMessageImpl},
 };
-use crossbeam_channel::SendError;
+use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {

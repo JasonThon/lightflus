@@ -130,6 +130,7 @@ jobs:
 
   release_lightflus:
     if: ${{ github.event_name == 'release' }}
+    needs: [runtime_test_and_build, api_test_and_build]
 
     runs-on: ubuntu-latest
 

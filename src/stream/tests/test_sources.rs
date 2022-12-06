@@ -21,7 +21,7 @@ async fn test_kafka_source() {
         data_type: DataTypeEnum::String as i32,
     };
 
-    let kafka_source = Kafka::with_source_config(
+    let mut kafka_source = Kafka::with_source_config(
         &ResourceId {
             resource_id: "resource_id".to_string(),
             namespace_id: "default".to_string(),

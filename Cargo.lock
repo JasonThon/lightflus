@@ -2028,7 +2028,6 @@ dependencies = [
  "bytes",
  "chrono",
  "common",
- "crossbeam-channel",
  "futures-executor",
  "prost",
  "prost-types",

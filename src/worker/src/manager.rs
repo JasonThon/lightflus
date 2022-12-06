@@ -17,6 +17,14 @@ pub enum ExecutorManagerImpl {
     Local(LocalExecutorManager),
 }
 
+impl Drop for ExecutorManagerImpl {
+    fn drop(&mut self) {
+        match self {
+            ExecutorManagerImpl::Local(manager) => drop(manager),
+        }
+    }
+}
+
 impl ExecutorManager for ExecutorManagerImpl {
     fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
         match self {
@@ -67,7 +75,9 @@ impl Drop for LocalExecutorManager {
                 _ => tracing::info!("terminate node {} success", sink.sink_id()),
             }
         }
+        self.handlers.iter().for_each(|handler| handler.abort());
         self.handlers.clear();
+        self.executors.clear();
         self.inner_sinks.clear();
     }
 }
@@ -137,7 +147,10 @@ impl LocalExecutorManager {
         self.handlers = self
             .executors
             .iter()
-            .map(|exec| exec.clone().run())
+            .map(|exec| {
+                let mut cloned_executor = exec.clone();
+                tokio::spawn(async move { cloned_executor.run() })
+            })
             .collect();
         self.executors.clear();
     }

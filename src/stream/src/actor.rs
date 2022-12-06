@@ -20,13 +20,13 @@ use proto::common::{HostAddr, ResourceId};
 use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
 
-use std::cell::{RefCell, RefMut};
 use std::collections::{BTreeMap, VecDeque};
 
+use std::rc::Rc;
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use std::time::{Duration, SystemTime};
+use std::time::SystemTime;
 use std::vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -127,7 +127,7 @@ impl DataflowContext {
 }
 
 pub trait Executor {
-    fn run(self) -> tokio::task::JoinHandle<()>;
+    fn run(&mut self);
     fn as_sinkable(&self) -> SinkImpl;
 }
 
@@ -189,36 +189,63 @@ impl LocalExecutor {
 }
 
 impl Executor for LocalExecutor {
-    fn run(self) -> tokio::task::JoinHandle<()> {
+    fn run(&mut self) {
         use LocalEvent::KeyedDataStreamEvent;
         use SinkableMessageImpl::LocalMessage;
-
-        tokio::spawn(async move {
-            let isolate = &mut v8::Isolate::new(Default::default());
-            let scope = &mut v8::HandleScope::new(isolate);
-            let task = DataflowTask::new(self.operator.clone(), new_state_mgt(&self.job_id), scope);
-            'outside: loop {
-                while let Some(msg) = self.source.fetch_msg() {
-                    match &msg {
-                        LocalMessage(message) => match message {
-                            KeyedDataStreamEvent(e) => {
-                                if self.operator.has_source() || self.operator.has_sink() {
-                                    self.sinks.par_iter().for_each(|sink| {
-                                        let _ = futures_executor::block_on(sink.sink(msg.clone()));
-                                    });
-                                } else {
-                                    self.process_single_event(&task, e)
+        match self.source {
+            SourceImpl::Empty(_) => {}
+            _ => {
+                let isolate = &mut v8::Isolate::new(Default::default());
+                let scope = &mut v8::HandleScope::new(isolate);
+                let task =
+                    DataflowTask::new(self.operator.clone(), new_state_mgt(&self.job_id), scope);
+                loop {
+                    while let Some(msg) = self.source.fetch_msg() {
+                        match &msg {
+                            LocalMessage(message) => match message {
+                                KeyedDataStreamEvent(e) => {
+                                    if self.operator.has_source() || self.operator.has_sink() {
+                                        self.sinks.par_iter().for_each(|sink| {
+                                            let _ =
+                                                futures_executor::block_on(sink.sink(msg.clone()));
+                                        });
+                                    } else {
+                                        match task.process(e) {
+                                            Ok(results) => results.iter().for_each(|event| {
+                                                let after_process =
+                                                    KeyedDataStreamEvent(event.clone());
+                                                self.sinks.par_iter().for_each(|sink| {
+                                                    let result =
+                                                        futures_executor::block_on(sink.sink(
+                                                            LocalMessage(after_process.clone()),
+                                                        ));
+                                                    match result {
+                                                        Ok(_) => {}
+                                                        Err(err) => tracing::error!(
+                                                            "sink to node {} failed: {:?}",
+                                                            sink.sink_id(),
+                                                            err
+                                                        ),
+                                                    }
+                                                });
+                                            }),
+                                            Err(err) => {
+                                                tracing::error!("process msg failed: {:?}", err);
+                                                // TODO fault tolerance
+                                            }
+                                        }
+                                    }
                                 }
-                            }
-                            LocalEvent::Terminate { job_id, to } => {
-                                tracing::info!("stopping {:?} at node id {}", job_id, to);
-                                break 'outside;
-                            }
-                        },
+                                LocalEvent::Terminate { job_id, to } => {
+                                    tracing::info!("stopping {:?} at node id {}", job_id, to);
+                                    return;
+                                }
+                            },
+                        }
                     }
                 }
             }
-        })
+        }
     }
 
     fn as_sinkable(&self) -> SinkImpl {
@@ -321,11 +348,11 @@ pub enum ExecutorImpl {
     Window(WindowExecutor),
 }
 
-unsafe impl Sync for ExecutorImpl {}
 unsafe impl Send for ExecutorImpl {}
+unsafe impl Sync for ExecutorImpl {}
 
 impl ExecutorImpl {
-    pub fn run(self) -> tokio::task::JoinHandle<()> {
+    pub fn run(&mut self) {
         match self {
             ExecutorImpl::Local(exec) => exec.run(),
             ExecutorImpl::Window(exec) => exec.run(),
@@ -370,15 +397,13 @@ impl ExecutorImpl {
 Source Interface. Each Source should implement it
  */
 pub trait Source {
-    fn fetch_msg(&self) -> Option<SinkableMessageImpl>;
+    fn fetch_msg(&mut self) -> Option<SinkableMessageImpl>;
     fn source_id(&self) -> SourceId;
 }
 
 pub struct SourceSinkManger {
     job_id: ResourceId,
-    local_source_rx: BTreeMap<SourceId, Arc<EventReceiver<SinkableMessageImpl>>>,
     sources: BTreeMap<SourceId, SourceImpl>,
-    local_source_tx: BTreeMap<SourceId, EventSender<SinkableMessageImpl>>,
     sinks: BTreeMap<SinkId, SinkImpl>,
 }
 
@@ -402,14 +427,10 @@ impl SourceSinkManger {
         if self.sources.contains_key(executor_id) {
             return;
         }
-        let (tx, rx) = crossbeam_channel::unbounded();
-        let rx_arc = Arc::new(rx);
-        self.local_source_rx
-            .insert(*executor_id as SourceId, rx_arc.clone());
-        self.local_source_tx
-            .insert(*executor_id as SourceId, tx.clone());
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let recv = Rc::new(rx);
         let source = LocalSource {
-            recv: rx_arc,
+            recv,
             source_id: executor_id.clone(),
             tx: tx.clone(),
         };
@@ -503,9 +524,7 @@ impl SourceSinkManger {
 impl SourceSinkManger {
     fn new(job_id: &ResourceId) -> SourceSinkManger {
         SourceSinkManger {
-            local_source_rx: Default::default(),
             sources: Default::default(),
-            local_source_tx: Default::default(),
             sinks: Default::default(),
             job_id: job_id.clone(),
         }
@@ -619,14 +638,14 @@ impl Sink for RemoteSink {
 
 #[derive(Clone)]
 pub struct LocalSource {
-    pub(crate) recv: Arc<EventReceiver<SinkableMessageImpl>>,
+    pub(crate) recv: Rc<EventReceiver<SinkableMessageImpl>>,
     pub(crate) source_id: SourceId,
     tx: EventSender<SinkableMessageImpl>,
 }
 
 impl Source for LocalSource {
-    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
-        self.recv.recv().ok()
+    fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
+        Rc::get_mut(&mut self.recv).and_then(|recv| futures_executor::block_on(recv.recv()))
     }
 
     fn source_id(&self) -> SourceId {
@@ -650,7 +669,7 @@ pub enum SourceImpl {
 impl SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
         let zero_tx = || -> EventSender<SinkableMessageImpl> {
-            let (tx, _) = crossbeam_channel::bounded(0);
+            let (tx, _) = tokio::sync::mpsc::unbounded_channel();
             tx
         };
 
@@ -661,7 +680,7 @@ impl SourceImpl {
         }
     }
 
-    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+    fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.fetch_msg(),
             SourceImpl::Kafka(source) => source.fetch_msg(),
@@ -809,7 +828,7 @@ impl Kafka {
 }
 
 impl Source for Kafka {
-    fn fetch_msg(&self) -> Option<SinkableMessageImpl> {
+    fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
         match &self.consumer {
             Some(consumer) => {
                 futures_executor::block_on(consumer.fetch(|message| self.process(message)))

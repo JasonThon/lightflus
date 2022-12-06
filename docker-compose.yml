@@ -37,7 +37,7 @@ services:
     environment:
       - ALLOW_EMPTY_PASSWORD=yes
   coordinator:
-    image: lightflus/coordinator:v1.0.0-alpha
+    image: lightflus/coordinator
     hostname: coordinator
     ports:
       - '8791:8791'
@@ -68,7 +68,7 @@ services:
       retries: 3
       start_period: 5s
   worker:
-    image: lightflus/worker:v1.0.0-alpha
+    image: lightflus/worker
     hostname: worker
     ports:
       - '8792:8792'
@@ -96,7 +96,7 @@ services:
       retries: 3
       start_period: 5s
   apiserver:
-    image: lightflus/apiserver:v1.0.0-alpha
+    image: lightflus/apiserver
     environment:
       RUST_LOG: INFO
       LIGHTFLUS_COORDINATOR_URI: http://coordinator:8791

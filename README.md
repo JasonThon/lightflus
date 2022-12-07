@@ -197,3 +197,6 @@ redis> GET hello
 redis> GET world
 "3"
 ```
+
+# Contribution
+Please read [CONTRIBUTING.md](CONTRIBUTING.md) document

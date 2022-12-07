@@ -5,7 +5,7 @@ use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
 use proto::worker::DispatchDataEventStatusEnum;
 use rayon::prelude::*;
-use stream::actor::{DataflowContext, ExecutorImpl, Sink, SinkImpl};
+use stream::actor::{DataflowContext, Sink, SinkImpl};
 use tokio::task::JoinHandle;
 
 pub trait ExecutorManager {
@@ -51,7 +51,7 @@ pub struct LocalExecutorManager {
     pub job_id: ResourceId,
     handlers: Vec<JoinHandle<()>>,
     inner_sinks: Vec<SinkImpl>,
-    executors: Vec<ExecutorImpl>,
+    ctx: DataflowContext,
 }
 
 impl Drop for LocalExecutorManager {
@@ -77,7 +77,6 @@ impl Drop for LocalExecutorManager {
         }
         self.handlers.iter().for_each(|handler| handler.abort());
         self.handlers.clear();
-        self.executors.clear();
         self.inner_sinks.clear();
     }
 }
@@ -133,25 +132,20 @@ impl ExecutorManager for LocalExecutorManager {
 
 impl LocalExecutorManager {
     pub fn new(ctx: DataflowContext) -> Self {
-        let executors = ctx.create_executors();
-
         Self {
             job_id: ctx.job_id.clone(),
-            inner_sinks: executors.iter().map(|exec| exec.as_sinkable()).collect(),
+            inner_sinks: vec![],
             handlers: vec![],
-            executors,
+            ctx,
         }
     }
 
     fn run(&mut self) {
-        self.handlers = self
-            .executors
-            .iter()
-            .map(|exec| {
-                let mut cloned_executor = exec.clone();
-                tokio::spawn(async move { cloned_executor.run() })
-            })
+        let executors = self.ctx.create_executors();
+        self.inner_sinks = executors.iter().map(|exec| exec.as_sinkable()).collect();
+        self.handlers = executors
+            .into_iter()
+            .map(|exec| tokio::spawn(async move { exec.run() }))
             .collect();
-        self.executors.clear();
     }
 }

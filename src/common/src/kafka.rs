@@ -86,6 +86,11 @@ impl KafkaProducer {
             })
         }
     }
+
+    pub fn close(&mut self) {
+        self.topic.clear();
+        drop(self.partition);
+    }
 }
 
 pub struct KafkaConsumer {
@@ -104,21 +109,29 @@ impl KafkaConsumer {
     }
 
     pub async fn fetch<M, F: FnMut(KafkaMessage) -> M>(&self, mut processor: F) -> Option<M> {
-        self.consumer.stream().next().await.and_then(|msg| match msg {
-            Ok(msg) => {
-                let msg = msg.detach();
-                msg.payload().map(|payload| {
-                    let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
-                    processor(KafkaMessage {
-                        key,
-                        payload: payload.to_vec(),
+        self.consumer
+            .stream()
+            .next()
+            .await
+            .and_then(|msg| match msg {
+                Ok(msg) => {
+                    let msg = msg.detach();
+                    msg.payload().map(|payload| {
+                        let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
+                        processor(KafkaMessage {
+                            key,
+                            payload: payload.to_vec(),
+                        })
                     })
-                })
-            }
-            Err(err) => {
-                tracing::error!("fail to fetch data from kafka: {}", err);
-                None
-            }
-        })
+                }
+                Err(err) => {
+                    tracing::error!("fail to fetch data from kafka: {}", err);
+                    None
+                }
+            })
+    }
+
+    pub fn unsubscribe(&self) {
+        self.consumer.unsubscribe();
     }
 }

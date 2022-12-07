@@ -1,4 +1,5 @@
 use futures_util::{TryFuture, TryStreamExt};
+use prost::Message;
 use proto::common::mysql_desc;
 use sqlx::{Arguments, ConnectOptions};
 
@@ -62,6 +63,10 @@ impl MysqlConn {
             .database(&self.conn_opts.database);
 
         opts.connect().await
+    }
+
+    pub fn close(&mut self) {
+        self.conn_opts.clear()
     }
 }
 

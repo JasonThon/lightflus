@@ -585,6 +585,7 @@ impl Sink for LocalSink {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         futures_executor::block_on(self.sender.closed());
         drop(self.sink_id)
@@ -660,6 +661,7 @@ impl Sink for RemoteSink {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         drop(self.sink_id);
         self.host_addr.clear();
@@ -803,6 +805,7 @@ impl Sink for SinkImpl {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         match self {
             SinkImpl::Local(sink) => sink.close_sink(),
@@ -975,6 +978,7 @@ impl Sink for Kafka {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         drop(self.connector_id);
         self.conf.clear();
@@ -1058,6 +1062,7 @@ impl Sink for Mysql {
         }
     }
 
+    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         self.conn.close();
         self.extractors.clear();
@@ -1124,6 +1129,7 @@ impl Sink for Redis {
             })
     }
 
+    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         drop(self.connector_id);
         self.key_extractor.clear();

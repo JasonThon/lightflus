@@ -2,8 +2,9 @@ use crate::dataflow::{DataflowTask, KeyedWindow, WindowAssignerImpl};
 use crate::err::{ErrorKind::RemoteSinkFailed, SinkException};
 use crate::state::{new_state_mgt, StateManager};
 use crate::v8_runtime::RuntimeEngine;
-use crate::{EventReceiver, EventSender};
+use crate::{EventReceiver, EventSender, DEFAULT_CHANNEL_SIZE};
 
+use async_trait::async_trait;
 use common::collections::lang;
 use common::db::MysqlConn;
 use common::event::{LocalEvent, SinkableMessage, SinkableMessageImpl};
@@ -11,7 +12,8 @@ use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, Kaf
 
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
-use common::utils;
+use common::utils::{self, get_env};
+use prost::Message;
 use prost_types::Timestamp;
 
 use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc};
@@ -129,6 +131,7 @@ impl DataflowContext {
 pub trait Executor {
     fn run(&mut self);
     fn as_sinkable(&self) -> SinkImpl;
+    fn close(&mut self);
 }
 
 #[derive(Clone)]
@@ -192,57 +195,51 @@ impl Executor for LocalExecutor {
     fn run(&mut self) {
         use LocalEvent::KeyedDataStreamEvent;
         use SinkableMessageImpl::LocalMessage;
-        match self.source {
-            SourceImpl::Empty(_) => {}
-            _ => {
-                let isolate = &mut v8::Isolate::new(Default::default());
-                let scope = &mut v8::HandleScope::new(isolate);
-                let task =
-                    DataflowTask::new(self.operator.clone(), new_state_mgt(&self.job_id), scope);
-                loop {
-                    while let Some(msg) = self.source.fetch_msg() {
-                        match &msg {
-                            LocalMessage(message) => match message {
-                                KeyedDataStreamEvent(e) => {
-                                    if self.operator.has_source() || self.operator.has_sink() {
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let scope = &mut v8::HandleScope::new(isolate);
+        let task = DataflowTask::new(&self.operator, new_state_mgt(&self.job_id), scope);
+        loop {
+            while let Some(msg) = self.source.fetch_msg() {
+                match &msg {
+                    LocalMessage(message) => match message {
+                        KeyedDataStreamEvent(e) => {
+                            if self.operator.has_source() || self.operator.has_sink() {
+                                self.sinks.par_iter().for_each(|sink| {
+                                    let _ = futures_executor::block_on(sink.sink(msg.clone()));
+                                });
+                            } else {
+                                match task.process(e) {
+                                    Ok(results) => results.iter().for_each(|event| {
+                                        let after_process = KeyedDataStreamEvent(event.clone());
                                         self.sinks.par_iter().for_each(|sink| {
-                                            let _ =
-                                                futures_executor::block_on(sink.sink(msg.clone()));
-                                        });
-                                    } else {
-                                        match task.process(e) {
-                                            Ok(results) => results.iter().for_each(|event| {
-                                                let after_process =
-                                                    KeyedDataStreamEvent(event.clone());
-                                                self.sinks.par_iter().for_each(|sink| {
-                                                    let result =
-                                                        futures_executor::block_on(sink.sink(
-                                                            LocalMessage(after_process.clone()),
-                                                        ));
-                                                    match result {
-                                                        Ok(_) => {}
-                                                        Err(err) => tracing::error!(
-                                                            "sink to node {} failed: {:?}",
-                                                            sink.sink_id(),
-                                                            err
-                                                        ),
-                                                    }
-                                                });
-                                            }),
-                                            Err(err) => {
-                                                tracing::error!("process msg failed: {:?}", err);
-                                                // TODO fault tolerance
+                                            let result = futures_executor::block_on(
+                                                sink.sink(LocalMessage(after_process.clone())),
+                                            );
+                                            match result {
+                                                Ok(_) => {}
+                                                Err(err) => tracing::error!(
+                                                    "sink to node {} failed: {:?}",
+                                                    sink.sink_id(),
+                                                    err
+                                                ),
                                             }
-                                        }
+                                        });
+                                    }),
+                                    Err(err) => {
+                                        tracing::error!("process msg failed: {:?}", err);
+                                        // TODO fault tolerance
                                     }
                                 }
-                                LocalEvent::Terminate { job_id, to } => {
-                                    tracing::info!("stopping {:?} at node id {}", job_id, to);
-                                    return;
-                                }
-                            },
+                            }
                         }
-                    }
+                        LocalEvent::Terminate { job_id, to } => {
+                            tracing::info!("stopping {:?} at node id {}", job_id, to);
+
+                            // gracefully close
+                            self.close();
+                            return;
+                        }
+                    },
                 }
             }
         }
@@ -253,6 +250,15 @@ impl Executor for LocalExecutor {
             sender: self.source.create_msg_sender(),
             sink_id: self.executor_id as u32,
         })
+    }
+
+    fn close(&mut self) {
+        self.job_id.clear();
+        self.operator.clear();
+        drop(self.executor_id);
+        self.sinks.iter_mut().for_each(|sink| sink.close_sink());
+        self.sinks.clear();
+        self.source.close()
     }
 }
 
@@ -352,10 +358,10 @@ unsafe impl Send for ExecutorImpl {}
 unsafe impl Sync for ExecutorImpl {}
 
 impl ExecutorImpl {
-    pub fn run(&mut self) {
+    pub fn run(self) {
         match self {
-            ExecutorImpl::Local(exec) => exec.run(),
             ExecutorImpl::Window(exec) => exec.run(),
+            ExecutorImpl::Local(mut exec) => exec.run(),
         }
     }
 
@@ -397,8 +403,13 @@ impl ExecutorImpl {
 Source Interface. Each Source should implement it
  */
 pub trait Source {
+    /**
+     * Fetch next message
+     * It may block currrent thread
+     */
     fn fetch_msg(&mut self) -> Option<SinkableMessageImpl>;
     fn source_id(&self) -> SourceId;
+    fn close_source(&mut self);
 }
 
 pub struct SourceSinkManger {
@@ -427,7 +438,10 @@ impl SourceSinkManger {
         if self.sources.contains_key(executor_id) {
             return;
         }
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        let channel_size = get_env("CHANNEL_SIZE")
+            .and_then(|size| size.parse::<usize>().ok())
+            .unwrap_or(DEFAULT_CHANNEL_SIZE);
+        let (tx, rx) = tokio::sync::mpsc::channel(channel_size);
         let recv = Rc::new(rx);
         let source = LocalSource {
             recv,
@@ -472,13 +486,14 @@ impl SourceSinkManger {
             .iter()
             .for_each(|desc| match desc {
                 source::Desc::Kafka(conf) => {
+                    let (tx, rx) = tokio::sync::mpsc::channel(1);
                     self.sources.insert(
                         *executor_id,
-                        SourceImpl::Kafka(Kafka::with_source_config(
-                            &self.job_id,
-                            *executor_id,
-                            conf,
-                        )),
+                        SourceImpl::Kafka(
+                            Kafka::with_source_config(&self.job_id, *executor_id, conf),
+                            tx,
+                            Rc::new(rx),
+                        ),
                     );
                 }
             })
@@ -511,8 +526,11 @@ impl SourceSinkManger {
     }
 
     fn create_empty_source(&mut self, executor_id: &u32) {
-        self.sources
-            .insert(*executor_id, SourceImpl::Empty(*executor_id));
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        self.sources.insert(
+            *executor_id,
+            SourceImpl::Empty(*executor_id, tx, Rc::new(rx)),
+        );
     }
 
     fn create_empty_sink(&mut self, executor_id: &u32) {
@@ -531,13 +549,14 @@ impl SourceSinkManger {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 pub trait Sink {
     fn sink_id(&self) -> SinkId;
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
     ) -> Result<DispatchDataEventStatusEnum, SinkException>;
+    fn close_sink(&mut self);
 }
 
 #[derive(Clone)]
@@ -546,7 +565,7 @@ pub struct LocalSink {
     pub(crate) sink_id: SinkId,
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl Sink for LocalSink {
     fn sink_id(&self) -> SinkId {
         self.sink_id
@@ -560,9 +579,15 @@ impl Sink for LocalSink {
             SinkableMessageImpl::LocalMessage(_) => self
                 .sender
                 .send(msg)
+                .await
                 .map(|_| DispatchDataEventStatusEnum::Done)
                 .map_err(|err| err.into()),
         }
+    }
+
+    fn close_sink(&mut self) {
+        futures_executor::block_on(self.sender.closed());
+        drop(self.sink_id)
     }
 }
 
@@ -572,7 +597,7 @@ pub struct RemoteSink {
     pub(crate) host_addr: HostAddr,
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl Sink for RemoteSink {
     fn sink_id(&self) -> SinkId {
         self.sink_id
@@ -634,6 +659,11 @@ impl Sink for RemoteSink {
             Err(err) => Err(err),
         }
     }
+
+    fn close_sink(&mut self) {
+        drop(self.sink_id);
+        self.host_addr.clear();
+    }
 }
 
 #[derive(Clone)]
@@ -651,6 +681,14 @@ impl Source for LocalSource {
     fn source_id(&self) -> SourceId {
         self.source_id
     }
+
+    fn close_source(&mut self) {
+        Rc::get_mut(&mut self.recv)
+            .iter_mut()
+            .for_each(|recv| recv.close());
+        futures_executor::block_on(self.tx.closed());
+        drop(self.source_id)
+    }
 }
 
 impl LocalSource {
@@ -662,29 +700,68 @@ impl LocalSource {
 #[derive(Clone)]
 pub enum SourceImpl {
     Local(LocalSource),
-    Kafka(Kafka),
-    Empty(SourceId),
+    Kafka(
+        Kafka,
+        EventSender<SinkableMessageImpl>,
+        Rc<EventReceiver<SinkableMessageImpl>>,
+    ),
+    Empty(
+        SourceId,
+        EventSender<SinkableMessageImpl>,
+        Rc<EventReceiver<SinkableMessageImpl>>,
+    ),
 }
 
 impl SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
-        let zero_tx = || -> EventSender<SinkableMessageImpl> {
-            let (tx, _) = tokio::sync::mpsc::unbounded_channel();
-            tx
-        };
-
         match self {
             SourceImpl::Local(source) => source.create_msg_sender(),
-            SourceImpl::Kafka(_) => zero_tx(),
-            SourceImpl::Empty(_) => zero_tx(),
+            SourceImpl::Kafka(.., terminator_tx, _) => terminator_tx.clone(),
+            SourceImpl::Empty(.., terminator_tx, _) => terminator_tx.clone(),
         }
     }
 
     fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
         match self {
             SourceImpl::Local(source) => source.fetch_msg(),
-            SourceImpl::Kafka(source) => source.fetch_msg(),
-            SourceImpl::Empty(_) => None,
+            SourceImpl::Kafka(source, _, terminator_rx) => Rc::get_mut(terminator_rx)
+                // should not block thread
+                .and_then(|rx| match rx.try_recv() {
+                    Ok(message) => Some(message),
+                    Err(err) => match err {
+                        // if channel has been close, it will terminate all actors
+                        tokio::sync::mpsc::error::TryRecvError::Disconnected => {
+                            Some(SinkableMessageImpl::LocalMessage(LocalEvent::Terminate {
+                                job_id: source.job_id.clone(),
+                                to: source.source_id(),
+                            }))
+                        }
+                        _ => None,
+                    },
+                })
+                // if there's no terminate signal, go on
+                .or_else(|| source.fetch_msg()),
+            SourceImpl::Empty(.., terminator_rx) => match Rc::get_mut(terminator_rx) {
+                // block until receive terminate signal
+                Some(rx) => futures_executor::block_on(rx.recv()),
+                None => None,
+            },
+        }
+    }
+
+    fn close(&mut self) {
+        match self {
+            SourceImpl::Local(source) => source.close_source(),
+            SourceImpl::Kafka(kafka, tx, rx) => {
+                kafka.close_source();
+                futures_executor::block_on(tx.closed());
+                Rc::get_mut(rx).iter_mut().for_each(|recv| recv.close());
+            }
+            SourceImpl::Empty(id, tx, rx) => {
+                drop(id);
+                futures_executor::block_on(tx.closed());
+                Rc::get_mut(rx).iter_mut().for_each(|recv| recv.close());
+            }
         }
     }
 }
@@ -699,7 +776,7 @@ pub enum SinkImpl {
     Empty(SinkId),
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl Sink for SinkImpl {
     fn sink_id(&self) -> SinkId {
         match self {
@@ -723,6 +800,17 @@ impl Sink for SinkImpl {
             SinkImpl::Mysql(sink) => sink.sink(msg).await,
             SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
             SinkImpl::Redis(redis) => redis.sink(msg).await,
+        }
+    }
+
+    fn close_sink(&mut self) {
+        match self {
+            SinkImpl::Local(sink) => sink.close_sink(),
+            SinkImpl::Remote(sink) => sink.close_sink(),
+            SinkImpl::Kafka(sink) => sink.close_sink(),
+            SinkImpl::Mysql(sink) => sink.close_sink(),
+            SinkImpl::Redis(sink) => sink.close_sink(),
+            SinkImpl::Empty(id) => drop(id),
         }
     }
 }
@@ -805,25 +893,28 @@ impl Kafka {
         let val = TypedValue::from_slice_with_type(payload, data_type);
         let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
 
-        SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-            job_id: Some(self.job_id.clone()),
-            key: Some(Entry {
-                data_type: key.get_type() as i32,
-                value: key.get_data(),
-            }),
-            to_operator_id: 0,
-            data: vec![Entry {
-                data_type: self.conf.data_type() as i32,
-                value: val.get_data(),
-            }],
-            event_time: Some(Timestamp {
-                seconds: datetime.naive_utc().timestamp(),
-                nanos: datetime.naive_utc().timestamp_subsec_nanos() as i32,
-            }),
-            process_time: None,
-            from_operator_id: self.connector_id,
-            window: None,
-        }))
+        let result =
+            SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                job_id: Some(self.job_id.clone()),
+                key: Some(Entry {
+                    data_type: key.get_type() as i32,
+                    value: key.get_data(),
+                }),
+                to_operator_id: 0,
+                data: vec![Entry {
+                    data_type: self.conf.data_type() as i32,
+                    value: val.get_data(),
+                }],
+                event_time: Some(Timestamp {
+                    seconds: datetime.naive_utc().timestamp(),
+                    nanos: datetime.naive_utc().timestamp_subsec_nanos() as i32,
+                }),
+                process_time: None,
+                from_operator_id: self.connector_id,
+                window: None,
+            }));
+
+        result
     }
 }
 
@@ -840,9 +931,18 @@ impl Source for Kafka {
     fn source_id(&self) -> SourceId {
         self.connector_id
     }
+
+    fn close_source(&mut self) {
+        self.conf.clear();
+        drop(self.connector_id);
+        self.consumer.iter().for_each(|consumer| {
+            consumer.unsubscribe();
+            drop(consumer)
+        })
+    }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl Sink for Kafka {
     fn sink_id(&self) -> SinkId {
         self.connector_id
@@ -873,6 +973,15 @@ impl Sink for Kafka {
             }
             None => Ok(DispatchDataEventStatusEnum::Done),
         }
+    }
+
+    fn close_sink(&mut self) {
+        drop(self.connector_id);
+        self.conf.clear();
+        self.job_id.clear();
+        self.producer
+            .iter_mut()
+            .for_each(|producer| producer.close())
     }
 }
 
@@ -918,7 +1027,7 @@ impl Mysql {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl Sink for Mysql {
     fn sink_id(&self) -> SinkId {
         self.connector_id
@@ -947,6 +1056,13 @@ impl Sink for Mysql {
             }
             Err(err) => Err(err.into()),
         }
+    }
+
+    fn close_sink(&mut self) {
+        self.conn.close();
+        self.extractors.clear();
+        drop(self.connector_id);
+        self.statement.clear();
     }
 }
 
@@ -980,7 +1096,7 @@ impl Redis {
     }
 }
 
-#[tonic::async_trait]
+#[async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
         self.connector_id
@@ -1006,6 +1122,12 @@ impl Sink for Redis {
                     .map(|_| DispatchDataEventStatusEnum::Done)
                     .map_err(|err| err.into())
             })
+    }
+
+    fn close_sink(&mut self) {
+        drop(self.connector_id);
+        self.key_extractor.clear();
+        self.value_extractor.clear();
     }
 }
 

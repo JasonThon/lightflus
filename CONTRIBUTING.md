@@ -2,7 +2,7 @@
 
 Hi, we're very happy that you want to contribute to Lightflus. We welcome anyone to make contribution to Lightflus, regardless small or big. 
 
-This is the guideline for you to make you feel much easier on your trip. Please make sure you have read it carefully before contributing. 
+This is the guideline for you to make your trip much easier. Please make sure you have read it carefully before contributing. 
 
 # Issue
 At the early stage of Lightflus, we're very closely watching the issue of Lightflus. If you want to commit your issue to us, you can directly submit it on web page, however, **please follow the template we provide for you. It's important.**

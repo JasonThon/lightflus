@@ -805,7 +805,6 @@ impl Sink for SinkImpl {
         }
     }
 
-    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         match self {
             SinkImpl::Local(sink) => sink.close_sink(),
@@ -937,6 +936,7 @@ impl Source for Kafka {
 
     fn close_source(&mut self) {
         self.conf.clear();
+        self.job_id.clear();
         drop(self.connector_id);
         self.consumer.iter().for_each(|consumer| {
             consumer.unsubscribe();
@@ -978,7 +978,6 @@ impl Sink for Kafka {
         }
     }
 
-    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         drop(self.connector_id);
         self.conf.clear();
@@ -1062,7 +1061,6 @@ impl Sink for Mysql {
         }
     }
 
-    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         self.conn.close();
         self.extractors.clear();
@@ -1163,7 +1161,14 @@ fn extract_arguments(
 
 #[cfg(test)]
 mod tests {
-    use proto::common::{mysql_desc, operator_info::Details, sink, Entry};
+    use proto::common::{
+        mysql_desc, operator_info::Details, redis_desc, sink, Entry, Func, KafkaDesc, MysqlDesc,
+        RedisDesc, ResourceId,
+    };
+
+    use crate::actor::Sink;
+
+    use super::Source;
 
     struct SetupGuard {}
 
@@ -1305,5 +1310,93 @@ mod tests {
                 TypedValue::String("value".to_string())
             ]]
         )
+    }
+
+    #[tokio::test]
+    async fn test_kafka_source_sink_close() {
+        let job_id = ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "ns_id".to_string(),
+        };
+        let desc = KafkaDesc {
+            brokers: vec!["localhost:9092".to_string()],
+            topic: "topic".to_string(),
+            opts: None,
+            data_type: 6,
+        };
+        let mut kafka_source = super::Kafka::with_source_config(&job_id, 0, &desc);
+
+        let mut kafka_sink = super::Kafka::with_sink_config(&job_id, 0, &desc);
+
+        kafka_source.close_source();
+        assert_eq!(
+            &kafka_source.conf,
+            &KafkaDesc {
+                brokers: vec![],
+                topic: Default::default(),
+                opts: None,
+                data_type: 0,
+            }
+        );
+        assert_eq!(&kafka_source.job_id, &ResourceId::default());
+
+        kafka_sink.close_sink();
+        assert_eq!(
+            &kafka_sink.conf,
+            &KafkaDesc {
+                brokers: vec![],
+                topic: Default::default(),
+                opts: None,
+                data_type: 0,
+            }
+        );
+        assert_eq!(&kafka_sink.job_id, &ResourceId::default());
+    }
+
+    #[test]
+    fn test_redis_source_sink_close() {
+        let desc = RedisDesc {
+            connection_opts: Some(redis_desc::ConnectionOpts {
+                host: "localhost".to_string(),
+                username: Default::default(),
+                password: Default::default(),
+                database: 0,
+                tls: false,
+            }),
+            key_extractor: Some(Func {
+                function: "key_extractor".to_string(),
+            }),
+            value_extractor: Some(Func {
+                function: "value_extractor".to_string(),
+            }),
+        };
+        let mut redis_sink = super::Redis::with_config(0, &desc);
+
+        redis_sink.close_sink();
+        assert_eq!(&redis_sink.key_extractor, "");
+        assert_eq!(&redis_sink.value_extractor, "");
+    }
+
+    #[test]
+    fn test_mysql_sink_close() {
+        let ref conf = MysqlDesc {
+            connection_opts: Some(mysql_desc::ConnectionOpts {
+                host: "localhost".to_string(),
+                username: "root".to_string(),
+                password: "123".to_string(),
+                database: "test".to_string(),
+            }),
+            statement: Some(mysql_desc::Statement {
+                statement: "statement".to_string(),
+                extractors: vec![mysql_desc::statement::Extractor {
+                    index: 0,
+                    extractor: "extrator".to_string(),
+                }],
+            }),
+        };
+        let mut mysql_sink = super::Mysql::with_config(0, conf);
+        mysql_sink.close_sink();
+        assert!(mysql_sink.extractors.is_empty());
+        assert!(mysql_sink.statement.is_empty());
     }
 }

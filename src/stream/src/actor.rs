@@ -440,7 +440,6 @@ impl Sink for LocalSink {
         }
     }
 
-    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         futures_executor::block_on(self.sender.closed());
         drop(self.sink_id)
@@ -516,7 +515,6 @@ impl Sink for RemoteSink {
         }
     }
 
-    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         drop(self.sink_id);
         self.host_addr.clear();
@@ -611,13 +609,13 @@ impl SourceImpl {
             SourceImpl::Local(source) => source.close_source(),
             SourceImpl::Kafka(kafka, tx, rx) => {
                 kafka.close_source();
-                futures_executor::block_on(tx.closed());
                 Rc::get_mut(rx).iter_mut().for_each(|recv| recv.close());
+                futures_executor::block_on(tx.closed());
             }
             SourceImpl::Empty(id, tx, rx) => {
                 drop(id);
-                futures_executor::block_on(tx.closed());
                 Rc::get_mut(rx).iter_mut().for_each(|recv| recv.close());
+                futures_executor::block_on(tx.closed());
             }
         }
     }
@@ -982,7 +980,6 @@ impl Sink for Redis {
             })
     }
 
-    #[cfg(not(tarpaulin_include))]
     fn close_sink(&mut self) {
         drop(self.connector_id);
         self.key_extractor.clear();
@@ -1016,14 +1013,15 @@ fn extract_arguments(
 
 #[cfg(test)]
 mod tests {
+    use std::rc::Rc;
+
+    use common::event::{LocalEvent, SinkableMessageImpl};
     use proto::common::{
         mysql_desc, operator_info::Details, redis_desc, sink, Entry, Func, KafkaDesc, MysqlDesc,
         RedisDesc, ResourceId,
     };
 
-    use crate::actor::Sink;
-
-    use super::Source;
+    use crate::actor::{Sink, SinkImpl, SourceImpl};
 
     struct SetupGuard {}
 
@@ -1179,33 +1177,54 @@ mod tests {
             opts: None,
             data_type: 6,
         };
-        let mut kafka_source = super::Kafka::with_source_config(&job_id, 0, &desc);
-
-        let mut kafka_sink = super::Kafka::with_sink_config(&job_id, 0, &desc);
-
-        kafka_source.close_source();
-        assert_eq!(
-            &kafka_source.conf,
-            &KafkaDesc {
-                brokers: vec![],
-                topic: Default::default(),
-                opts: None,
-                data_type: 0,
-            }
+        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let mut kafka_source = SourceImpl::Kafka(
+            super::Kafka::with_source_config(&job_id, 0, &desc),
+            tx.clone(),
+            Rc::new(rx),
         );
-        assert_eq!(&kafka_source.job_id, &ResourceId::default());
+
+        let mut kafka_sink = SinkImpl::Kafka(super::Kafka::with_sink_config(&job_id, 0, &desc));
+
+        kafka_source.close();
+
+        match &mut kafka_source {
+            SourceImpl::Kafka(kafka, tx, rx) => {
+                assert_eq!(&kafka.job_id, &ResourceId::default());
+                assert_eq!(
+                    &kafka.conf,
+                    &KafkaDesc {
+                        brokers: vec![],
+                        topic: Default::default(),
+                        opts: None,
+                        data_type: 0,
+                    }
+                );
+                assert!(tx.is_closed());
+                assert!(Rc::get_mut(rx)
+                    .map(|recv| (*recv).try_recv().is_err())
+                    .unwrap_or_default())
+            }
+            _ => {}
+        }
 
         kafka_sink.close_sink();
-        assert_eq!(
-            &kafka_sink.conf,
-            &KafkaDesc {
-                brokers: vec![],
-                topic: Default::default(),
-                opts: None,
-                data_type: 0,
+
+        match &kafka_sink {
+            SinkImpl::Kafka(kafka) => {
+                assert_eq!(&kafka.job_id, &ResourceId::default());
+                assert_eq!(
+                    &kafka.conf,
+                    &KafkaDesc {
+                        brokers: vec![],
+                        topic: Default::default(),
+                        opts: None,
+                        data_type: 0,
+                    }
+                );
             }
-        );
-        assert_eq!(&kafka_sink.job_id, &ResourceId::default());
+            _ => {}
+        }
     }
 
     #[test]
@@ -1225,11 +1244,16 @@ mod tests {
                 function: "value_extractor".to_string(),
             }),
         };
-        let mut redis_sink = super::Redis::with_config(0, &desc);
+        let mut redis_sink = SinkImpl::Redis(super::Redis::with_config(0, &desc));
 
         redis_sink.close_sink();
-        assert_eq!(&redis_sink.key_extractor, "");
-        assert_eq!(&redis_sink.value_extractor, "");
+        match redis_sink {
+            SinkImpl::Redis(redis) => {
+                assert_eq!(&redis.key_extractor, "");
+                assert_eq!(&redis.value_extractor, "");
+            }
+            _ => {}
+        }
     }
 
     #[test]
@@ -1249,9 +1273,49 @@ mod tests {
                 }],
             }),
         };
-        let mut mysql_sink = super::Mysql::with_config(0, conf);
+        let mut mysql_sink = SinkImpl::Mysql(super::Mysql::with_config(0, conf));
         mysql_sink.close_sink();
-        assert!(mysql_sink.extractors.is_empty());
-        assert!(mysql_sink.statement.is_empty());
+        match mysql_sink {
+            SinkImpl::Mysql(mysql) => {
+                assert!(mysql.extractors.is_empty());
+                assert!(mysql.statement.is_empty());
+            }
+            _ => {}
+        }
+    }
+
+    #[tokio::test]
+    async fn test_local_source_sink_close() {
+        {
+            let (tx, rx) = tokio::sync::mpsc::channel(1);
+            let mut source = SourceImpl::Local(super::LocalSource {
+                recv: Rc::new(rx),
+                source_id: 0,
+                tx: tx.clone(),
+            });
+
+            source.close();
+
+            assert!(source.fetch_msg().is_none());
+            assert!(tx.is_closed());
+        }
+
+        {
+            let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+            let mut sink = SinkImpl::Local(super::LocalSink {
+                sender: tx,
+                sink_id: 0,
+            });
+            rx.close();
+
+            sink.close_sink();
+            let result = sink
+                .sink(SinkableMessageImpl::LocalMessage(LocalEvent::Terminate {
+                    job_id: ResourceId::default(),
+                    to: 0,
+                }))
+                .await;
+            assert!(result.is_err());
+        }
     }
 }

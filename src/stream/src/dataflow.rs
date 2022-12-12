@@ -19,17 +19,17 @@ where
     's: 'i,
 {
     pub fn new(
-        op_info: OperatorInfo,
+        op_info: &OperatorInfo,
         state_manager: S,
         scope: &'i mut HandleScope<'s, ()>,
     ) -> Self {
         let (rt_engine, operator) = if op_info.clone().details.is_some() {
-            let detail = op_info.clone().details.unwrap();
+            let detail = op_info.details.as_ref().unwrap();
             match detail {
                 Details::Mapper(map_value) => (
                     RefCell::new(RuntimeEngine::new(
                         &map_value.get_func().function,
-                        &get_function_name(&op_info),
+                        &get_function_name(op_info),
                         scope,
                     )),
                     OperatorImpl::Map(MapOperator::new(&op_info, state_manager)),
@@ -37,34 +37,34 @@ where
                 Details::Filter(filter_value) => (
                     RefCell::new(RuntimeEngine::new(
                         &filter_value.get_func().function,
-                        &get_function_name(&op_info),
+                        &get_function_name(op_info),
                         scope,
                     )),
-                    OperatorImpl::Filter(FilterOperator::new(&op_info, state_manager)),
+                    OperatorImpl::Filter(FilterOperator::new(op_info, state_manager)),
                 ),
                 Details::KeyBy(key_by_value) => (
                     RefCell::new(RuntimeEngine::new(
                         &key_by_value.get_func().function,
-                        &get_function_name(&op_info),
+                        &get_function_name(op_info),
                         scope,
                     )),
-                    OperatorImpl::KeyBy(KeyByOperator::new(&op_info, state_manager)),
+                    OperatorImpl::KeyBy(KeyByOperator::new(op_info, state_manager)),
                 ),
                 Details::Reducer(reduce_value) => (
                     RefCell::new(RuntimeEngine::new(
                         &reduce_value.get_func().function,
-                        &get_function_name(&op_info),
+                        &get_function_name(op_info),
                         scope,
                     )),
-                    OperatorImpl::Reduce(ReduceOperator::new(&op_info, state_manager)),
+                    OperatorImpl::Reduce(ReduceOperator::new(op_info, state_manager)),
                 ),
                 Details::FlatMap(flat_map_value) => (
                     RefCell::new(RuntimeEngine::new(
                         &flat_map_value.get_func().function,
-                        &get_function_name(&op_info),
+                        &get_function_name(op_info),
                         scope,
                     )),
-                    OperatorImpl::FlatMap(FlatMapOperator::new(&op_info, state_manager)),
+                    OperatorImpl::FlatMap(FlatMapOperator::new(op_info, state_manager)),
                 ),
                 _ => (
                     RefCell::new(RuntimeEngine::new("", "", scope)),

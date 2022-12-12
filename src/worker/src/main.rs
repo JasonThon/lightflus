@@ -62,11 +62,6 @@ fn main() {
             tracing::info!("service will start at {}", config.port);
 
             initialize_v8();
-            let _ = Server::builder()
-                .timeout(Duration::from_secs(3))
-                .concurrency_limit_per_connection(3)
-                .add_service(server)
-                .serve(addr)
-                .await;
+            let _ = Server::builder().add_service(server).serve(addr).await;
         });
 }

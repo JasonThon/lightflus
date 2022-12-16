@@ -7,10 +7,8 @@ pub mod v8_runtime;
 pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1000;
 
-pub(crate) type EventReceiver<Input> = tokio::sync::mpsc::Receiver<Input>;
-pub(crate) type EventSender<Input> = tokio::sync::mpsc::Sender<Input>;
-
-pub(crate) const DETAULT_WATERMARK: std::time::Duration = std::time::Duration::from_millis(100);
+pub type EventReceiver<Input> = tokio::sync::mpsc::Receiver<Input>;
+pub type EventSender<Input> = tokio::sync::mpsc::Sender<Input>;
 
 pub fn initialize_v8() {
     // v8::V8::set_flags_from_string(

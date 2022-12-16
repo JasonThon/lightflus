@@ -1182,6 +1182,9 @@ export namespace common {
 
         /** OperatorInfo window */
         window?: (common.IWindow|null);
+
+        /** OperatorInfo trigger */
+        trigger?: (common.ITrigger|null);
     }
 
     /** OperatorInfo, stores detail information of an operator */
@@ -1226,8 +1229,11 @@ export namespace common {
         /** OperatorInfo window. */
         public window?: (common.IWindow|null);
 
+        /** OperatorInfo trigger. */
+        public trigger?: (common.ITrigger|null);
+
         /** OperatorInfo details. */
-        public details?: ("source"|"sink"|"mapper"|"filter"|"keyBy"|"reducer"|"flatMap"|"window");
+        public details?: ("source"|"sink"|"mapper"|"filter"|"keyBy"|"reducer"|"flatMap"|"window"|"trigger");
 
         /**
          * Creates a new OperatorInfo instance using the specified properties.

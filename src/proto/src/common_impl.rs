@@ -1,13 +1,8 @@
-use chrono::Duration;
-
 use crate::common::{
     mysql_desc::{self, Statement},
     operator_info::Details,
-    sink, source,
-    trigger::Watermark,
-    window::{self, FixedWindow},
-    DataTypeEnum, Dataflow, Entry, Func, HostAddr, KafkaDesc, KeyedDataEvent, MysqlDesc,
-    OperatorInfo, RedisDesc, ResourceId, Sink, Source, Time, Trigger, Window,
+    sink, source, DataTypeEnum, Dataflow, Entry, Func, HostAddr, KafkaDesc, KeyedDataEvent,
+    MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Sink, Source,
 };
 
 impl OperatorInfo {
@@ -56,36 +51,6 @@ impl OperatorInfo {
                 _ => None,
             })
             .unwrap_or_default()
-    }
-
-    pub fn has_window(&self) -> bool {
-        self.details
-            .as_ref()
-            .map(|details| match details {
-                Details::Window(_) => true,
-                _ => false,
-            })
-            .unwrap_or_default()
-    }
-
-    pub fn get_window(&self) -> Window {
-        self.details
-            .as_ref()
-            .and_then(|details| match details {
-                Details::Window(window) => Some(window.clone()),
-                _ => None,
-            })
-            .unwrap_or_default()
-    }
-}
-
-impl Window {
-    pub fn get_value(&self) -> Option<&window::Value> {
-        self.value.as_ref()
-    }
-
-    pub fn get_trigger(&self) -> Option<&Trigger> {
-        self.trigger.as_ref()
     }
 }
 
@@ -282,42 +247,6 @@ impl KeyedDataEvent {
 
     pub fn get_key(&self) -> Entry {
         self.key.as_ref().map(|key| key.clone()).unwrap_or_default()
-    }
-
-    pub fn get_event_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
-        self.event_time
-            .as_ref()
-            .map(|event_time| {
-                chrono::NaiveDateTime::from_timestamp(event_time.seconds, event_time.nanos as u32)
-            })
-            .map(|datetime| chrono::DateTime::from_utc(datetime, chrono::Utc))
-    }
-}
-
-impl FixedWindow {
-    pub fn get_size(&self) -> Time {
-        self.size
-            .as_ref()
-            .map(|size| size.clone())
-            .unwrap_or_default()
-    }
-}
-
-impl Watermark {
-    pub fn get_trigger_time(&self) -> Time {
-        self.trigger_time
-            .as_ref()
-            .map(|t| t.clone())
-            .unwrap_or_default()
-    }
-}
-
-impl Time {
-    pub fn to_duration(&self) -> Duration {
-        let secs = (self.hours * 3600) as u64 + (self.minutes * 60) as u64 + self.seconds;
-        Duration::seconds(secs as i64)
-            .checked_add(&Duration::milliseconds(self.millis as i64))
-            .unwrap_or(Duration::max_value())
     }
 }
 

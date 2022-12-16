@@ -1,5 +1,5 @@
 import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
-import { apiserver, common } from "../proto/apiserver";
+import { apiserver } from "../proto/apiserver";
 import axios from "axios";
 import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
 import { connectors } from "../connectors/connectors";
@@ -7,7 +7,6 @@ import { context } from "./context";
 import CreateResourceRequest = apiserver.CreateResourceRequest;
 import ResourceTypeEnum = apiserver.ResourceTypeEnum;
 import CreateResourceResponse = apiserver.CreateResourceResponse;
-import IWindow = common.IWindow;
 import Sink = connectors.Sink;
 import ExecutionContext = context.ExecutionContext;
 
@@ -71,11 +70,6 @@ export class Dataflow<T> {
     this.ctx.addChild(this.operator_id, new MapOp<T, U>(this.ctx.incrementAndGetId(), callbackFn).toOperatorInfo());
     return new Dataflow<U>(this.ctx);
   }
-
-  reduce(callbackFn: (agg: T, current: T) => T): Dataflow<T> {
-    this.ctx.addChild(this.operator_id, new Reduce(this.ctx.incrementAndGetId(), callbackFn).toOperatorInfo());
-    return new Dataflow<T>(this.ctx);
-  }
 }
 
 export class KeyedDataflow<K, T> extends Dataflow<T> {
@@ -89,7 +83,7 @@ export class KeyedDataflow<K, T> extends Dataflow<T> {
   }
 
   reduce(callbackFn: (agg: T, current: T) => T): KeyedDataflow<K, T> {
-    super.reduce(callbackFn);
+    this.ctx.addChild(this.operator_id, new Reduce(this.ctx.incrementAndGetId(), callbackFn).toOperatorInfo());
     return new KeyedDataflow<K, T>(this.ctx);
   }
 
@@ -102,13 +96,4 @@ export class KeyedDataflow<K, T> extends Dataflow<T> {
     super.flatMap(callbackFn);
     return new KeyedDataflow<K, U>(this.ctx);
   }
-
-  window(window: IWindow): WindowDataflow<T> {
-    this.ctx.addChild(this.operator_id, new WindowOp(this.ctx.incrementAndGetId(), window).toOperatorInfo());
-    return new WindowDataflow<T>(this.ctx);
-  }
-}
-
-export class WindowDataflow<T> extends Dataflow<T> {
-
 }

@@ -101,7 +101,6 @@ pub struct KafkaConsumer {
 pub struct KafkaMessage {
     pub key: Vec<u8>,
     pub payload: Vec<u8>,
-    pub timestamp: Option<i64>,
 }
 
 impl KafkaConsumer {
@@ -122,7 +121,6 @@ impl KafkaConsumer {
                         processor(KafkaMessage {
                             key,
                             payload: payload.to_vec(),
-                            timestamp: msg.timestamp().to_millis(),
                         })
                     })
                 }

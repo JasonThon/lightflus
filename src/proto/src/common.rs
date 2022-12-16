@@ -212,7 +212,7 @@ pub struct OperatorInfo {
     #[prost(uint32, repeated, tag = "3")]
     pub upstreams: ::prost::alloc::vec::Vec<u32>,
     /// optional for different operator type
-    #[prost(oneof = "operator_info::Details", tags = "5, 6, 7, 8, 9, 10, 11, 12")]
+    #[prost(oneof = "operator_info::Details", tags = "5, 6, 7, 8, 9, 10, 11, 12, 13")]
     pub details: ::core::option::Option<operator_info::Details>,
 }
 /// Nested message and enum types in `OperatorInfo`.
@@ -236,9 +236,11 @@ pub mod operator_info {
         Reducer(super::Reducer),
         #[prost(message, tag = "11")]
         FlatMap(super::FlatMap),
-        ///     Join join = 11;
         #[prost(message, tag = "12")]
         Window(super::Window),
+        ///     Join join = 11;
+        #[prost(message, tag = "13")]
+        Trigger(super::Trigger),
     }
 }
 #[derive(Clone, PartialEq, ::prost::Message)]

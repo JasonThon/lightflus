@@ -12,6 +12,7 @@ export enum OperatorType {
   Sink = "sink",
   Map = "map",
   Filter = "filter",
+  Window = "window"
 }
 
 export abstract class Operator {
@@ -188,5 +189,47 @@ export class Filter<T> extends Operator {
       }
     };
     return info;
+  }
+}
+
+export class WindowOp extends Operator {
+  private readonly _window: IWindow;
+
+  constructor(operatorId: number, window: IWindow) {
+    super(operatorId);
+    this._window = window;
+  }
+
+  operatorType(): OperatorType {
+    return OperatorType.Window;
+  }
+
+  toOperatorInfo(): common.IOperatorInfo {
+    this.check();
+    let info = super.toOperatorInfo();
+    info.window = this._window;
+    return info;
+  }
+
+  getFunctionName(): string {
+    return "";
+  }
+
+  private check() {
+    if (this._window == null) {
+      throw "window must not be null";
+    }
+
+    let isFixedNonNull = this._window.fixed != null;
+    let isSlideNonNull = this._window.slide != null;
+    let isSessionNonNull = this._window.session != null;
+
+    if ((isFixedNonNull && isSlideNonNull) || (isFixedNonNull && isSessionNonNull) || (isSlideNonNull && isSessionNonNull)) {
+      throw "You can only set window in one of [fixed, session, slide]";
+    }
+
+    if (!isSessionNonNull && !isFixedNonNull && !isSlideNonNull) {
+      throw "You must set window from [fixed, session, slide]";
+    }
   }
 }

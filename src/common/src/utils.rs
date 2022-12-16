@@ -13,6 +13,16 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 
+pub mod times {
+    use std::time::{Duration, SystemTime};
+
+    pub fn from_millis_to_chrono(millis: i64) -> Option<chrono::DateTime<chrono::Utc>> {
+        SystemTime::UNIX_EPOCH
+            .checked_add(Duration::from_millis(millis as u64))
+            .map(|sys_time| chrono::DateTime::<chrono::Utc>::from(sys_time))
+    }
+}
+
 pub struct Args {
     args: HashMap<String, Arg>,
 }

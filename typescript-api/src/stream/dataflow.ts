@@ -1,4 +1,4 @@
-import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
+import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp, WindowOp } from "./operator";
 import { apiserver, common } from "../proto/apiserver";
 import axios from "axios";
 import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";

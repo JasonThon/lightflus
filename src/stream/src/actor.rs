@@ -337,7 +337,6 @@ impl Executor for WindowExecutor {
 
     fn close(&mut self) {
         self.job_id.clear();
-        self.operator.clear();
         drop(self.executor_id);
         self.sinks.iter_mut().for_each(|sink| sink.close_sink());
         self.sinks.clear();

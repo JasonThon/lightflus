@@ -5,7 +5,7 @@ use crate::common::{
     operator_info::Details,
     sink, source,
     trigger::Watermark,
-    window::{self, FixedWindow},
+    window::{self, FixedWindow, SessionWindow, SlidingWindow},
     DataTypeEnum, Dataflow, Entry, Func, HostAddr, KafkaDesc, KeyedDataEvent, MysqlDesc,
     OperatorInfo, RedisDesc, ResourceId, Sink, Source, Time, Trigger, Window,
 };
@@ -308,6 +308,31 @@ impl Watermark {
         self.trigger_time
             .as_ref()
             .map(|t| t.clone())
+            .unwrap_or_default()
+    }
+}
+
+impl SlidingWindow {
+    pub fn get_size(&self) -> Time {
+        self.size
+            .as_ref()
+            .map(|size| size.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn get_period(&self) -> Time {
+        self.period
+            .as_ref()
+            .map(|period| period.clone())
+            .unwrap_or_default()
+    }
+}
+
+impl SessionWindow {
+    pub fn get_timeout(&self) -> Time {
+        self.timeout
+            .as_ref()
+            .map(|timeout| timeout.clone())
             .unwrap_or_default()
     }
 }

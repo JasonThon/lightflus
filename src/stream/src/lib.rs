@@ -1,8 +1,9 @@
 pub mod actor;
-pub mod dataflow;
+mod dataflow;
 pub mod err;
-pub mod state;
-pub mod v8_runtime;
+mod state;
+mod v8_runtime;
+mod window;
 
 pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1000;

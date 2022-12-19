@@ -2,16 +2,12 @@ use actix_web::{
     error::{ErrorBadRequest, ErrorInternalServerError},
     HttpResponse,
 };
-use common::{
-    err::ApiError,
-    utils::{pb_to_bytes_mut, uuid},
-};
+use common::{err::ApiError, utils::pb_to_bytes_mut};
 use proto::{
     apiserver::{
-        create_resource_request::Options, CreateResourceRequest, CreateResourceResponse,
-        GetResourceResponse, Resource, ResourceStatusEnum, ResourceTypeEnum,
+        CreateResourceRequest, CreateResourceResponse, GetResourceResponse, Resource,
+        ResourceStatusEnum, ResourceTypeEnum,
     },
-    common::ResourceId,
     coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
 };
 

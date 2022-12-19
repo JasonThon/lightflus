@@ -1,7 +1,8 @@
-use crate::dataflow::{DataflowTask, KeyedWindow, WindowAssignerImpl};
+use crate::dataflow::DataflowTask;
 use crate::err::{ErrorKind::RemoteSinkFailed, SinkException};
 use crate::state::{new_state_mgt, StateManager};
 use crate::v8_runtime::RuntimeEngine;
+use crate::window::{WindowAssignerImpl, KeyedWindow};
 use crate::{EventReceiver, EventSender, DEFAULT_CHANNEL_SIZE};
 
 use async_trait::async_trait;
@@ -166,24 +167,32 @@ impl LocalExecutor {
     ) {
         use LocalEvent::KeyedDataStreamEvent;
         use SinkableMessageImpl::LocalMessage;
-
-        match task.process(event) {
-            Ok(results) => results.iter().for_each(|event| {
-                let after_process = KeyedDataStreamEvent(event.clone());
-                self.sinks.par_iter().for_each(|sink| {
-                    let result =
-                        futures_executor::block_on(sink.sink(LocalMessage(after_process.clone())));
-                    match result {
-                        Ok(_) => {}
-                        Err(err) => {
-                            tracing::error!("sink to node {} failed: {:?}", sink.sink_id(), err)
+        if self.operator.has_source() || self.operator.has_sink() {
+            self.sinks.par_iter().for_each(|sink| {
+                let _ = futures_executor::block_on(sink.sink(LocalMessage(
+                    LocalEvent::KeyedDataStreamEvent(event.clone()),
+                )));
+            });
+        } else {
+            match task.process(event) {
+                Ok(results) => results.iter().for_each(|event| {
+                    let after_process = KeyedDataStreamEvent(event.clone());
+                    self.sinks.par_iter().for_each(|sink| {
+                        let result = futures_executor::block_on(
+                            sink.sink(LocalMessage(after_process.clone())),
+                        );
+                        match result {
+                            Ok(_) => {}
+                            Err(err) => {
+                                tracing::error!("sink to node {} failed: {:?}", sink.sink_id(), err)
+                            }
                         }
-                    }
-                });
-            }),
-            Err(err) => {
-                tracing::error!("process msg failed: {:?}", err);
-                // TODO fault tolerance
+                    });
+                }),
+                Err(err) => {
+                    tracing::error!("process msg failed: {:?}", err);
+                    // TODO fault tolerance
+                }
             }
         }
     }
@@ -200,39 +209,9 @@ impl Executor for LocalExecutor {
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     LocalMessage(message) => match message {
-                        KeyedDataStreamEvent(e) => {
-                            if self.operator.has_source() || self.operator.has_sink() {
-                                self.sinks.par_iter().for_each(|sink| {
-                                    let _ = futures_executor::block_on(sink.sink(msg.clone()));
-                                });
-                            } else {
-                                match task.process(e) {
-                                    Ok(results) => results.iter().for_each(|event| {
-                                        let after_process = KeyedDataStreamEvent(event.clone());
-                                        self.sinks.par_iter().for_each(|sink| {
-                                            let result = futures_executor::block_on(
-                                                sink.sink(LocalMessage(after_process.clone())),
-                                            );
-                                            match result {
-                                                Ok(_) => {}
-                                                Err(err) => tracing::error!(
-                                                    "sink to node {} failed: {:?}",
-                                                    sink.sink_id(),
-                                                    err
-                                                ),
-                                            }
-                                        });
-                                    }),
-                                    Err(err) => {
-                                        tracing::error!("process msg failed: {:?}", err);
-                                        // TODO fault tolerance
-                                    }
-                                }
-                            }
-                        }
+                        KeyedDataStreamEvent(e) => self.process_single_event(&task, e),
                         LocalEvent::Terminate { job_id, to } => {
                             tracing::info!("stopping {:?} at node id {}", job_id, to);
-
                             // gracefully close
                             self.close();
                             return;
@@ -317,7 +296,7 @@ impl Executor for WindowExecutor {
                         SinkableMessageImpl::LocalMessage(event) => match event {
                             LocalEvent::Terminate { job_id, to } => return,
                             LocalEvent::KeyedDataStreamEvent(keyed_event) => {
-                                let windows = self.assigner.assign_windows(&keyed_event);
+                                let windows = self.assigner.assign_windows(keyed_event);
                                 self.windows.extend(windows);
                             },
                         },

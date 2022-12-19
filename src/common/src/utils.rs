@@ -16,10 +16,18 @@ use std::io::Read;
 pub mod times {
     use std::time::{Duration, SystemTime};
 
-    pub fn from_millis_to_chrono(millis: i64) -> Option<chrono::DateTime<chrono::Utc>> {
+    pub fn from_millis_to_utc_chrono(millis: i64) -> Option<chrono::DateTime<chrono::Utc>> {
         SystemTime::UNIX_EPOCH
             .checked_add(Duration::from_millis(millis as u64))
             .map(|sys_time| chrono::DateTime::<chrono::Utc>::from(sys_time))
+    }
+
+    pub fn from_prost_timestamp_to_utc_chrono(
+        timestamp: &prost_types::Timestamp,
+    ) -> chrono::DateTime<chrono::Utc> {
+        let naive_time =
+            chrono::NaiveDateTime::from_timestamp(timestamp.seconds, timestamp.nanos as u32);
+        chrono::DateTime::from_utc(naive_time, chrono::Utc)
     }
 }
 

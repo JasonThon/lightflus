@@ -8,6 +8,7 @@ use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
 
 use crate::DETAULT_WATERMARK;
 
+/// WindowAssigner implementations
 pub enum WindowAssignerImpl {
     Fixed(FixedEventTimeKeyedWindowAssigner),
     Slide(SlideEventTimeKeyedWindowAssigner),
@@ -52,6 +53,12 @@ impl WindowAssignerImpl {
         }
     }
 
+    /// GroupByKeyAndWindow operation
+    /// In Dataflow Model, window merging is the part of this operation. This operation groups all windows by their key and window.
+    /// The result of GroupByKeyAndWindow will be emited by Trigger. Trigger will support three refinement mode:
+    /// 1. Discarding: this mode will discard all previous results;
+    /// 2. Accumulating: this mode will store the window contents in a persistable state;
+    /// 3. Accumulating & Retracting: this mode not only accumlate windows but also store the copy of emitted value of trigger;
     pub(crate) fn group_by_key_and_window(
         &self,
         keyed_windows: &mut VecDeque<KeyedWindow>,
@@ -60,13 +67,12 @@ impl WindowAssignerImpl {
             Self::Empty => keyed_windows.iter().map(|w| w.clone()).collect(),
             _ => {
                 // MergeWindows
-                let ref mut merged_windows = match self {
+                let mut merged_windows = match self {
                     Self::Session(_) => KeyedWindow::merge_windows(keyed_windows),
                     _ => KeyedWindow::group_by_key(keyed_windows),
                 };
-
                 merged_windows
-                    .iter_mut()
+                    .par_iter_mut()
                     .map(|entry| {
                         let mut results = vec![];
                         // GroupAlsoByWindow
@@ -94,7 +100,7 @@ impl WindowAssignerImpl {
 
                         results
                     })
-                    .reduce(|mut accum, mut current| {
+                    .reduce_with(|mut accum, mut current| {
                         // ExpandToElements
                         accum.append(&mut current);
                         accum
@@ -114,6 +120,11 @@ impl WindowAssignerImpl {
     }
 }
 
+/// Base interface for Keyed window assigner
+/// Before 1.0 version, only three event-time windows are supported:
+/// 1. [`FixedEventTimeKeyedWindowAssigner`] support fixed event-time window
+/// 2. [`SlideEventTimeKeyedWindowAssigner`] support sliding event-time window
+/// 3. [`SessionKeyedWindowAssigner`] support session event-time window
 #[async_trait::async_trait]
 pub trait KeyedWindowAssigner {
     fn assign_windows(&self, event: KeyedDataEvent) -> Vec<KeyedWindow>;
@@ -121,6 +132,8 @@ pub trait KeyedWindowAssigner {
     async fn trigger(&mut self);
 }
 
+/// EventTime-based Fixed Window Assigner
+/// Fixed window assigner will assign each event with fixed size and uninteracted windows
 pub struct FixedEventTimeKeyedWindowAssigner {
     size: Duration,
     trigger: TriggerImpl,
@@ -175,6 +188,7 @@ impl KeyedWindowAssigner for FixedEventTimeKeyedWindowAssigner {
     }
 }
 
+/// A unified structure for keyed window
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct KeyedWindow {
     inner: KeyedDataEvent,
@@ -226,6 +240,8 @@ impl KeyedWindow {
         self.window_end > window.window_start && self.window_start <= window.window_end
     }
 
+    /// merge with another window
+    /// After merged, the inner data of other window will be cleared
     pub(crate) fn merge(&mut self, other: &mut KeyedWindow) {
         self.inner.data.append(&mut other.inner.data);
         if self.window_start > other.window_start {
@@ -236,10 +252,12 @@ impl KeyedWindow {
         }
     }
 
+    /// ExpandToElements operation
     pub(crate) fn expand(&mut self) {
         self.event_time = self.window_start.clone();
     }
 
+    /// merge all windows
     fn merge_windows(windows: &mut VecDeque<KeyedWindow>) -> BTreeMap<Vec<u8>, Vec<KeyedWindow>> {
         // GroupByKey
         let mut group_by_key = Self::group_by_key(windows);

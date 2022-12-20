@@ -12,7 +12,7 @@ pub trait KeyedEvent<K, V> {
     fn get_value(&self) -> V;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LocalEvent {
     Terminate {
         job_id: ResourceId,
@@ -42,7 +42,7 @@ pub trait SinkableMessage {
     fn get_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SinkableMessageImpl {
     LocalMessage(LocalEvent),
 }

@@ -20,3 +20,7 @@ pub fn initialize_v8() {
     v8::V8::initialize_platform(v8::new_default_platform(10, false).make_shared());
     v8::V8::initialize();
 }
+
+pub(crate) fn new_event_channel<T>(buf_size: usize) -> (EventSender<T>, EventReceiver<T>) {
+    tokio::sync::mpsc::channel(buf_size)
+}

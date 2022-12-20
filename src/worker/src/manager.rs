@@ -143,9 +143,6 @@ impl LocalExecutorManager {
     fn run(&mut self) {
         let executors = self.ctx.create_executors();
         self.inner_sinks = executors.iter().map(|exec| exec.as_sinkable()).collect();
-        self.handlers = executors
-            .into_iter()
-            .map(|exec| tokio::spawn(async move { exec.run() }))
-            .collect();
+        self.handlers = executors.into_iter().map(|exec| exec.run()).collect();
     }
 }

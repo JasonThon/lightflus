@@ -90,4 +90,6 @@ impl From<&mut tonic::transport::Error> for SinkException {
 }
 
 #[derive(Debug)]
-pub struct RunnableTaskError {}
+pub enum RunnableTaskError {
+    OperatorUnimplemented,
+}

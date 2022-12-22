@@ -1,4 +1,4 @@
-use crate::dataflow::DataflowTask;
+use crate::dataflow::Execution;
 use crate::err::{ErrorKind::RemoteSinkFailed, SinkException};
 use crate::state::{new_state_mgt, StateManager};
 use crate::v8_runtime::RuntimeEngine;
@@ -22,6 +22,7 @@ use proto::common::{Entry, KeyedDataEvent};
 use proto::common::{HostAddr, ResourceId};
 use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
+use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::Mutex;
 
 use std::collections::{BTreeMap, VecDeque};
@@ -163,7 +164,7 @@ impl LocalExecutor {
 
     fn process_single_event<'s, 'i, S: StateManager>(
         &self,
-        task: &DataflowTask<'s, 'i, S>,
+        task: &Execution<'s, 'i, S>,
         event: &KeyedDataEvent,
     ) {
         use LocalEvent::KeyedDataStreamEvent;
@@ -206,7 +207,7 @@ impl Executor for LocalExecutor {
         use SinkableMessageImpl::LocalMessage;
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
-        let task = DataflowTask::new(&self.operator, new_state_mgt(&self.job_id), scope);
+        let task = Execution::new(&self.operator, new_state_mgt(&self.job_id), scope);
         loop {
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
@@ -338,8 +339,8 @@ unsafe impl Send for ExecutorImpl {}
 impl ExecutorImpl {
     pub fn run(self) -> tokio::task::JoinHandle<()> {
         match self {
-            ExecutorImpl::Local(exec) => tokio::spawn(exec.run()),
-            ExecutorImpl::Window(exec) => tokio::spawn(exec.run()),
+            Self::Local(exec) => tokio::spawn(exec.run()),
+            Self::Window(exec) => tokio::spawn(exec.run()),
         }
     }
 
@@ -594,7 +595,7 @@ impl Sink for LocalSink {
     }
 }
 
-/// [`RemoteSink`] is to communicate with remote worker nodes for transferring data between two hosts.
+/// [`RemoteSink`] communicates with remote worker nodes for transferring data between two hosts.
 #[derive(Clone)]
 pub struct RemoteSink {
     pub(crate) sink_id: SinkId,
@@ -724,9 +725,9 @@ pub enum SourceImpl {
 impl SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
         match self {
-            SourceImpl::Local(source) => source.create_msg_sender(),
-            SourceImpl::Kafka(.., terminator_tx, _) => terminator_tx.clone(),
-            SourceImpl::Empty(.., terminator_tx, _) => terminator_tx.clone(),
+            Self::Local(source) => source.create_msg_sender(),
+            Self::Kafka(.., terminator_tx, _) => terminator_tx.clone(),
+            Self::Empty(.., terminator_tx, _) => terminator_tx.clone(),
         }
     }
 
@@ -736,13 +737,13 @@ impl SourceImpl {
 
     async fn async_fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
         match self {
-            SourceImpl::Local(source) => source.async_fetch_msg().await,
-            SourceImpl::Kafka(source, _, terminator_rx) => {
+            Self::Local(source) => source.async_fetch_msg().await,
+            Self::Kafka(source, _, terminator_rx) => {
                 match terminator_rx.lock().await.try_recv() {
                     Ok(message) => Some(message),
                     Err(err) => match err {
                         // if channel has been close, it will terminate all actors
-                        tokio::sync::mpsc::error::TryRecvError::Disconnected => {
+                        TryRecvError::Disconnected => {
                             Some(SinkableMessageImpl::LocalMessage(LocalEvent::Terminate {
                                 job_id: source.job_id.clone(),
                                 to: source.source_id(),
@@ -752,21 +753,21 @@ impl SourceImpl {
                     },
                 }
             }
-            SourceImpl::Empty(.., terminator_rx) => terminator_rx.lock().await.recv().await,
+            Self::Empty(.., terminator_rx) => terminator_rx.lock().await.recv().await,
         }
     }
 
     fn close(&mut self) {
         match self {
-            SourceImpl::Local(source) => source.close_source(),
-            SourceImpl::Kafka(kafka, tx, rx) => {
+            Self::Local(source) => source.close_source(),
+            Self::Kafka(kafka, tx, rx) => {
                 kafka.close_source();
                 futures_executor::block_on(async {
                     rx.lock().await.close();
                     tx.closed().await;
                 });
             }
-            SourceImpl::Empty(id, tx, rx) => {
+            Self::Empty(id, tx, rx) => {
                 drop(id);
                 futures_executor::block_on(async {
                     rx.lock().await.close();
@@ -791,12 +792,12 @@ pub enum SinkImpl {
 impl Sink for SinkImpl {
     fn sink_id(&self) -> SinkId {
         match self {
-            SinkImpl::Local(sink) => sink.sink_id(),
-            SinkImpl::Remote(sink) => sink.sink_id(),
-            SinkImpl::Kafka(kafka) => kafka.sink_id(),
-            SinkImpl::Mysql(mysql) => mysql.sink_id(),
-            SinkImpl::Empty(sink_id) => *sink_id,
-            SinkImpl::Redis(redis) => redis.sink_id(),
+            Self::Local(sink) => sink.sink_id(),
+            Self::Remote(sink) => sink.sink_id(),
+            Self::Kafka(kafka) => kafka.sink_id(),
+            Self::Mysql(mysql) => mysql.sink_id(),
+            Self::Empty(sink_id) => *sink_id,
+            Self::Redis(redis) => redis.sink_id(),
         }
     }
 
@@ -805,23 +806,23 @@ impl Sink for SinkImpl {
         msg: SinkableMessageImpl,
     ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match self {
-            SinkImpl::Local(sink) => sink.sink(msg).await,
-            SinkImpl::Remote(sink) => sink.sink(msg).await,
-            SinkImpl::Kafka(sink) => sink.sink(msg).await,
-            SinkImpl::Mysql(sink) => sink.sink(msg).await,
-            SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
-            SinkImpl::Redis(redis) => redis.sink(msg).await,
+            Self::Local(sink) => sink.sink(msg).await,
+            Self::Remote(sink) => sink.sink(msg).await,
+            Self::Kafka(sink) => sink.sink(msg).await,
+            Self::Mysql(sink) => sink.sink(msg).await,
+            Self::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
+            Self::Redis(redis) => redis.sink(msg).await,
         }
     }
 
     fn close_sink(&mut self) {
         match self {
-            SinkImpl::Local(sink) => sink.close_sink(),
-            SinkImpl::Remote(sink) => sink.close_sink(),
-            SinkImpl::Kafka(sink) => sink.close_sink(),
-            SinkImpl::Mysql(sink) => sink.close_sink(),
-            SinkImpl::Redis(sink) => sink.close_sink(),
-            SinkImpl::Empty(id) => drop(id),
+            Self::Local(sink) => sink.close_sink(),
+            Self::Remote(sink) => sink.close_sink(),
+            Self::Kafka(sink) => sink.close_sink(),
+            Self::Mysql(sink) => sink.close_sink(),
+            Self::Redis(sink) => sink.close_sink(),
+            Self::Empty(id) => drop(id),
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
 
@@ -10,7 +12,7 @@ pub trait KeyedEvent<K, V> {
     fn get_value(&self) -> V;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum LocalEvent {
     Terminate {
         job_id: ResourceId,
@@ -40,7 +42,7 @@ pub trait SinkableMessage {
     fn get_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError>;
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum SinkableMessageImpl {
     LocalMessage(LocalEvent),
 }
@@ -65,6 +67,8 @@ impl SinkableMessage for SinkableMessageImpl {
                     serde_json::to_vec(&key)
                         .and_then(|k| {
                             let mut messages = vec![];
+                            let timestamp =
+                                chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
                             for val in values {
                                 let payload_result = serde_json::to_vec(&val);
                                 if payload_result.is_err() {
@@ -74,6 +78,7 @@ impl SinkableMessage for SinkableMessageImpl {
                                 messages.push(KafkaMessage {
                                     key: k.to_vec(),
                                     payload: payload_result.unwrap(),
+                                    timestamp: Some(timestamp.timestamp_millis()),
                                 })
                             }
 

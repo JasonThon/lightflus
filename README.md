@@ -25,7 +25,7 @@
 * [x] `kafka` source and sink;
 * [x] `mysql` sink;
 * [x] `redis` sink;
-* [ ] `event-time window` support; 
+* [x] `event-time window` support; 
 * [ ] `join` operator;
 * [ ] checkpoint support;
 * [ ] `elasticsearch` sink;

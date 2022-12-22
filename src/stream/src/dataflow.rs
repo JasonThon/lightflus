@@ -1,12 +1,15 @@
 use std::{cell::RefCell, collections::BTreeMap};
 
 use common::types::{NodeIdx, TypedValue};
+
 use proto::common::{operator_info::Details, Entry, KeyedDataEvent, OperatorInfo};
 use v8::HandleScope;
 
 use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine};
 
-pub struct DataflowTask<'s, 'i, S: state::StateManager>
+/// This is the execution context of an operator. Execution's lifecycle must be explict because one execution corresponds to one v8 instance.
+/// After execution is dropped, the v8 instance will be destroied at the same time.
+pub struct Execution<'s, 'i, S: state::StateManager>
 where
     's: 'i,
 {
@@ -14,7 +17,7 @@ where
     rt_engine: RefCell<RuntimeEngine<'s, 'i>>,
 }
 
-impl<'s, 'i, S: state::StateManager> DataflowTask<'s, 'i, S>
+impl<'s, 'i, S: state::StateManager> Execution<'s, 'i, S>
 where
     's: 'i,
 {
@@ -87,7 +90,7 @@ where
         &self,
         event: &KeyedDataEvent,
     ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
-        self.operator.call_fn(event, &self.rt_engine)
+        self.operator.process_event(event, &self.rt_engine)
     }
 }
 
@@ -124,8 +127,8 @@ pub(crate) enum OperatorImpl<S: state::StateManager> {
     Empty,
 }
 
-impl<S: state::StateManager> IOperator for OperatorImpl<S> {
-    fn call_fn<'p, 'i>(
+impl<S: state::StateManager> OperatorImpl<S> {
+    fn process_event<'p, 'i>(
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
@@ -139,7 +142,7 @@ impl<S: state::StateManager> IOperator for OperatorImpl<S> {
             Self::KeyBy(op) => op.call_fn(event, rt_engine),
             Self::FlatMap(op) => op.call_fn(event, rt_engine),
             Self::Reduce(op) => op.call_fn(event, rt_engine),
-            Self::Empty => todo!(),
+            Self::Empty => Err(RunnableTaskError::OperatorUnimplemented),
         }
     }
 }
@@ -352,7 +355,7 @@ macro_rules! new_operator {
     };
 }
 
-macro_rules! stateless_operator {
+macro_rules! stateless_operator_impl {
     ($name: ident) => {
         impl<S: state::StateManager> IOperator for $name<S> {
             fn call_fn<'p, 'i>(
@@ -391,7 +394,7 @@ macro_rules! stateless_operator {
 
 define_operator!(MapOperator);
 new_operator!(MapOperator);
-stateless_operator!(MapOperator);
+stateless_operator_impl!(MapOperator);
 
 define_operator!(FlatMapOperator);
 new_operator!(FlatMapOperator);
@@ -419,7 +422,7 @@ mod tests {
         filter, flat_map, key_by, mapper, operator_info::Details, reducer, OperatorInfo,
     };
 
-    fn get_opeartor_code(op_info: &OperatorInfo) -> String {
+    fn get_opeartor_udf(op_info: &OperatorInfo) -> String {
         match op_info.details.as_ref() {
             Some(info) => match info {
                 Details::Mapper(func) => match &func.value {
@@ -637,7 +640,7 @@ mod tests {
         let isolate = &mut v8::Isolate::new(Default::default());
         let isolated_scope = &mut v8::HandleScope::new(isolate);
         let rt_engine = RefCell::new(RuntimeEngine::new(
-            &get_opeartor_code(&op_info),
+            &get_opeartor_udf(&op_info),
             &get_function_name(&op_info),
             isolated_scope,
         ));

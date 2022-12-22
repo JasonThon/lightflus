@@ -1,8 +1,9 @@
-use crate::dataflow::DataflowTask;
+use crate::dataflow::Execution;
 use crate::err::{ErrorKind::RemoteSinkFailed, SinkException};
-use crate::state::new_state_mgt;
+use crate::state::{new_state_mgt, StateManager};
 use crate::v8_runtime::RuntimeEngine;
-use crate::{EventReceiver, EventSender, DEFAULT_CHANNEL_SIZE};
+use crate::window::{KeyedWindow, WindowAssignerImpl};
+use crate::{new_event_channel, EventReceiver, EventSender, DEFAULT_CHANNEL_SIZE};
 
 use async_trait::async_trait;
 use common::collections::lang;
@@ -21,13 +22,14 @@ use proto::common::{Entry, KeyedDataEvent};
 use proto::common::{HostAddr, ResourceId};
 use proto::worker::task_worker_api_client::TaskWorkerApiClient;
 use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
+use tokio::sync::mpsc::error::TryRecvError;
+use tokio::sync::Mutex;
 
-use std::collections::BTreeMap;
-use std::rc::Rc;
+use std::collections::{BTreeMap, VecDeque};
 
 use rayon::prelude::*;
 use std::sync::Arc;
-use std::time::SystemTime;
+use std::time::{Duration, SystemTime};
 use std::vec;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -93,7 +95,7 @@ impl DataflowContext {
         let mut executors = vec![];
 
         self.meta.iter().for_each(|meta| {
-            executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+            executors.push(ExecutorImpl::with_source_and_sink_config(
                 &self.job_id,
                 meta.center as ExecutorId,
                 source_sink_manager.get_sinks_by_ids(meta.neighbors.clone()),
@@ -101,7 +103,7 @@ impl DataflowContext {
                     .get_source_by_id(meta.center.clone())
                     .unwrap(),
                 self.nodes.get(&meta.center).unwrap().clone(),
-            )));
+            ));
 
             meta.neighbors.iter().for_each(|id| {
                 if !meta_map.contains_key(id) {
@@ -109,13 +111,13 @@ impl DataflowContext {
                         .get(id)
                         .map(|slice| (*slice).to_vec())
                         .unwrap_or(vec![]);
-                    executors.push(ExecutorImpl::Local(LocalExecutor::with_source_and_sink(
+                    executors.push(ExecutorImpl::with_source_and_sink_config(
                         &self.job_id,
                         *id as ExecutorId,
                         source_sink_manager.get_sinks_by_ids(neighbors),
                         source_sink_manager.get_source_by_id(*id).unwrap(),
                         self.nodes.get(id).unwrap().clone(),
-                    )))
+                    ))
                 }
             })
         });
@@ -127,13 +129,13 @@ impl DataflowContext {
     }
 }
 
+#[async_trait]
 pub trait Executor {
-    fn run(&mut self);
+    async fn run(self);
     fn as_sinkable(&self) -> SinkImpl;
     fn close(&mut self);
 }
 
-#[derive(Clone)]
 pub struct LocalExecutor {
     pub job_id: ResourceId,
     pub executor_id: ExecutorId,
@@ -159,52 +161,60 @@ impl LocalExecutor {
             sinks,
         }
     }
+
+    fn process_single_event<'s, 'i, S: StateManager>(
+        &self,
+        task: &Execution<'s, 'i, S>,
+        event: &KeyedDataEvent,
+    ) {
+        use LocalEvent::KeyedDataStreamEvent;
+        use SinkableMessageImpl::LocalMessage;
+        if self.operator.has_source() || self.operator.has_sink() {
+            self.sinks.par_iter().for_each(|sink| {
+                let _ = futures_executor::block_on(sink.sink(LocalMessage(
+                    LocalEvent::KeyedDataStreamEvent(event.clone()),
+                )));
+            });
+        } else {
+            match task.process(event) {
+                Ok(results) => results.iter().for_each(|event| {
+                    let after_process = KeyedDataStreamEvent(event.clone());
+                    self.sinks.par_iter().for_each(|sink| {
+                        let result = futures_executor::block_on(
+                            sink.sink(LocalMessage(after_process.clone())),
+                        );
+                        match result {
+                            Ok(_) => {}
+                            Err(err) => {
+                                tracing::error!("sink to node {} failed: {:?}", sink.sink_id(), err)
+                            }
+                        }
+                    });
+                }),
+                Err(err) => {
+                    tracing::error!("process msg failed: {:?}", err);
+                    // TODO fault tolerance
+                }
+            }
+        }
+    }
 }
 
+#[async_trait]
 impl Executor for LocalExecutor {
-    fn run(&mut self) {
+    async fn run(mut self) {
         use LocalEvent::KeyedDataStreamEvent;
         use SinkableMessageImpl::LocalMessage;
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
-        let task = DataflowTask::new(&self.operator, new_state_mgt(&self.job_id), scope);
+        let task = Execution::new(&self.operator, new_state_mgt(&self.job_id), scope);
         loop {
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
                     LocalMessage(message) => match message {
-                        KeyedDataStreamEvent(e) => {
-                            if self.operator.has_source() || self.operator.has_sink() {
-                                self.sinks.par_iter().for_each(|sink| {
-                                    let _ = futures_executor::block_on(sink.sink(msg.clone()));
-                                });
-                            } else {
-                                match task.process(e) {
-                                    Ok(results) => results.iter().for_each(|event| {
-                                        let after_process = KeyedDataStreamEvent(event.clone());
-                                        self.sinks.par_iter().for_each(|sink| {
-                                            let result = futures_executor::block_on(
-                                                sink.sink(LocalMessage(after_process.clone())),
-                                            );
-                                            match result {
-                                                Ok(_) => {}
-                                                Err(err) => tracing::error!(
-                                                    "sink to node {} failed: {:?}",
-                                                    sink.sink_id(),
-                                                    err
-                                                ),
-                                            }
-                                        });
-                                    }),
-                                    Err(err) => {
-                                        tracing::error!("process msg failed: {:?}", err);
-                                        // TODO fault tolerance
-                                    }
-                                }
-                            }
-                        }
+                        KeyedDataStreamEvent(e) => self.process_single_event(&task, e),
                         LocalEvent::Terminate { job_id, to } => {
                             tracing::info!("stopping {:?} at node id {}", job_id, to);
-
                             // gracefully close
                             self.close();
                             return;
@@ -232,41 +242,165 @@ impl Executor for LocalExecutor {
     }
 }
 
-#[derive(Clone)]
-pub enum ExecutorImpl {
-    Local(LocalExecutor),
+pub struct WindowExecutor {
+    pub job_id: ResourceId,
+    source: SourceImpl,
+    executor_id: ExecutorId,
+    sinks: Vec<SinkImpl>,
+    assigner: WindowAssignerImpl,
+    windows: VecDeque<KeyedWindow>,
 }
 
-unsafe impl Send for ExecutorImpl {}
+impl WindowExecutor {
+    fn with_source_and_sink(
+        job_id: &ResourceId,
+        executor_id: u32,
+        sinks: Vec<SinkImpl>,
+        source: SourceImpl,
+        operator: OperatorInfo,
+    ) -> Self {
+        let assigner = WindowAssignerImpl::new(&operator);
+
+        Self {
+            job_id: job_id.clone(),
+            source,
+            executor_id,
+            sinks,
+            assigner,
+            windows: Default::default(),
+        }
+    }
+}
+
+#[async_trait]
+impl Executor for WindowExecutor {
+    async fn run(mut self) {
+        loop {
+            tokio::select! {
+                biased;
+                _ = self.assigner.trigger() => {
+                    let merged_windows = self.assigner.group_by_key_and_window(&mut self.windows);
+                    self.windows.clear();
+                    merged_windows.into_iter().for_each(|mut keyed_window| {
+                        let event = keyed_window.as_event();
+                        self.sinks.par_iter().for_each(|sink| {
+                            match futures_executor::block_on(sink.sink(SinkableMessageImpl::LocalMessage(
+                                LocalEvent::KeyedDataStreamEvent(event.clone()),
+                            ))) {
+                                Ok(_) => {}
+                                Err(err) => tracing::error!("sink message failed: {:?}", err),
+                            }
+                        })
+                    });
+                },
+
+                Some(msg) = self.source.async_fetch_msg() => {
+                match msg {
+                    SinkableMessageImpl::LocalMessage(event) => match event {
+                        LocalEvent::Terminate { .. } => {
+                            self.close();
+                            return
+                        },
+                        LocalEvent::KeyedDataStreamEvent(keyed_event) => {
+                            let windows = self.assigner.assign_windows(keyed_event);
+                            self.windows.append(&mut VecDeque::from(windows));
+                        },
+                    },
+                }
+               },
+            }
+        }
+    }
+
+    fn as_sinkable(&self) -> SinkImpl {
+        SinkImpl::Local(LocalSink {
+            sender: self.source.create_msg_sender(),
+            sink_id: self.executor_id as u32,
+        })
+    }
+
+    fn close(&mut self) {
+        self.job_id.clear();
+        drop(self.executor_id);
+        self.sinks.iter_mut().for_each(|sink| sink.close_sink());
+        self.sinks.clear();
+        self.source.close()
+    }
+}
+
+pub enum ExecutorImpl {
+    Local(LocalExecutor),
+    Window(WindowExecutor),
+}
+
 unsafe impl Sync for ExecutorImpl {}
+unsafe impl Send for ExecutorImpl {}
 
 impl ExecutorImpl {
-    pub fn run(self) {
+    pub fn run(self) -> tokio::task::JoinHandle<()> {
         match self {
-            ExecutorImpl::Local(mut exec) => exec.run(),
+            Self::Local(exec) => tokio::spawn(exec.run()),
+            Self::Window(exec) => tokio::spawn(exec.run()),
         }
     }
 
     pub fn as_sinkable(&self) -> SinkImpl {
         match self {
             ExecutorImpl::Local(exec) => exec.as_sinkable(),
+            ExecutorImpl::Window(exec) => exec.as_sinkable(),
+        }
+    }
+
+    pub fn with_source_and_sink_config(
+        job_id: &ResourceId,
+        executor_id: ExecutorId,
+        sinks: Vec<SinkImpl>,
+        source: SourceImpl,
+        operator: OperatorInfo,
+    ) -> Self {
+        if operator.has_window() {
+            Self::Window(WindowExecutor::with_source_and_sink(
+                job_id,
+                executor_id,
+                sinks,
+                source,
+                operator,
+            ))
+        } else {
+            Self::Local(LocalExecutor::with_source_and_sink(
+                job_id,
+                executor_id,
+                sinks,
+                source,
+                operator,
+            ))
         }
     }
 }
 
-/*
-Source Interface. Each Source should implement it
- */
+/// The interface for developing a source.
+/// The basic [`Source`] is a stateless [`LocalSource`] that can flush data on checkpoint to achieve at-least-once consistency
+#[async_trait]
 pub trait Source {
     /**
      * Fetch next message
      * It may block currrent thread
      */
     fn fetch_msg(&mut self) -> Option<SinkableMessageImpl>;
+
+    /// source id of the Source
     fn source_id(&self) -> SourceId;
+
+    /// gracefully close this source
     fn close_source(&mut self);
+
+    /**
+     * fetch next message asynchronously
+     */
+    async fn async_fetch_msg(&mut self) -> Option<SinkableMessageImpl>;
 }
 
+/// Create and manager all sources and sinks for a Dataflow
 pub struct SourceSinkManger {
     job_id: ResourceId,
     sources: BTreeMap<SourceId, SourceImpl>,
@@ -296,8 +430,8 @@ impl SourceSinkManger {
         let channel_size = get_env("CHANNEL_SIZE")
             .and_then(|size| size.parse::<usize>().ok())
             .unwrap_or(DEFAULT_CHANNEL_SIZE);
-        let (tx, rx) = tokio::sync::mpsc::channel(channel_size);
-        let recv = Rc::new(rx);
+        let (tx, rx) = new_event_channel(channel_size);
+        let recv = Arc::new(Mutex::new(rx));
         let source = LocalSource {
             recv,
             source_id: executor_id.clone(),
@@ -341,13 +475,13 @@ impl SourceSinkManger {
             .iter()
             .for_each(|desc| match desc {
                 source::Desc::Kafka(conf) => {
-                    let (tx, rx) = tokio::sync::mpsc::channel(1);
+                    let (tx, rx) = new_event_channel(1);
                     self.sources.insert(
                         *executor_id,
                         SourceImpl::Kafka(
                             Kafka::with_source_config(&self.job_id, *executor_id, conf),
                             tx,
-                            Rc::new(rx),
+                            Arc::new(Mutex::new(rx)),
                         ),
                     );
                 }
@@ -381,10 +515,10 @@ impl SourceSinkManger {
     }
 
     fn create_empty_source(&mut self, executor_id: &u32) {
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let (tx, rx) = new_event_channel(1);
         self.sources.insert(
             *executor_id,
-            SourceImpl::Empty(*executor_id, tx, Rc::new(rx)),
+            SourceImpl::Empty(*executor_id, tx, Arc::new(Mutex::new(rx))),
         );
     }
 
@@ -407,13 +541,28 @@ impl SourceSinkManger {
 #[async_trait]
 pub trait Sink {
     fn sink_id(&self) -> SinkId;
+
+    /**
+     * In streaming processing, sink should support three kinds of delivery guarantee:
+     * 1. AT-LEAST-ONCE
+     * 2. EXACTLY-ONCE
+     * 3. NONE
+     * However, if we want to make sure EXACTLY-ONCE or AT-LEAST-ONCE delivery, fault tolerance is essential.
+     * In 1.0 release version, we will support checkpoint for fault tolerance and users can choose which guarantee they want Lightflus to satisfy.
+     */
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
     ) -> Result<DispatchDataEventStatusEnum, SinkException>;
+
+    /**
+     * Gracefully close sink
+     */
     fn close_sink(&mut self);
 }
 
+/// [`LocalSink`] supports transfer data between two operators in one host node.
+/// In 1.0 verision, we will introduce barrier machenism and state snapshot to support checkpoint
 #[derive(Clone)]
 pub struct LocalSink {
     pub(crate) sender: EventSender<SinkableMessageImpl>,
@@ -446,6 +595,7 @@ impl Sink for LocalSink {
     }
 }
 
+/// [`RemoteSink`] communicates with remote worker nodes for transferring data between two hosts.
 #[derive(Clone)]
 pub struct RemoteSink {
     pub(crate) sink_id: SinkId,
@@ -523,14 +673,15 @@ impl Sink for RemoteSink {
 
 #[derive(Clone)]
 pub struct LocalSource {
-    pub(crate) recv: Rc<EventReceiver<SinkableMessageImpl>>,
+    pub(crate) recv: Arc<Mutex<EventReceiver<SinkableMessageImpl>>>,
     pub(crate) source_id: SourceId,
     tx: EventSender<SinkableMessageImpl>,
 }
 
+#[async_trait]
 impl Source for LocalSource {
     fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
-        Rc::get_mut(&mut self.recv).and_then(|recv| futures_executor::block_on(recv.recv()))
+        futures_executor::block_on(self.async_fetch_msg())
     }
 
     fn source_id(&self) -> SourceId {
@@ -538,11 +689,15 @@ impl Source for LocalSource {
     }
 
     fn close_source(&mut self) {
-        Rc::get_mut(&mut self.recv)
-            .iter_mut()
-            .for_each(|recv| recv.close());
-        futures_executor::block_on(self.tx.closed());
+        futures_executor::block_on(async {
+            self.recv.lock().await.close();
+            self.tx.closed().await
+        });
         drop(self.source_id)
+    }
+
+    async fn async_fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
+        self.recv.lock().await.recv().await
     }
 }
 
@@ -558,64 +713,66 @@ pub enum SourceImpl {
     Kafka(
         Kafka,
         EventSender<SinkableMessageImpl>,
-        Rc<EventReceiver<SinkableMessageImpl>>,
+        Arc<Mutex<EventReceiver<SinkableMessageImpl>>>,
     ),
     Empty(
         SourceId,
         EventSender<SinkableMessageImpl>,
-        Rc<EventReceiver<SinkableMessageImpl>>,
+        Arc<Mutex<EventReceiver<SinkableMessageImpl>>>,
     ),
 }
 
 impl SourceImpl {
     fn create_msg_sender(&self) -> EventSender<SinkableMessageImpl> {
         match self {
-            SourceImpl::Local(source) => source.create_msg_sender(),
-            SourceImpl::Kafka(.., terminator_tx, _) => terminator_tx.clone(),
-            SourceImpl::Empty(.., terminator_tx, _) => terminator_tx.clone(),
+            Self::Local(source) => source.create_msg_sender(),
+            Self::Kafka(.., terminator_tx, _) => terminator_tx.clone(),
+            Self::Empty(.., terminator_tx, _) => terminator_tx.clone(),
         }
     }
 
     fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
+        futures_executor::block_on(self.async_fetch_msg())
+    }
+
+    async fn async_fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
         match self {
-            SourceImpl::Local(source) => source.fetch_msg(),
-            SourceImpl::Kafka(source, _, terminator_rx) => Rc::get_mut(terminator_rx)
-                // should not block thread
-                .and_then(|rx| match rx.try_recv() {
+            Self::Local(source) => source.async_fetch_msg().await,
+            Self::Kafka(source, _, terminator_rx) => {
+                match terminator_rx.lock().await.try_recv() {
                     Ok(message) => Some(message),
                     Err(err) => match err {
                         // if channel has been close, it will terminate all actors
-                        tokio::sync::mpsc::error::TryRecvError::Disconnected => {
+                        TryRecvError::Disconnected => {
                             Some(SinkableMessageImpl::LocalMessage(LocalEvent::Terminate {
                                 job_id: source.job_id.clone(),
                                 to: source.source_id(),
                             }))
                         }
-                        _ => None,
+                        _ => source.async_fetch_msg().await,
                     },
-                })
-                // if there's no terminate signal, go on
-                .or_else(|| source.fetch_msg()),
-            SourceImpl::Empty(.., terminator_rx) => match Rc::get_mut(terminator_rx) {
-                // block until receive terminate signal
-                Some(rx) => futures_executor::block_on(rx.recv()),
-                None => None,
-            },
+                }
+            }
+            Self::Empty(.., terminator_rx) => terminator_rx.lock().await.recv().await,
         }
     }
 
     fn close(&mut self) {
         match self {
-            SourceImpl::Local(source) => source.close_source(),
-            SourceImpl::Kafka(kafka, tx, rx) => {
+            Self::Local(source) => source.close_source(),
+            Self::Kafka(kafka, tx, rx) => {
                 kafka.close_source();
-                Rc::get_mut(rx).iter_mut().for_each(|recv| recv.close());
-                futures_executor::block_on(tx.closed());
+                futures_executor::block_on(async {
+                    rx.lock().await.close();
+                    tx.closed().await;
+                });
             }
-            SourceImpl::Empty(id, tx, rx) => {
+            Self::Empty(id, tx, rx) => {
                 drop(id);
-                Rc::get_mut(rx).iter_mut().for_each(|recv| recv.close());
-                futures_executor::block_on(tx.closed());
+                futures_executor::block_on(async {
+                    rx.lock().await.close();
+                    tx.closed().await;
+                });
             }
         }
     }
@@ -635,12 +792,12 @@ pub enum SinkImpl {
 impl Sink for SinkImpl {
     fn sink_id(&self) -> SinkId {
         match self {
-            SinkImpl::Local(sink) => sink.sink_id(),
-            SinkImpl::Remote(sink) => sink.sink_id(),
-            SinkImpl::Kafka(kafka) => kafka.sink_id(),
-            SinkImpl::Mysql(mysql) => mysql.sink_id(),
-            SinkImpl::Empty(sink_id) => *sink_id,
-            SinkImpl::Redis(redis) => redis.sink_id(),
+            Self::Local(sink) => sink.sink_id(),
+            Self::Remote(sink) => sink.sink_id(),
+            Self::Kafka(kafka) => kafka.sink_id(),
+            Self::Mysql(mysql) => mysql.sink_id(),
+            Self::Empty(sink_id) => *sink_id,
+            Self::Redis(redis) => redis.sink_id(),
         }
     }
 
@@ -649,27 +806,28 @@ impl Sink for SinkImpl {
         msg: SinkableMessageImpl,
     ) -> Result<DispatchDataEventStatusEnum, SinkException> {
         match self {
-            SinkImpl::Local(sink) => sink.sink(msg).await,
-            SinkImpl::Remote(sink) => sink.sink(msg).await,
-            SinkImpl::Kafka(sink) => sink.sink(msg).await,
-            SinkImpl::Mysql(sink) => sink.sink(msg).await,
-            SinkImpl::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
-            SinkImpl::Redis(redis) => redis.sink(msg).await,
+            Self::Local(sink) => sink.sink(msg).await,
+            Self::Remote(sink) => sink.sink(msg).await,
+            Self::Kafka(sink) => sink.sink(msg).await,
+            Self::Mysql(sink) => sink.sink(msg).await,
+            Self::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
+            Self::Redis(redis) => redis.sink(msg).await,
         }
     }
 
     fn close_sink(&mut self) {
         match self {
-            SinkImpl::Local(sink) => sink.close_sink(),
-            SinkImpl::Remote(sink) => sink.close_sink(),
-            SinkImpl::Kafka(sink) => sink.close_sink(),
-            SinkImpl::Mysql(sink) => sink.close_sink(),
-            SinkImpl::Redis(sink) => sink.close_sink(),
-            SinkImpl::Empty(id) => drop(id),
+            Self::Local(sink) => sink.close_sink(),
+            Self::Remote(sink) => sink.close_sink(),
+            Self::Kafka(sink) => sink.close_sink(),
+            Self::Mysql(sink) => sink.close_sink(),
+            Self::Redis(sink) => sink.close_sink(),
+            Self::Empty(id) => drop(id),
         }
     }
 }
 
+/// An unified implementation for Kafka Source and Sink.
 #[derive(Clone)]
 pub struct Kafka {
     connector_id: SourceId,
@@ -746,7 +904,6 @@ impl Kafka {
         let payload = message.payload.as_slice();
         let key = TypedValue::from_vec(&message.key);
         let val = TypedValue::from_slice_with_type(payload, data_type);
-        let datetime = chrono::DateTime::<chrono::Utc>::from(SystemTime::now());
 
         let result =
             SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
@@ -760,10 +917,19 @@ impl Kafka {
                     data_type: self.conf.data_type() as i32,
                     value: val.get_data(),
                 }],
-                event_time: Some(Timestamp {
-                    seconds: datetime.naive_utc().timestamp(),
-                    nanos: datetime.naive_utc().timestamp_subsec_nanos() as i32,
-                }),
+
+                event_time: message
+                    .timestamp
+                    .map(|millis| Duration::from_millis(millis as u64))
+                    .and_then(|duration| {
+                        SystemTime::UNIX_EPOCH
+                            .checked_add(duration)
+                            .map(|time| chrono::DateTime::<chrono::Utc>::from(time))
+                    })
+                    .map(|time| Timestamp {
+                        seconds: time.naive_utc().timestamp(),
+                        nanos: time.naive_utc().timestamp_subsec_nanos() as i32,
+                    }),
                 process_time: None,
                 from_operator_id: self.connector_id,
                 window: None,
@@ -773,14 +939,10 @@ impl Kafka {
     }
 }
 
+#[async_trait]
 impl Source for Kafka {
     fn fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
-        match &self.consumer {
-            Some(consumer) => {
-                futures_executor::block_on(consumer.fetch(|message| self.process(message)))
-            }
-            None => None,
-        }
+        futures_executor::block_on(self.async_fetch_msg())
     }
 
     fn source_id(&self) -> SourceId {
@@ -796,9 +958,16 @@ impl Source for Kafka {
             drop(consumer)
         })
     }
+
+    async fn async_fetch_msg(&mut self) -> Option<SinkableMessageImpl> {
+        match &self.consumer {
+            Some(consumer) => consumer.fetch(|message| self.process(message)).await,
+            None => None,
+        }
+    }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl Sink for Kafka {
     fn sink_id(&self) -> SinkId {
         self.connector_id
@@ -841,6 +1010,7 @@ impl Sink for Kafka {
     }
 }
 
+/// An unified implementation for Mysql Source and Sink
 #[derive(Clone)]
 pub struct Mysql {
     connector_id: SinkId,
@@ -922,6 +1092,7 @@ impl Sink for Mysql {
     }
 }
 
+/// An unified implement for Redis Source and Sink
 #[derive(Clone)]
 pub struct Redis {
     connector_id: SinkId,
@@ -952,7 +1123,7 @@ impl Redis {
     }
 }
 
-#[async_trait]
+#[async_trait::async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
         self.connector_id
@@ -1013,15 +1184,25 @@ fn extract_arguments(
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
+    use std::sync::Arc;
 
-    use common::event::{LocalEvent, SinkableMessageImpl};
-    use proto::common::{
-        mysql_desc, operator_info::Details, redis_desc, sink, Entry, Func, KafkaDesc, MysqlDesc,
-        RedisDesc, ResourceId,
+    use common::{
+        event::{LocalEvent, SinkableMessageImpl},
+        utils::times::from_millis_to_utc_chrono,
     };
+    use prost_types::Timestamp;
+    use proto::common::{
+        keyed_data_event, mysql_desc, operator_info::Details, redis_desc, sink, trigger, window,
+        Entry, Func, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId,
+        Time, Trigger, Window,
+    };
+    use tokio::sync::Mutex;
 
-    use crate::actor::{Sink, SinkImpl, SourceImpl};
+    use crate::{
+        actor::{Sink, SinkImpl, SourceImpl},
+        new_event_channel,
+        window::KeyedWindow,
+    };
 
     struct SetupGuard {}
 
@@ -1177,11 +1358,11 @@ mod tests {
             opts: None,
             data_type: 6,
         };
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
+        let (tx, rx) = new_event_channel(1);
         let mut kafka_source = SourceImpl::Kafka(
             super::Kafka::with_source_config(&job_id, 0, &desc),
             tx.clone(),
-            Rc::new(rx),
+            Arc::new(Mutex::new(rx)),
         );
 
         let mut kafka_sink = SinkImpl::Kafka(super::Kafka::with_sink_config(&job_id, 0, &desc));
@@ -1201,9 +1382,8 @@ mod tests {
                     }
                 );
                 assert!(tx.is_closed());
-                assert!(Rc::get_mut(rx)
-                    .map(|recv| (*recv).try_recv().is_err())
-                    .unwrap_or_default())
+                let result = rx.lock().await.try_recv();
+                assert!(result.is_err())
             }
             _ => {}
         }
@@ -1287,9 +1467,9 @@ mod tests {
     #[tokio::test]
     async fn test_local_source_sink_close() {
         {
-            let (tx, rx) = tokio::sync::mpsc::channel(1);
+            let (tx, rx) = new_event_channel(1);
             let mut source = SourceImpl::Local(super::LocalSource {
-                recv: Rc::new(rx),
+                recv: Arc::new(Mutex::new(rx)),
                 source_id: 0,
                 tx: tx.clone(),
             });
@@ -1301,7 +1481,7 @@ mod tests {
         }
 
         {
-            let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+            let (tx, mut rx) = new_event_channel(10);
             let mut sink = SinkImpl::Local(super::LocalSink {
                 sender: tx,
                 sink_id: 0,
@@ -1317,5 +1497,284 @@ mod tests {
                 .await;
             assert!(result.is_err());
         }
+    }
+
+    #[tokio::test]
+    async fn test_actor_close() {
+        use std::time::Duration;
+
+        use common::event::{LocalEvent, SinkableMessageImpl};
+        use proto::common::{DataTypeEnum, KafkaDesc, OperatorInfo, ResourceId};
+        use stream::actor::{ExecutorImpl, Kafka, LocalExecutor, SinkImpl, SourceImpl};
+        let _ = setup_v8();
+        let job_id = ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "ns_id".to_string(),
+        };
+        let (tx, rx) = new_event_channel(1);
+        let innert_tx = tx.clone();
+        let source = SourceImpl::Empty(0, tx, Arc::new(Mutex::new(rx)));
+        let sinks = vec![SinkImpl::Kafka(Kafka::with_sink_config(
+            &job_id,
+            1,
+            &KafkaDesc {
+                brokers: vec!["localhost:9092".to_string()],
+                topic: "topic".to_string(),
+                opts: None,
+                data_type: DataTypeEnum::Object as i32,
+            },
+        ))];
+        let operator = OperatorInfo::default();
+        let executor = LocalExecutor::with_source_and_sink(&job_id, 0, sinks, source, operator);
+        let executor = ExecutorImpl::Local(executor);
+        let handler = tokio::spawn(async { executor.run() });
+        let result = innert_tx
+            .send(SinkableMessageImpl::LocalMessage(LocalEvent::Terminate {
+                job_id,
+                to: 0,
+            }))
+            .await;
+        assert!(result.is_ok());
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert!(handler.is_finished())
+    }
+
+    #[tokio::test]
+    async fn test_window_executor_run() {
+        let job_id = &ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "nsid".to_string(),
+        };
+        let (sender, mut rx) = new_event_channel(10);
+
+        let sink = SinkImpl::Local(super::LocalSink { sender, sink_id: 2 });
+
+        let (tx, recv) = new_event_channel(10);
+
+        let source = SourceImpl::Local(super::LocalSource {
+            recv: Arc::new(Mutex::new(recv)),
+            source_id: 0,
+            tx,
+        });
+
+        let tx = source.create_msg_sender();
+        let executor = super::ExecutorImpl::with_source_and_sink_config(
+            job_id,
+            1,
+            vec![sink],
+            source,
+            OperatorInfo {
+                operator_id: 1,
+                host_addr: None,
+                upstreams: vec![0],
+                details: Some(Details::Window(Window {
+                    trigger: Some(Trigger {
+                        value: Some(trigger::Value::Watermark(trigger::Watermark {
+                            trigger_time: Some(Time {
+                                millis: 350,
+                                seconds: 0,
+                                minutes: 0,
+                                hours: 0,
+                            }),
+                        })),
+                    }),
+                    value: Some(window::Value::Fixed(window::FixedWindow {
+                        size: Some(Time {
+                            millis: 300,
+                            seconds: 0,
+                            minutes: 0,
+                            hours: 0,
+                        }),
+                    })),
+                })),
+            },
+        );
+
+        let handler = executor.run();
+        let event_time_0 = chrono::Utc::now();
+        let r = tx
+            .send(SinkableMessageImpl::LocalMessage(
+                LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                    job_id: Some(job_id.clone()),
+                    key: None,
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![2],
+                    }],
+                    event_time: Some(Timestamp {
+                        seconds: event_time_0.timestamp(),
+                        nanos: event_time_0.timestamp_subsec_nanos() as i32,
+                    }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                }),
+            ))
+            .await;
+        assert!(r.is_ok());
+        let duration = std::time::Duration::from_millis(150);
+
+        tokio::time::sleep(duration).await;
+
+        let event_time_1 = chrono::Utc::now();
+        let r = tx
+            .send(SinkableMessageImpl::LocalMessage(
+                LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                    job_id: Some(job_id.clone()),
+                    key: None,
+                    to_operator_id: 1,
+                    data: vec![Entry {
+                        data_type: 1,
+                        value: vec![3],
+                    }],
+                    event_time: Some(Timestamp {
+                        seconds: event_time_1.timestamp(),
+                        nanos: event_time_1.timestamp_subsec_nanos() as i32,
+                    }),
+                    process_time: None,
+                    from_operator_id: 0,
+                    window: None,
+                }),
+            ))
+            .await;
+        assert!(r.is_ok());
+        let duration = std::time::Duration::from_millis(250);
+
+        tokio::time::sleep(duration).await;
+
+        let window_start =
+            KeyedWindow::get_window_start_with_offset(event_time_0.timestamp_millis(), 0, 300);
+        let window_start = from_millis_to_utc_chrono(window_start);
+        let window_start_1 =
+            KeyedWindow::get_window_start_with_offset(event_time_1.timestamp_millis(), 0, 300);
+        let window_start_1 = from_millis_to_utc_chrono(window_start_1);
+
+        if window_start == window_start_1 {
+            let message = rx.recv().await;
+            assert!(message.is_some());
+            let message = message.unwrap();
+
+            assert_eq!(
+                message,
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(
+                    KeyedDataEvent {
+                        job_id: Some(job_id.clone()),
+                        key: None,
+                        to_operator_id: 1,
+                        data: vec![
+                            Entry {
+                                data_type: 1,
+                                value: vec![3],
+                            },
+                            Entry {
+                                data_type: 1,
+                                value: vec![2],
+                            }
+                        ],
+                        event_time: window_start.as_ref().map(|event_time| Timestamp {
+                            seconds: event_time.timestamp(),
+                            nanos: event_time.timestamp_subsec_nanos() as i32,
+                        }),
+                        process_time: None,
+                        from_operator_id: 0,
+                        window: Some(keyed_data_event::Window {
+                            start_time: window_start.as_ref().map(|event_time| Timestamp {
+                                seconds: event_time.timestamp(),
+                                nanos: event_time.timestamp_subsec_nanos() as i32,
+                            }),
+                            end_time: window_start
+                                .as_ref()
+                                .and_then(|start| start
+                                    .checked_add_signed(chrono::Duration::milliseconds(300)))
+                                .map(|event_time| Timestamp {
+                                    seconds: event_time.timestamp(),
+                                    nanos: event_time.timestamp_subsec_nanos() as i32,
+                                })
+                        }),
+                    }
+                ))
+            );
+        } else {
+            let message = rx.recv().await;
+            assert!(message.is_some());
+            let message = message.unwrap();
+
+            assert_eq!(
+                message,
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(
+                    KeyedDataEvent {
+                        job_id: Some(job_id.clone()),
+                        key: None,
+                        to_operator_id: 1,
+                        data: vec![Entry {
+                            data_type: 1,
+                            value: vec![2],
+                        }],
+                        event_time: window_start.as_ref().map(|event_time| Timestamp {
+                            seconds: event_time.timestamp(),
+                            nanos: event_time.timestamp_subsec_nanos() as i32,
+                        }),
+                        process_time: None,
+                        from_operator_id: 0,
+                        window: Some(keyed_data_event::Window {
+                            start_time: window_start.as_ref().map(|event_time| Timestamp {
+                                seconds: event_time.timestamp(),
+                                nanos: event_time.timestamp_subsec_nanos() as i32,
+                            }),
+                            end_time: window_start
+                                .as_ref()
+                                .and_then(|start| start
+                                    .checked_add_signed(chrono::Duration::milliseconds(300)))
+                                .map(|event_time| Timestamp {
+                                    seconds: event_time.timestamp(),
+                                    nanos: event_time.timestamp_subsec_nanos() as i32,
+                                })
+                        }),
+                    }
+                ))
+            );
+
+            let message = rx.recv().await;
+            assert!(message.is_some());
+            let message = message.unwrap();
+
+            assert_eq!(
+                message,
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(
+                    KeyedDataEvent {
+                        job_id: Some(job_id.clone()),
+                        key: None,
+                        to_operator_id: 1,
+                        data: vec![Entry {
+                            data_type: 1,
+                            value: vec![3],
+                        }],
+                        event_time: window_start_1.as_ref().map(|event_time| Timestamp {
+                            seconds: event_time.timestamp(),
+                            nanos: event_time.timestamp_subsec_nanos() as i32,
+                        }),
+                        process_time: None,
+                        from_operator_id: 0,
+                        window: Some(keyed_data_event::Window {
+                            start_time: window_start_1.as_ref().map(|event_time| Timestamp {
+                                seconds: event_time.timestamp(),
+                                nanos: event_time.timestamp_subsec_nanos() as i32,
+                            }),
+                            end_time: window_start_1
+                                .as_ref()
+                                .and_then(|start| start
+                                    .checked_add_signed(chrono::Duration::milliseconds(300)))
+                                .map(|event_time| Timestamp {
+                                    seconds: event_time.timestamp(),
+                                    nanos: event_time.timestamp_subsec_nanos() as i32,
+                                })
+                        }),
+                    }
+                ))
+            );
+        }
+
+        handler.abort();
     }
 }

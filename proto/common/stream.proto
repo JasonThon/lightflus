@@ -31,7 +31,6 @@ message OperatorInfo {
     Reducer reducer = 10;
     FlatMap flat_map = 11;
     Window window = 12;
-    Trigger trigger = 13;
     //    Join join = 11;
   }
 }

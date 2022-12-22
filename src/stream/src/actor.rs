@@ -1645,84 +1645,135 @@ mod tests {
         let window_start =
             KeyedWindow::get_window_start_with_offset(event_time_0.timestamp_millis(), 0, 300);
         let window_start = from_millis_to_utc_chrono(window_start);
-
-        let message = rx.recv().await;
-        assert!(message.is_some());
-        let message = message.unwrap();
-
-        assert_eq!(
-            message,
-            SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                job_id: Some(job_id.clone()),
-                key: None,
-                to_operator_id: 1,
-                data: vec![Entry {
-                    data_type: 1,
-                    value: vec![2],
-                }],
-                event_time: window_start.as_ref().map(|event_time| Timestamp {
-                    seconds: event_time.timestamp(),
-                    nanos: event_time.timestamp_subsec_nanos() as i32,
-                }),
-                process_time: None,
-                from_operator_id: 0,
-                window: Some(keyed_data_event::Window {
-                    start_time: window_start.as_ref().map(|event_time| Timestamp {
-                        seconds: event_time.timestamp(),
-                        nanos: event_time.timestamp_subsec_nanos() as i32,
-                    }),
-                    end_time: window_start
-                        .as_ref()
-                        .and_then(
-                            |start| start.checked_add_signed(chrono::Duration::milliseconds(300))
-                        )
-                        .map(|event_time| Timestamp {
-                            seconds: event_time.timestamp(),
-                            nanos: event_time.timestamp_subsec_nanos() as i32,
-                        })
-                }),
-            }))
-        );
-        let message = rx.recv().await;
-        assert!(message.is_some());
-        let message = message.unwrap();
-        let window_start =
+        let window_start_1 =
             KeyedWindow::get_window_start_with_offset(event_time_1.timestamp_millis(), 0, 300);
-        let window_start = from_millis_to_utc_chrono(window_start);
+        let window_start_1 = from_millis_to_utc_chrono(window_start_1);
 
-        assert_eq!(
-            message,
-            SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                job_id: Some(job_id.clone()),
-                key: None,
-                to_operator_id: 1,
-                data: vec![Entry {
-                    data_type: 1,
-                    value: vec![3],
-                }],
-                event_time: window_start.as_ref().map(|event_time| Timestamp {
-                    seconds: event_time.timestamp(),
-                    nanos: event_time.timestamp_subsec_nanos() as i32,
-                }),
-                process_time: None,
-                from_operator_id: 0,
-                window: Some(keyed_data_event::Window {
-                    start_time: window_start.as_ref().map(|event_time| Timestamp {
-                        seconds: event_time.timestamp(),
-                        nanos: event_time.timestamp_subsec_nanos() as i32,
-                    }),
-                    end_time: window_start
-                        .as_ref()
-                        .and_then(
-                            |start| start.checked_add_signed(chrono::Duration::milliseconds(300))
-                        )
-                        .map(|event_time| Timestamp {
+        if window_start == window_start_1 {
+            let message = rx.recv().await;
+            assert!(message.is_some());
+            let message = message.unwrap();
+
+            assert_eq!(
+                message,
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(
+                    KeyedDataEvent {
+                        job_id: Some(job_id.clone()),
+                        key: None,
+                        to_operator_id: 1,
+                        data: vec![
+                            Entry {
+                                data_type: 1,
+                                value: vec![3],
+                            },
+                            Entry {
+                                data_type: 1,
+                                value: vec![2],
+                            }
+                        ],
+                        event_time: window_start.as_ref().map(|event_time| Timestamp {
                             seconds: event_time.timestamp(),
                             nanos: event_time.timestamp_subsec_nanos() as i32,
-                        })
-                }),
-            }))
-        );
+                        }),
+                        process_time: None,
+                        from_operator_id: 0,
+                        window: Some(keyed_data_event::Window {
+                            start_time: window_start.as_ref().map(|event_time| Timestamp {
+                                seconds: event_time.timestamp(),
+                                nanos: event_time.timestamp_subsec_nanos() as i32,
+                            }),
+                            end_time: window_start
+                                .as_ref()
+                                .and_then(|start| start
+                                    .checked_add_signed(chrono::Duration::milliseconds(300)))
+                                .map(|event_time| Timestamp {
+                                    seconds: event_time.timestamp(),
+                                    nanos: event_time.timestamp_subsec_nanos() as i32,
+                                })
+                        }),
+                    }
+                ))
+            );
+        } else {
+            let message = rx.recv().await;
+            assert!(message.is_some());
+            let message = message.unwrap();
+
+            assert_eq!(
+                message,
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(
+                    KeyedDataEvent {
+                        job_id: Some(job_id.clone()),
+                        key: None,
+                        to_operator_id: 1,
+                        data: vec![Entry {
+                            data_type: 1,
+                            value: vec![2],
+                        }],
+                        event_time: window_start.as_ref().map(|event_time| Timestamp {
+                            seconds: event_time.timestamp(),
+                            nanos: event_time.timestamp_subsec_nanos() as i32,
+                        }),
+                        process_time: None,
+                        from_operator_id: 0,
+                        window: Some(keyed_data_event::Window {
+                            start_time: window_start.as_ref().map(|event_time| Timestamp {
+                                seconds: event_time.timestamp(),
+                                nanos: event_time.timestamp_subsec_nanos() as i32,
+                            }),
+                            end_time: window_start
+                                .as_ref()
+                                .and_then(|start| start
+                                    .checked_add_signed(chrono::Duration::milliseconds(300)))
+                                .map(|event_time| Timestamp {
+                                    seconds: event_time.timestamp(),
+                                    nanos: event_time.timestamp_subsec_nanos() as i32,
+                                })
+                        }),
+                    }
+                ))
+            );
+
+            let message = rx.recv().await;
+            assert!(message.is_some());
+            let message = message.unwrap();
+
+            assert_eq!(
+                message,
+                SinkableMessageImpl::LocalMessage(LocalEvent::KeyedDataStreamEvent(
+                    KeyedDataEvent {
+                        job_id: Some(job_id.clone()),
+                        key: None,
+                        to_operator_id: 1,
+                        data: vec![Entry {
+                            data_type: 1,
+                            value: vec![3],
+                        }],
+                        event_time: window_start_1.as_ref().map(|event_time| Timestamp {
+                            seconds: event_time.timestamp(),
+                            nanos: event_time.timestamp_subsec_nanos() as i32,
+                        }),
+                        process_time: None,
+                        from_operator_id: 0,
+                        window: Some(keyed_data_event::Window {
+                            start_time: window_start_1.as_ref().map(|event_time| Timestamp {
+                                seconds: event_time.timestamp(),
+                                nanos: event_time.timestamp_subsec_nanos() as i32,
+                            }),
+                            end_time: window_start_1
+                                .as_ref()
+                                .and_then(|start| start
+                                    .checked_add_signed(chrono::Duration::milliseconds(300)))
+                                .map(|event_time| Timestamp {
+                                    seconds: event_time.timestamp(),
+                                    nanos: event_time.timestamp_subsec_nanos() as i32,
+                                })
+                        }),
+                    }
+                ))
+            );
+        }
+
         handler.abort();
     }
 }

@@ -16,12 +16,20 @@
 
 2. Your feedback is very important and we will take very serious to any of your advice!
 
-
-## Scenarios for Lightflus
-
-1. Large-scale real-time computation;
-2. CDC (Change Data Capture);
-3. Real-Time Data Pipeline Integration;
+## Features
+* [x] `flatMap` operator;
+* [x] `map` operator;
+* [x] `reduce` operator;
+* [x] `keyBy` operator;
+* [x] `filter` operator;
+* [x] `kafka` source and sink;
+* [x] `mysql` sink;
+* [x] `redis` sink;
+* [ ] `event-time window` support; 
+* [ ] `join` operator;
+* [ ] checkpoint support;
+* [ ] `elasticsearch` sink;
+* [ ] `backpressure` metric;
 
 
 ## Design Philosophy
@@ -37,17 +45,12 @@ Lightflus is powered by [Deno](https://github.com/denoland/deno) and implemented
 
 ### References
 
-Lightflus is mainly based on Google's Paper [The Dataflow Model: A Practical Approach to Balancing Correctness, Latency, and Cost in Massive-Scale, Unbounded, Out-of-Order Data Processing](https://research.google/pubs/pub43864/) and refer to [Streaming System](https://www.oreilly.com/library/view/streaming-systems/9781491983867/). Some other papers in the field of streaming system are also our important source of references. 
+Lightflus mainly refers to Google's Paper [The Dataflow Model: A Practical Approach to Balancing Correctness, Latency, and Cost in Massive-Scale, Unbounded, Out-of-Order Data Processing](https://research.google/pubs/pub43864/) and [Streaming System](https://www.oreilly.com/library/view/streaming-systems/9781491983867/). Some other papers in the field of streaming system are also our important source of references. 
 
 
 ## Document
 You can read the [document](https://humorous-bream-e48.notion.site/Lightflus-Document-217eedc73610413ba2a4f0c374d66c77) for more details about Lightflus;
 
-## Roadmap
-
-We use Jira to manage the development progress of Lightflus;
-
-You can get the Roadmap in this [Jira Dashboard](https://lightflus.atlassian.net/jira/software/c/projects/LIG/boards/1/roadmap?shared=&atlOrigin=eyJpIjoiOWJhOTRiOGNkZTBlNDY5OWFkZWU4ZGQxYjRkYTg3MTkiLCJwIjoiaiJ9)
 
 ## Community
 
@@ -129,11 +132,11 @@ async function wordCount(ctx: ExecutionContext) {
     let source = Kafka
         .builder()
         .brokers(["kafka:9092"])
-        // 消费的 topic 为 topic
+        // topic
         .topic("topic_2")
-        // groupId 为 word_count
+        // groupId
         .group("word_count")
-        // 反序列化的类型
+        // deserialization type
         .build<string>(undefined, typeof "");
 
     // It will persist the counting values in Redis

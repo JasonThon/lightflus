@@ -16,21 +16,6 @@
 
 2. Your feedback is very important and we will take very serious to any of your advice!
 
-## Features
-* [x] `flatMap` operator;
-* [x] `map` operator;
-* [x] `reduce` operator;
-* [x] `keyBy` operator;
-* [x] `filter` operator;
-* [x] `kafka` source and sink;
-* [x] `mysql` sink;
-* [x] `redis` sink;
-* [x] `event-time window` support; 
-* [ ] `join` operator;
-* [ ] checkpoint support;
-* [ ] `elasticsearch` sink;
-* [ ] `backpressure` metric;
-
 
 ## Design Philosophy
 

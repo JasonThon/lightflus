@@ -428,7 +428,7 @@ impl TriggerImpl {
 
     async fn emit(&mut self) {
         match self {
-            TriggerImpl::Watermark { timer, .. } => {
+            Self::Watermark { timer, .. } => {
                 timer.reset();
                 let instant = timer.tick().await.into_std();
                 tracing::info!("watermark trigger emit at {:?}", &instant);

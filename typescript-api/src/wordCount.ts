@@ -31,6 +31,14 @@ async function wordCount(ctx: ExecutionContext) {
         size: {
           seconds: 3
         }
+      },
+      trigger: {
+        watermark: {
+          triggerTime: {
+            seconds: 3,
+            millis: 100
+          }
+        }
       }
     })
     .reduce((v1, v2) => {

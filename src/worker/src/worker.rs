@@ -61,12 +61,12 @@ impl TaskWorker {
 
     pub async fn send_event_to_operator(
         &self,
-        events: &KeyedDataEvent,
+        event: &KeyedDataEvent,
     ) -> Result<SendEventToOperatorStatusEnum, TaskWorkerError> {
         let managers = self.cache.read().await;
-        match managers.get(&events.get_job_id().into()) {
+        match managers.get(&event.get_job_id().into()) {
             Some(manager) => manager
-                .send_event_to_operator(events)
+                .send_event_to_operator(event)
                 .await
                 .map_err(|err| err.into_task_worker_error()),
             None => todo!(),

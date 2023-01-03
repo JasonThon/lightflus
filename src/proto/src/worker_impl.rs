@@ -20,22 +20,21 @@ impl TaskWorkerApiClient<tonic::transport::Channel> {
     }
 
     /// Try to connect to remote task worker with connection timeout
-    pub async fn connect_with_timeout<D>(dst: D, timeout: Duration) -> Result<Self, ConnectionError>
+    pub async fn connect_with_timeout<D>(
+        dst: D,
+        timeout: Duration,
+    ) -> Result<Self, tonic::transport::Error>
     where
         D: TryInto<tonic::transport::Endpoint>,
         D::Error: Into<StdError>,
     {
         match tonic::transport::Endpoint::new(dst) {
-            Ok(endpoint) => match tokio::time::timeout(timeout, endpoint.connect()).await {
-                Ok(result) => result
-                    .map(|conn| Self::new(conn))
-                    .map_err(|err| ConnectionError::Transport(err)),
-                Err(err) => {
-                    tracing::error!("connect to remote task worker timeout. {}", err);
-                    Err(ConnectionError::Timeout)
-                }
-            },
-            Err(err) => Err(ConnectionError::Transport(err)),
+            Ok(endpoint) => endpoint
+                .connect_timeout(timeout)
+                .connect()
+                .await
+                .map(|channel| Self::new(channel)),
+            Err(err) => Err(err),
         }
     }
 }

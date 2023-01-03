@@ -616,7 +616,7 @@ impl Sink for RemoteSink {
     ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         match msg {
             SinkableMessageImpl::LocalMessage(event) => match event {
-                LocalEvent::Terminate { job_id, .. } => Ok(SendEventToOperatorStatusEnum::Done),
+                LocalEvent::Terminate { .. } => Ok(SendEventToOperatorStatusEnum::Done),
                 LocalEvent::KeyedDataStreamEvent(e) => self
                     .task_worker_gateway
                     .send_event_to_operator(e)

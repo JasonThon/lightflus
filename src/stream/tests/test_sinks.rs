@@ -17,7 +17,7 @@ use proto::{
         redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, MysqlDesc, RedisDesc,
         ResourceId,
     },
-    worker::DispatchDataEventStatusEnum,
+    worker::SendEventToOperatorStatusEnum,
 };
 use sqlx::Row;
 use stream::actor::{Kafka, Mysql, Redis, Sink, SinkImpl};
@@ -115,7 +115,7 @@ async fn test_kafka_sink() {
 
     assert!(result.is_ok());
     let status = result.unwrap();
-    assert_eq!(status, DispatchDataEventStatusEnum::Done);
+    assert_eq!(status, SendEventToOperatorStatusEnum::Done);
 
     fn processor(message: KafkaMessage) {
         let key = serde_json::from_slice::<serde_json::Value>(&message.key);
@@ -312,7 +312,7 @@ async fn test_mysql_sink() {
         ))
         .await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), DispatchDataEventStatusEnum::Done);
+    assert_eq!(result.unwrap(), SendEventToOperatorStatusEnum::Done);
 
     let result = conn
         .try_for_each(

@@ -10,27 +10,19 @@ option go_package = "lightflus/runtime/proto";
 
 service TaskWorkerApi {
   rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
-  rpc DispatchDataEvents(DispatchDataEventsRequest) returns (DispatchDataEventsResponse){}
-  rpc StopDataflow(StopDataflowRequest) returns (StopDataflowResponse) {}
+  rpc SendEventToOperator(common.KeyedDataEvent) returns (SendEventToOperatorResponse){}
+  rpc StopDataflow(common.ResourceId) returns (StopDataflowResponse) {}
   rpc CreateSubDataflow(CreateSubDataflowRequest) returns(CreateSubDataflowResponse) {}
 }
 
-message DispatchDataEventsRequest{
-  repeated common.KeyedDataEvent events = 1;
+message SendEventToOperatorResponse {
+  SendEventToOperatorStatusEnum status = 1;
 }
 
-message DispatchDataEventsResponse {
-  map<string, DispatchDataEventStatusEnum> statusSet = 1;
-}
-
-enum DispatchDataEventStatusEnum {
+enum SendEventToOperatorStatusEnum {
   DISPATCHING = 0;
   DONE = 1;
   FAILURE = 2;
-}
-
-message StopDataflowRequest {
-  common.ResourceId job_id = 1;
 }
 
 message StopDataflowResponse {

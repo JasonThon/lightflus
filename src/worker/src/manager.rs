@@ -1,15 +1,20 @@
 use common::event::LocalEvent;
 use common::event::SinkableMessageImpl;
-use common::types::SinkId;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
-use proto::worker::DispatchDataEventStatusEnum;
+use proto::worker::SendEventToOperatorStatusEnum;
 use rayon::prelude::*;
 use stream::actor::{DataflowContext, Sink, SinkImpl};
+use stream::err::SinkException;
 use tokio::task::JoinHandle;
+use tonic::async_trait;
 
+#[async_trait]
 pub trait ExecutorManager {
-    fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum;
+    async fn send_event_to_operator(
+        &self,
+        events: &KeyedDataEvent,
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException>;
     fn get_job_id(&self) -> ResourceId;
 }
 
@@ -20,21 +25,25 @@ pub enum ExecutorManagerImpl {
 impl Drop for ExecutorManagerImpl {
     fn drop(&mut self) {
         match self {
-            ExecutorManagerImpl::Local(manager) => drop(manager),
+            Self::Local(manager) => drop(manager),
         }
     }
 }
 
+#[async_trait]
 impl ExecutorManager for ExecutorManagerImpl {
-    fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
+    async fn send_event_to_operator(
+        &self,
+        events: &KeyedDataEvent,
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         match self {
-            ExecutorManagerImpl::Local(manager) => manager.dispatch_events(events),
+            Self::Local(manager) => manager.send_event_to_operator(events).await,
         }
     }
 
     fn get_job_id(&self) -> ResourceId {
         match self {
-            ExecutorManagerImpl::Local(manager) => manager.get_job_id(),
+            Self::Local(manager) => manager.get_job_id(),
         }
     }
 }
@@ -81,48 +90,26 @@ impl Drop for LocalExecutorManager {
     }
 }
 
+#[async_trait]
 impl ExecutorManager for LocalExecutorManager {
-    fn dispatch_events(&self, events: &Vec<KeyedDataEvent>) -> DispatchDataEventStatusEnum {
-        // only one sink will be dispatched
-        let local_events = events
-            .par_iter()
-            .map(|e| LocalEvent::KeyedDataStreamEvent(e.clone()));
-
-        events
+    async fn send_event_to_operator(
+        &self,
+        event: &KeyedDataEvent,
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
+        match self
+            .inner_sinks
             .iter()
+            .filter(|sink| sink.sink_id() == event.to_operator_id)
             .next()
-            .map(|e| e.to_operator_id as SinkId)
-            .map(|sink_id| {
-                self.inner_sinks
-                    .iter()
-                    .filter(|sink| sink.sink_id() == sink_id)
-                    .next()
-                    .map(|sink| {
-                        local_events
-                            .map(|e| {
-                                futures_executor::block_on(
-                                    sink.sink(SinkableMessageImpl::LocalMessage(e)),
-                                )
-                            })
-                            .map(|result| match result {
-                                Ok(status) => status,
-                                Err(err) => {
-                                    // TODO fault tolerant
-                                    tracing::error!("dispatch event failed: {:?}", err);
-                                    DispatchDataEventStatusEnum::Failure
-                                }
-                            })
-                            .reduce(
-                                || DispatchDataEventStatusEnum::Done,
-                                |accum, result| match accum {
-                                    DispatchDataEventStatusEnum::Failure => accum,
-                                    _ => result,
-                                },
-                            )
-                    })
-                    .unwrap_or(DispatchDataEventStatusEnum::Done)
-            })
-            .unwrap_or(DispatchDataEventStatusEnum::Done)
+        {
+            Some(sink) => {
+                sink.sink(SinkableMessageImpl::LocalMessage(
+                    LocalEvent::KeyedDataStreamEvent(event.clone()),
+                ))
+                .await
+            }
+            None => Ok(SendEventToOperatorStatusEnum::Done),
+        }
     }
 
     fn get_job_id(&self) -> ResourceId {

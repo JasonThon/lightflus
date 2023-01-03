@@ -1,5 +1,5 @@
 use common::{
-    err::{KafkaException, RedisException},
+    err::{KafkaException, RedisException, TaskWorkerError},
     event::{KafkaEventError, SinkableMessageImpl},
 };
 use tokio::sync::mpsc::error::SendError;
@@ -18,6 +18,12 @@ pub enum ErrorKind {
 pub struct SinkException {
     pub kind: ErrorKind,
     pub msg: String,
+}
+
+impl SinkException {
+    pub fn into_task_worker_error(&self) -> TaskWorkerError {
+        TaskWorkerError::EventSendFailure(format!("{:?}", self))
+    }
 }
 
 impl From<SendError<SinkableMessageImpl>> for SinkException {

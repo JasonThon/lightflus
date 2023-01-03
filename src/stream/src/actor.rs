@@ -17,11 +17,12 @@ use common::utils::{self, get_env};
 use prost::Message;
 use prost_types::Timestamp;
 
+use proto::common::ResourceId;
 use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc};
 use proto::common::{Entry, KeyedDataEvent};
-use proto::common::{HostAddr, ResourceId};
-use proto::worker::task_worker_api_client::TaskWorkerApiClient;
-use proto::worker::{DispatchDataEventStatusEnum, DispatchDataEventsRequest, StopDataflowRequest};
+
+use proto::worker::SendEventToOperatorStatusEnum;
+use proto::worker_gateway::SafeTaskWorkerRpcGateway;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::Mutex;
 
@@ -452,11 +453,12 @@ impl SourceSinkManger {
         if self.sinks.contains_key(executor_id) {
             return;
         }
+        let host_addr = info.get_host_addr();
         self.sinks.insert(
             *executor_id,
             SinkImpl::Remote(RemoteSink {
                 sink_id: *executor_id,
-                host_addr: info.get_host_addr(),
+                task_worker_gateway: SafeTaskWorkerRpcGateway::new(&host_addr),
             }),
         );
     }
@@ -553,7 +555,7 @@ pub trait Sink {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException>;
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException>;
 
     /**
      * Gracefully close sink
@@ -578,13 +580,13 @@ impl Sink for LocalSink {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         match &msg {
             SinkableMessageImpl::LocalMessage(_) => self
                 .sender
                 .send(msg)
                 .await
-                .map(|_| DispatchDataEventStatusEnum::Done)
+                .map(|_| SendEventToOperatorStatusEnum::Done)
                 .map_err(|err| err.into()),
         }
     }
@@ -599,7 +601,7 @@ impl Sink for LocalSink {
 #[derive(Clone)]
 pub struct RemoteSink {
     pub(crate) sink_id: SinkId,
-    pub(crate) host_addr: HostAddr,
+    pub(crate) task_worker_gateway: SafeTaskWorkerRpcGateway,
 }
 
 #[async_trait]
@@ -611,63 +613,26 @@ impl Sink for RemoteSink {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
-        let ref mut result = TaskWorkerApiClient::connect(format!(
-            "{}:{}",
-            &self.host_addr.host, self.host_addr.port
-        ))
-        .await;
-
-        match result.as_mut().map_err(|err| err.into()) {
-            Ok(cli) => match msg {
-                SinkableMessageImpl::LocalMessage(event) => match event {
-                    LocalEvent::Terminate { job_id, .. } => {
-                        let req = StopDataflowRequest {
-                            job_id: Some(job_id),
-                        };
-                        cli.stop_dataflow(tonic::Request::new(req))
-                            .await
-                            .map(|_| DispatchDataEventStatusEnum::Dispatching)
-                            .map_err(|err| SinkException {
-                                kind: RemoteSinkFailed,
-                                msg: format!("{}", err),
-                            })
-                    }
-                    LocalEvent::KeyedDataStreamEvent(event) => {
-                        let req = DispatchDataEventsRequest {
-                            events: vec![event],
-                        };
-                        cli.dispatch_data_events(tonic::Request::new(req))
-                            .await
-                            .map(|resp| {
-                                for key in resp.get_ref().status_set.keys() {
-                                    match resp.get_ref().get_status_set(&key).unwrap_or_default() {
-                                        DispatchDataEventStatusEnum::Dispatching => {
-                                            return DispatchDataEventStatusEnum::Dispatching
-                                        }
-                                        DispatchDataEventStatusEnum::Done => continue,
-                                        DispatchDataEventStatusEnum::Failure => {
-                                            return DispatchDataEventStatusEnum::Failure
-                                        }
-                                    }
-                                }
-
-                                DispatchDataEventStatusEnum::Done
-                            })
-                            .map_err(|err| SinkException {
-                                kind: RemoteSinkFailed,
-                                msg: format!("{}", err),
-                            })
-                    }
-                },
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
+        match msg {
+            SinkableMessageImpl::LocalMessage(event) => match event {
+                LocalEvent::Terminate { job_id, .. } => Ok(SendEventToOperatorStatusEnum::Done),
+                LocalEvent::KeyedDataStreamEvent(e) => self
+                    .task_worker_gateway
+                    .send_event_to_operator(e)
+                    .await
+                    .map(|resp| resp.status())
+                    .map_err(|err| SinkException {
+                        kind: RemoteSinkFailed,
+                        msg: format!("{}", err),
+                    }),
             },
-            Err(err) => Err(err),
         }
     }
 
     fn close_sink(&mut self) {
         drop(self.sink_id);
-        self.host_addr.clear();
+        self.task_worker_gateway.close()
     }
 }
 
@@ -804,13 +769,13 @@ impl Sink for SinkImpl {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         match self {
             Self::Local(sink) => sink.sink(msg).await,
             Self::Remote(sink) => sink.sink(msg).await,
             Self::Kafka(sink) => sink.sink(msg).await,
             Self::Mysql(sink) => sink.sink(msg).await,
-            Self::Empty(_) => Ok(DispatchDataEventStatusEnum::Done),
+            Self::Empty(_) => Ok(SendEventToOperatorStatusEnum::Done),
             Self::Redis(redis) => redis.sink(msg).await,
         }
     }
@@ -976,27 +941,27 @@ impl Sink for Kafka {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         match &self.producer {
             Some(producer) => {
                 let result = msg.get_kafka_message();
                 match result.map_err(|err| err.into()) {
                     Ok(messages) => {
                         for msg in messages {
-                            let send_result = producer.send(&msg.key, &msg.payload);
+                            let send_result = producer.send(&msg.key, &msg.payload).await;
                             if send_result.is_err() {
                                 return send_result
-                                    .map(|_| DispatchDataEventStatusEnum::Failure)
+                                    .map(|_| SendEventToOperatorStatusEnum::Failure)
                                     .map_err(|err| err.into());
                             }
                         }
 
-                        Ok(DispatchDataEventStatusEnum::Done)
+                        Ok(SendEventToOperatorStatusEnum::Done)
                     }
                     Err(err) => Err(err),
                 }
             }
-            None => Ok(DispatchDataEventStatusEnum::Done),
+            None => Ok(SendEventToOperatorStatusEnum::Done),
         }
     }
 
@@ -1062,7 +1027,7 @@ impl Sink for Mysql {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         let row_arguments = self.get_arguments(msg);
         let ref mut conn_result = self.conn.connect().await;
         match conn_result {
@@ -1074,11 +1039,11 @@ impl Sink for Mysql {
                         .await
                         .map_err(|err| err.into());
                     if result.is_err() {
-                        return result.map(|_| DispatchDataEventStatusEnum::Failure);
+                        return result.map(|_| SendEventToOperatorStatusEnum::Failure);
                     }
                 }
 
-                Ok(DispatchDataEventStatusEnum::Done)
+                Ok(SendEventToOperatorStatusEnum::Done)
             }
             Err(err) => Err(err.into()),
         }
@@ -1132,7 +1097,7 @@ impl Sink for Redis {
     async fn sink(
         &self,
         msg: SinkableMessageImpl,
-    ) -> Result<DispatchDataEventStatusEnum, SinkException> {
+    ) -> Result<SendEventToOperatorStatusEnum, SinkException> {
         let key_values = extract_arguments(
             &[self.key_extractor.clone(), self.value_extractor.clone()],
             msg.clone(),
@@ -1146,7 +1111,7 @@ impl Sink for Redis {
                 let kvs = Vec::from_iter(key_values.iter().map(|kv| (&kv[0], &kv[1])));
                 self.client
                     .set_multiple(conn, kvs.as_slice())
-                    .map(|_| DispatchDataEventStatusEnum::Done)
+                    .map(|_| SendEventToOperatorStatusEnum::Done)
                     .map_err(|err| err.into())
             })
     }

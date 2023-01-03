@@ -274,6 +274,7 @@ pub enum TaskWorkerError {
     ChannelDisconnected,
     ChannelEmpty,
     ExecutionError(String),
+    EventSendFailure(String),
 }
 
 impl From<mpsc::error::TryRecvError> for TaskWorkerError {

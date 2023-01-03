@@ -63,27 +63,25 @@ pub struct KafkaProducer {
 }
 
 impl KafkaProducer {
-    pub fn send(&self, key: &[u8], payload: &[u8]) -> Result<(), KafkaException> {
+    pub async fn send(&self, key: &[u8], payload: &[u8]) -> Result<(), KafkaException> {
         if payload.is_empty() {
             Ok(())
         } else {
-            futures_executor::block_on(async {
-                let record = FutureRecord::to(self.topic.as_str())
-                    .partition(self.partition)
-                    .payload(payload)
-                    .key(key);
-                self.producer
-                    .send(record, Duration::from_secs(3))
-                    .await
-                    .map(|(partition, offset)| {
-                        tracing::debug!(
-                            "send message to partition {} with offset {}",
-                            partition,
-                            offset
-                        )
-                    })
-                    .map_err(|err| KafkaException { err: err.0 })
-            })
+            let record = FutureRecord::to(self.topic.as_str())
+                .partition(self.partition)
+                .payload(payload)
+                .key(key);
+            self.producer
+                .send(record, Duration::from_secs(3))
+                .await
+                .map(|(partition, offset)| {
+                    tracing::debug!(
+                        "send message to partition {} with offset {}",
+                        partition,
+                        offset
+                    )
+                })
+                .map_err(|err| KafkaException { err: err.0 })
         }
     }
 

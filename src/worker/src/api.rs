@@ -1,15 +1,16 @@
 use std::sync;
 
+use crate::manager::ExecutorManager;
 use crate::worker as w;
 use proto::common::DataflowStatus;
+use proto::common::KeyedDataEvent;
 use proto::common::ProbeRequest;
 use proto::common::ProbeResponse;
+use proto::common::ResourceId;
 use proto::worker::task_worker_api_server::TaskWorkerApi;
 use proto::worker::CreateSubDataflowRequest;
 use proto::worker::CreateSubDataflowResponse;
-use proto::worker::DispatchDataEventsRequest;
-use proto::worker::DispatchDataEventsResponse;
-use proto::worker::StopDataflowRequest;
+use proto::worker::SendEventToOperatorResponse;
 use proto::worker::StopDataflowResponse;
 
 #[derive(Clone)]
@@ -42,36 +43,30 @@ impl TaskWorkerApi for TaskWorkerApiImpl {
         }))
     }
 
-    async fn dispatch_data_events(
+    async fn send_event_to_operator(
         &self,
-        request: tonic::Request<DispatchDataEventsRequest>,
-    ) -> Result<tonic::Response<DispatchDataEventsResponse>, tonic::Status> {
+        request: tonic::Request<KeyedDataEvent>,
+    ) -> Result<tonic::Response<SendEventToOperatorResponse>, tonic::Status> {
         self.worker
-            .dispatch_events(&request.get_ref().events)
+            .send_event_to_operator(&request.get_ref())
             .await
-            .map(|status_set| {
-                tonic::Response::new(DispatchDataEventsResponse {
-                    status_set: status_set
-                        .iter()
-                        .map(|entry| (entry.0.clone(), *entry.1 as i32))
-                        .collect(),
+            .map(|status| {
+                tonic::Response::new(SendEventToOperatorResponse {
+                    status: status as i32,
                 })
             })
             .map_err(|err| err.into_grpc_status())
     }
+
     async fn stop_dataflow(
         &self,
-        request: tonic::Request<StopDataflowRequest>,
+        request: tonic::Request<ResourceId>,
     ) -> Result<tonic::Response<StopDataflowResponse>, tonic::Status> {
-        match &request.get_ref().job_id {
-            Some(job_id) => self
-                .worker
-                .stop_dataflow(job_id)
-                .await
-                .map(|_| tonic::Response::new(StopDataflowResponse { resp: None }))
-                .map_err(|err| err.into_grpc_status()),
-            None => Ok(tonic::Response::new(StopDataflowResponse { resp: None })),
-        }
+        self.worker
+            .stop_dataflow(request.get_ref())
+            .await
+            .map(|_| tonic::Response::new(StopDataflowResponse { resp: None }))
+            .map_err(|err| err.into_grpc_status())
     }
     async fn create_sub_dataflow(
         &self,

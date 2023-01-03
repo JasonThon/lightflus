@@ -1,12 +1,11 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
-use common::collections::lang;
 use common::err::TaskWorkerError;
 use common::types::{ExecutorId, HashedResourceId};
 use proto::common::Dataflow;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
-use proto::worker::DispatchDataEventStatusEnum;
+use proto::worker::SendEventToOperatorStatusEnum;
 use stream::actor::DataflowContext;
 
 use crate::manager::{ExecutorManager, ExecutorManagerImpl, LocalExecutorManager};
@@ -60,34 +59,18 @@ impl TaskWorker {
         Ok(())
     }
 
-    pub async fn dispatch_events(
+    pub async fn send_event_to_operator(
         &self,
-        events: &Vec<KeyedDataEvent>,
-    ) -> Result<HashMap<String, DispatchDataEventStatusEnum>, TaskWorkerError> {
-        let group = lang::group(events, |e| HashedResourceId::from(e.get_job_id()));
+        events: &KeyedDataEvent,
+    ) -> Result<SendEventToOperatorStatusEnum, TaskWorkerError> {
         let managers = self.cache.read().await;
-
-        group
-            .iter()
-            .map(|pair| {
-                Ok(managers
-                    .get(pair.0)
-                    .map(|manager| {
-                        (
-                            format!("{:?}", &manager.get_job_id()),
-                            manager.dispatch_events(
-                                &group
-                                    .get(&manager.get_job_id().into())
-                                    .map(|events| events.iter().map(|e| (*e).clone()).collect())
-                                    .unwrap(),
-                            ),
-                        )
-                    })
-                    .map(|pair| HashMap::from([pair]))
-                    .unwrap_or_else(|| Default::default()))
-            })
-            .next()
-            .unwrap_or_else(|| Ok(Default::default()))
+        match managers.get(&events.get_job_id().into()) {
+            Some(manager) => manager
+                .send_event_to_operator(events)
+                .await
+                .map_err(|err| err.into_task_worker_error()),
+            None => todo!(),
+        }
     }
 }
 

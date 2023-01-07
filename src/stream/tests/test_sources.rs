@@ -34,7 +34,7 @@ async fn test_kafka_source() {
     assert!(producer.is_ok());
     let producer = producer.unwrap();
 
-    let result = producer.send("key".as_bytes(), "value".as_bytes());
+    let result = producer.send("key".as_bytes(), "value".as_bytes()).await;
     assert!(result.is_ok());
     let msg = kafka_source.fetch_msg();
     assert!(msg.is_some());

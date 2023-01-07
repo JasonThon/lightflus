@@ -10,15 +10,14 @@ use proto::coordinator::{
 };
 use tokio::sync::RwLock;
 
-#[derive(Clone)]
 pub(crate) struct CoordinatorApiImpl {
-    coordinator: Arc<RwLock<coord::Coordinator>>,
+    coordinator: RwLock<coord::Coordinator>,
 }
 
 impl CoordinatorApiImpl {
     pub(crate) fn new(coordinator: coord::Coordinator) -> CoordinatorApiImpl {
         CoordinatorApiImpl {
-            coordinator: Arc::new(RwLock::new(coordinator)),
+            coordinator: RwLock::new(coordinator),
         }
     }
 }

@@ -19,9 +19,9 @@ async fn test_kafka_pub_sub() {
     let producer = run_producer(format!("{}:9092", kafka_host).as_str(), "ci", "ci_group", 0);
     assert!(producer.is_ok());
     let producer = producer.unwrap();
-    let send_result = producer.send("key".as_bytes(), "value".as_bytes());
+    let send_result = producer.send("key".as_bytes(), "value".as_bytes()).await;
     if send_result.is_err() {
-        let send_result = producer.send("key".as_bytes(), "value".as_bytes());
+        let send_result = producer.send("key".as_bytes(), "value".as_bytes()).await;
         assert!(send_result.is_ok());
     } else {
         assert!(send_result.is_ok());

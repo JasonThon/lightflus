@@ -1537,11 +1537,14 @@ name = "proto"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "futures-executor",
  "prost",
  "prost-types",
  "serde",
+ "tokio",
  "tonic",
  "tonic-build",
+ "tracing",
 ]
 
 [[package]]

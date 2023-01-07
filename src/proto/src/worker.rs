@@ -1,17 +1,7 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DispatchDataEventsRequest {
-    #[prost(message, repeated, tag = "1")]
-    pub events: ::prost::alloc::vec::Vec<super::common::KeyedDataEvent>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct DispatchDataEventsResponse {
-    #[prost(map = "string, enumeration(DispatchDataEventStatusEnum)", tag = "1")]
-    pub status_set: ::std::collections::HashMap<::prost::alloc::string::String, i32>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct StopDataflowRequest {
-    #[prost(message, optional, tag = "1")]
-    pub job_id: ::core::option::Option<super::common::ResourceId>,
+pub struct SendEventToOperatorResponse {
+    #[prost(enumeration = "SendEventToOperatorStatusEnum", tag = "1")]
+    pub status: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StopDataflowResponse {
@@ -32,21 +22,21 @@ pub struct CreateSubDataflowResponse {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
-pub enum DispatchDataEventStatusEnum {
+pub enum SendEventToOperatorStatusEnum {
     Dispatching = 0,
     Done = 1,
     Failure = 2,
 }
-impl DispatchDataEventStatusEnum {
+impl SendEventToOperatorStatusEnum {
     /// String value of the enum field names used in the ProtoBuf definition.
     ///
     /// The values are not transformed in any way and thus are considered stable
     /// (if the ProtoBuf definition does not change) and safe for programmatic use.
     pub fn as_str_name(&self) -> &'static str {
         match self {
-            DispatchDataEventStatusEnum::Dispatching => "DISPATCHING",
-            DispatchDataEventStatusEnum::Done => "DONE",
-            DispatchDataEventStatusEnum::Failure => "FAILURE",
+            SendEventToOperatorStatusEnum::Dispatching => "DISPATCHING",
+            SendEventToOperatorStatusEnum::Done => "DONE",
+            SendEventToOperatorStatusEnum::Failure => "FAILURE",
         }
     }
 }
@@ -141,10 +131,10 @@ pub mod task_worker_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        pub async fn dispatch_data_events(
+        pub async fn send_event_to_operator(
             &mut self,
-            request: impl tonic::IntoRequest<super::DispatchDataEventsRequest>,
-        ) -> Result<tonic::Response<super::DispatchDataEventsResponse>, tonic::Status> {
+            request: impl tonic::IntoRequest<super::super::common::KeyedDataEvent>,
+        ) -> Result<tonic::Response<super::SendEventToOperatorResponse>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -156,13 +146,13 @@ pub mod task_worker_api_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/DispatchDataEvents",
+                "/worker.TaskWorkerApi/SendEventToOperator",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
         pub async fn stop_dataflow(
             &mut self,
-            request: impl tonic::IntoRequest<super::StopDataflowRequest>,
+            request: impl tonic::IntoRequest<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::StopDataflowResponse>, tonic::Status> {
             self.inner
                 .ready()
@@ -211,13 +201,13 @@ pub mod task_worker_api_server {
             &self,
             request: tonic::Request<super::super::common::ProbeRequest>,
         ) -> Result<tonic::Response<super::super::common::ProbeResponse>, tonic::Status>;
-        async fn dispatch_data_events(
+        async fn send_event_to_operator(
             &self,
-            request: tonic::Request<super::DispatchDataEventsRequest>,
-        ) -> Result<tonic::Response<super::DispatchDataEventsResponse>, tonic::Status>;
+            request: tonic::Request<super::super::common::KeyedDataEvent>,
+        ) -> Result<tonic::Response<super::SendEventToOperatorResponse>, tonic::Status>;
         async fn stop_dataflow(
             &self,
-            request: tonic::Request<super::StopDataflowRequest>,
+            request: tonic::Request<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::StopDataflowResponse>, tonic::Status>;
         async fn create_sub_dataflow(
             &self,
@@ -321,25 +311,25 @@ pub mod task_worker_api_server {
                     };
                     Box::pin(fut)
                 }
-                "/worker.TaskWorkerApi/DispatchDataEvents" => {
+                "/worker.TaskWorkerApi/SendEventToOperator" => {
                     #[allow(non_camel_case_types)]
-                    struct DispatchDataEventsSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    struct SendEventToOperatorSvc<T: TaskWorkerApi>(pub Arc<T>);
                     impl<
                         T: TaskWorkerApi,
-                    > tonic::server::UnaryService<super::DispatchDataEventsRequest>
-                    for DispatchDataEventsSvc<T> {
-                        type Response = super::DispatchDataEventsResponse;
+                    > tonic::server::UnaryService<super::super::common::KeyedDataEvent>
+                    for SendEventToOperatorSvc<T> {
+                        type Response = super::SendEventToOperatorResponse;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::DispatchDataEventsRequest>,
+                            request: tonic::Request<super::super::common::KeyedDataEvent>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {
-                                (*inner).dispatch_data_events(request).await
+                                (*inner).send_event_to_operator(request).await
                             };
                             Box::pin(fut)
                         }
@@ -349,7 +339,7 @@ pub mod task_worker_api_server {
                     let inner = self.inner.clone();
                     let fut = async move {
                         let inner = inner.0;
-                        let method = DispatchDataEventsSvc(inner);
+                        let method = SendEventToOperatorSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(
@@ -366,7 +356,7 @@ pub mod task_worker_api_server {
                     struct StopDataflowSvc<T: TaskWorkerApi>(pub Arc<T>);
                     impl<
                         T: TaskWorkerApi,
-                    > tonic::server::UnaryService<super::StopDataflowRequest>
+                    > tonic::server::UnaryService<super::super::common::ResourceId>
                     for StopDataflowSvc<T> {
                         type Response = super::StopDataflowResponse;
                         type Future = BoxFuture<
@@ -375,7 +365,7 @@ pub mod task_worker_api_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::StopDataflowRequest>,
+                            request: tonic::Request<super::super::common::ResourceId>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {

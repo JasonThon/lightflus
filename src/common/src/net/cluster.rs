@@ -5,15 +5,15 @@ use crate::types;
 use crate::types::SingleKV;
 
 use proto::common::probe_request::{NodeType, ProbeType};
-use proto::common::{Dataflow, DataflowMeta, DataflowStatus};
+use proto::common::{Dataflow, DataflowMeta, DataflowStatus, HostAddr};
 use proto::common::{ProbeRequest, ResourceId};
-use proto::worker::task_worker_api_client::TaskWorkerApiClient;
-use proto::worker::{CreateSubDataflowRequest, StopDataflowRequest};
+
+use proto::worker::CreateSubDataflowRequest;
+use proto::worker_gateway::SafeTaskWorkerRpcGateway;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::vec;
-use tonic::transport::Channel;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum NodeStatus {
@@ -26,23 +26,10 @@ enum NodeStatus {
 struct Node {
     status: NodeStatus,
     pub host_addr: PersistableHostAddr,
-    pub client: Option<TaskWorkerApiClient<Channel>>,
+    pub gateway: SafeTaskWorkerRpcGateway,
 }
 
 impl Node {
-    #[cfg(not(tarpaulin_include))]
-    async fn try_connect(&mut self) {
-        let ref mut client = TaskWorkerApiClient::connect(self.host_addr.as_uri()).await;
-        match client {
-            Ok(cli) => {
-                self.client = Some(cli.clone());
-            }
-            Err(err) => {
-                tracing::error!("{}", err);
-            }
-        }
-    }
-
     #[cfg(not(tarpaulin_include))]
     pub(crate) async fn probe_state(&mut self) {
         let request = ProbeRequest {
@@ -50,26 +37,17 @@ impl Node {
             probe_type: ProbeType::Liveness as i32,
         };
 
-        // First, try to connect if not
-        if self.client.is_none() {
-            self.try_connect().await
-        }
-
-        // Second, try to send probe request if connection has been built
-        if self.client.is_some() {
-            let cli = self.client.as_mut().unwrap();
-            match cli.probe(tonic::Request::new(request)).await {
-                Ok(resp) => {
-                    if resp.get_ref().available {
-                        self.status = NodeStatus::Running
-                    } else {
-                        self.status = NodeStatus::Pending
-                    }
+        match self.gateway.probe(request).await {
+            Ok(resp) => {
+                if resp.available {
+                    self.status = NodeStatus::Running
+                } else {
+                    self.status = NodeStatus::Pending
                 }
-                Err(err) => {
-                    tracing::error!("{}", err);
-                    self.status = NodeStatus::Unreachable
-                }
+            }
+            Err(err) => {
+                tracing::error!("{}", err);
+                self.status = NodeStatus::Unreachable
             }
         }
     }
@@ -145,12 +123,8 @@ impl Cluster {
             if !worker.is_available() {
                 continue;
             }
-            let ref mut client = worker.client.as_mut().unwrap();
-            let req = StopDataflowRequest {
-                job_id: Some(job_id.clone()),
-            };
 
-            match client.stop_dataflow(tonic::Request::new(req)).await {
+            match worker.gateway.stop_dataflow(job_id.clone()).await {
                 Err(err) => return Err(err),
                 _ => {}
             }
@@ -180,22 +154,21 @@ impl Cluster {
                 .iter_mut()
                 .filter(|worker| worker.host_addr.as_uri() == uri)
             {
-                let client = node.client.as_mut().unwrap();
                 let dataflow = Some(elem.1.clone());
                 let req = CreateSubDataflowRequest {
                     job_id: elem.1.job_id.clone(),
                     dataflow,
                 };
 
-                let result = client
-                    .create_sub_dataflow(tonic::Request::new(req))
+                let result = node
+                    .gateway
+                    .create_sub_dataflow(req)
                     .await
                     .map_err(|err| err);
                 match result {
-                    Ok(status) => tracing::debug!(
-                        "subdataflow status: {}",
-                        status.get_ref().status().as_str_name()
-                    ),
+                    Ok(status) => {
+                        tracing::debug!("subdataflow status: {}", status.status().as_str_name())
+                    }
                     Err(err) => {
                         tracing::error!("fail to create sub dataflow {}", err);
                         return Err(err);
@@ -273,7 +246,10 @@ impl NodeConfig {
                 host: self.host.clone(),
                 port: self.port,
             },
-            client: None,
+            gateway: SafeTaskWorkerRpcGateway::new(&HostAddr {
+                host: self.host.clone(),
+                port: self.port as u32,
+            }),
         }
     }
 }
@@ -281,8 +257,8 @@ impl NodeConfig {
 #[cfg(test)]
 mod cluster_tests {
 
-    #[test]
-    pub fn test_cluster_available() {
+    #[tokio::test]
+    pub async fn test_cluster_available() {
         use super::{Cluster, NodeConfig};
         let mut cluster = Cluster::new(&vec![NodeConfig {
             host: "localhost".to_string(),
@@ -297,8 +273,8 @@ mod cluster_tests {
         assert!(cluster.is_available())
     }
 
-    #[test]
-    pub fn test_cluster_partition_dataflow() {
+    #[tokio::test]
+    pub async fn test_cluster_partition_dataflow() {
         use super::{Cluster, NodeConfig};
         use proto::common::Dataflow;
         use std::collections::HashMap;
@@ -368,8 +344,8 @@ mod cluster_tests {
         });
     }
 
-    #[test]
-    pub fn test_split_into_subdataflow() {
+    #[tokio::test]
+    pub async fn test_split_into_subdataflow() {
         use super::{Cluster, NodeConfig};
         use proto::common::Dataflow;
         use std::collections::HashMap;

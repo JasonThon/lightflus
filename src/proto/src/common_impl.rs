@@ -378,3 +378,9 @@ get_func!(Mapper, mapper);
 get_func!(Reducer, reducer);
 get_func!(KeyBy, key_by);
 get_func!(Filter, filter);
+
+impl HostAddr {
+    pub fn as_uri(&self) -> String {
+        format!("http://{}:{}", &self.host, self.port)
+    }
+}

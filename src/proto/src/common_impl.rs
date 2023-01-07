@@ -220,6 +220,13 @@ impl Dataflow {
             }
         }
     }
+
+    pub fn get_job_id(&self) -> ResourceId {
+        self.job_id
+            .as_ref()
+            .map(|id| id.clone())
+            .unwrap_or_default()
+    }
 }
 
 #[derive(Debug, serde::Serialize)]

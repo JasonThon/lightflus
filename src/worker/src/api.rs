@@ -48,7 +48,7 @@ impl TaskWorkerApi for TaskWorkerApiImpl {
         request: tonic::Request<KeyedDataEvent>,
     ) -> Result<tonic::Response<SendEventToOperatorResponse>, tonic::Status> {
         self.worker
-            .send_event_to_operator(&request.get_ref())
+            .send_event_to_operator(request.get_ref())
             .await
             .map(|status| {
                 tonic::Response::new(SendEventToOperatorResponse {

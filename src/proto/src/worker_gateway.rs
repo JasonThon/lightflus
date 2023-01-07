@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// A thread-safe RpcGateway wrapper for [`TaskWorkerApiClient`]. It's also reponsible for concurrency control of client-side gRPC.
-/// [`SafeTaskWorkerRpcGateway`] ensures only one thread can call [`TaskWorkerApiClient`]. Requests have to be sent FIFO, without any fault tolerance.
+/// [`SafeTaskWorkerRpcGateway`] ensures only one thread can call [`TaskWorkerApiClient`] at the same time. Requests have to be sent FIFO, without any fault tolerance.
 /// [`SafeTaskWorkerRpcGateway`] can be shared in different threads safely.
 #[derive(Debug, Clone)]
 pub struct SafeTaskWorkerRpcGateway {

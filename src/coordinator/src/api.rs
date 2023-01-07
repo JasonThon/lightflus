@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::coord;
 use proto::common::{Dataflow, DataflowStatus};
 use proto::common::{ProbeRequest, ProbeResponse};

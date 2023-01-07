@@ -9,6 +9,9 @@ use crate::coord::Coordinator;
 
 mod api;
 pub mod coord;
+mod managers;
+mod scheduler;
+mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -43,7 +46,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = reader.unwrap();
 
-    let mut coordinator = Coordinator::new(config.storage.to_dataflow_storage(), &config.cluster);
+    let mut coordinator = Coordinator::new(&config);
     coordinator.probe_state().await;
     let server = CoordinatorApiImpl::new(coordinator);
 

@@ -59,6 +59,7 @@ impl TaskWorker {
         Ok(())
     }
 
+    /// TODO: if dataflow has been removed, should return error.
     pub async fn send_event_to_operator(
         &self,
         event: &KeyedDataEvent,
@@ -69,7 +70,7 @@ impl TaskWorker {
                 .send_event_to_operator(event)
                 .await
                 .map_err(|err| err.into_task_worker_error()),
-            None => todo!(),
+            None => Ok(SendEventToOperatorStatusEnum::Done),
         }
     }
 }

@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// A thread-safe RpcGateway wrapper for [`CoordinatorApiClient`]. It's also reponsible for concurrency control of client-side gRPC.
-/// [`SafeCoordinatorRpcGateway`] ensures only one thread can call [`CoordinatorApiClient`]. Requests have to be sent FIFO, without any fault tolerance.
+/// [`SafeCoordinatorRpcGateway`] ensures only one thread can call [`CoordinatorApiClient`] at the same time. Requests have to be sent FIFO, without any fault tolerance.
 /// [`SafeCoordinatorRpcGateway`] can be shared in different threads safely.
 #[derive(Debug, Clone)]
 pub struct SafeCoordinatorRpcGateway {

@@ -5,6 +5,23 @@ use sqlx::{Arguments, ConnectOptions};
 
 use crate::types::TypedValue;
 
+/// Connection of MySQL
+/// Examples of usage: 
+/// ```
+/// use common::db::MysqlConn;
+/// use proto::common::mysql_desc;
+///
+/// async fn main() {
+///     let opts = mysql_desc::ConnectionOpts {
+///         host: "localhost".to_string(),
+///         port: 3306,
+///         username: "root".to_string(),
+///         password: "pwd".to_string()
+///     };
+///
+///     let conn = MysqlConn::from(opts);
+///}
+/// ```
 #[derive(Clone)]
 pub struct MysqlConn {
     conn_opts: mysql_desc::ConnectionOpts,

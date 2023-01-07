@@ -184,7 +184,7 @@ message Window {
   message SessionWindow {
     common.Time timeout = 1; // Only for Session Window
   }
-  
+
   Trigger trigger = 4;
 }
 
@@ -196,4 +196,9 @@ message Trigger {
   message Watermark {
     common.Time trigger_time = 1;
   }
+}
+
+enum OperatorStatus {
+  OPERATOR_RUNNING = 0;
+  OPERATOR_TERMINATED = 1;
 }

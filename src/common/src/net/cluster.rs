@@ -17,13 +17,19 @@ use std::vec;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 enum NodeStatus {
+    /// initialization status of node
     Pending,
+    /// status if node is running
     Running,
+    /// status if node is unreached
     Unreachable,
 }
 
+/// [`Node`] represents a remote task worker node.
+/// Node will record all status of remote worker such as CPU, memory, I/O and liveness
 #[derive(Clone, Debug)]
 struct Node {
+    /// The status of node
     status: NodeStatus,
     pub host_addr: PersistableHostAddr,
     pub gateway: SafeTaskWorkerRpcGateway,
@@ -57,8 +63,11 @@ impl Node {
     }
 }
 
+/// [`Cluster`] is an abstraction of a remote cluster
+/// Cluster will record status of remote workers like CPU, memory, I/O, liveness
 #[derive(Clone, Debug)]
 pub struct Cluster {
+    /// all remote workers
     workers: Vec<Node>,
 }
 
@@ -105,6 +114,8 @@ impl Cluster {
         }
     }
 
+    /// A dataflow will be splitted into several partitions and deploy these sub-dataflow into different workers
+    /// Graph-Partition is an NP-hard problem. Fortunately, a dataflow execution graph is too small to apply specific graph-partition algorithm
     pub fn partition_dataflow(&self, dataflow: &mut Dataflow) {
         dataflow.nodes.iter_mut().for_each(|entry| {
             let addr = self.partition_key(&SingleKV::new(*entry.0));

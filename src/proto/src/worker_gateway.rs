@@ -15,15 +15,15 @@ use crate::{
 /// [`SafeTaskWorkerRpcGateway`] ensures only one thread can call [`TaskWorkerApiClient`] at the same time. Requests have to be sent FIFO, without any fault tolerance.
 /// [`SafeTaskWorkerRpcGateway`] can be shared in different threads safely.
 #[derive(Debug, Clone)]
-pub struct SafeTaskWorkerRpcGateway {
+pub struct SafeTaskManagerRpcGateway {
     inner: Arc<tokio::sync::Mutex<Option<TaskWorkerApiClient<tonic::transport::Channel>>>>,
     host_addr: HostAddr,
 }
 
-unsafe impl Send for SafeTaskWorkerRpcGateway {}
-unsafe impl Sync for SafeTaskWorkerRpcGateway {}
+unsafe impl Send for SafeTaskManagerRpcGateway {}
+unsafe impl Sync for SafeTaskManagerRpcGateway {}
 
-impl SafeTaskWorkerRpcGateway {
+impl SafeTaskManagerRpcGateway {
     pub fn new(host_addr: &HostAddr) -> Self {
         let client = TaskWorkerApiClient::with_connection_timeout(
             host_addr.as_uri(),

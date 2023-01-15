@@ -1,48 +1,61 @@
 use std::collections::BTreeMap;
 
-use common::{net::cluster, types::HashedResourceId};
+use common::{
+    net::{cluster, hostname, PersistableHostAddr},
+    types::HashedResourceId,
+};
 use proto::common::{Dataflow, DataflowStatus, ResourceId};
 
-use crate::{coord::CoordinatorConfig, storage::DataflowStorageImpl};
+use crate::{
+    coord::CoordinatorConfig,
+    executions::{SubdataflowDeploymentPlan, TaskDeploymentException, VertexRemoteExecution},
+    scheduler::Scheduler,
+    storage::DataflowStorageImpl,
+};
 
 /// [`JobManager`] is responsible for
 /// - monitor job's status
 /// - terminate job
 /// - checkpoint management
 /// - recover a task from checkpoint
-pub struct JobManager {
+pub(crate) struct JobManager {
     dataflow: Dataflow,
     job_id: ResourceId,
+    scheduler: Scheduler,
+    location: PersistableHostAddr,
 }
 impl JobManager {
+    pub(crate) fn new(location: &PersistableHostAddr) -> Self {
+        Self {
+            dataflow: Default::default(),
+            job_id: Default::default(),
+            scheduler: Scheduler::default(),
+            location: location.clone(),
+        }
+    }
+
     async fn create_dataflow(
         &mut self,
         cluster: &mut cluster::Cluster,
         dataflow: &mut Dataflow,
-    ) -> Result<(), tonic::Status> {
+    ) -> Result<(), TaskDeploymentException> {
         cluster.partition_dataflow(dataflow);
         self.job_id = dataflow.get_job_id();
         self.dataflow = dataflow.clone();
 
-        cluster.create_dataflow(dataflow).await
+        let subdataflow = cluster.split_into_subdataflow(dataflow);
+        let executions = subdataflow
+            .iter()
+            .map(|pair| SubdataflowDeploymentPlan::new(&self.job_id, pair, &self.location));
+
+        self.scheduler.execute_all(cluster, executions).await
     }
 
     async fn terminate_dataflow(
         &mut self,
         cluster: &mut cluster::Cluster,
     ) -> Result<DataflowStatus, tonic::Status> {
-        cluster.terminate_dataflow(&self.job_id).await
-    }
-}
-
-pub struct JobManagerFactory;
-
-impl JobManagerFactory {
-    fn create() -> JobManager {
-        JobManager {
-            dataflow: Default::default(),
-            job_id: Default::default(),
-        }
+        self.scheduler.terminate_dataflow(cluster).await
     }
 }
 
@@ -52,10 +65,11 @@ impl JobManagerFactory {
 /// - spawning job manager to manager each job's status
 /// - job recovery
 /// - heartbeat of remote cluster
-pub struct Dispatcher {
+pub(crate) struct Dispatcher {
     managers: BTreeMap<HashedResourceId, JobManager>,
     cluster: cluster::Cluster,
     dataflow_storage: DataflowStorageImpl,
+    location: PersistableHostAddr,
 }
 
 impl Dispatcher {
@@ -65,6 +79,7 @@ impl Dispatcher {
             managers: Default::default(),
             cluster: cluster::Cluster::new(&config.cluster),
             dataflow_storage,
+            location: PersistableHostAddr::local(config.port),
         }
     }
 
@@ -79,11 +94,11 @@ impl Dispatcher {
                 )))
             }
             _ => {
-                let mut job_manager = JobManagerFactory::create();
+                let mut job_manager = JobManager::new(&self.location);
                 let result = job_manager
                     .create_dataflow(&mut self.cluster, dataflow)
                     .await
-                    .map_err(|err| DispatcherException::Tonic(err));
+                    .map_err(|err| DispatcherException::DeploymentError(err));
 
                 let job_id = HashedResourceId::from(dataflow.get_job_id());
 
@@ -134,6 +149,7 @@ impl Dispatcher {
 
 pub enum DispatcherException {
     Tonic(tonic::Status),
+    DeploymentError(TaskDeploymentException),
     UnexpectedDataflowStatus(DataflowStatus),
 }
 

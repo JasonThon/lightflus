@@ -12,6 +12,7 @@ pub mod coord;
 mod managers;
 mod scheduler;
 mod storage;
+mod executions;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

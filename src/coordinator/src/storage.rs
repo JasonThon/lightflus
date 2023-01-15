@@ -16,7 +16,7 @@ pub(crate) trait DataflowStorage {
 }
 
 #[derive(Clone, Debug)]
-pub struct PersistDataflowStorage {
+pub(crate) struct PersistDataflowStorage {
     db: sled::Db,
 }
 
@@ -81,7 +81,7 @@ impl DataflowStorage for PersistDataflowStorage {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct MemDataflowStorage {
+pub(crate) struct MemDataflowStorage {
     cache: BTreeMap<HashedResourceId, Dataflow>,
 }
 
@@ -111,7 +111,7 @@ impl DataflowStorage for MemDataflowStorage {
 }
 
 #[derive(Clone, Debug)]
-pub enum DataflowStorageImpl {
+pub(crate) enum DataflowStorageImpl {
     Persist(PersistDataflowStorage),
     Memory(MemDataflowStorage),
 }

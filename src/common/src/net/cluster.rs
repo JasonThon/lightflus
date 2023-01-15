@@ -9,7 +9,7 @@ use proto::common::{Dataflow, DataflowMeta, DataflowStatus, HostAddr};
 use proto::common::{ProbeRequest, ResourceId};
 
 use proto::worker::CreateSubDataflowRequest;
-use proto::worker_gateway::SafeTaskWorkerRpcGateway;
+use proto::worker_gateway::SafeTaskManagerRpcGateway;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
@@ -32,7 +32,7 @@ struct Node {
     /// The status of node
     status: NodeStatus,
     pub host_addr: PersistableHostAddr,
-    pub gateway: SafeTaskWorkerRpcGateway,
+    pub gateway: SafeTaskManagerRpcGateway,
 }
 
 impl Node {
@@ -72,6 +72,16 @@ pub struct Cluster {
 }
 
 impl Cluster {
+    pub fn get_task_manager_gateway(
+        &self,
+        addr: &PersistableHostAddr,
+    ) -> Option<&SafeTaskManagerRpcGateway> {
+        self.workers
+            .iter()
+            .filter(|worker| &worker.host_addr == addr)
+            .map(|worker| &worker.gateway)
+            .next()
+    }
     pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(
         &self,
         keyed: &T,
@@ -125,73 +135,7 @@ impl Cluster {
         });
     }
 
-    #[cfg(not(tarpaulin_include))]
-    pub async fn terminate_dataflow(
-        &mut self,
-        job_id: &ResourceId,
-    ) -> Result<DataflowStatus, tonic::Status> {
-        for worker in &mut self.workers {
-            if !worker.is_available() {
-                continue;
-            }
-
-            match worker.gateway.stop_dataflow(job_id.clone()).await {
-                Err(err) => return Err(err),
-                _ => {}
-            }
-        }
-
-        Ok(DataflowStatus::Closing)
-    }
-
-    #[cfg(not(tarpaulin_include))]
-    pub async fn create_dataflow(&mut self, dataflow: &Dataflow) -> Result<(), tonic::Status> {
-        if !self.is_available() {
-            return Err(tonic::Status::unavailable("worker is unavailable"));
-        }
-
-        let dataflows = self.split_into_subdataflow(dataflow);
-
-        for elem in dataflows {
-            let uri = elem.0.as_uri();
-            if !lang::any_match(&self.workers, |node| {
-                node.host_addr.as_uri() == uri && node.is_available()
-            }) {
-                return Err(tonic::Status::unavailable("worker is unavailable"));
-            }
-
-            for node in self
-                .workers
-                .iter_mut()
-                .filter(|worker| worker.host_addr.as_uri() == uri)
-            {
-                let dataflow = Some(elem.1.clone());
-                let req = CreateSubDataflowRequest {
-                    job_id: elem.1.job_id.clone(),
-                    dataflow,
-                };
-
-                let result = node
-                    .gateway
-                    .create_sub_dataflow(req)
-                    .await
-                    .map_err(|err| err);
-                match result {
-                    Ok(status) => {
-                        tracing::debug!("subdataflow status: {}", status.status().as_str_name())
-                    }
-                    Err(err) => {
-                        tracing::error!("fail to create sub dataflow {}", err);
-                        return Err(err);
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    fn split_into_subdataflow(
+    pub fn split_into_subdataflow(
         &self,
         dataflow: &Dataflow,
     ) -> HashMap<PersistableHostAddr, Dataflow> {
@@ -257,7 +201,7 @@ impl NodeConfig {
                 host: self.host.clone(),
                 port: self.port,
             },
-            gateway: SafeTaskWorkerRpcGateway::new(&HostAddr {
+            gateway: SafeTaskManagerRpcGateway::new(&HostAddr {
                 host: self.host.clone(),
                 port: self.port as u32,
             }),

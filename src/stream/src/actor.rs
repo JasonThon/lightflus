@@ -22,7 +22,7 @@ use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorIn
 use proto::common::{Entry, KeyedDataEvent};
 
 use proto::worker::SendEventToOperatorStatusEnum;
-use proto::worker_gateway::SafeTaskWorkerRpcGateway;
+use proto::worker_gateway::SafeTaskManagerRpcGateway;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::Mutex;
 
@@ -458,7 +458,7 @@ impl SourceSinkManger {
             *executor_id,
             SinkImpl::Remote(RemoteSink {
                 sink_id: *executor_id,
-                task_worker_gateway: SafeTaskWorkerRpcGateway::new(&host_addr),
+                task_worker_gateway: SafeTaskManagerRpcGateway::new(&host_addr),
             }),
         );
     }
@@ -601,7 +601,7 @@ impl Sink for LocalSink {
 #[derive(Clone)]
 pub struct RemoteSink {
     pub(crate) sink_id: SinkId,
-    pub(crate) task_worker_gateway: SafeTaskWorkerRpcGateway,
+    pub(crate) task_worker_gateway: SafeTaskManagerRpcGateway,
 }
 
 #[async_trait]

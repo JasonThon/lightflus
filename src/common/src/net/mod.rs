@@ -32,6 +32,13 @@ impl PersistableHostAddr {
     fn is_valid(&self) -> bool {
         !self.host.is_empty() && self.port > 0
     }
+
+    pub fn local(port: usize) -> Self {
+        Self {
+            host: hostname().unwrap_or_default(),
+            port: port as u16,
+        }
+    }
 }
 
 pub fn to_host_addr(hashable: &PersistableHostAddr) -> HostAddr {

@@ -1,9 +1,9 @@
 use crate::coord;
-use proto::common::{Dataflow, DataflowStatus};
-use proto::common::{ProbeRequest, ProbeResponse};
+use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId, Response};
+
 use proto::coordinator::coordinator_api_server::CoordinatorApi;
 use proto::coordinator::{
-    CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest,
+    CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TaskInfo,
     TerminateDataflowResponse,
 };
 use tokio::sync::RwLock;
@@ -26,19 +26,29 @@ unsafe impl Sync for CoordinatorApiImpl {}
 
 #[tonic::async_trait]
 impl CoordinatorApi for CoordinatorApiImpl {
-    async fn probe(
+    async fn receive_heartbeat(
         &self,
-        _request: tonic::Request<ProbeRequest>,
-    ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
+        request: tonic::Request<Heartbeat>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
-        write_lock.probe_state().await;
-
-        Ok(tonic::Response::new(ProbeResponse {
-            memory: 1.0,
-            cpu: 1.0,
-            available: true,
-        }))
+        write_lock.receive_heartbeart(request.get_ref());
+        Ok(tonic::Response::new(Response::ok()))
     }
+
+    async fn report_task_info(
+        &self,
+        request: tonic::Request<TaskInfo>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
+        todo!()
+    }
+
+    async fn receive_ack(
+        &self,
+        request: tonic::Request<Ack>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
+        todo!()
+    }
+
     async fn create_dataflow(
         &self,
         request: tonic::Request<Dataflow>,
@@ -55,11 +65,11 @@ impl CoordinatorApi for CoordinatorApiImpl {
     }
     async fn terminate_dataflow(
         &self,
-        request: tonic::Request<TerminateDataflowRequest>,
+        request: tonic::Request<ResourceId>,
     ) -> Result<tonic::Response<TerminateDataflowResponse>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
         write_lock
-            .terminate_dataflow(request.get_ref().job_id.as_ref().unwrap())
+            .terminate_dataflow(request.get_ref())
             .await
             .map(|status| {
                 tonic::Response::new(TerminateDataflowResponse {

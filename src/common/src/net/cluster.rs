@@ -1,22 +1,19 @@
-use crate::collections::lang;
-
 use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
+use crate::utils::times::from_prost_timestamp_to_utc_chrono;
 
-use proto::common::probe_request::{NodeType, ProbeType};
-use proto::common::{Dataflow, DataflowMeta, DataflowStatus, HostAddr};
-use proto::common::{ProbeRequest, ResourceId};
+use proto::common::DataflowMeta;
+use proto::common::{Dataflow, HostAddr};
 
-use proto::worker::CreateSubDataflowRequest;
 use proto::worker_gateway::SafeTaskManagerRpcGateway;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::vec;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-enum NodeStatus {
+#[derive(Clone, Eq, PartialEq, Debug, Copy)]
+pub enum NodeStatus {
     /// initialization status of node
     Pending,
     /// status if node is running
@@ -28,34 +25,31 @@ enum NodeStatus {
 /// [`Node`] represents a remote task worker node.
 /// Node will record all status of remote worker such as CPU, memory, I/O and liveness
 #[derive(Clone, Debug)]
-struct Node {
+pub struct Node {
     /// The status of node
     status: NodeStatus,
     pub host_addr: PersistableHostAddr,
     pub gateway: SafeTaskManagerRpcGateway,
+    lastest_heartbeat_timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl Node {
-    #[cfg(not(tarpaulin_include))]
-    pub(crate) async fn probe_state(&mut self) {
-        let request = ProbeRequest {
-            node_type: NodeType::Coordinator as i32,
-            probe_type: ProbeType::Liveness as i32,
-        };
-
-        match self.gateway.probe(request).await {
-            Ok(resp) => {
-                if resp.available {
-                    self.status = NodeStatus::Running
-                } else {
-                    self.status = NodeStatus::Pending
-                }
-            }
-            Err(err) => {
-                tracing::error!("{}", err);
-                self.status = NodeStatus::Unreachable
-            }
+    pub fn new(host_addr: PersistableHostAddr, gateway: SafeTaskManagerRpcGateway) -> Self {
+        Self {
+            status: NodeStatus::Pending,
+            host_addr,
+            gateway,
+            lastest_heartbeat_timestamp: chrono::Utc::now(),
         }
+    }
+
+    pub fn update_status(&mut self, status: NodeStatus, timestamp: &prost_types::Timestamp) {
+        self.status = status;
+        self.lastest_heartbeat_timestamp = from_prost_timestamp_to_utc_chrono(timestamp)
+    }
+
+    pub fn get_status(&self) -> &NodeStatus {
+        &self.status
     }
 
     fn is_available(&self) -> bool {
@@ -72,16 +66,13 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn get_task_manager_gateway(
-        &self,
-        addr: &PersistableHostAddr,
-    ) -> Option<&SafeTaskManagerRpcGateway> {
+    pub fn get_node(&self, addr: &PersistableHostAddr) -> Option<&Node> {
         self.workers
             .iter()
             .filter(|worker| &worker.host_addr == addr)
-            .map(|worker| &worker.gateway)
             .next()
     }
+
     pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(
         &self,
         keyed: &T,
@@ -114,13 +105,6 @@ impl Cluster {
     pub fn new(addrs: &Vec<NodeConfig>) -> Self {
         Cluster {
             workers: addrs.iter().map(|config| config.to_node()).collect(),
-        }
-    }
-
-    #[cfg(not(tarpaulin_include))]
-    pub async fn probe_state(&mut self) {
-        for node in &mut self.workers {
-            node.probe_state().await
         }
     }
 
@@ -194,18 +178,17 @@ pub struct NodeConfig {
 }
 
 impl NodeConfig {
-    fn to_node(&self) -> Node {
-        Node {
-            status: NodeStatus::Pending,
-            host_addr: PersistableHostAddr {
+    pub fn to_node(&self) -> Node {
+        Node::new(
+            PersistableHostAddr {
                 host: self.host.clone(),
                 port: self.port,
             },
-            gateway: SafeTaskManagerRpcGateway::new(&HostAddr {
+            SafeTaskManagerRpcGateway::new(&HostAddr {
                 host: self.host.clone(),
                 port: self.port as u32,
             }),
-        }
+        )
     }
 }
 

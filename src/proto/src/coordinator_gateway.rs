@@ -1,12 +1,14 @@
 use std::{sync::Arc, time::Duration};
 
 use tokio::sync::Mutex;
+use tonic::async_trait;
 
 use crate::{
-    common::{Dataflow, HostAddr, ProbeRequest, ProbeResponse},
+    common::{Ack, Dataflow, Heartbeat, HostAddr, ResourceId, Response},
+    common_impl::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway, RpcGateway},
     coordinator::{
         coordinator_api_client::CoordinatorApiClient, CreateDataflowResponse, GetDataflowRequest,
-        GetDataflowResponse, TerminateDataflowRequest, TerminateDataflowResponse,
+        GetDataflowResponse, TaskInfo, TerminateDataflowResponse,
     },
     DEFAULT_CONNECT_TIMEOUT,
 };
@@ -20,6 +22,48 @@ pub struct SafeCoordinatorRpcGateway {
     host_addr: HostAddr,
 }
 
+impl RpcGateway for SafeCoordinatorRpcGateway {
+    fn get_host_addr(&self) -> &HostAddr {
+        &self.host_addr
+    }
+}
+
+#[async_trait]
+impl ReceiveHeartbeatRpcGateway for SafeCoordinatorRpcGateway {
+    async fn receive_heartbeat(&self, request: Heartbeat) -> Result<Response, tonic::Status> {
+        let mut guard = self.inner.lock().await;
+        let inner = guard.get_or_insert_with(|| {
+            CoordinatorApiClient::with_connection_timeout(
+                self.host_addr.as_uri(),
+                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
+            )
+        });
+
+        inner
+            .receive_heartbeat(tonic::Request::new(request))
+            .await
+            .map(|resp| resp.into_inner())
+    }
+}
+
+#[async_trait]
+impl ReceiveAckRpcGateway for SafeCoordinatorRpcGateway {
+    async fn receive_ack(&self, req: Ack) -> Result<Response, tonic::Status> {
+        let mut guard = self.inner.lock().await;
+        let inner = guard.get_or_insert_with(|| {
+            CoordinatorApiClient::with_connection_timeout(
+                self.host_addr.as_uri(),
+                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
+            )
+        });
+
+        inner
+            .receive_ack(tonic::Request::new(req))
+            .await
+            .map(|resp| resp.into_inner())
+    }
+}
+
 impl SafeCoordinatorRpcGateway {
     pub fn new(host_addr: &HostAddr) -> Self {
         let client = futures_executor::block_on(CoordinatorApiClient::connect_with_timeout(
@@ -30,20 +74,6 @@ impl SafeCoordinatorRpcGateway {
             inner: Arc::new(tokio::sync::Mutex::new(client.ok())),
             host_addr: host_addr.clone(),
         }
-    }
-    pub async fn probe(&self, req: ProbeRequest) -> Result<ProbeResponse, tonic::Status> {
-        let mut guard = self.inner.lock().await;
-        let inner = guard.get_or_insert_with(|| {
-            CoordinatorApiClient::with_connection_timeout(
-                self.host_addr.as_uri(),
-                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
-            )
-        });
-
-        inner
-            .probe(tonic::Request::new(req))
-            .await
-            .map(|resp| resp.into_inner())
     }
 
     pub async fn create_dataflow(
@@ -66,7 +96,7 @@ impl SafeCoordinatorRpcGateway {
 
     pub async fn terminate_dataflow(
         &self,
-        req: TerminateDataflowRequest,
+        req: ResourceId,
     ) -> Result<TerminateDataflowResponse, tonic::Status> {
         let mut guard = self.inner.lock().await;
         let inner = guard.get_or_insert_with(|| {
@@ -96,6 +126,21 @@ impl SafeCoordinatorRpcGateway {
 
         inner
             .get_dataflow(tonic::Request::new(req))
+            .await
+            .map(|resp| resp.into_inner())
+    }
+
+    pub async fn report_task_info(&mut self, request: TaskInfo) -> Result<Response, tonic::Status> {
+        let mut guard = self.inner.lock().await;
+        let inner = guard.get_or_insert_with(|| {
+            CoordinatorApiClient::with_connection_timeout(
+                self.host_addr.as_uri(),
+                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
+            )
+        });
+
+        inner
+            .report_task_info(tonic::Request::new(request))
             .await
             .map(|resp| resp.into_inner())
     }

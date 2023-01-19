@@ -209,6 +209,7 @@ impl Executor for LocalExecutor {
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
         let task = Execution::new(&self.operator, new_state_mgt(&self.job_id), scope);
+
         loop {
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {

@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 
-use common::{net::cluster::Cluster, types::ExecutorId};
+use common::net::{cluster::Cluster, HeartbeatBuilder};
 use proto::common::DataflowStatus;
 use tokio::task::JoinHandle;
-use tonic::async_trait;
 
 use crate::executions::{
-    SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException, VertexRemoteExecution,
+    ExecutionID, SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException,
 };
 
 #[derive(Default)]
 pub struct Scheduler {
-    handlers: Vec<JoinHandle<()>>,
+    executions: BTreeMap<ExecutionID, SubdataflowExecution>,
+    heartbeat_handlers: BTreeMap<ExecutionID, JoinHandle<()>>,
 }
 
 impl Scheduler {
@@ -19,29 +19,49 @@ impl Scheduler {
         &mut self,
         cluster: &mut Cluster,
     ) -> Result<DataflowStatus, TaskExecutionException> {
-        
+        todo!()
     }
 
     pub(crate) async fn execute_all<I: Iterator<Item = SubdataflowDeploymentPlan>>(
         &mut self,
-        cluster: &mut Cluster,
         plan_iter: I,
+        heartbeat_builder: &HeartbeatBuilder,
     ) -> Result<(), TaskDeploymentException> {
-        let execution_futures = plan_iter.map(|plan| plan.deploy(cluster));
-        let mut result = vec![];
+        let execution_futures = plan_iter.map(|plan| plan.deploy());
 
         for future in execution_futures {
             match future.await {
                 Ok(execution) => {
-                    let handler = tokio::spawn(execution);
-                    result.push(handler);
+                    let execution_id = execution.get_execution_id().clone();
+                    self.executions.insert(execution_id.clone(), execution);
+
+                    let mut heartbeat = heartbeat_builder.build();
+                    heartbeat.update_execution_id(execution_id.into_prost());
+
+                    self.heartbeat_handlers
+                        .insert(execution_id, tokio::spawn(heartbeat));
                 }
-                Err(err) => return Err(err),
+                Err(err) => {
+                    self.executions
+                        .iter_mut()
+                        .for_each(|(_, execution)| execution.try_terminate());
+
+                    self.heartbeat_handlers
+                        .iter()
+                        .for_each(|(_, handler)| handler.abort());
+                    return Err(err);
+                }
             }
         }
-        self.handlers = result;
 
         Ok(())
+    }
+
+    pub(crate) fn get_execution_mut(
+        &mut self,
+        execution_id: ExecutionID,
+    ) -> Option<&mut SubdataflowExecution> {
+        self.executions.get_mut(&execution_id)
     }
 }
 

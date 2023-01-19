@@ -8,11 +8,12 @@ use tonic::transport::Server;
 use crate::coord::Coordinator;
 
 mod api;
+mod config;
 pub mod coord;
+mod executions;
 mod managers;
 mod scheduler;
 mod storage;
-mod executions;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -37,7 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let value = env_setup.unwrap();
 
-    let reader = serde_json::from_str::<coord::CoordinatorConfig>(value.as_str());
+    let reader = serde_json::from_str::<config::CoordinatorConfig>(value.as_str());
     if reader.is_err() {
         panic!(
             "{}",
@@ -47,8 +48,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = reader.unwrap();
 
-    let mut coordinator = Coordinator::new(&config);
-    coordinator.probe_state().await;
+    let coordinator = Coordinator::new(&config);
     let server = CoordinatorApiImpl::new(coordinator);
 
     let addr = format!("0.0.0.0:{}", config.port).parse()?;

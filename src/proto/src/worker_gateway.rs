@@ -1,9 +1,11 @@
 use std::{sync::Arc, time::Duration};
 
 use prost::Message;
+use tonic::async_trait;
 
 use crate::{
-    common::{HostAddr, KeyedDataEvent, ProbeRequest, ProbeResponse, ResourceId},
+    common::{Ack, Heartbeat, HostAddr, KeyedDataEvent, ResourceId, Response},
+    common_impl::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway, RpcGateway},
     worker::{
         task_worker_api_client::TaskWorkerApiClient, CreateSubDataflowRequest,
         CreateSubDataflowResponse, SendEventToOperatorResponse, StopDataflowResponse,
@@ -23,6 +25,48 @@ pub struct SafeTaskManagerRpcGateway {
 unsafe impl Send for SafeTaskManagerRpcGateway {}
 unsafe impl Sync for SafeTaskManagerRpcGateway {}
 
+impl RpcGateway for SafeTaskManagerRpcGateway {
+    fn get_host_addr(&self) -> &HostAddr {
+        &self.host_addr
+    }
+}
+
+#[async_trait]
+impl ReceiveAckRpcGateway for SafeTaskManagerRpcGateway {
+    async fn receive_ack(&self, request: Ack) -> Result<Response, tonic::Status> {
+        let mut guard = self.inner.lock().await;
+        let inner = guard.get_or_insert_with(|| {
+            TaskWorkerApiClient::with_connection_timeout(
+                self.host_addr.as_uri(),
+                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
+            )
+        });
+
+        inner
+            .receive_ack(tonic::Request::new(request))
+            .await
+            .map(|resp| resp.into_inner())
+    }
+}
+
+#[async_trait]
+impl ReceiveHeartbeatRpcGateway for SafeTaskManagerRpcGateway {
+    async fn receive_heartbeat(&self, request: Heartbeat) -> Result<Response, tonic::Status> {
+        let mut guard = self.inner.lock().await;
+        let inner = guard.get_or_insert_with(|| {
+            TaskWorkerApiClient::with_connection_timeout(
+                self.host_addr.as_uri(),
+                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
+            )
+        });
+
+        inner
+            .receive_heartbeat(tonic::Request::new(request))
+            .await
+            .map(|resp| resp.into_inner())
+    }
+}
+
 impl SafeTaskManagerRpcGateway {
     pub fn new(host_addr: &HostAddr) -> Self {
         let client = TaskWorkerApiClient::with_connection_timeout(
@@ -35,19 +79,15 @@ impl SafeTaskManagerRpcGateway {
         }
     }
 
-    pub async fn probe(&self, req: ProbeRequest) -> Result<ProbeResponse, tonic::Status> {
-        let mut guard = self.inner.lock().await;
-        let inner = guard.get_or_insert_with(|| {
-            TaskWorkerApiClient::with_connection_timeout(
-                self.host_addr.as_uri(),
-                Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
-            )
-        });
-
-        inner
-            .probe(tonic::Request::new(req))
-            .await
-            .map(|resp| resp.into_inner())
+    pub fn with_connection_timeout(host_addr: &HostAddr, connect_timeout: u64) -> Self {
+        let client = TaskWorkerApiClient::with_connection_timeout(
+            host_addr.as_uri(),
+            Duration::from_secs(connect_timeout),
+        );
+        Self {
+            inner: Arc::new(tokio::sync::Mutex::new(Some(client))),
+            host_addr: host_addr.clone(),
+        }
     }
 
     pub async fn send_event_to_operator(

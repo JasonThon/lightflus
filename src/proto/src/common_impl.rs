@@ -1,4 +1,7 @@
+use std::hash::Hash;
+
 use chrono::Duration;
+use tonic::async_trait;
 
 use crate::common::{
     mysql_desc::{self, Statement},
@@ -6,9 +9,12 @@ use crate::common::{
     sink, source,
     trigger::Watermark,
     window::{self, FixedWindow, SessionWindow, SlidingWindow},
-    DataTypeEnum, Dataflow, Entry, Func, HostAddr, KafkaDesc, KeyedDataEvent, MysqlDesc,
-    OperatorInfo, RedisDesc, ResourceId, Sink, Source, Time, Trigger, Window,
+    Ack, DataTypeEnum, Dataflow, Entry, ExecutionId, Func, Heartbeat, HostAddr, KafkaDesc,
+    KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Response, Sink, Source, Time,
+    Trigger, Window,
 };
+
+pub const SUCCESS_RPC_RESPONSE: &str = "success";
 
 impl OperatorInfo {
     pub fn has_source(&self) -> bool {
@@ -364,6 +370,70 @@ impl mysql_desc::ConnectionOpts {
     }
 }
 
+impl Hash for ResourceId {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.resource_id.hash(state);
+        self.namespace_id.hash(state);
+    }
+}
+
+impl PartialOrd for ResourceId {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self.resource_id.partial_cmp(&other.resource_id) {
+            Some(core::cmp::Ordering::Equal) => {}
+            ord => return ord,
+        }
+        self.namespace_id.partial_cmp(&other.namespace_id)
+    }
+}
+
+impl Eq for ResourceId {}
+
+impl Ord for ResourceId {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.partial_cmp(other) {
+            Some(order) => order,
+            None => std::cmp::Ordering::Equal,
+        }
+    }
+}
+
+impl serde::Serialize for ResourceId {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        todo!()
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ResourceId {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        todo!()
+    }
+}
+
+impl Response {
+    pub fn ok() -> Self {
+        Self {
+            status: SUCCESS_RPC_RESPONSE.to_string(),
+            err_msg: String::default(),
+        }
+    }
+}
+
+impl ExecutionId {
+    pub fn get_job_id(&self) -> ResourceId {
+        self.job_id
+            .as_ref()
+            .map(|job_id| job_id.clone())
+            .unwrap_or_default()
+    }
+}
+
 macro_rules! get_func {
     ($name:ident,$import:ident) => {
         use crate::common::{$import, $name};
@@ -390,4 +460,18 @@ impl HostAddr {
     pub fn as_uri(&self) -> String {
         format!("http://{}:{}", &self.host, self.port)
     }
+}
+
+pub trait RpcGateway {
+    fn get_host_addr(&self) -> &HostAddr;
+}
+
+#[async_trait]
+pub trait ReceiveAckRpcGateway: RpcGateway {
+    async fn receive_ack(&self, req: Ack) -> Result<Response, tonic::Status>;
+}
+
+#[async_trait]
+pub trait ReceiveHeartbeatRpcGateway: RpcGateway {
+    async fn receive_heartbeat(&self, request: Heartbeat) -> Result<Response, tonic::Status>;
 }

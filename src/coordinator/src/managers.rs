@@ -1,14 +1,14 @@
 use std::collections::BTreeMap;
 
 use common::{
-    net::{cluster, hostname, PersistableHostAddr},
+    net::{cluster, AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr},
     types::HashedResourceId,
 };
-use proto::common::{Dataflow, DataflowStatus, ResourceId};
+use proto::common::{Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
 
 use crate::{
-    coord::CoordinatorConfig,
-    executions::{SubdataflowDeploymentPlan, TaskDeploymentException, VertexRemoteExecution},
+    config::CoordinatorConfig,
+    executions::{ExecutionID, SubdataflowDeploymentPlan, TaskDeploymentException},
     scheduler::Scheduler,
     storage::DataflowStorageImpl,
 };
@@ -25,37 +25,59 @@ pub(crate) struct JobManager {
     location: PersistableHostAddr,
 }
 impl JobManager {
-    pub(crate) fn new(location: &PersistableHostAddr) -> Self {
+    pub(crate) fn new(location: &PersistableHostAddr, dataflow: &Dataflow) -> Self {
         Self {
-            dataflow: Default::default(),
-            job_id: Default::default(),
+            dataflow: dataflow.clone(),
+            job_id: dataflow.get_job_id(),
             scheduler: Scheduler::default(),
             location: location.clone(),
         }
     }
 
-    async fn create_dataflow(
+    /// Once a dataflow is deployed, JobManager will receive the event of state transition of each subdataflow from TaskManager.
+    async fn deploy_dataflow(
         &mut self,
         cluster: &mut cluster::Cluster,
-        dataflow: &mut Dataflow,
+        heartbeat_builder: &HeartbeatBuilder,
+        ack_builder: &mut AckResponderBuilder,
     ) -> Result<(), TaskDeploymentException> {
-        cluster.partition_dataflow(dataflow);
-        self.job_id = dataflow.get_job_id();
-        self.dataflow = dataflow.clone();
+        let subdataflow = cluster.split_into_subdataflow(&self.dataflow);
+        let mut execution_id = 0;
+        ack_builder.nodes = vec![self.location.clone()];
+        let executions = subdataflow.iter().map(|pair| {
+            let plan = SubdataflowDeploymentPlan::new(
+                pair,
+                ExecutionID(self.job_id.clone(), execution_id),
+                cluster.get_node(pair.0),
+                ack_builder,
+            );
+            execution_id += 1;
+            plan
+        });
 
-        let subdataflow = cluster.split_into_subdataflow(dataflow);
-        let executions = subdataflow
-            .iter()
-            .map(|pair| SubdataflowDeploymentPlan::new(&self.job_id, pair, &self.location));
-
-        self.scheduler.execute_all(cluster, executions).await
+        self.scheduler
+            .execute_all(executions, heartbeat_builder)
+            .await
     }
 
     async fn terminate_dataflow(
         &mut self,
         cluster: &mut cluster::Cluster,
     ) -> Result<DataflowStatus, tonic::Status> {
-        self.scheduler.terminate_dataflow(cluster).await
+        todo!()
+    }
+
+    fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+        heartbeat
+            .execution_id
+            .as_ref()
+            .iter()
+            .for_each(|execution_id| {
+                self.scheduler
+                    .get_execution_mut((*execution_id).into())
+                    .iter_mut()
+                    .for_each(|execution| (*execution).update_heartbeat_status(heartbeat))
+            })
     }
 }
 
@@ -70,6 +92,8 @@ pub(crate) struct Dispatcher {
     cluster: cluster::Cluster,
     dataflow_storage: DataflowStorageImpl,
     location: PersistableHostAddr,
+    heartbeat: HeartbeatBuilder,
+    ack: AckResponderBuilder,
 }
 
 impl Dispatcher {
@@ -80,6 +104,23 @@ impl Dispatcher {
             cluster: cluster::Cluster::new(&config.cluster),
             dataflow_storage,
             location: PersistableHostAddr::local(config.port),
+            heartbeat: HeartbeatBuilder {
+                period: config.heartbeat.period,
+                node_addrs: config
+                    .cluster
+                    .iter()
+                    .map(|node_conf| {
+                        (
+                            HostAddr {
+                                host: node_conf.host.clone(),
+                                port: node_conf.port as u32,
+                            },
+                            config.heartbeat.connection_timeout,
+                        )
+                    })
+                    .collect(),
+            },
+            ack: config.ack.clone(),
         }
     }
 
@@ -94,15 +135,13 @@ impl Dispatcher {
                 )))
             }
             _ => {
-                let mut job_manager = JobManager::new(&self.location);
+                self.cluster.partition_dataflow(dataflow);
+                let mut job_manager = JobManager::new(&self.location, dataflow);
                 let result = job_manager
-                    .create_dataflow(&mut self.cluster, dataflow)
+                    .deploy_dataflow(&mut self.cluster, &self.heartbeat, &mut self.ack)
                     .await
                     .map_err(|err| DispatcherException::DeploymentError(err));
 
-                let job_id = HashedResourceId::from(dataflow.get_job_id());
-
-                self.managers.insert(job_id, job_manager);
                 result
             }
         }
@@ -142,12 +181,27 @@ impl Dispatcher {
         self.dataflow_storage.get(job_id)
     }
 
-    pub(crate) async fn probe_cluster_state(&mut self) {
-        self.cluster.probe_state().await
+    pub(crate) fn update_task_manager_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+        heartbeat
+            .execution_id
+            .as_ref()
+            .iter()
+            .for_each(|execution_id| {
+                (*execution_id)
+                    .job_id
+                    .as_ref()
+                    .iter()
+                    .for_each(|resource_id| {
+                        self.managers
+                            .get_mut(&(*resource_id).into())
+                            .iter_mut()
+                            .for_each(|manager| (*manager).update_heartbeat_status(heartbeat))
+                    })
+            })
     }
 }
 
-pub enum DispatcherException {
+pub(crate) enum DispatcherException {
     Tonic(tonic::Status),
     DeploymentError(TaskDeploymentException),
     UnexpectedDataflowStatus(DataflowStatus),
@@ -160,6 +214,7 @@ impl DispatcherException {
             DispatcherException::UnexpectedDataflowStatus(status) => {
                 tonic::Status::internal(format!("unexpected dataflow status {:?}", status))
             }
+            DispatcherException::DeploymentError(_) => todo!(),
         }
     }
 }

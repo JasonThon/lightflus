@@ -1,18 +1,24 @@
 syntax = "proto3";
 
 package worker;
-import "common/probe.proto";
 import "common/event.proto";
 import "common/common.proto";
 import "common/stream.proto";
 
 option go_package = "lightflus/runtime/proto";
 
+/// RPC Api for Task Manager
 service TaskWorkerApi {
-  rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
+  /// Send event to operator
   rpc SendEventToOperator(common.KeyedDataEvent) returns (SendEventToOperatorResponse){}
+  /// Attempt to terminate a sub-dataflow
   rpc StopDataflow(common.ResourceId) returns (StopDataflowResponse) {}
+  /// Attempt to create a sub-dataflow
   rpc CreateSubDataflow(CreateSubDataflowRequest) returns(CreateSubDataflowResponse) {}
+  /// Receive heartbeat
+  rpc ReceiveHeartbeat(common.Heartbeat) returns (common.Response) {}
+  /// Receive ack
+  rpc ReceiveAck(common.Ack) returns (common.Response) {}
 }
 
 message SendEventToOperatorResponse {

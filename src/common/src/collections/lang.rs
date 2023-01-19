@@ -1,8 +1,6 @@
 use std::collections;
 use std::collections::VecDeque;
 
-use futures_util::Future;
-
 pub fn map_self<N, T, F: FnMut(&N) -> T>(
     list: &Vec<N>,
     mut key_extractor: F,
@@ -82,10 +80,6 @@ where
 
 pub fn any_match<T, F: FnMut(&T) -> bool>(elems: &Vec<T>, mut predicate: F) -> bool {
     elems.iter().filter(|e| predicate(*e)).next().is_some()
-}
-
-pub async fn map_async<U, T, F: FnMut(&U) -> T>(list: &Vec<U>, mapper: F) -> Vec<T> {
-    
 }
 
 #[cfg(test)]

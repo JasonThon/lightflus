@@ -29,6 +29,10 @@ pub mod times {
             chrono::NaiveDateTime::from_timestamp(timestamp.seconds, timestamp.nanos as u32);
         chrono::DateTime::from_utc(naive_time, chrono::Utc)
     }
+
+    pub fn now() -> chrono::DateTime<chrono::Utc> {
+        chrono::Utc::now()
+    }
 }
 
 pub struct Args {

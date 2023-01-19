@@ -4,11 +4,6 @@ pub struct CreateDataflowResponse {
     pub status: i32,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TerminateDataflowRequest {
-    #[prost(message, optional, tag = "1")]
-    pub job_id: ::core::option::Option<super::common::ResourceId>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TerminateDataflowResponse {
     #[prost(enumeration = "super::common::DataflowStatus", tag = "1")]
     pub status: i32,
@@ -25,11 +20,61 @@ pub struct GetDataflowResponse {
     #[prost(message, optional, tag = "2")]
     pub graph: ::core::option::Option<super::common::Dataflow>,
 }
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TaskInfo {
+    #[prost(message, optional, tag = "1")]
+    pub job_id: ::core::option::Option<super::common::ResourceId>,
+    #[prost(map = "uint32, message", tag = "2")]
+    pub executors_info: ::std::collections::HashMap<u32, task_info::ExecutorInfo>,
+}
+/// Nested message and enum types in `TaskInfo`.
+pub mod task_info {
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct ExecutorInfo {
+        #[prost(uint32, tag = "1")]
+        pub executor_id: u32,
+        #[prost(enumeration = "ExecutorStatus", tag = "2")]
+        pub status: i32,
+    }
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum ExecutorStatus {
+        Initialized = 0,
+        Running = 1,
+        Terminating = 2,
+        Terminated = 3,
+    }
+    impl ExecutorStatus {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                ExecutorStatus::Initialized => "EXECUTOR_STATUS_INITIALIZED",
+                ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
+                ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
+                ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
+            }
+        }
+    }
+}
 /// Generated client implementations.
 pub mod coordinator_api_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    #[doc = "/ RPC Api for Coordinator"]
     #[derive(Debug, Clone)]
     pub struct CoordinatorApiClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -94,28 +139,8 @@ pub mod coordinator_api_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        pub async fn probe(
-            &mut self,
-            request: impl tonic::IntoRequest<super::super::common::ProbeRequest>,
-        ) -> Result<
-            tonic::Response<super::super::common::ProbeResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/coordinator.CoordinatorApi/Probe",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
+        #[doc = "/ Attempt to deploy a new dataflow and create a JobManager."]
+        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
         pub async fn create_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Dataflow>,
@@ -135,9 +160,12 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = "/ Attempt to terminate a dataflow"]
+        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
+        #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
         pub async fn terminate_dataflow(
             &mut self,
-            request: impl tonic::IntoRequest<super::TerminateDataflowRequest>,
+            request: impl tonic::IntoRequest<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::TerminateDataflowResponse>, tonic::Status> {
             self.inner
                 .ready()
@@ -154,6 +182,8 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = "/ Get the details of a dataflow."]
+        #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
         pub async fn get_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDataflowRequest>,
@@ -173,6 +203,66 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = "/ Receive ack"]
+        pub async fn receive_ack(
+            &mut self,
+            request: impl tonic::IntoRequest<super::super::common::Ack>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/coordinator.CoordinatorApi/ReceiveAck",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = "/ Report task info"]
+        pub async fn report_task_info(
+            &mut self,
+            request: impl tonic::IntoRequest<super::TaskInfo>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/coordinator.CoordinatorApi/ReportTaskInfo",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = "/ Receive heartbeat"]
+        pub async fn receive_heartbeat(
+            &mut self,
+            request: impl tonic::IntoRequest<super::super::common::Heartbeat>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/coordinator.CoordinatorApi/ReceiveHeartbeat",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -182,23 +272,42 @@ pub mod coordinator_api_server {
     ///Generated trait containing gRPC methods that should be implemented for use with CoordinatorApiServer.
     #[async_trait]
     pub trait CoordinatorApi: Send + Sync + 'static {
-        async fn probe(
-            &self,
-            request: tonic::Request<super::super::common::ProbeRequest>,
-        ) -> Result<tonic::Response<super::super::common::ProbeResponse>, tonic::Status>;
+        #[doc = "/ Attempt to deploy a new dataflow and create a JobManager."]
+        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
         async fn create_dataflow(
             &self,
             request: tonic::Request<super::super::common::Dataflow>,
         ) -> Result<tonic::Response<super::CreateDataflowResponse>, tonic::Status>;
+        #[doc = "/ Attempt to terminate a dataflow"]
+        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
+        #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
         async fn terminate_dataflow(
             &self,
-            request: tonic::Request<super::TerminateDataflowRequest>,
+            request: tonic::Request<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::TerminateDataflowResponse>, tonic::Status>;
+        #[doc = "/ Get the details of a dataflow."]
+        #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
         async fn get_dataflow(
             &self,
             request: tonic::Request<super::GetDataflowRequest>,
         ) -> Result<tonic::Response<super::GetDataflowResponse>, tonic::Status>;
+        #[doc = "/ Receive ack"]
+        async fn receive_ack(
+            &self,
+            request: tonic::Request<super::super::common::Ack>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
+        #[doc = "/ Report task info"]
+        async fn report_task_info(
+            &self,
+            request: tonic::Request<super::TaskInfo>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
+        #[doc = "/ Receive heartbeat"]
+        async fn receive_heartbeat(
+            &self,
+            request: tonic::Request<super::super::common::Heartbeat>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
     }
+    #[doc = "/ RPC Api for Coordinator"]
     #[derive(Debug)]
     pub struct CoordinatorApiServer<T: CoordinatorApi> {
         inner: _Inner<T>,
@@ -258,44 +367,6 @@ pub mod coordinator_api_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/coordinator.CoordinatorApi/Probe" => {
-                    #[allow(non_camel_case_types)]
-                    struct ProbeSvc<T: CoordinatorApi>(pub Arc<T>);
-                    impl<
-                        T: CoordinatorApi,
-                    > tonic::server::UnaryService<super::super::common::ProbeRequest>
-                    for ProbeSvc<T> {
-                        type Response = super::super::common::ProbeResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::super::common::ProbeRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).probe(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = ProbeSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
                 "/coordinator.CoordinatorApi/CreateDataflow" => {
                     #[allow(non_camel_case_types)]
                     struct CreateDataflowSvc<T: CoordinatorApi>(pub Arc<T>);
@@ -341,7 +412,7 @@ pub mod coordinator_api_server {
                     struct TerminateDataflowSvc<T: CoordinatorApi>(pub Arc<T>);
                     impl<
                         T: CoordinatorApi,
-                    > tonic::server::UnaryService<super::TerminateDataflowRequest>
+                    > tonic::server::UnaryService<super::super::common::ResourceId>
                     for TerminateDataflowSvc<T> {
                         type Response = super::TerminateDataflowResponse;
                         type Future = BoxFuture<
@@ -350,7 +421,7 @@ pub mod coordinator_api_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::TerminateDataflowRequest>,
+                            request: tonic::Request<super::super::common::ResourceId>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {
@@ -405,6 +476,122 @@ pub mod coordinator_api_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = GetDataflowSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/coordinator.CoordinatorApi/ReceiveAck" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReceiveAckSvc<T: CoordinatorApi>(pub Arc<T>);
+                    impl<
+                        T: CoordinatorApi,
+                    > tonic::server::UnaryService<super::super::common::Ack>
+                    for ReceiveAckSvc<T> {
+                        type Response = super::super::common::Response;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::super::common::Ack>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).receive_ack(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ReceiveAckSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/coordinator.CoordinatorApi/ReportTaskInfo" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReportTaskInfoSvc<T: CoordinatorApi>(pub Arc<T>);
+                    impl<T: CoordinatorApi> tonic::server::UnaryService<super::TaskInfo>
+                    for ReportTaskInfoSvc<T> {
+                        type Response = super::super::common::Response;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::TaskInfo>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).report_task_info(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ReportTaskInfoSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/coordinator.CoordinatorApi/ReceiveHeartbeat" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReceiveHeartbeatSvc<T: CoordinatorApi>(pub Arc<T>);
+                    impl<
+                        T: CoordinatorApi,
+                    > tonic::server::UnaryService<super::super::common::Heartbeat>
+                    for ReceiveHeartbeatSvc<T> {
+                        type Response = super::super::common::Response;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::super::common::Heartbeat>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).receive_heartbeat(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ReceiveHeartbeatSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

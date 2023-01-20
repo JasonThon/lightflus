@@ -1,11 +1,8 @@
 use crate::coord;
-use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId, Response};
+use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId, Response, TaskInfo};
 
 use proto::coordinator::coordinator_api_server::CoordinatorApi;
-use proto::coordinator::{
-    CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TaskInfo,
-    TerminateDataflowResponse,
-};
+use proto::coordinator::{GetDataflowRequest, GetDataflowResponse};
 use tokio::sync::RwLock;
 
 pub(crate) struct CoordinatorApiImpl {
@@ -52,30 +49,22 @@ impl CoordinatorApi for CoordinatorApiImpl {
     async fn create_dataflow(
         &self,
         request: tonic::Request<Dataflow>,
-    ) -> Result<tonic::Response<CreateDataflowResponse>, tonic::Status> {
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
         write_lock
             .create_dataflow(request.into_inner())
             .await
-            .map(|_| {
-                tonic::Response::new(CreateDataflowResponse {
-                    status: DataflowStatus::Initialized as i32,
-                })
-            })
+            .map(|_| tonic::Response::new(Response::ok()))
     }
     async fn terminate_dataflow(
         &self,
         request: tonic::Request<ResourceId>,
-    ) -> Result<tonic::Response<TerminateDataflowResponse>, tonic::Status> {
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
         write_lock
             .terminate_dataflow(request.get_ref())
             .await
-            .map(|status| {
-                tonic::Response::new(TerminateDataflowResponse {
-                    status: status as i32,
-                })
-            })
+            .map(|status| tonic::Response::new(Response::ok()))
     }
     async fn get_dataflow(
         &self,

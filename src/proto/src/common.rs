@@ -125,6 +125,60 @@ pub mod ack {
         HeartbeatId(u64),
     }
 }
+/// Basic information of task
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TaskInfo {
+    /// execution id of task
+    #[prost(message, optional, tag = "1")]
+    pub execution_id: ::core::option::Option<ExecutionId>,
+    /// information of executors
+    #[prost(map = "uint32, message", tag = "2")]
+    pub executors_info: ::std::collections::HashMap<u32, task_info::ExecutorInfo>,
+}
+/// Nested message and enum types in `TaskInfo`.
+pub mod task_info {
+    /// Basic information of executor
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct ExecutorInfo {
+        #[prost(uint32, tag = "1")]
+        pub executor_id: u32,
+        #[prost(enumeration = "ExecutorStatus", tag = "2")]
+        pub status: i32,
+    }
+    /// status of executor
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum ExecutorStatus {
+        Initialized = 0,
+        Running = 1,
+        Terminating = 2,
+        Terminated = 3,
+    }
+    impl ExecutorStatus {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                ExecutorStatus::Initialized => "EXECUTOR_STATUS_INITIALIZED",
+                ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
+                ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
+                ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
+            }
+        }
+    }
+}
 /// Enum of Data Type. each one corresponds to a primitive type in JavaScript
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]

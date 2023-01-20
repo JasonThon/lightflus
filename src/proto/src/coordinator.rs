@@ -1,14 +1,4 @@
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct CreateDataflowResponse {
-    #[prost(enumeration = "super::common::DataflowStatus", tag = "1")]
-    pub status: i32,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TerminateDataflowResponse {
-    #[prost(enumeration = "super::common::DataflowStatus", tag = "1")]
-    pub status: i32,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetDataflowRequest {
     #[prost(message, optional, tag = "1")]
     pub job_id: ::core::option::Option<super::common::ResourceId>,
@@ -19,55 +9,6 @@ pub struct GetDataflowResponse {
     pub status: i32,
     #[prost(message, optional, tag = "2")]
     pub graph: ::core::option::Option<super::common::Dataflow>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TaskInfo {
-    #[prost(message, optional, tag = "1")]
-    pub job_id: ::core::option::Option<super::common::ResourceId>,
-    #[prost(map = "uint32, message", tag = "2")]
-    pub executors_info: ::std::collections::HashMap<u32, task_info::ExecutorInfo>,
-}
-/// Nested message and enum types in `TaskInfo`.
-pub mod task_info {
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct ExecutorInfo {
-        #[prost(uint32, tag = "1")]
-        pub executor_id: u32,
-        #[prost(enumeration = "ExecutorStatus", tag = "2")]
-        pub status: i32,
-    }
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum ExecutorStatus {
-        Initialized = 0,
-        Running = 1,
-        Terminating = 2,
-        Terminated = 3,
-    }
-    impl ExecutorStatus {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                ExecutorStatus::Initialized => "EXECUTOR_STATUS_INITIALIZED",
-                ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
-                ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
-                ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
-            }
-        }
-    }
 }
 /// Generated client implementations.
 pub mod coordinator_api_client {
@@ -144,7 +85,7 @@ pub mod coordinator_api_client {
         pub async fn create_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Dataflow>,
-        ) -> Result<tonic::Response<super::CreateDataflowResponse>, tonic::Status> {
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -166,7 +107,7 @@ pub mod coordinator_api_client {
         pub async fn terminate_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::ResourceId>,
-        ) -> Result<tonic::Response<super::TerminateDataflowResponse>, tonic::Status> {
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
             self.inner
                 .ready()
                 .await
@@ -226,7 +167,7 @@ pub mod coordinator_api_client {
         #[doc = "/ Report task info"]
         pub async fn report_task_info(
             &mut self,
-            request: impl tonic::IntoRequest<super::TaskInfo>,
+            request: impl tonic::IntoRequest<super::super::common::TaskInfo>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
             self.inner
                 .ready()
@@ -277,14 +218,14 @@ pub mod coordinator_api_server {
         async fn create_dataflow(
             &self,
             request: tonic::Request<super::super::common::Dataflow>,
-        ) -> Result<tonic::Response<super::CreateDataflowResponse>, tonic::Status>;
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
         #[doc = "/ Attempt to terminate a dataflow"]
         #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
         #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
         async fn terminate_dataflow(
             &self,
             request: tonic::Request<super::super::common::ResourceId>,
-        ) -> Result<tonic::Response<super::TerminateDataflowResponse>, tonic::Status>;
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
         #[doc = "/ Get the details of a dataflow."]
         #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
         async fn get_dataflow(
@@ -299,7 +240,7 @@ pub mod coordinator_api_server {
         #[doc = "/ Report task info"]
         async fn report_task_info(
             &self,
-            request: tonic::Request<super::TaskInfo>,
+            request: tonic::Request<super::super::common::TaskInfo>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
         #[doc = "/ Receive heartbeat"]
         async fn receive_heartbeat(
@@ -374,7 +315,7 @@ pub mod coordinator_api_server {
                         T: CoordinatorApi,
                     > tonic::server::UnaryService<super::super::common::Dataflow>
                     for CreateDataflowSvc<T> {
-                        type Response = super::CreateDataflowResponse;
+                        type Response = super::super::common::Response;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -414,7 +355,7 @@ pub mod coordinator_api_server {
                         T: CoordinatorApi,
                     > tonic::server::UnaryService<super::super::common::ResourceId>
                     for TerminateDataflowSvc<T> {
-                        type Response = super::TerminateDataflowResponse;
+                        type Response = super::super::common::Response;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -528,7 +469,9 @@ pub mod coordinator_api_server {
                 "/coordinator.CoordinatorApi/ReportTaskInfo" => {
                     #[allow(non_camel_case_types)]
                     struct ReportTaskInfoSvc<T: CoordinatorApi>(pub Arc<T>);
-                    impl<T: CoordinatorApi> tonic::server::UnaryService<super::TaskInfo>
+                    impl<
+                        T: CoordinatorApi,
+                    > tonic::server::UnaryService<super::super::common::TaskInfo>
                     for ReportTaskInfoSvc<T> {
                         type Response = super::super::common::Response;
                         type Future = BoxFuture<
@@ -537,7 +480,7 @@ pub mod coordinator_api_server {
                         >;
                         fn call(
                             &mut self,
-                            request: tonic::Request<super::TaskInfo>,
+                            request: tonic::Request<super::super::common::TaskInfo>,
                         ) -> Self::Future {
                             let inner = self.0.clone();
                             let fut = async move {

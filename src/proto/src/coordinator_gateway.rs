@@ -4,11 +4,10 @@ use tokio::sync::Mutex;
 use tonic::async_trait;
 
 use crate::{
-    common::{Ack, Dataflow, Heartbeat, HostAddr, ResourceId, Response},
+    common::{Ack, Dataflow, Heartbeat, HostAddr, ResourceId, Response, TaskInfo},
     common_impl::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway, RpcGateway},
     coordinator::{
-        coordinator_api_client::CoordinatorApiClient, CreateDataflowResponse, GetDataflowRequest,
-        GetDataflowResponse, TaskInfo, TerminateDataflowResponse,
+        coordinator_api_client::CoordinatorApiClient, GetDataflowRequest, GetDataflowResponse,
     },
     DEFAULT_CONNECT_TIMEOUT,
 };
@@ -80,7 +79,7 @@ impl SafeCoordinatorRpcGateway {
     pub async fn create_dataflow(
         &self,
         dataflow: Dataflow,
-    ) -> Result<CreateDataflowResponse, tonic::Status> {
+    ) -> Result<Response, tonic::Status> {
         let mut guard = self.inner.lock().await;
         let inner = guard.get_or_insert_with(|| {
             CoordinatorApiClient::with_connection_timeout(
@@ -98,7 +97,7 @@ impl SafeCoordinatorRpcGateway {
     pub async fn terminate_dataflow(
         &self,
         req: ResourceId,
-    ) -> Result<TerminateDataflowResponse, tonic::Status> {
+    ) -> Result<Response, tonic::Status> {
         let mut guard = self.inner.lock().await;
         let inner = guard.get_or_insert_with(|| {
             CoordinatorApiClient::with_connection_timeout(

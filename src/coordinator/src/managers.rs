@@ -65,7 +65,10 @@ impl JobManager {
         &mut self,
         cluster: &mut cluster::Cluster,
     ) -> Result<DataflowStatus, tonic::Status> {
-        todo!()
+        self.scheduler
+            .terminate_dataflow(cluster)
+            .await
+            .map_err(|err| err.to_tonic_status())
     }
 
     async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {

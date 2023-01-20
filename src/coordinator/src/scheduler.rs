@@ -9,7 +9,7 @@ use tokio::task::JoinHandle;
 
 use crate::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 
-/// The scheduler for a [`JobManager`]. 
+/// The scheduler for a [`JobManager`].
 #[derive(Default)]
 pub struct Scheduler {
     executions: BTreeMap<ExecutionID, SubdataflowExecution>,
@@ -67,4 +67,11 @@ impl Scheduler {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum TaskExecutionException {}
+
+impl TaskExecutionException {
+    pub(crate) fn to_tonic_status(&self) -> tonic::Status {
+        todo!()
+    }
+}

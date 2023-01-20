@@ -14,7 +14,7 @@
 
 1. Lightflus has released the **demo version**. Welcome to try it! 
 
-2. Your feedback is very important and we will take very serious to any of your advice!
+2. Your feedback is very important and we will take it very seriously!
 
 
 ## Design Philosophy

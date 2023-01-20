@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 
+/// The utils for time convertion
 pub mod times {
     use std::time::{Duration, SystemTime};
 
@@ -32,6 +33,15 @@ pub mod times {
 
     pub fn now() -> chrono::DateTime<chrono::Utc> {
         chrono::Utc::now()
+    }
+
+    pub fn from_utc_chrono_to_prost_timestamp(
+        timestamp: &chrono::DateTime<chrono::Utc>,
+    ) -> prost_types::Timestamp {
+        prost_types::Timestamp {
+            seconds: timestamp.timestamp(),
+            nanos: timestamp.timestamp_subsec_nanos() as i32,
+        }
     }
 }
 

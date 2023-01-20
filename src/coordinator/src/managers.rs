@@ -3,12 +3,13 @@ use std::collections::BTreeMap;
 use common::{
     net::{cluster, AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr},
     types::HashedResourceId,
+    ExecutionID,
 };
 use proto::common::{Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
 
 use crate::{
     config::CoordinatorConfig,
-    executions::{ExecutionID, SubdataflowDeploymentPlan, TaskDeploymentException},
+    executions::{SubdataflowDeploymentPlan, TaskDeploymentException},
     scheduler::Scheduler,
     storage::DataflowStorageImpl,
 };
@@ -67,17 +68,13 @@ impl JobManager {
         todo!()
     }
 
-    fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
-        heartbeat
-            .execution_id
-            .as_ref()
-            .iter()
-            .for_each(|execution_id| {
-                self.scheduler
-                    .get_execution_mut((*execution_id).into())
-                    .iter_mut()
-                    .for_each(|execution| (*execution).update_heartbeat_status(heartbeat))
-            })
+    async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+        for execution_id in heartbeat.execution_id.as_ref().iter() {
+            match self.scheduler.get_execution_mut((*execution_id).into()) {
+                Some(execution) => execution.update_heartbeat_status(heartbeat).await,
+                None => {}
+            }
+        }
     }
 }
 
@@ -181,23 +178,18 @@ impl Dispatcher {
         self.dataflow_storage.get(job_id)
     }
 
-    pub(crate) fn update_task_manager_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
-        heartbeat
-            .execution_id
-            .as_ref()
-            .iter()
-            .for_each(|execution_id| {
-                (*execution_id)
-                    .job_id
-                    .as_ref()
-                    .iter()
-                    .for_each(|resource_id| {
-                        self.managers
-                            .get_mut(&(*resource_id).into())
-                            .iter_mut()
-                            .for_each(|manager| (*manager).update_heartbeat_status(heartbeat))
-                    })
-            })
+    pub(crate) async fn update_task_manager_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+        match heartbeat.execution_id.as_ref() {
+            Some(execution_id) => {
+                for resource_id in execution_id.job_id.as_ref().iter() {
+                    match self.managers.get_mut(&(*resource_id).into()) {
+                        Some(manager) => manager.update_heartbeat_status(heartbeat).await,
+                        None => {}
+                    }
+                }
+            }
+            None => {}
+        }
     }
 }
 

@@ -28,9 +28,12 @@ pub enum NodeStatus {
 pub struct Node {
     /// The status of node
     status: NodeStatus,
+    /// The address of node
     pub host_addr: PersistableHostAddr,
+    /// a gateway for the node
     pub gateway: SafeTaskManagerRpcGateway,
-    lastest_heartbeat_timestamp: chrono::DateTime<chrono::Utc>,
+    // the latest update time of status updating
+    lastest_status_update_timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl Node {
@@ -39,13 +42,13 @@ impl Node {
             status: NodeStatus::Pending,
             host_addr,
             gateway,
-            lastest_heartbeat_timestamp: chrono::Utc::now(),
+            lastest_status_update_timestamp: chrono::Utc::now(),
         }
     }
 
     pub fn update_status(&mut self, status: NodeStatus, timestamp: &prost_types::Timestamp) {
         self.status = status;
-        self.lastest_heartbeat_timestamp = from_prost_timestamp_to_utc_chrono(timestamp)
+        self.lastest_status_update_timestamp = from_prost_timestamp_to_utc_chrono(timestamp)
     }
 
     pub fn get_status(&self) -> &NodeStatus {

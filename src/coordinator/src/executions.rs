@@ -6,40 +6,24 @@ use common::{
         to_host_addr, AckResponder, AckResponderBuilder, PersistableHostAddr,
     },
     types::ExecutorId,
+    utils::{self, times::from_utc_chrono_to_prost_timestamp},
+    ExecutionID,
 };
 use proto::{
     common::{
-        Ack, Dataflow, DataflowStatus, ExecutionId, Heartbeat, NodeType, OperatorInfo, ResourceId,
+        ack::{AckType, RequestId},
+        Ack, Dataflow, DataflowStatus, Heartbeat, NodeType, OperatorInfo,
     },
     worker::CreateSubDataflowRequest,
     worker_gateway::SafeTaskManagerRpcGateway,
 };
 use tokio::task::JoinHandle;
 
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
-)]
-pub(crate) struct ExecutionID(pub ResourceId, pub u32);
-
-impl From<&ExecutionId> for ExecutionID {
-    fn from(id: &ExecutionId) -> Self {
-        Self(id.get_job_id(), id.sub_id)
-    }
-}
-
-impl ExecutionID {
-    pub fn into_prost(&self) -> ExecutionId {
-        ExecutionId {
-            job_id: Some(self.0.clone()),
-            sub_id: self.1,
-        }
-    }
-}
-
 /// A [`VertexExecution`] represents an execution context for a [`LocalExecutor`].
 /// - watch each LocalExecutor's state details
 /// - restart LocalExecutor while it stops unexpectedly
-/// -
+/// - watch each LocalExecutor's checkpoint snapshot status
+/// - collect each LocalExecutor's metrics
 pub struct VertexExecution {
     executor_id: ExecutorId,
     operator: OperatorInfo,
@@ -55,12 +39,20 @@ impl VertexExecution {
 /// - the structure of subdataflow
 /// - the execution id of the subdataflow
 /// - the resource configurations that this dataflow can be allocated
+/// - ack responder
+/// - initialized ack request queue
 pub(crate) struct SubdataflowDeploymentPlan {
+    /// the description of subdataflow
     subdataflow: Dataflow,
+    /// the target address of TaskManager
     addr: PersistableHostAddr,
+    /// the id of the subdataflow's execution
     execution_id: ExecutionID,
+    /// the gateway of TaskManager
     gateway: Option<SafeTaskManagerRpcGateway>,
+    /// ack responder
     ack: AckResponder<SafeTaskManagerRpcGateway>,
+    /// the initialized enqueue-entrypoint of a ack request queue
     sender: tokio::sync::mpsc::Sender<Ack>,
 }
 impl SubdataflowDeploymentPlan {
@@ -125,12 +117,24 @@ pub(crate) enum TaskDeploymentException {
     RpcError(tonic::Status),
 }
 
+/// A [`SubdataflowExecution`] represents a execution context of a subdataflow. It's responsible for:
+/// - watch the status of subdataflow
+/// - send heartbeat ack to TaskWorker
+/// - store basic information of a subdataflow
+/// - manage the checkpoint snapshot of a subdataflow
+/// - manage the checkpoint trigger of a subdataflow
 pub(crate) struct SubdataflowExecution {
+    /// the remote TaskManager node
     worker: Node,
+    /// all vertexes execution contexts
     vertexes: BTreeMap<ExecutorId, VertexExecution>,
+    /// the id of the subdataflow execution
     execution_id: ExecutionID,
+    /// the status of subdataflow
     status: DataflowStatus,
+    /// the asynchronous task of the ack sender
     ack_handler: JoinHandle<()>,
+    /// the enqueue-entrypoint of a ack request queue
     ack_request_queue: tokio::sync::mpsc::Sender<Ack>,
 }
 impl SubdataflowExecution {
@@ -142,17 +146,26 @@ impl SubdataflowExecution {
         &self.execution_id
     }
 
-    pub(crate) fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
-        heartbeat
-            .timestamp
-            .as_ref()
-            .iter()
-            .for_each(|timestamp| match heartbeat.node_type() {
-                // TODO should ack after update status
+    pub(crate) async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+        match heartbeat.timestamp.as_ref() {
+            Some(timestamp) => match heartbeat.node_type() {
                 NodeType::TaskWorker => {
-                    self.worker.update_status(NodeStatus::Running, *timestamp);
+                    self.worker.update_status(NodeStatus::Running, timestamp);
+                    let ref now = utils::times::now();
+                    let _ = self
+                        .ack_request_queue
+                        .send(Ack {
+                            timestamp: Some(from_utc_chrono_to_prost_timestamp(now)),
+                            ack_type: AckType::Heartbeat as i32,
+                            node_type: NodeType::JobManager as i32,
+                            execution_id: Some(self.execution_id.into_prost()),
+                            request_id: Some(RequestId::HeartbeatId(heartbeat.heartbeat_id)),
+                        })
+                        .await;
                 }
                 _ => {}
-            })
+            },
+            None => {}
+        }
     }
 }

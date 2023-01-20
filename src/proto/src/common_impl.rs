@@ -462,7 +462,7 @@ impl HostAddr {
     }
 }
 
-pub trait RpcGateway {
+pub trait RpcGateway: Unpin {
     fn get_host_addr(&self) -> &HostAddr;
 }
 

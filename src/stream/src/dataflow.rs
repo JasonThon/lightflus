@@ -9,6 +9,14 @@ use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine};
 
 /// This is the execution context of an operator. Execution's lifecycle must be explict because one execution corresponds to one v8 instance.
 /// After execution is dropped, the v8 instance will be destroied at the same time.
+/// # Example
+/// ```
+/// use stream::dataflow::Execution
+/// 
+/// fn main() {
+///     
+/// }
+/// ```
 pub struct Execution<'s, 'i, S: state::StateManager>
 where
     's: 'i,

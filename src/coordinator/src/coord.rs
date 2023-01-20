@@ -7,6 +7,10 @@ use proto::common::ResourceId;
 use crate::config::CoordinatorConfig;
 use crate::managers::Dispatcher;
 
+/// The coordinator of a Lightflus cluster
+/// Coordinator will manage:
+/// - Dispatcher
+/// - Checkpoint Coordinator
 pub(crate) struct Coordinator {
     dispatcher: Dispatcher,
 }
@@ -55,8 +59,10 @@ impl Coordinator {
         self.dispatcher.get_dataflow(job_id)
     }
 
-    pub(crate) fn receive_heartbeart(&mut self, heartbeat: &Heartbeat) {
-        self.dispatcher.update_task_manager_heartbeat_status(heartbeat)
+    pub(crate) async fn receive_heartbeart(&mut self, heartbeat: &Heartbeat) {
+        self.dispatcher
+            .update_task_manager_heartbeat_status(heartbeat)
+            .await
     }
 }
 

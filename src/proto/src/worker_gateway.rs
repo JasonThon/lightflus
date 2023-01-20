@@ -31,6 +31,8 @@ impl RpcGateway for SafeTaskManagerRpcGateway {
     }
 }
 
+impl Unpin for SafeTaskManagerRpcGateway {}
+
 #[async_trait]
 impl ReceiveAckRpcGateway for SafeTaskManagerRpcGateway {
     async fn receive_ack(&self, request: Ack) -> Result<Response, tonic::Status> {

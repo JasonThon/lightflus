@@ -1,13 +1,15 @@
 use std::collections::BTreeMap;
 
-use common::net::{cluster::Cluster, HeartbeatBuilder};
+use common::{
+    net::{cluster::Cluster, HeartbeatBuilder},
+    ExecutionID,
+};
 use proto::common::DataflowStatus;
 use tokio::task::JoinHandle;
 
-use crate::executions::{
-    ExecutionID, SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException,
-};
+use crate::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 
+/// The scheduler for a [`JobManager`]. 
 #[derive(Default)]
 pub struct Scheduler {
     executions: BTreeMap<ExecutionID, SubdataflowExecution>,

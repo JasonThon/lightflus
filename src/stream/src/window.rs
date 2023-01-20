@@ -10,9 +10,13 @@ use crate::DETAULT_WATERMARK;
 
 /// WindowAssigner implementations
 pub enum WindowAssignerImpl {
+    /// Fixed event-time-based keyed window assigner
     Fixed(FixedEventTimeKeyedWindowAssigner),
+    /// Sliding event-time-based keyed window assigner
     Slide(SlideEventTimeKeyedWindowAssigner),
+    /// Session event-time-based keyed window assigner
     Session(SessionKeyedWindowAssigner),
+    /// a empty assigner
     Empty,
 }
 

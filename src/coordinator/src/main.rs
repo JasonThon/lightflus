@@ -9,7 +9,7 @@ use crate::coord::Coordinator;
 
 mod api;
 mod config;
-pub mod coord;
+mod coord;
 mod executions;
 mod managers;
 mod scheduler;

@@ -27,6 +27,7 @@ impl RpcGateway for SafeCoordinatorRpcGateway {
         &self.host_addr
     }
 }
+impl Unpin for SafeCoordinatorRpcGateway {}
 
 #[async_trait]
 impl ReceiveHeartbeatRpcGateway for SafeCoordinatorRpcGateway {

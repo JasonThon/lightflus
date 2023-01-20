@@ -31,7 +31,7 @@ impl CoordinatorApi for CoordinatorApiImpl {
         request: tonic::Request<Heartbeat>,
     ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
-        write_lock.receive_heartbeart(request.get_ref());
+        write_lock.receive_heartbeart(request.get_ref()).await;
         Ok(tonic::Response::new(Response::ok()))
     }
 

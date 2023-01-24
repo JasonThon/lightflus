@@ -1,22 +1,41 @@
 use std::collections::BTreeMap;
 
 use common::{
-    net::{cluster::Cluster, HeartbeatBuilder},
+    net::{cluster::Cluster, gateway::worker::SafeTaskManagerRpcGateway, HeartbeatBuilder},
     ExecutionID,
 };
+use mockall::automock;
 use proto::common::DataflowStatus;
 use tokio::task::JoinHandle;
 
 use crate::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 
 /// The scheduler for a [`JobManager`].
-#[derive(Default)]
 pub struct Scheduler {
     executions: BTreeMap<ExecutionID, SubdataflowExecution>,
     heartbeat_handlers: BTreeMap<ExecutionID, JoinHandle<()>>,
 }
 
+#[automock]
 impl Scheduler {
+    pub(crate) fn new() -> Self {
+        Self {
+            executions: Default::default(),
+            heartbeat_handlers: Default::default(),
+        }
+    }
+
+    pub(crate) async fn execute(
+        &mut self,
+        plan: SubdataflowDeploymentPlan,
+        heartbeat_builder: &HeartbeatBuilder,
+    ) -> Result<(), TaskDeploymentException> {
+        plan.deploy().await.map(|execution| {
+            let execution_id = execution.get_execution_id().clone();
+            self.executions.insert(execution_id, execution);
+        })
+    }
+
     pub(crate) async fn terminate_dataflow(
         &mut self,
         cluster: &mut Cluster,
@@ -24,45 +43,10 @@ impl Scheduler {
         todo!()
     }
 
-    pub(crate) async fn execute_all<I: Iterator<Item = SubdataflowDeploymentPlan>>(
-        &mut self,
-        plan_iter: I,
-        heartbeat_builder: &HeartbeatBuilder,
-    ) -> Result<(), TaskDeploymentException> {
-        let execution_futures = plan_iter.map(|plan| plan.deploy());
-
-        for future in execution_futures {
-            match future.await {
-                Ok(execution) => {
-                    let execution_id = execution.get_execution_id().clone();
-                    self.executions.insert(execution_id.clone(), execution);
-
-                    let mut heartbeat = heartbeat_builder.build();
-                    heartbeat.update_execution_id(execution_id.into_prost());
-
-                    self.heartbeat_handlers
-                        .insert(execution_id, tokio::spawn(heartbeat));
-                }
-                Err(err) => {
-                    self.executions
-                        .iter_mut()
-                        .for_each(|(_, execution)| execution.try_terminate());
-
-                    self.heartbeat_handlers
-                        .iter()
-                        .for_each(|(_, handler)| handler.abort());
-                    return Err(err);
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn get_execution_mut(
-        &mut self,
+    pub(crate) fn get_execution_mut<'a>(
+        &'a mut self,
         execution_id: ExecutionID,
-    ) -> Option<&mut SubdataflowExecution> {
+    ) -> Option<&'a mut SubdataflowExecution> {
         self.executions.get_mut(&execution_id)
     }
 }

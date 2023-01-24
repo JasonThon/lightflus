@@ -6,6 +6,11 @@ use proto::coordinator::{GetDataflowRequest, GetDataflowResponse};
 use tokio::sync::RwLock;
 
 pub(crate) struct CoordinatorApiImpl {
+    /// # TODO
+    ///
+    /// [`RwLock`] will block many `receive_heartbeat` and `receive_ack` requests if they are concurrently sent.
+    /// To improve the performance, in next version, an implementation of concurrent [`std::collections::HashMap`] will be added.
+    /// Such map structure acquires only one lock on a single node which can minimize the scope of locking without locking the entire tree.
     coordinator: RwLock<coord::Coordinator>,
 }
 
@@ -43,7 +48,9 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &self,
         request: tonic::Request<Ack>,
     ) -> Result<tonic::Response<Response>, tonic::Status> {
-        todo!()
+        let mut write_lock = self.coordinator.write().await;
+        write_lock.receive_ack(request.into_inner()).await;
+        Ok(tonic::Response::new(Response::ok()))
     }
 
     async fn create_dataflow(

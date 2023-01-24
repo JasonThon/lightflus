@@ -1,7 +1,9 @@
+use proto::common::Ack;
 use proto::common::Dataflow;
 use proto::common::DataflowStatus;
 
 use proto::common::Heartbeat;
+use proto::common::NodeType;
 use proto::common::ResourceId;
 
 use crate::config::CoordinatorConfig;
@@ -11,6 +13,8 @@ use crate::managers::Dispatcher;
 /// Coordinator will manage:
 /// - Dispatcher
 /// - Checkpoint Coordinator
+/// - Backpressure Metrics
+/// - Scale Up and Scale Down
 pub(crate) struct Coordinator {
     dispatcher: Dispatcher,
 }
@@ -63,6 +67,13 @@ impl Coordinator {
         self.dispatcher
             .update_task_manager_heartbeat_status(heartbeat)
             .await
+    }
+
+    pub(crate) async fn receive_ack(&mut self, ack: Ack) {
+        match ack.node_type() {
+            NodeType::TaskWorker => self.dispatcher.ack_from_task_manager(ack),
+            _ => {}
+        }
     }
 }
 

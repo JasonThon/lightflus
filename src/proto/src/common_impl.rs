@@ -1,6 +1,7 @@
 use std::hash::Hash;
 
 use chrono::Duration;
+use tokio::sync::mpsc;
 use tonic::async_trait;
 
 use crate::common::{
@@ -460,18 +461,4 @@ impl HostAddr {
     pub fn as_uri(&self) -> String {
         format!("http://{}:{}", &self.host, self.port)
     }
-}
-
-pub trait RpcGateway: Unpin {
-    fn get_host_addr(&self) -> &HostAddr;
-}
-
-#[async_trait]
-pub trait ReceiveAckRpcGateway: RpcGateway {
-    async fn receive_ack(&self, req: Ack) -> Result<Response, tonic::Status>;
-}
-
-#[async_trait]
-pub trait ReceiveHeartbeatRpcGateway: RpcGateway {
-    async fn receive_heartbeat(&self, request: Heartbeat) -> Result<Response, tonic::Status>;
 }

@@ -6,11 +6,12 @@ use crate::utils::times::from_prost_timestamp_to_utc_chrono;
 use proto::common::DataflowMeta;
 use proto::common::{Dataflow, HostAddr};
 
-use proto::worker_gateway::SafeTaskManagerRpcGateway;
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::vec;
+
+use super::gateway::worker::SafeTaskManagerRpcGateway;
 
 #[derive(Clone, Eq, PartialEq, Debug, Copy)]
 pub enum NodeStatus {

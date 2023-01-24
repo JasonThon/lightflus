@@ -43,6 +43,14 @@ pub mod times {
             nanos: timestamp.timestamp_subsec_nanos() as i32,
         }
     }
+
+    pub fn prost_now() -> prost_types::Timestamp {
+        let now = now();
+        prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        }
+    }
 }
 
 pub struct Args {

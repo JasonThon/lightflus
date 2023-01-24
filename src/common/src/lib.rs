@@ -16,7 +16,16 @@ pub const NANOS_PER_MILLI: u32 = 1_000_000;
 /// Differently, [`ExecutionID`] derives many properties that [`ExecutionId`] does not, like: [`Hash`], [`serde::Serialize`],
 /// [`serde::Deserialize`], etc so that [`ExecutionID`] can be used more easily in any module of Lightflus
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, PartialOrd, Ord, serde::Serialize, serde::Deserialize,
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    serde::Serialize,
+    serde::Deserialize,
+    Default,
 )]
 pub struct ExecutionID(pub ResourceId, pub u32);
 

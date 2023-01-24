@@ -5,12 +5,14 @@ use common::{
     types::HashedResourceId,
     ExecutionID,
 };
-use proto::common::{Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
+use mockall_double::double;
+use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
 
+#[double]
+use crate::scheduler::Scheduler;
 use crate::{
     config::CoordinatorConfig,
     executions::{SubdataflowDeploymentPlan, TaskDeploymentException},
-    scheduler::Scheduler,
     storage::DataflowStorageImpl,
 };
 
@@ -30,7 +32,7 @@ impl JobManager {
         Self {
             dataflow: dataflow.clone(),
             job_id: dataflow.get_job_id(),
-            scheduler: Scheduler::default(),
+            scheduler: Scheduler::new(),
             location: location.clone(),
         }
     }
@@ -38,27 +40,33 @@ impl JobManager {
     /// Once a dataflow is deployed, JobManager will receive the event of state transition of each subdataflow from TaskManager.
     async fn deploy_dataflow(
         &mut self,
-        cluster: &mut cluster::Cluster,
+        cluster: &cluster::Cluster,
         heartbeat_builder: &HeartbeatBuilder,
-        ack_builder: &mut AckResponderBuilder,
+        ack_builder: &AckResponderBuilder,
     ) -> Result<(), TaskDeploymentException> {
         let subdataflow = cluster.split_into_subdataflow(&self.dataflow);
         let mut execution_id = 0;
+        let mut ack_builder = ack_builder.clone();
         ack_builder.nodes = vec![self.location.clone()];
         let executions = subdataflow.iter().map(|pair| {
             let plan = SubdataflowDeploymentPlan::new(
                 pair,
                 ExecutionID(self.job_id.clone(), execution_id),
                 cluster.get_node(pair.0),
-                ack_builder,
+                &ack_builder,
             );
             execution_id += 1;
             plan
         });
 
-        self.scheduler
-            .execute_all(executions, heartbeat_builder)
-            .await
+        for execution in executions {
+            match self.scheduler.execute(execution, heartbeat_builder).await {
+                Ok(_) => {}
+                Err(err) => return Err(err),
+            }
+        }
+
+        Ok(())
     }
 
     async fn terminate_dataflow(
@@ -79,6 +87,15 @@ impl JobManager {
             }
         }
     }
+
+    fn ack_from_execution(&mut self, ack: &Ack) {
+        for execution_id in ack.execution_id.as_ref().iter() {
+            match self.scheduler.get_execution_mut((*execution_id).into()) {
+                Some(execution) => execution.ack(ack),
+                None => {}
+            }
+        }
+    }
 }
 
 /// [`Dispatcher`] is responsible for
@@ -88,6 +105,9 @@ impl JobManager {
 /// - job recovery
 /// - heartbeat of remote cluster
 pub(crate) struct Dispatcher {
+    /// # TODO
+    ///
+    /// Change [`BTreeMap`] to an implementation of [`std::collections::HashMap`] to improve the request throughput
     managers: BTreeMap<HashedResourceId, JobManager>,
     cluster: cluster::Cluster,
     dataflow_storage: DataflowStorageImpl,
@@ -138,7 +158,7 @@ impl Dispatcher {
                 self.cluster.partition_dataflow(dataflow);
                 let mut job_manager = JobManager::new(&self.location, dataflow);
                 let result = job_manager
-                    .deploy_dataflow(&mut self.cluster, &self.heartbeat, &mut self.ack)
+                    .deploy_dataflow(&self.cluster, &self.heartbeat, &self.ack)
                     .await
                     .map_err(|err| DispatcherException::DeploymentError(err));
 
@@ -194,6 +214,20 @@ impl Dispatcher {
             None => {}
         }
     }
+
+    pub(crate) fn ack_from_task_manager(&mut self, ack: Ack) {
+        match ack.execution_id.as_ref() {
+            Some(execution_id) => {
+                for resource_id in execution_id.job_id.as_ref().iter() {
+                    match self.managers.get_mut(&(*resource_id).into()) {
+                        Some(manager) => manager.ack_from_execution(&ack),
+                        None => {}
+                    }
+                }
+            }
+            None => {}
+        }
+    }
 }
 
 pub(crate) enum DispatcherException {
@@ -211,5 +245,42 @@ impl DispatcherException {
             }
             DispatcherException::DeploymentError(_) => todo!(),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_job_manager_deploy_success() {
+        let mut mock_scheduler = Scheduler::default();
+
+        let mut manager = JobManager {
+            dataflow: Default::default(),
+            job_id: Default::default(),
+            scheduler: Scheduler::default(),
+            location: Default::default(),
+        };
+        let ref c = cluster::Cluster::new(&vec![]);
+        let ref heartbeat_builder = HeartbeatBuilder {
+            node_addrs: vec![],
+            period: 3,
+        };
+        let ref ack_builder = AckResponderBuilder {
+            delay: 3,
+            buf_size: 10,
+            nodes: vec![],
+        };
+
+        mock_scheduler
+            .expect_execute()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
+        let result = manager
+            .deploy_dataflow(c, heartbeat_builder, ack_builder)
+            .await;
+        assert!(result.is_ok())
     }
 }

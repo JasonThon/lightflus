@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use common::{
     net::{
         cluster::{Node, NodeStatus},
+        gateway::worker::SafeTaskManagerRpcGateway,
         to_host_addr, AckResponder, AckResponderBuilder, PersistableHostAddr,
     },
     types::ExecutorId,
@@ -15,16 +16,37 @@ use proto::{
         Ack, Dataflow, DataflowStatus, Heartbeat, NodeType, OperatorInfo,
     },
     worker::CreateSubDataflowRequest,
-    worker_gateway::SafeTaskManagerRpcGateway,
 };
-use tokio::task::JoinHandle;
+use tokio::{sync::mpsc, task::JoinHandle};
+
+/// This module contains all logical execution contexts of a dataflow, an operator or an edge which are running on the remote TaskManager node.
+/// These contexts contains data which can reflect the inner state of the dataflows, operators and edges such as running or not, checkpoint status.
+///
+/// # Observability
+///
+/// Execution must be observable in a cloud environment to help developers to know what happens in a running dataflow or operator.
+/// If anything wrong happens, they can be informed as soon as possible and take the actions.
+///
+/// Mainstream cloud-observability systems like Prometheus are using three kinds of data:
+/// - Metrics
+/// - Tracing
+/// - Logs
+///
+/// In 1.0 release version, Lightflus will periodically request/report these data and store them in Coordinator/TaskManger.
+/// Users can configure to dump them into an outside system like ES automatically.
+///
+/// # Fault Tolerance
+///
+/// # High Availability
+///
+///
 
 /// A [`VertexExecution`] represents an execution context for a [`LocalExecutor`].
 /// - watch each LocalExecutor's state details
 /// - restart LocalExecutor while it stops unexpectedly
 /// - watch each LocalExecutor's checkpoint snapshot status
 /// - collect each LocalExecutor's metrics
-pub struct VertexExecution {
+pub(crate) struct VertexExecution {
     executor_id: ExecutorId,
     operator: OperatorInfo,
 }
@@ -53,7 +75,7 @@ pub(crate) struct SubdataflowDeploymentPlan {
     /// ack responder
     ack: AckResponder<SafeTaskManagerRpcGateway>,
     /// the initialized enqueue-entrypoint of a ack request queue
-    sender: tokio::sync::mpsc::Sender<Ack>,
+    sender: mpsc::Sender<Ack>,
 }
 impl SubdataflowDeploymentPlan {
     pub(crate) fn new(
@@ -62,12 +84,8 @@ impl SubdataflowDeploymentPlan {
         node: Option<&Node>,
         ack_builder: &AckResponderBuilder,
     ) -> Self {
-        let (ack, sender) = ack_builder.build(|addrs| {
-            addrs
-                .iter()
-                .map(|addr| SafeTaskManagerRpcGateway::new(&to_host_addr(addr)))
-                .collect()
-        });
+        let (ack, sender) =
+            ack_builder.build(|addr| SafeTaskManagerRpcGateway::new(&to_host_addr(addr)));
         Self {
             subdataflow: subdataflow.1.clone(),
             addr: subdataflow.0.clone(),
@@ -86,7 +104,6 @@ impl SubdataflowDeploymentPlan {
                     job_id: Some(self.subdataflow.get_job_id()),
                     dataflow: Some(self.subdataflow.clone()),
                 };
-                let _ = self.subdataflow.nodes.iter().map(|(executor_id, info)| {});
 
                 match gateway.create_sub_dataflow(req).await {
                     Ok(resp) => Ok(SubdataflowExecution {
@@ -135,7 +152,7 @@ pub(crate) struct SubdataflowExecution {
     /// the asynchronous task of the ack sender
     ack_handler: JoinHandle<()>,
     /// the enqueue-entrypoint of a ack request queue
-    ack_request_queue: tokio::sync::mpsc::Sender<Ack>,
+    ack_request_queue: mpsc::Sender<Ack>,
 }
 impl SubdataflowExecution {
     pub(crate) fn try_terminate(&mut self) {
@@ -167,5 +184,83 @@ impl SubdataflowExecution {
             },
             None => {}
         }
+    }
+
+    pub(crate) fn ack(&mut self, ack: &Ack) {
+        match ack.ack_type() {
+            AckType::Heartbeat => {
+                if let Some(&RequestId::HeartbeatId(heartbeat_id)) = ack.request_id.as_ref() {}
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common::{
+        net::{
+            cluster::{Node, NodeStatus},
+            gateway::{worker::SafeTaskManagerRpcGateway, MockRpcGateway},
+            AckResponderBuilder, PersistableHostAddr,
+        },
+        utils::times::prost_now,
+    };
+    use proto::common::{
+        ack::{AckType, RequestId},
+        DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType,
+    };
+
+    #[tokio::test]
+    async fn test_subdataflow_execution_update_heartbeat_status() {
+        let ack_responder_builder = AckResponderBuilder {
+            delay: 3,
+            buf_size: 10,
+            nodes: vec![PersistableHostAddr::default()],
+        };
+
+        let (gateway, mut ack_rx, _) = MockRpcGateway::new(ack_responder_builder.buf_size, 10);
+
+        let (ack_responder, ack_tx) = ack_responder_builder.build(|_| gateway.clone());
+
+        let mut execution = super::SubdataflowExecution {
+            worker: Node::new(
+                PersistableHostAddr::default(),
+                SafeTaskManagerRpcGateway::new(&HostAddr::default()),
+            ),
+            vertexes: Default::default(),
+            execution_id: Default::default(),
+            status: DataflowStatus::Initialized,
+            ack_handler: tokio::spawn(ack_responder),
+            ack_request_queue: ack_tx,
+        };
+
+        execution
+            .update_heartbeat_status(&Heartbeat {
+                heartbeat_id: 1,
+                timestamp: Some(prost_now()),
+                node_type: NodeType::TaskWorker as i32,
+                execution_id: Some(ExecutionId {
+                    job_id: Some(Default::default()),
+                    sub_id: 0,
+                }),
+            })
+            .await;
+
+        assert_eq!(execution.worker.get_status(), &NodeStatus::Running);
+        let option = ack_rx.recv().await;
+        assert!(option.is_some());
+
+        let result = option.unwrap();
+
+        assert_eq!(result.request_id, Some(RequestId::HeartbeatId(1)));
+        assert_eq!(result.ack_type(), AckType::Heartbeat);
+        assert_eq!(result.node_type(), NodeType::JobManager);
+        assert_eq!(
+            result.execution_id,
+            Some(ExecutionId {
+                job_id: Some(Default::default()),
+                sub_id: 0,
+            })
+        );
     }
 }

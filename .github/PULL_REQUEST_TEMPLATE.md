@@ -1,21 +1,20 @@
 # Description
 
-1. `[description 1]`
-2. `[description 2]`
-3. `[description 3]`
+Please describe what you do in this pull request. The more details you give us, more efficiently we review your code.
 
-please describe your pull request **in 3 sentences**
 
-# Solution
-If it is a bug fix, please tell us your solution clearly and mention to the related issue
+# Checklist
+[ ] I have written necessary rustdoc comments
+[ ] I have added necessary unit tests and integration tests
+[ ] I have written necessary fuzzing tests or open an issue to track them (optional)
 
-# Impact Scope
-please be clear of your pull request's impact scope
+# Refer to associated PR or issue links (optional)
 
-# Test Suggestions
-please be clear of how to test your pull request (if test is not necessary, please explain why)
+# Document (optional)
 
-# Tag
+## The changes that users must know
 
-write your dev tag. The tag format is dev.[yyyyMMdd].[issue no.].[version]
+## Release Note
+
+
 

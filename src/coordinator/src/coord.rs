@@ -76,5 +76,3 @@ impl Coordinator {
         }
     }
 }
-
-pub struct CoordinatorException {}

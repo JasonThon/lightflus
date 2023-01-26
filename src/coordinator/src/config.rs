@@ -1,14 +1,16 @@
-use common::net::{cluster, AckResponderBuilder, HeartbeatConfig};
+use common::net::{cluster, AckResponderBuilder, HeartbeatBuilder};
 
-use crate::storage::{DataflowStorageImpl, PersistDataflowStorage};
+use crate::storage::{DataflowStorageImpl, LocalDataflowStorage};
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct CoordinatorConfig {
     pub port: usize,
     pub cluster: Vec<cluster::NodeConfig>,
     pub storage: DataflowStorageConfig,
-    pub heartbeat: HeartbeatConfig,
+    pub heartbeat: HeartbeatBuilder,
     pub ack: AckResponderBuilder,
+    pub rpc_timeout: u64,
+    pub connect_timeout: u64,
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -22,7 +24,7 @@ impl DataflowStorageConfig {
         match self {
             Self::Persist {
                 dataflow_store_path,
-            } => DataflowStorageImpl::Persist(PersistDataflowStorage::new(dataflow_store_path)),
+            } => DataflowStorageImpl::Local(LocalDataflowStorage::new(dataflow_store_path)),
             Self::Memory => DataflowStorageImpl::Memory(Default::default()),
         }
     }

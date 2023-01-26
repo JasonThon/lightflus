@@ -16,11 +16,11 @@ pub(crate) trait DataflowStorage {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct PersistDataflowStorage {
+pub(crate) struct LocalDataflowStorage {
     db: sled::Db,
 }
 
-impl PersistDataflowStorage {
+impl LocalDataflowStorage {
     pub fn new<P: AsRef<std::path::Path>>(path: P) -> Self {
         Self {
             db: sled::open(path).expect("open sleddb failed"),
@@ -28,7 +28,7 @@ impl PersistDataflowStorage {
     }
 }
 
-impl DataflowStorage for PersistDataflowStorage {
+impl DataflowStorage for LocalDataflowStorage {
     fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
         self.db
             .insert(
@@ -112,35 +112,35 @@ impl DataflowStorage for MemDataflowStorage {
 
 #[derive(Clone, Debug)]
 pub(crate) enum DataflowStorageImpl {
-    Persist(PersistDataflowStorage),
+    Local(LocalDataflowStorage),
     Memory(MemDataflowStorage),
 }
 
 impl DataflowStorageImpl {
     pub(crate) fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
         match self {
-            Self::Persist(storage) => storage.save(dataflow),
+            Self::Local(storage) => storage.save(dataflow),
             Self::Memory(storage) => storage.save(dataflow),
         }
     }
 
     pub(crate) fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
         match self {
-            Self::Persist(storage) => storage.get(job_id),
+            Self::Local(storage) => storage.get(job_id),
             Self::Memory(storage) => storage.get(job_id),
         }
     }
 
     pub(crate) fn may_exists(&self, job_id: &ResourceId) -> bool {
         match self {
-            Self::Persist(storage) => storage.may_exists(job_id),
+            Self::Local(storage) => storage.may_exists(job_id),
             Self::Memory(storage) => storage.may_exists(job_id),
         }
     }
 
     pub(crate) fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
         match self {
-            DataflowStorageImpl::Persist(storage) => storage.delete(job_id),
+            DataflowStorageImpl::Local(storage) => storage.delete(job_id),
             DataflowStorageImpl::Memory(storage) => storage.delete(job_id),
         }
     }

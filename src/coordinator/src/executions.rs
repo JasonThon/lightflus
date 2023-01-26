@@ -1,9 +1,12 @@
-use std::collections::BTreeMap;
+use std::{
+    collections::BTreeMap,
+    sync::atomic::{self, AtomicU64},
+};
 
 use common::{
     net::{
         cluster::{Node, NodeStatus},
-        gateway::worker::SafeTaskManagerRpcGateway,
+        gateway::{worker::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway},
         to_host_addr, AckResponder, AckResponderBuilder, PersistableHostAddr,
     },
     types::ExecutorId,
@@ -82,6 +85,8 @@ impl SubdataflowDeploymentPlan {
         subdataflow: (&PersistableHostAddr, &Dataflow),
         execution_id: ExecutionID,
         node: Option<&Node>,
+        connect_timeout: u64,
+        rpc_timout: u64,
         ack_builder: &AckResponderBuilder,
     ) -> Self {
         let (ack, sender) =
@@ -90,7 +95,7 @@ impl SubdataflowDeploymentPlan {
             subdataflow: subdataflow.1.clone(),
             addr: subdataflow.0.clone(),
             execution_id,
-            gateway: node.map(|n| n.gateway.clone()),
+            gateway: node.map(|n| n.create_gateway_with_timeout(connect_timeout, rpc_timout)),
             ack,
             sender,
         }
@@ -106,21 +111,14 @@ impl SubdataflowDeploymentPlan {
                 };
 
                 match gateway.create_sub_dataflow(req).await {
-                    Ok(resp) => Ok(SubdataflowExecution {
-                        worker: Node::new(self.addr.clone(), gateway.clone()),
-                        vertexes: self
-                            .subdataflow
-                            .nodes
-                            .iter()
-                            .map(|(executor_id, info)| {
-                                (*executor_id, VertexExecution::new(executor_id, info))
-                            })
-                            .collect(),
-                        execution_id: self.execution_id.clone(),
-                        status: resp.status(),
-                        ack_handler: tokio::spawn(ack),
-                        ack_request_queue: self.sender,
-                    }),
+                    Ok(resp) => Ok(SubdataflowExecution::new(
+                        Node::new(self.addr.clone()),
+                        self.subdataflow,
+                        self.execution_id.clone(),
+                        resp.status(),
+                        ack,
+                        self.sender,
+                    )),
                     Err(err) => Err(TaskDeploymentException::RpcError(err)),
                 }
             }
@@ -149,12 +147,40 @@ pub(crate) struct SubdataflowExecution {
     execution_id: ExecutionID,
     /// the status of subdataflow
     status: DataflowStatus,
+    /// the latest heartbeat ack id
+    latest_ack_heartbeat_id: AtomicU64,
+    /// the latest heartbeat timestamp
+    latest_ack_heartbeat_timestamp: AtomicU64,
     /// the asynchronous task of the ack sender
     ack_handler: JoinHandle<()>,
     /// the enqueue-entrypoint of a ack request queue
     ack_request_queue: mpsc::Sender<Ack>,
 }
 impl SubdataflowExecution {
+    pub(crate) fn new<G: 'static + ReceiveAckRpcGateway + Send + Sync>(
+        worker: Node,
+        subdataflow: Dataflow,
+        execution_id: ExecutionID,
+        status: DataflowStatus,
+        ack: AckResponder<G>,
+        ack_request_queue: mpsc::Sender<Ack>,
+    ) -> Self {
+        Self {
+            worker,
+            vertexes: subdataflow
+                .nodes
+                .iter()
+                .map(|(executor_id, info)| (*executor_id, VertexExecution::new(executor_id, info)))
+                .collect(),
+            execution_id,
+            status,
+            latest_ack_heartbeat_id: AtomicU64::default(),
+            latest_ack_heartbeat_timestamp: AtomicU64::default(),
+            ack_handler: tokio::spawn(ack),
+            ack_request_queue,
+        }
+    }
+
     pub(crate) fn try_terminate(&mut self) {
         todo!()
     }
@@ -189,7 +215,17 @@ impl SubdataflowExecution {
     pub(crate) fn ack(&mut self, ack: &Ack) {
         match ack.ack_type() {
             AckType::Heartbeat => {
-                if let Some(&RequestId::HeartbeatId(heartbeat_id)) = ack.request_id.as_ref() {}
+                if let Some(&RequestId::HeartbeatId(heartbeat_id)) = ack.request_id.as_ref() {
+                    self.status = DataflowStatus::Running;
+                    if self.latest_ack_heartbeat_id.load(atomic::Ordering::Relaxed) < heartbeat_id {
+                        self.latest_ack_heartbeat_id
+                            .swap(heartbeat_id, atomic::Ordering::AcqRel);
+                        ack.timestamp.as_ref().iter().for_each(|timestamp| {
+                            self.latest_ack_heartbeat_timestamp
+                                .swap(timestamp.seconds as u64, atomic::Ordering::AcqRel);
+                        })
+                    }
+                }
             }
         }
     }
@@ -197,17 +233,19 @@ impl SubdataflowExecution {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{self, AtomicU64};
+
     use common::{
         net::{
             cluster::{Node, NodeStatus},
-            gateway::{worker::SafeTaskManagerRpcGateway, MockRpcGateway},
+            gateway::MockRpcGateway,
             AckResponderBuilder, PersistableHostAddr,
         },
         utils::times::prost_now,
     };
     use proto::common::{
         ack::{AckType, RequestId},
-        DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType,
+        Ack, DataflowStatus, ExecutionId, Heartbeat, NodeType,
     };
 
     #[tokio::test]
@@ -223,15 +261,14 @@ mod tests {
         let (ack_responder, ack_tx) = ack_responder_builder.build(|_| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
-            worker: Node::new(
-                PersistableHostAddr::default(),
-                SafeTaskManagerRpcGateway::new(&HostAddr::default()),
-            ),
+            worker: Node::new(PersistableHostAddr::default()),
             vertexes: Default::default(),
             execution_id: Default::default(),
             status: DataflowStatus::Initialized,
             ack_handler: tokio::spawn(ack_responder),
             ack_request_queue: ack_tx,
+            latest_ack_heartbeat_id: AtomicU64::default(),
+            latest_ack_heartbeat_timestamp: AtomicU64::default(),
         };
 
         execution
@@ -262,5 +299,83 @@ mod tests {
                 sub_id: 0,
             })
         );
+    }
+
+    #[tokio::test]
+    async fn test_subdataflow_execution_ack_heartbeat() {
+        let ack_responder_builder = AckResponderBuilder {
+            delay: 3,
+            buf_size: 10,
+            nodes: vec![PersistableHostAddr::default()],
+        };
+
+        let (gateway, _, _) = MockRpcGateway::new(ack_responder_builder.buf_size, 10);
+
+        let (ack_responder, ack_tx) = ack_responder_builder.build(|_| gateway.clone());
+
+        let mut execution = super::SubdataflowExecution {
+            worker: Node::new(PersistableHostAddr::default()),
+            vertexes: Default::default(),
+            execution_id: Default::default(),
+            status: DataflowStatus::Initialized,
+            ack_handler: tokio::spawn(ack_responder),
+            ack_request_queue: ack_tx,
+            latest_ack_heartbeat_id: AtomicU64::default(),
+            latest_ack_heartbeat_timestamp: AtomicU64::default(),
+        };
+        let now = prost_now();
+
+        {
+            execution.ack(&Ack {
+                timestamp: Some(now.clone()),
+                ack_type: AckType::Heartbeat as i32,
+                node_type: NodeType::TaskWorker as i32,
+                execution_id: Some(ExecutionId {
+                    job_id: Default::default(),
+                    sub_id: 1,
+                }),
+                request_id: Some(RequestId::HeartbeatId(2)),
+            });
+
+            assert_eq!(
+                execution
+                    .latest_ack_heartbeat_id
+                    .load(atomic::Ordering::Relaxed),
+                2
+            );
+            assert_eq!(
+                execution
+                    .latest_ack_heartbeat_timestamp
+                    .load(atomic::Ordering::Relaxed),
+                now.seconds as u64
+            );
+        }
+
+        let now_1 = prost_now();
+        {
+            execution.ack(&Ack {
+                timestamp: Some(now_1.clone()),
+                ack_type: AckType::Heartbeat as i32,
+                node_type: NodeType::TaskWorker as i32,
+                execution_id: Some(ExecutionId {
+                    job_id: Default::default(),
+                    sub_id: 1,
+                }),
+                request_id: Some(RequestId::HeartbeatId(1)),
+            });
+
+            assert_eq!(
+                execution
+                    .latest_ack_heartbeat_id
+                    .load(atomic::Ordering::Relaxed),
+                2
+            );
+            assert_eq!(
+                execution
+                    .latest_ack_heartbeat_timestamp
+                    .load(atomic::Ordering::Relaxed),
+                now.seconds as u64
+            );
+        }
     }
 }

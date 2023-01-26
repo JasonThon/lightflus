@@ -3,8 +3,8 @@ use crate::types;
 use crate::types::SingleKV;
 use crate::utils::times::from_prost_timestamp_to_utc_chrono;
 
+use proto::common::Dataflow;
 use proto::common::DataflowMeta;
-use proto::common::{Dataflow, HostAddr};
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -31,18 +31,15 @@ pub struct Node {
     status: NodeStatus,
     /// The address of node
     pub host_addr: PersistableHostAddr,
-    /// a gateway for the node
-    pub gateway: SafeTaskManagerRpcGateway,
     // the latest update time of status updating
     lastest_status_update_timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 impl Node {
-    pub fn new(host_addr: PersistableHostAddr, gateway: SafeTaskManagerRpcGateway) -> Self {
+    pub fn new(host_addr: PersistableHostAddr) -> Self {
         Self {
             status: NodeStatus::Pending,
             host_addr,
-            gateway,
             lastest_status_update_timestamp: chrono::Utc::now(),
         }
     }
@@ -59,6 +56,18 @@ impl Node {
     fn is_available(&self) -> bool {
         self.status == NodeStatus::Running
     }
+
+    pub fn create_gateway_with_timeout(
+        &self,
+        connect_timeout: u64,
+        rpc_timeout: u64,
+    ) -> SafeTaskManagerRpcGateway {
+        SafeTaskManagerRpcGateway::with_timeout(
+            &to_host_addr(&self.host_addr),
+            connect_timeout,
+            rpc_timeout,
+        )
+    }
 }
 
 /// [`Cluster`] is an abstraction of a remote cluster
@@ -67,6 +76,10 @@ impl Node {
 pub struct Cluster {
     /// all remote workers
     workers: Vec<Node>,
+    /// rpc request timeout
+    rpc_timout: u64,
+    /// rpc connect timeout
+    connect_timeout: u64,
 }
 
 impl Cluster {
@@ -109,6 +122,8 @@ impl Cluster {
     pub fn new(addrs: &Vec<NodeConfig>) -> Self {
         Cluster {
             workers: addrs.iter().map(|config| config.to_node()).collect(),
+            rpc_timout: super::DEFAULT_RPC_TIMEOUT,
+            connect_timeout: super::DEFAULT_CONNECT_TIMEOUT,
         }
     }
 
@@ -173,6 +188,22 @@ impl Cluster {
             })
             .collect()
     }
+
+    pub fn set_rpc_timeout(&mut self, rpc_timeout: u64) {
+        self.rpc_timout = rpc_timeout
+    }
+
+    pub fn get_rpc_timeout(&self) -> u64 {
+        self.rpc_timout
+    }
+
+    pub fn set_connect_timeout(&mut self, connect_timeout: u64) {
+        self.connect_timeout = connect_timeout
+    }
+
+    pub fn get_connect_timeout(&self) -> u64 {
+        self.connect_timeout
+    }
 }
 
 #[derive(Clone, serde::Deserialize, Debug)]
@@ -183,16 +214,10 @@ pub struct NodeConfig {
 
 impl NodeConfig {
     pub fn to_node(&self) -> Node {
-        Node::new(
-            PersistableHostAddr {
-                host: self.host.clone(),
-                port: self.port,
-            },
-            SafeTaskManagerRpcGateway::new(&HostAddr {
-                host: self.host.clone(),
-                port: self.port as u32,
-            }),
-        )
+        Node::new(PersistableHostAddr {
+            host: self.host.clone(),
+            port: self.port,
+        })
     }
 }
 

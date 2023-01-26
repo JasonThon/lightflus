@@ -11,7 +11,7 @@ use tokio::task::JoinHandle;
 use crate::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 
 /// The scheduler for a [`JobManager`].
-pub struct Scheduler {
+pub(crate) struct Scheduler {
     executions: BTreeMap<ExecutionID, SubdataflowExecution>,
     heartbeat_handlers: BTreeMap<ExecutionID, JoinHandle<()>>,
 }
@@ -32,7 +32,20 @@ impl Scheduler {
     ) -> Result<(), TaskDeploymentException> {
         plan.deploy().await.map(|execution| {
             let execution_id = execution.get_execution_id().clone();
-            self.executions.insert(execution_id, execution);
+            self.executions.insert(execution_id.clone(), execution);
+
+            self.heartbeat_handlers.insert(
+                execution_id,
+                tokio::spawn(
+                    heartbeat_builder.build(|host_addr, connect_timeout, rpc_timeout| {
+                        SafeTaskManagerRpcGateway::with_timeout(
+                            host_addr,
+                            connect_timeout,
+                            rpc_timeout,
+                        )
+                    }),
+                ),
+            );
         })
     }
 

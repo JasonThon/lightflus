@@ -17,9 +17,10 @@ use self::gateway::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway};
 pub const SUCCESS: i32 = 200;
 pub const BAD_REQUEST: i32 = 400;
 pub const INTERNAL_SERVER_ERROR: i32 = 500;
+pub(crate) const DEFAULT_RPC_TIMEOUT: u64 = 3;
+pub(crate) const DEFAULT_CONNECT_TIMEOUT: u64 = 3;
 pub mod cluster;
 pub mod gateway;
-pub mod status;
 
 #[derive(Clone, Debug)]
 pub struct ClientConfig {
@@ -90,21 +91,21 @@ pub fn local_ip() -> Option<String> {
     socket.local_addr().ok().map(|addr| addr.ip().to_string())
 }
 
-/// Heartbeat configurations
-#[derive(serde::Deserialize, Clone, Debug, Copy)]
-pub struct HeartbeatConfig {
+/// Heartbeat Builder
+#[derive(serde::Deserialize, Clone, Debug)]
+pub struct HeartbeatBuilder {
+    #[serde(default)]
+    pub node_addrs: Vec<PersistableHostAddr>,
     /// period of heartbeat, in seconds
     pub period: u64,
-    /// timeout of rpc connection, in seconds
+    /// timeout of heartbeat rpc connection, in seconds
     pub connection_timeout: u64,
+    /// timeout of heartbeat rpc request, in seconds
+    pub rpc_timeout: u64,
 }
 
-pub struct HeartbeatBuilder {
-    pub node_addrs: Vec<(HostAddr, u64)>,
-    pub period: u64,
-}
 impl HeartbeatBuilder {
-    pub fn build<F: Fn(&HostAddr, u64) -> T, T: ReceiveHeartbeatRpcGateway>(
+    pub fn build<F: Fn(&HostAddr, u64, u64) -> T, T: ReceiveHeartbeatRpcGateway>(
         &self,
         f: F,
     ) -> HeartbeatSender<T> {
@@ -112,7 +113,8 @@ impl HeartbeatBuilder {
             gateways: self
                 .node_addrs
                 .iter()
-                .map(|(host_addr, connect_timeout)| f(host_addr, *connect_timeout))
+                .map(|addr| to_host_addr(addr))
+                .map(|host_addr| f(&host_addr, self.connection_timeout, self.rpc_timeout))
                 .collect(),
             interval: tokio::time::interval(Duration::from_secs(self.period)),
             execution_id: None,
@@ -238,11 +240,11 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 mod tests {
 
     use chrono::Duration;
-    use proto::common::{ack::AckType, Ack, HostAddr, NodeType};
+    use proto::common::{ack::AckType, Ack, NodeType};
 
     use crate::net::gateway::MockRpcGateway;
 
-    use super::HeartbeatBuilder;
+    use super::{HeartbeatBuilder, PersistableHostAddr};
 
     #[test]
     pub fn test_local_ip() {
@@ -363,19 +365,18 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_success() {
         let builder = HeartbeatBuilder {
-            node_addrs: vec![(
-                HostAddr {
-                    host: "11".to_string(),
-                    port: 11,
-                },
-                3,
-            )],
+            node_addrs: vec![PersistableHostAddr {
+                host: "11".to_string(),
+                port: 11,
+            }],
             period: 3,
+            connection_timeout: 3,
+            rpc_timeout: 3,
         };
 
         let (gateway, _, mut rx) = MockRpcGateway::new(0, 10);
 
-        let heartbeat = builder.build(|_, _| gateway.clone());
+        let heartbeat = builder.build(|_, _, _| gateway.clone());
         let handler = tokio::spawn(heartbeat);
 
         {

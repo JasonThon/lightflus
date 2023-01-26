@@ -53,6 +53,8 @@ impl JobManager {
                 pair,
                 ExecutionID(self.job_id.clone(), execution_id),
                 cluster.get_node(pair.0),
+                cluster.get_connect_timeout(),
+                cluster.get_rpc_timeout(),
                 &ack_builder,
             );
             execution_id += 1;
@@ -119,27 +121,15 @@ pub(crate) struct Dispatcher {
 impl Dispatcher {
     pub fn new(config: &CoordinatorConfig) -> Self {
         let dataflow_storage = config.storage.to_dataflow_storage();
+        let mut cluster = cluster::Cluster::new(&config.cluster);
+        cluster.set_rpc_timeout(config.rpc_timeout);
+        cluster.set_connect_timeout(config.connect_timeout);
         Self {
             managers: Default::default(),
-            cluster: cluster::Cluster::new(&config.cluster),
+            cluster,
             dataflow_storage,
             location: PersistableHostAddr::local(config.port),
-            heartbeat: HeartbeatBuilder {
-                period: config.heartbeat.period,
-                node_addrs: config
-                    .cluster
-                    .iter()
-                    .map(|node_conf| {
-                        (
-                            HostAddr {
-                                host: node_conf.host.clone(),
-                                port: node_conf.port as u32,
-                            },
-                            config.heartbeat.connection_timeout,
-                        )
-                    })
-                    .collect(),
-            },
+            heartbeat: config.heartbeat.clone(),
             ack: config.ack.clone(),
         }
     }
@@ -250,33 +240,46 @@ impl DispatcherException {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
+    use proto::common::DataflowMeta;
+
     use super::*;
 
     #[tokio::test]
     async fn test_job_manager_deploy_success() {
         let mut mock_scheduler = Scheduler::default();
 
+        mock_scheduler
+            .expect_execute()
+            .times(1)
+            .returning(|_, _| Ok(()));
+
         let mut manager = JobManager {
-            dataflow: Default::default(),
+            dataflow: Dataflow {
+                job_id: Default::default(),
+                meta: vec![DataflowMeta {
+                    center: 0,
+                    neighbors: vec![],
+                }],
+                nodes: HashMap::from_iter([(0, Default::default())].into_iter()),
+            },
             job_id: Default::default(),
-            scheduler: Scheduler::default(),
+            scheduler: mock_scheduler,
             location: Default::default(),
         };
         let ref c = cluster::Cluster::new(&vec![]);
         let ref heartbeat_builder = HeartbeatBuilder {
             node_addrs: vec![],
             period: 3,
+            connection_timeout: 3,
+            rpc_timeout: 3,
         };
         let ref ack_builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
             nodes: vec![],
         };
-
-        mock_scheduler
-            .expect_execute()
-            .times(1)
-            .returning(|_, _| Ok(()));
 
         let result = manager
             .deploy_dataflow(c, heartbeat_builder, ack_builder)

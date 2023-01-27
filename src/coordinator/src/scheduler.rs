@@ -53,14 +53,18 @@ impl Scheduler {
         &mut self,
         cluster: &mut Cluster,
     ) -> Result<DataflowStatus, TaskExecutionException> {
-        todo!()
+        for (_, execution) in self.executions.iter_mut() {
+            execution.try_terminate()
+        }
+
+        Ok(DataflowStatus::Closing)
     }
 
     pub(crate) fn get_execution_mut<'a>(
         &'a mut self,
-        execution_id: ExecutionID,
+        execution_id: &ExecutionID,
     ) -> Option<&'a mut SubdataflowExecution> {
-        self.executions.get_mut(&execution_id)
+        self.executions.get_mut(execution_id)
     }
 }
 

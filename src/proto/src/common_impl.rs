@@ -1,8 +1,6 @@
 use std::hash::Hash;
 
 use chrono::Duration;
-use tokio::sync::mpsc;
-use tonic::async_trait;
 
 use crate::common::{
     mysql_desc::{self, Statement},
@@ -10,9 +8,8 @@ use crate::common::{
     sink, source,
     trigger::Watermark,
     window::{self, FixedWindow, SessionWindow, SlidingWindow},
-    Ack, DataTypeEnum, Dataflow, Entry, ExecutionId, Func, Heartbeat, HostAddr, KafkaDesc,
-    KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Response, Sink, Source, Time,
-    Trigger, Window,
+    DataTypeEnum, Dataflow, Entry, ExecutionId, Func, HostAddr, KafkaDesc, KeyedDataEvent,
+    MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Response, Sink, Source, Time, Trigger, Window,
 };
 
 pub const SUCCESS_RPC_RESPONSE: &str = "success";

@@ -89,8 +89,13 @@ impl SubdataflowDeploymentPlan {
         rpc_timout: u64,
         ack_builder: &AckResponderBuilder,
     ) -> Self {
-        let (ack, sender) =
-            ack_builder.build(|addr| SafeTaskManagerRpcGateway::new(&to_host_addr(addr)));
+        let (ack, sender) = ack_builder.build(|addr, connect_timeout, rpc_timout| {
+            SafeTaskManagerRpcGateway::with_timeout(
+                &to_host_addr(addr),
+                connect_timeout,
+                rpc_timout,
+            )
+        });
         Self {
             subdataflow: subdataflow.1.clone(),
             addr: subdataflow.0.clone(),
@@ -254,11 +259,13 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![PersistableHostAddr::default()],
+            connection_timeout: 3,
+            rpc_timeout: 3,
         };
 
         let (gateway, mut ack_rx, _) = MockRpcGateway::new(ack_responder_builder.buf_size, 10);
 
-        let (ack_responder, ack_tx) = ack_responder_builder.build(|_| gateway.clone());
+        let (ack_responder, ack_tx) = ack_responder_builder.build(|_, _, _| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
             worker: Node::new(PersistableHostAddr::default()),
@@ -307,11 +314,13 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![PersistableHostAddr::default()],
+            connection_timeout: 3,
+            rpc_timeout: 3,
         };
 
         let (gateway, _, _) = MockRpcGateway::new(ack_responder_builder.buf_size, 10);
 
-        let (ack_responder, ack_tx) = ack_responder_builder.build(|_| gateway.clone());
+        let (ack_responder, ack_tx) = ack_responder_builder.build(|_, _, _| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
             worker: Node::new(PersistableHostAddr::default()),

@@ -6,7 +6,7 @@ use common::{
     ExecutionID,
 };
 use mockall_double::double;
-use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
+use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId};
 
 #[double]
 use crate::scheduler::Scheduler;
@@ -83,7 +83,7 @@ impl JobManager {
 
     async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
         for execution_id in heartbeat.execution_id.as_ref().iter() {
-            match self.scheduler.get_execution_mut((*execution_id).into()) {
+            match self.scheduler.get_execution_mut(&(*execution_id).into()) {
                 Some(execution) => execution.update_heartbeat_status(heartbeat).await,
                 None => {}
             }
@@ -92,7 +92,7 @@ impl JobManager {
 
     fn ack_from_execution(&mut self, ack: &Ack) {
         for execution_id in ack.execution_id.as_ref().iter() {
-            match self.scheduler.get_execution_mut((*execution_id).into()) {
+            match self.scheduler.get_execution_mut(&(*execution_id).into()) {
                 Some(execution) => execution.ack(ack),
                 None => {}
             }
@@ -279,6 +279,8 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![],
+            connection_timeout: 3,
+            rpc_timeout: 3,
         };
 
         let result = manager

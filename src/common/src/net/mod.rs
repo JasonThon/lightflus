@@ -20,6 +20,7 @@ pub const INTERNAL_SERVER_ERROR: i32 = 500;
 pub(crate) const DEFAULT_RPC_TIMEOUT: u64 = 3;
 pub(crate) const DEFAULT_CONNECT_TIMEOUT: u64 = 3;
 pub mod cluster;
+#[cfg(not(tarpaulin_include))]
 pub mod gateway;
 
 #[derive(Clone, Debug)]
@@ -92,6 +93,60 @@ pub fn local_ip() -> Option<String> {
 }
 
 /// Heartbeat Builder
+///
+/// How to build heartbeat sender
+/// HeartbeatBuilder::build is used to build a heartbeat sender. This method has three arguments:
+/// - First Arg: the host address of remote node
+/// - Second Arg: rpc connection timeout
+/// - Third Arg: rpc request timeout
+///
+/// [HeartbeatSender] implements [Future] which can be ran by:
+/// - Tokio spawning
+/// - async/await
+///
+/// # Example of Tokio spawning
+///
+/// ```
+/// use common::net::{HeartbeatBuilder, gateway:SafeTaskManagerRpcGateway};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let builder = HeartbeatBuilder {
+///         node_addrs: vec![PersistableHostAddr {
+///             host: "localhost".to_string(),
+///             port: 8080
+///         }],
+///         period: 3,
+///         connection_timeout: 3
+///         rpc_timeout: 3
+///     };
+///     
+///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let _ = tokio::spawn(heartbeat);
+/// }
+/// ```
+///
+/// # Example of async/await
+///
+/// ```
+/// use common::net::{HeartbeatBuilder, gateway:SafeTaskManagerRpcGateway};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let builder = HeartbeatBuilder {
+///         node_addrs: vec![PersistableHostAddr {
+///             host: "localhost".to_string(),
+///             port: 8080
+///         }],
+///         period: 3,
+///         connection_timeout: 3
+///         rpc_timeout: 3
+///     };
+///     
+///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     heartbeat.await
+/// }
+/// ```
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct HeartbeatBuilder {
     #[serde(default)]
@@ -171,7 +226,64 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
     }
 }
 
-/// Ack Configurations
+/// The builder of [AckResponder] which is also the configuration of ACK
+///
+/// AckResponderBuilder::build has three arguments:
+/// - First Arg: the host address of remote node
+/// - Second Arg: rpc connection timeout
+/// - Third Arg: rpc request timeout
+///
+/// It will return two values:
+/// - a new [AckResponder]
+/// - a [mpsc::Sender] channel for [Ack] messages. Users can trigger ack by send an [Ack] message into it.
+///
+/// [AckResponder] implements [Future]. Users can run an [AckResponder] by:
+/// - Tokio spawn
+/// - async/await
+///
+/// # Example of Tokio spwan
+/// ```
+/// use common::net::{AckResponderBuilder, gateway:SafeTaskManagerRpcGateway};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let builder = AckResponderBuilder {
+///         delay: 3,
+///         buf_size: 10,
+///         nodes: vec![PersistableHostAddr {
+///             host: "localhost".to_string(),
+///             port: 8080
+///         }],
+///         connection_timeout: 3,
+///         rpc_timeout: 3
+///     };
+///     
+///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let _ = tokio::spawn(responder);
+/// }
+/// ```
+///
+/// # Example of Tokio spwan
+/// ```
+/// use common::net::{AckResponderBuilder, gateway:SafeTaskManagerRpcGateway};
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let builder = AckResponderBuilder {
+///         delay: 3,
+///         buf_size: 10,
+///         nodes: vec![PersistableHostAddr {
+///             host: "localhost".to_string(),
+///             port: 8080
+///         }],
+///         connection_timeout: 3,
+///         rpc_timeout: 3
+///     };
+///     
+///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     responder.await
+/// }
+/// ```
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct AckResponderBuilder {
     // deplay duration, in seconds
@@ -181,10 +293,14 @@ pub struct AckResponderBuilder {
     // ack nodes
     #[serde(default)]
     pub nodes: Vec<PersistableHostAddr>,
+    /// timeout of ack rpc connection, in seconds
+    pub connection_timeout: u64,
+    /// timeout of ack rpc request, in seconds
+    pub rpc_timeout: u64,
 }
 
 impl AckResponderBuilder {
-    pub fn build<F: Fn(&PersistableHostAddr) -> T, T: ReceiveAckRpcGateway>(
+    pub fn build<F: Fn(&PersistableHostAddr, u64, u64) -> T, T: ReceiveAckRpcGateway>(
         &self,
         f: F,
     ) -> (AckResponder<T>, mpsc::Sender<Ack>) {
@@ -193,7 +309,11 @@ impl AckResponderBuilder {
             AckResponder {
                 delay_interval: tokio::time::interval(Duration::from_secs(self.delay)),
                 recv: rx,
-                gateway: self.nodes.iter().map(|addr| f(addr)).collect(),
+                gateway: self
+                    .nodes
+                    .iter()
+                    .map(|addr| f(addr, self.connection_timeout, self.rpc_timeout))
+                    .collect(),
             },
             tx,
         )
@@ -290,11 +410,13 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![],
+            connection_timeout: 3,
+            rpc_timeout: 3,
         };
 
         let (gateway, mut rx, _) = MockRpcGateway::new(builder.buf_size, 0);
 
-        let (responder, tx) = builder.build(|_| gateway.clone());
+        let (responder, tx) = builder.build(|_, _, _| gateway.clone());
 
         let handler = tokio::spawn(responder);
         // send first time

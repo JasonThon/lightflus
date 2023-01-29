@@ -14,7 +14,6 @@ chrono = "0.4"
 tokio = { version = "1", features = ["sync"] }
 futures-executor = "0.3"
 tracing = "0.1"
-mockall = "0.11.3"
 
 [features]
 worker = ["proto-common"]

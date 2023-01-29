@@ -1642,7 +1642,6 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "futures-executor",
- "mockall",
  "prost",
  "prost-types",
  "serde",

@@ -9,7 +9,7 @@ edition = "2021"
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "signal"] }
 serde = { version = "1.0", features = ["derive"] }
 common = { path = "../common" }
-proto = { path = "../proto", features = ["coordinator", "worker"] }
+proto = { path = "../proto", features = ["all"] }
 serde_json = "1.0.59"
 
 prost = "0.11"

@@ -32,12 +32,13 @@ pub(crate) struct JobManager {
 impl JobManager {
     pub(crate) fn new(
         location: &PersistableHostAddr,
-        dataflow: &Dataflow,
+        dataflow: Dataflow,
         storage: &DataflowStorageBuilder,
     ) -> Self {
+        let job_id = dataflow.get_job_id();
         Self {
-            dataflow: dataflow.clone(),
-            job_id: dataflow.get_job_id(),
+            dataflow,
+            job_id,
             scheduler: Scheduler::new(),
             location: location.clone(),
             storage: storage.build(),
@@ -144,7 +145,7 @@ impl Dispatcher {
         &self,
         dataflow: Dataflow,
     ) -> Result<(), DispatcherException> {
-        let mut job_manager = JobManager::new(&self.location, &dataflow, &self.storage);
+        let mut job_manager = JobManager::new(&self.location, dataflow, &self.storage);
         let result = job_manager
             .deploy_dataflow(&self.cluster, &self.heartbeat, &self.ack)
             .await
@@ -271,16 +272,16 @@ mod tests {
         };
         let c = builder.build();
         let ref heartbeat_builder = HeartbeatBuilder {
-            node_addrs: vec![],
+            nodes: vec![],
             period: 3,
-            connection_timeout: 3,
+            connect_timeout: 3,
             rpc_timeout: 3,
         };
         let ref ack_builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
             nodes: vec![],
-            connection_timeout: 3,
+            connect_timeout: 3,
             rpc_timeout: 3,
         };
 

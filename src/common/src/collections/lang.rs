@@ -1,10 +1,6 @@
-use std::collections;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, HashMap, VecDeque};
 
-pub fn map_self<N, T, F: FnMut(&N) -> T>(
-    list: &Vec<N>,
-    mut key_extractor: F,
-) -> collections::HashMap<T, &N>
+pub fn map_self<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> HashMap<T, &N>
 where
     T: std::hash::Hash + Eq,
 {
@@ -28,15 +24,12 @@ pub fn index_map<U, T, F: Fn(i32, &U) -> T>(list: &Vec<U>, mapper: F) -> Vec<T> 
         .collect()
 }
 
-pub fn group<N, T, F: FnMut(&N) -> T>(
-    list: &Vec<N>,
-    mut key_extractor: F,
-) -> collections::BTreeMap<T, Vec<&N>>
+pub fn group<N, T, F: FnMut(&N) -> T>(list: &Vec<N>, mut key_extractor: F) -> BTreeMap<T, Vec<&N>>
 where
     T: std::hash::Hash + Eq + Ord + Clone,
 {
     list.iter()
-        .map(|elem| collections::BTreeMap::from([(key_extractor(elem), vec![elem])]))
+        .map(|elem| BTreeMap::from([(key_extractor(elem), vec![elem])]))
         .reduce(|mut accum, map| {
             map.iter().for_each(|elem| {
                 let mut value_opts = accum.get_mut(&elem.0);
@@ -70,11 +63,11 @@ where
 pub fn group_deque_as_btree_map<N, T, F: FnMut(&mut N) -> T>(
     deque: &mut VecDeque<N>,
     mut key_extractor: F,
-) -> collections::BTreeMap<T, Vec<N>>
+) -> BTreeMap<T, Vec<N>>
 where
     T: std::hash::Hash + PartialEq + Ord,
 {
-    let mut result = collections::BTreeMap::new();
+    let mut result = BTreeMap::new();
 
     while let Some(mut elem) = deque.pop_front() {
         let key = key_extractor(&mut elem);
@@ -355,5 +348,16 @@ mod tests {
         assert!(super::any_match(list, |elem| elem.name == "name1-1".to_string()));
         assert!(super::any_match(list, |elem| elem.name == "name0".to_string()));
         assert!(super::any_match(list, |elem| elem.name == "name0-1".to_string()));
+    }
+
+    #[test]
+    fn test_index_map() {
+        let values = vec![1, 2, 3, 4, 5];
+        let new_values = super::index_map(&values, |index, val| {
+            assert_eq!(index + 1, *val);
+            (*val) + 1
+        });
+
+        assert_eq!(new_values, vec![2, 3, 4, 5, 6])
     }
 }

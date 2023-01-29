@@ -43,7 +43,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     }
 
-    let builder = reader.unwrap();
+    let mut builder = reader.unwrap();
+    replace_builder_args_by_env(&mut builder);
 
     let coordinator = builder.build();
     let server = CoordinatorApiImpl::new(coordinator);
@@ -60,3 +61,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+fn replace_builder_args_by_env(builder: &mut coord::CoordinatorBuilder) {}

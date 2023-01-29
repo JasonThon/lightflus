@@ -2,15 +2,18 @@ use proto::common::{Ack, Heartbeat, HostAddr, Response};
 use tokio::sync::mpsc;
 use tonic::async_trait;
 
+/// Rpc Gateway trait. All Rpc clients should implement this trait
 pub trait RpcGateway: Unpin {
     fn get_host_addr(&self) -> &HostAddr;
 }
 
+/// Trait for [RpcGateway] that must implements receive_ack rpc call
 #[async_trait]
 pub trait ReceiveAckRpcGateway: RpcGateway {
     async fn receive_ack(&self, req: Ack) -> Result<Response, tonic::Status>;
 }
 
+/// Trait for [RpcGateway] that must implements receive_heartbeat rpc call
 #[async_trait]
 pub trait ReceiveHeartbeatRpcGateway: RpcGateway {
     async fn receive_heartbeat(&self, request: Heartbeat) -> Result<Response, tonic::Status>;

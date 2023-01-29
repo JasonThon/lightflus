@@ -14,9 +14,6 @@ use crate::utils;
 
 use self::gateway::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway};
 
-pub const SUCCESS: i32 = 200;
-pub const BAD_REQUEST: i32 = 400;
-pub const INTERNAL_SERVER_ERROR: i32 = 500;
 pub(crate) const DEFAULT_RPC_TIMEOUT: u64 = 3;
 pub(crate) const DEFAULT_CONNECT_TIMEOUT: u64 = 3;
 pub mod cluster;
@@ -134,12 +131,12 @@ pub fn local_ip() -> Option<String> {
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         node_addrs: vec![PersistableHostAddr {
+///         nodes: vec![PersistableHostAddr {
 ///             host: "localhost".to_string(),
 ///             port: 8080
 ///         }],
 ///         period: 3,
-///         connection_timeout: 3
+///         connect_timeout: 3
 ///         rpc_timeout: 3
 ///     };
 ///     
@@ -149,12 +146,11 @@ pub fn local_ip() -> Option<String> {
 /// ```
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct HeartbeatBuilder {
-    #[serde(default)]
-    pub node_addrs: Vec<PersistableHostAddr>,
+    pub nodes: Vec<PersistableHostAddr>,
     /// period of heartbeat, in seconds
     pub period: u64,
     /// timeout of heartbeat rpc connection, in seconds
-    pub connection_timeout: u64,
+    pub connect_timeout: u64,
     /// timeout of heartbeat rpc request, in seconds
     pub rpc_timeout: u64,
 }
@@ -166,10 +162,10 @@ impl HeartbeatBuilder {
     ) -> HeartbeatSender<T> {
         HeartbeatSender {
             gateways: self
-                .node_addrs
+                .nodes
                 .iter()
                 .map(|addr| to_host_addr(addr))
-                .map(|host_addr| f(&host_addr, self.connection_timeout, self.rpc_timeout))
+                .map(|host_addr| f(&host_addr, self.connect_timeout, self.rpc_timeout))
                 .collect(),
             interval: tokio::time::interval(Duration::from_secs(self.period)),
             execution_id: None,
@@ -254,7 +250,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///             host: "localhost".to_string(),
 ///             port: 8080
 ///         }],
-///         connection_timeout: 3,
+///         connect_timeout: 3,
 ///         rpc_timeout: 3
 ///     };
 ///     
@@ -291,10 +287,9 @@ pub struct AckResponderBuilder {
     // buffer ack queue size
     pub buf_size: usize,
     // ack nodes
-    #[serde(default)]
     pub nodes: Vec<PersistableHostAddr>,
     /// timeout of ack rpc connection, in seconds
-    pub connection_timeout: u64,
+    pub connect_timeout: u64,
     /// timeout of ack rpc request, in seconds
     pub rpc_timeout: u64,
 }
@@ -312,7 +307,7 @@ impl AckResponderBuilder {
                 gateway: self
                     .nodes
                     .iter()
-                    .map(|addr| f(addr, self.connection_timeout, self.rpc_timeout))
+                    .map(|addr| f(addr, self.connect_timeout, self.rpc_timeout))
                     .collect(),
             },
             tx,
@@ -410,7 +405,7 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![],
-            connection_timeout: 3,
+            connect_timeout: 3,
             rpc_timeout: 3,
         };
 
@@ -487,12 +482,12 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_success() {
         let builder = HeartbeatBuilder {
-            node_addrs: vec![PersistableHostAddr {
+            nodes: vec![PersistableHostAddr {
                 host: "11".to_string(),
                 port: 11,
             }],
             period: 3,
-            connection_timeout: 3,
+            connect_timeout: 3,
             rpc_timeout: 3,
         };
 

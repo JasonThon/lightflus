@@ -55,8 +55,11 @@ pub(crate) struct VertexExecution {
 }
 
 impl VertexExecution {
-    pub(crate) fn new(executor_id: &ExecutorId, operator: &OperatorInfo) -> Self {
-        todo!()
+    pub(crate) fn new(executor_id: ExecutorId, operator: &OperatorInfo) -> Self {
+        Self {
+            executor_id,
+            operator: operator.clone(),
+        }
     }
 }
 
@@ -180,7 +183,7 @@ impl SubdataflowExecution {
             vertexes: subdataflow
                 .nodes
                 .iter()
-                .map(|(executor_id, info)| (*executor_id, VertexExecution::new(executor_id, info)))
+                .map(|(executor_id, info)| (*executor_id, VertexExecution::new(*executor_id, info)))
                 .collect(),
             execution_id,
             status,
@@ -264,7 +267,7 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![PersistableHostAddr::default()],
-            connection_timeout: 3,
+            connect_timeout: 3,
             rpc_timeout: 3,
         };
 
@@ -322,7 +325,7 @@ mod tests {
             delay: 3,
             buf_size: 10,
             nodes: vec![PersistableHostAddr::default()],
-            connection_timeout: 3,
+            connect_timeout: 3,
             rpc_timeout: 3,
         };
 

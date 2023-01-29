@@ -55,7 +55,7 @@ pub(crate) struct Coordinator {
 impl Coordinator {
     pub(crate) async fn create_dataflow(
         &mut self,
-        mut dataflow: Dataflow,
+        dataflow: Dataflow,
     ) -> Result<(), tonic::Status> {
         match dataflow
             .validate()

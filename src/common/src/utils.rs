@@ -444,11 +444,12 @@ mod tests {
 
     #[test]
     fn test_serde_env() {
-        let origin = "{\"name\":\"${your.name}\", \"card\": \"${your.card}\"}";
+        let origin = "{\"name\":\"${your.name}\", \"card\": \"${your.card}\", \"info\": {\"address\": \"${your.addr}\", \"second_address\": \"${your.addr}\"}}";
         std::env::set_var("your.name", "jason");
         std::env::set_var("your.card", "111");
+        std::env::set_var("your.addr", "222");
         let target = common::utils::from_str(origin);
-        let result = serde_json::from_str::<Name>(target.as_str());
+        let result = serde_json::from_str::<Personal>(target.as_str());
         if result.is_err() {
             print!("{:?}", result.as_ref().unwrap_err())
         }
@@ -456,6 +457,8 @@ mod tests {
         let name = result.unwrap();
         assert_eq!(&name.name, &"jason".to_string());
         assert_eq!(&name.card, &"111".to_string());
+        assert_eq!(&name.info.address, &"222".to_string());
+        assert_eq!(&name.info.second_address, &"222".to_string());
     }
 
     #[test]
@@ -467,8 +470,15 @@ mod tests {
     }
 
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
-    struct Name {
+    struct Personal {
         name: String,
         card: String,
+        info: DetailInfo,
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct DetailInfo {
+        address: String,
+        second_address: String,
     }
 }

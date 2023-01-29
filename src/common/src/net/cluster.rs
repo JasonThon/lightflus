@@ -184,7 +184,7 @@ impl Cluster {
     }
 }
 
-#[derive(Clone, serde::Deserialize, Debug)]
+#[derive(Clone, serde::Deserialize, Debug, PartialEq, Eq)]
 pub struct NodeBuilder {
     pub host: String,
     pub port: u16,
@@ -237,7 +237,7 @@ impl ClusterBuilder {
 
 #[cfg(test)]
 mod cluster_tests {
-    use crate::net::cluster::ClusterBuilder;
+    use crate::net::cluster::{ClusterBuilder, NodeBuilder};
 
     #[tokio::test]
     pub async fn test_cluster_available() {
@@ -417,5 +417,37 @@ mod cluster_tests {
         assert!(!result.is_empty());
 
         assert_eq!(result.len(), 3);
+    }
+
+    #[test]
+    fn test_cluster_builder_derserialize() {
+        let origin = "{
+                \"nodes\":[
+                    {
+                        \"host\":\"${WORKER_1}\",
+                        \"port\":8792
+                    }
+                ],
+                \"rpc_timeout\":3,
+                \"connect_timeout\":3
+            }";
+        std::env::set_var("WORKER_1", "localhost");
+        std::env::set_var("HOME", "jason.song");
+        let target = crate::utils::from_str(origin);
+        let result = serde_json::from_str::<ClusterBuilder>(target.as_str());
+        if result.is_err() {
+            print!("{:?}", result.as_ref().unwrap_err())
+        }
+
+        let builder = result.unwrap();
+        assert_eq!(builder.rpc_timeout, 3);
+        assert_eq!(builder.connect_timeout, 3);
+        assert_eq!(
+            &builder.nodes,
+            &vec![NodeBuilder {
+                host: "localhost".to_string(),
+                port: 8792
+            }]
+        )
     }
 }

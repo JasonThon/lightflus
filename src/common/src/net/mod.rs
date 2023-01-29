@@ -331,19 +331,17 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
             this.delay_interval.reset();
 
             match this.recv.poll_recv(cx) {
-                Poll::Ready(ack) => {
-                    ack.into_iter().for_each(|ack| {
-                        while let Some(true) = this
-                            .gateway
-                            .iter()
-                            .map(|gateway| gateway.receive_ack(ack.clone()))
-                            .into_iter()
-                            .map(|mut future| future.poll_unpin(cx).is_ready())
-                            .reduce(|a, b| a && b)
-                        {
-                            break;
-                        }
-                    });
+                Poll::Ready(Some(ack)) => {
+                    while let Some(true) = this
+                        .gateway
+                        .iter()
+                        .map(|gateway| gateway.receive_ack(ack.clone()))
+                        .into_iter()
+                        .map(|mut future| future.poll_unpin(cx).is_ready())
+                        .reduce(|a, b| a && b)
+                    {
+                        break;
+                    }
                 }
                 _ => {}
             }
@@ -404,12 +402,15 @@ mod tests {
         let builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![],
+            nodes: vec![super::PersistableHostAddr {
+                host: "198.0.0.1".to_string(),
+                port: 8970,
+            }],
             connect_timeout: 3,
             rpc_timeout: 3,
         };
 
-        let (gateway, mut rx, _) = MockRpcGateway::new(builder.buf_size, 0);
+        let (gateway, mut rx, _) = MockRpcGateway::new(builder.buf_size, 10);
 
         let (responder, tx) = builder.build(|_, _, _| gateway.clone());
 
@@ -491,7 +492,7 @@ mod tests {
             rpc_timeout: 3,
         };
 
-        let (gateway, _, mut rx) = MockRpcGateway::new(0, 10);
+        let (gateway, _, mut rx) = MockRpcGateway::new(10, 10);
 
         let heartbeat = builder.build(|_, _, _| gateway.clone());
         let handler = tokio::spawn(heartbeat);

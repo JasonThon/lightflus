@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 
 use common::{
     err::{CommonException, ErrorKind},
-    types::HashedResourceId,
     utils,
 };
 use prost::Message;
@@ -99,30 +98,25 @@ impl DataflowStorage for LocalDataflowStorage {
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct MemDataflowStorage {
-    cache: BTreeMap<HashedResourceId, Dataflow>,
+    cache: BTreeMap<ResourceId, Dataflow>,
 }
 
 impl DataflowStorage for MemDataflowStorage {
     fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException> {
-        self.cache.insert(
-            HashedResourceId::from(dataflow.job_id.as_ref().unwrap()),
-            dataflow.clone(),
-        );
+        self.cache.insert(dataflow.get_job_id(), dataflow.clone());
         Ok(())
     }
 
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        self.cache
-            .get(&HashedResourceId::from(job_id))
-            .map(|dataflow| dataflow.clone())
+        self.cache.get(job_id).map(|dataflow| dataflow.clone())
     }
 
     fn may_exists(&self, job_id: &ResourceId) -> bool {
-        self.cache.contains_key(&job_id.into())
+        self.cache.contains_key(job_id)
     }
 
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
-        self.cache.remove(&job_id.into());
+        self.cache.remove(job_id);
         Ok(())
     }
 }

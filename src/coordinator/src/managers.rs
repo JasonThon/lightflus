@@ -1,11 +1,8 @@
 use std::collections::BTreeMap;
 
-use common::{
-    net::{
-        cluster::{self, ClusterBuilder},
-        AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr,
-    },
-    types::HashedResourceId,
+use common::net::{
+    cluster::{self, ClusterBuilder},
+    AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr,
 };
 use mockall_double::double;
 use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId};
@@ -114,7 +111,7 @@ pub(crate) struct Dispatcher {
     /// # TODO
     ///
     /// Change [`BTreeMap`] to an implementation of [`std::collections::HashMap`] to improve the request throughput
-    managers: BTreeMap<HashedResourceId, JobManager>,
+    managers: BTreeMap<ResourceId, JobManager>,
     cluster: cluster::Cluster,
     location: PersistableHostAddr,
     heartbeat: HeartbeatBuilder,
@@ -158,8 +155,7 @@ impl Dispatcher {
         &mut self,
         job_id: &ResourceId,
     ) -> Result<DataflowStatus, DispatcherException> {
-        let hashed_job_id = &HashedResourceId::from(job_id);
-        match self.managers.get_mut(hashed_job_id) {
+        match self.managers.get_mut(job_id) {
             Some(manager) => match manager.terminate_dataflow().await {
                 Ok(status) => match &status {
                     DataflowStatus::Initialized => {
@@ -170,7 +166,7 @@ impl Dispatcher {
                     }
                     DataflowStatus::Closing => Ok(status),
                     DataflowStatus::Closed => {
-                        let _ = self.managers.remove(hashed_job_id);
+                        let _ = self.managers.remove(job_id);
                         Ok(status)
                     }
                 },
@@ -188,7 +184,7 @@ impl Dispatcher {
         match heartbeat.execution_id.as_ref() {
             Some(execution_id) => {
                 for resource_id in execution_id.job_id.as_ref().iter() {
-                    match self.managers.get_mut(&(*resource_id).into()) {
+                    match self.managers.get_mut(*resource_id) {
                         Some(manager) => manager.update_heartbeat_status(heartbeat).await,
                         None => {}
                     }
@@ -202,7 +198,7 @@ impl Dispatcher {
         match ack.execution_id.as_ref() {
             Some(execution_id) => {
                 for resource_id in execution_id.job_id.as_ref().iter() {
-                    match self.managers.get_mut(&(*resource_id).into()) {
+                    match self.managers.get_mut(*resource_id) {
                         Some(manager) => manager.ack_from_execution(&ack),
                         None => {}
                     }

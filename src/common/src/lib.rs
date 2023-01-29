@@ -43,3 +43,25 @@ impl ExecutionID {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use proto::common::ResourceId;
+
+    #[test]
+    fn test_resource_id_serialize() {
+        let resource_id = ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        };
+
+        let result = serde_json::to_string(&resource_id);
+        assert!(result.is_ok());
+        let val = result.unwrap();
+
+        assert_eq!(
+            &val,
+            "{\"resource_id\":\"resource_id\",\"namespace_id\":\"namespace_id\"}"
+        )
+    }
+}

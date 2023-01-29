@@ -1,6 +1,7 @@
 use std::hash::Hash;
 
 use chrono::Duration;
+use serde::ser::SerializeStruct;
 
 use crate::common::{
     mysql_desc::{self, Statement},
@@ -283,12 +284,18 @@ impl KeyedDataEvent {
         self.job_id = Some(resource_id)
     }
 
+    #[inline]
     pub fn get_job_id(&self) -> ResourceId {
         if self.job_id.is_none() {
             Default::default()
         } else {
             self.job_id.as_ref().unwrap().clone()
         }
+    }
+
+    #[inline]
+    pub fn get_job_id_opt_ref(&self) -> Option<&ResourceId> {
+        self.job_id.as_ref()
     }
 
     pub fn get_key(&self) -> Entry {
@@ -401,7 +408,10 @@ impl serde::Serialize for ResourceId {
     where
         S: serde::Serializer,
     {
-        todo!()
+        let mut resource_id = serializer.serialize_struct("ResourceId", 2)?;
+        resource_id.serialize_field("resource_id", &self.resource_id)?;
+        resource_id.serialize_field("namespace_id", &self.namespace_id)?;
+        resource_id.end()
     }
 }
 

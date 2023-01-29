@@ -17,7 +17,7 @@ pub trait KeyedEvent<K, V> {
 /// # Example
 /// 
 /// ```
-/// use common::event::LocalEvent
+/// use common::event::LocalEvent;
 /// use proto::common::ResourceId;
 /// 
 /// #[tokio::main]

@@ -104,7 +104,7 @@ pub fn local_ip() -> Option<String> {
 /// # Example of Tokio spawning
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway:SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::SafeTaskManagerRpcGateway};
 ///
 /// #[tokio::main]
 /// async fn main() {
@@ -126,7 +126,7 @@ pub fn local_ip() -> Option<String> {
 /// # Example of async/await
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway:SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::SafeTaskManagerRpcGateway};
 ///
 /// #[tokio::main]
 /// async fn main() {
@@ -239,7 +239,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///
 /// # Example of Tokio spwan
 /// ```
-/// use common::net::{AckResponderBuilder, gateway:SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::SafeTaskManagerRpcGateway};
 ///
 /// #[tokio::main]
 /// async fn main() {
@@ -261,7 +261,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///
 /// # Example of Tokio spwan
 /// ```
-/// use common::net::{AckResponderBuilder, gateway:SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::SafeTaskManagerRpcGateway};
 ///
 /// #[tokio::main]
 /// async fn main() {

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use common::{
-    net::{cluster::Cluster, gateway::worker::SafeTaskManagerRpcGateway, HeartbeatBuilder},
+    net::{gateway::worker::SafeTaskManagerRpcGateway, HeartbeatBuilder},
     ExecutionID,
 };
 use mockall::automock;
@@ -25,9 +25,9 @@ impl Scheduler {
         }
     }
 
-    pub(crate) async fn execute(
-        &mut self,
-        plan: SubdataflowDeploymentPlan,
+    pub(crate) async fn execute<'a>(
+        &'a mut self,
+        plan: SubdataflowDeploymentPlan<'a>,
         heartbeat_builder: &HeartbeatBuilder,
     ) -> Result<(), TaskDeploymentException> {
         plan.deploy().await.map(|execution| {
@@ -51,7 +51,6 @@ impl Scheduler {
 
     pub(crate) async fn terminate_dataflow(
         &mut self,
-        cluster: &mut Cluster,
     ) -> Result<DataflowStatus, TaskExecutionException> {
         for (_, execution) in self.executions.iter_mut() {
             execution.try_terminate()

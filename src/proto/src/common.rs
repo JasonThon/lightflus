@@ -544,6 +544,10 @@ pub mod redis_desc {
         pub tls: bool,
     }
 }
+/// An union linked-list structure of the description of Dataflow.
+/// Dataflow can be shared between API, Coordinator and TaskManager.
+/// However, they may check the Dataflow by distinct validators.
+/// Each part's concern is different and they must be sure it's a legal Dataflow to them.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Dataflow {
     /// job id, for now it is which table the stream graph output will sink
@@ -555,6 +559,9 @@ pub struct Dataflow {
     /// details of nodes
     #[prost(map = "uint32, message", tag = "3")]
     pub nodes: ::std::collections::HashMap<u32, OperatorInfo>,
+    /// execution id, optional for API, mandatory for TaskManager
+    #[prost(message, optional, tag = "4")]
+    pub execution_id: ::core::option::Option<ExecutionId>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Window {

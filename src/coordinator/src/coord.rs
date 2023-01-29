@@ -1,3 +1,6 @@
+use common::net::cluster;
+use common::net::AckResponderBuilder;
+use common::net::HeartbeatBuilder;
 use proto::common::Ack;
 use proto::common::Dataflow;
 use proto::common::DataflowStatus;
@@ -6,12 +9,42 @@ use proto::common::Heartbeat;
 use proto::common::NodeType;
 use proto::common::ResourceId;
 
-use crate::config::CoordinatorConfig;
 use crate::managers::Dispatcher;
+use crate::storage::DataflowStorageBuilder;
+
+/// Builder for [Coordinator]
+/// It's also the configuration of Coordinator. You can see in the file `etc/coord.json`
+#[derive(serde::Deserialize, Clone, Debug)]
+pub(crate) struct CoordinatorBuilder {
+    /// Coordinator port
+    pub port: usize,
+    /// TaskManager Cluster builder
+    pub cluster: cluster::ClusterBuilder,
+    /// dataflow storage builder
+    pub storage: DataflowStorageBuilder,
+    /// heartbeat builder
+    pub heartbeat: HeartbeatBuilder,
+    // ack responder builder
+    pub ack: AckResponderBuilder,
+}
+
+impl CoordinatorBuilder {
+    pub fn build(&self) -> Coordinator {
+        Coordinator {
+            dispatcher: Dispatcher::new(
+                &self.cluster,
+                &self.storage,
+                &self.heartbeat,
+                &self.ack,
+                self.port,
+            ),
+        }
+    }
+}
 
 /// The coordinator of a Lightflus cluster
 /// Coordinator will manage:
-/// - Dispatcher
+/// - [Dispatcher]
 /// - Checkpoint Coordinator
 /// - Backpressure Metrics
 /// - Scale Up and Scale Down
@@ -20,11 +53,6 @@ pub(crate) struct Coordinator {
 }
 
 impl Coordinator {
-    pub(crate) fn new(config: &CoordinatorConfig) -> Self {
-        let dispatcher = Dispatcher::new(config);
-        Coordinator { dispatcher }
-    }
-
     pub(crate) async fn create_dataflow(
         &mut self,
         mut dataflow: Dataflow,
@@ -41,7 +69,7 @@ impl Coordinator {
                     return terminate_result.map(|_| ());
                 }
                 self.dispatcher
-                    .create_dataflow(&mut dataflow)
+                    .create_dataflow(dataflow)
                     .await
                     .map_err(|err| err.to_tonic_status())
             }

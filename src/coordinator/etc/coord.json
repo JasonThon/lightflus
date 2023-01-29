@@ -1,14 +1,18 @@
 {
   "port": 8791,
-  "cluster": [
-    {
-      "host": "${WORKER_1}",
-      "port": 8792
-    }
-  ],
-  "storage":{
-    "Persist": {
+  "cluster": {
+    "nodes": [
+      {
+        "host": "${WORKER_1}",
+        "port": 8792
+      }
+    ],
+    "rpc_timeout": 3,
+    "connect_timeout": 3
+  },
+  "storage": {
+    "Local": {
       "dataflow_store_path": "${HOME}/lightflus/dataflow"
     }
-  } 
+  }
 }

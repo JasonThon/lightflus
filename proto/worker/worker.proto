@@ -5,7 +5,7 @@ import "common/event.proto";
 import "common/common.proto";
 import "common/stream.proto";
 
-option go_package = "lightflus/runtime/proto";
+option go_package = "lightflus/proto/taskmanager";
 
 /// RPC Api for Task Manager
 service TaskWorkerApi {

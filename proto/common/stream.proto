@@ -159,10 +159,19 @@ enum DataflowStatus {
   CLOSED = 3;
 }
 
+// An union linked-list structure of the description of Dataflow.
+// Dataflow can be shared between API, Coordinator and TaskManager.
+// However, they may check the Dataflow by distinct validators.
+// Each part's concern is different and they must be sure it's a legal Dataflow to them.
 message Dataflow {
-  common.ResourceId job_id = 1; // job id, for now it is which table the stream graph output will sink
-  repeated common.DataflowMeta meta = 2; // graph structure
-  map<uint32, common.OperatorInfo> nodes = 3; // details of nodes
+  // job id, for now it is which table the stream graph output will sink
+  common.ResourceId job_id = 1;
+  // graph structure
+  repeated common.DataflowMeta meta = 2;
+  // details of nodes
+  map<uint32, common.OperatorInfo> nodes = 3;
+  // execution id, optional for API, mandatory for TaskManager
+  optional common.ExecutionId execution_id = 4;
 }
 
 message Window {

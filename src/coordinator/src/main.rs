@@ -5,10 +5,7 @@ use common::utils;
 use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 use tonic::transport::Server;
 
-use crate::coord::Coordinator;
-
 mod api;
-mod config;
 mod coord;
 mod executions;
 mod managers;
@@ -38,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let value = env_setup.unwrap();
 
-    let reader = serde_json::from_str::<config::CoordinatorConfig>(value.as_str());
+    let reader = serde_json::from_str::<coord::CoordinatorBuilder>(value.as_str());
     if reader.is_err() {
         panic!(
             "{}",
@@ -46,13 +43,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     }
 
-    let config = reader.unwrap();
+    let builder = reader.unwrap();
 
-    let coordinator = Coordinator::new(&config);
+    let coordinator = builder.build();
     let server = CoordinatorApiImpl::new(coordinator);
 
-    let addr = format!("0.0.0.0:{}", config.port).parse()?;
-    tracing::info!("service will start at {}", config.port);
+    let addr = format!("0.0.0.0:{}", builder.port).parse()?;
+    tracing::info!("service will start at {}", builder.port);
 
     Server::builder()
         .timeout(Duration::from_secs(3))

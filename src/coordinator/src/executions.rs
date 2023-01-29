@@ -16,7 +16,7 @@ use common::{
 use proto::{
     common::{
         ack::{AckType, RequestId},
-        Ack, Dataflow, DataflowStatus, Heartbeat, NodeType, OperatorInfo,
+        Ack, Dataflow, DataflowStatus, ExecutionId, Heartbeat, NodeType, OperatorInfo, ResourceId,
     },
     worker::CreateSubDataflowRequest,
 };
@@ -66,27 +66,26 @@ impl VertexExecution {
 /// - the resource configurations that this dataflow can be allocated
 /// - ack responder
 /// - initialized ack request queue
-pub(crate) struct SubdataflowDeploymentPlan {
+pub(crate) struct SubdataflowDeploymentPlan<'a> {
     /// the description of subdataflow
     subdataflow: Dataflow,
     /// the target address of TaskManager
     addr: PersistableHostAddr,
-    /// the id of the subdataflow's execution
-    execution_id: ExecutionID,
-    /// the gateway of TaskManager
-    gateway: Option<SafeTaskManagerRpcGateway>,
+    /// the job id of the subdataflow's execution
+    job_id: ResourceId,
+    /// the node of TaskManager
+    node: Option<&'a Node>,
     /// ack responder
     ack: AckResponder<SafeTaskManagerRpcGateway>,
     /// the initialized enqueue-entrypoint of a ack request queue
     sender: mpsc::Sender<Ack>,
 }
-impl SubdataflowDeploymentPlan {
+
+impl<'a> SubdataflowDeploymentPlan<'a> {
     pub(crate) fn new(
         subdataflow: (&PersistableHostAddr, &Dataflow),
-        execution_id: ExecutionID,
-        node: Option<&Node>,
-        connect_timeout: u64,
-        rpc_timout: u64,
+        job_id: &ResourceId,
+        node: Option<&'a Node>,
         ack_builder: &AckResponderBuilder,
     ) -> Self {
         let (ack, sender) = ack_builder.build(|addr, connect_timeout, rpc_timout| {
@@ -99,27 +98,33 @@ impl SubdataflowDeploymentPlan {
         Self {
             subdataflow: subdataflow.1.clone(),
             addr: subdataflow.0.clone(),
-            execution_id,
-            gateway: node.map(|n| n.create_gateway_with_timeout(connect_timeout, rpc_timout)),
+            job_id: job_id.clone(),
+            node,
             ack,
             sender,
         }
     }
 
-    pub(crate) async fn deploy(self) -> Result<SubdataflowExecution, TaskDeploymentException> {
+    #[inline]
+    pub(crate) async fn deploy(mut self) -> Result<SubdataflowExecution, TaskDeploymentException> {
         let ack = self.ack;
-        match &self.gateway {
-            Some(gateway) => {
+        match &self.node {
+            Some(node) => {
+                self.subdataflow.execution_id = Some(ExecutionId {
+                    job_id: self.subdataflow.job_id.clone(),
+                    sub_id: node.get_id(),
+                });
+
                 let req = CreateSubDataflowRequest {
                     job_id: Some(self.subdataflow.get_job_id()),
                     dataflow: Some(self.subdataflow.clone()),
                 };
 
-                match gateway.create_sub_dataflow(req).await {
+                match node.get_gateway().create_sub_dataflow(req).await {
                     Ok(resp) => Ok(SubdataflowExecution::new(
-                        Node::new(self.addr.clone()),
+                        (*node).clone(),
                         self.subdataflow,
-                        self.execution_id.clone(),
+                        ExecutionID(self.job_id, node.get_id()),
                         resp.status(),
                         ack,
                         self.sender,
@@ -243,14 +248,14 @@ mod tests {
     use common::{
         net::{
             cluster::{Node, NodeStatus},
-            gateway::MockRpcGateway,
+            gateway::{worker::SafeTaskManagerRpcGateway, MockRpcGateway},
             AckResponderBuilder, PersistableHostAddr,
         },
         utils::times::prost_now,
     };
     use proto::common::{
         ack::{AckType, RequestId},
-        Ack, DataflowStatus, ExecutionId, Heartbeat, NodeType,
+        Ack, DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType,
     };
 
     #[tokio::test]
@@ -268,7 +273,10 @@ mod tests {
         let (ack_responder, ack_tx) = ack_responder_builder.build(|_, _, _| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
-            worker: Node::new(PersistableHostAddr::default()),
+            worker: Node::new(
+                PersistableHostAddr::default(),
+                SafeTaskManagerRpcGateway::new(&HostAddr::default()),
+            ),
             vertexes: Default::default(),
             execution_id: Default::default(),
             status: DataflowStatus::Initialized,
@@ -323,7 +331,10 @@ mod tests {
         let (ack_responder, ack_tx) = ack_responder_builder.build(|_, _, _| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
-            worker: Node::new(PersistableHostAddr::default()),
+            worker: Node::new(
+                PersistableHostAddr::default(),
+                SafeTaskManagerRpcGateway::new(&HostAddr::default()),
+            ),
             vertexes: Default::default(),
             execution_id: Default::default(),
             status: DataflowStatus::Initialized,

@@ -4,7 +4,7 @@ package coordinator;
 import "common/stream.proto";
 import "common/common.proto";
 
-option go_package = "lightflus/runtime/proto";
+option go_package = "lightflus/proto/coordinator";
 
 /// RPC Api for Coordinator
 service CoordinatorApi {

@@ -8,8 +8,25 @@ use common::{
 use prost::Message;
 use proto::common::{Dataflow, ResourceId};
 
-pub(crate) trait DataflowStorage {
-    fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException>;
+#[derive(serde::Deserialize, Clone, Debug)]
+pub(crate) enum DataflowStorageBuilder {
+    Local { dataflow_store_path: String },
+    Memory,
+}
+
+impl DataflowStorageBuilder {
+    pub(crate) fn build(&self) -> Box<dyn DataflowStorage> {
+        match self {
+            Self::Local {
+                dataflow_store_path,
+            } => Box::new(LocalDataflowStorage::new(dataflow_store_path)),
+            Self::Memory => Box::new(MemDataflowStorage::default()),
+        }
+    }
+}
+
+pub(crate) trait DataflowStorage: Send + Sync {
+    fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException>;
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow>;
     fn may_exists(&self, job_id: &ResourceId) -> bool;
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException>;
@@ -29,7 +46,7 @@ impl LocalDataflowStorage {
 }
 
 impl DataflowStorage for LocalDataflowStorage {
-    fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
+    fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException> {
         self.db
             .insert(
                 dataflow
@@ -86,7 +103,7 @@ pub(crate) struct MemDataflowStorage {
 }
 
 impl DataflowStorage for MemDataflowStorage {
-    fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
+    fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException> {
         self.cache.insert(
             HashedResourceId::from(dataflow.job_id.as_ref().unwrap()),
             dataflow.clone(),
@@ -107,41 +124,5 @@ impl DataflowStorage for MemDataflowStorage {
     fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
         self.cache.remove(&job_id.into());
         Ok(())
-    }
-}
-
-#[derive(Clone, Debug)]
-pub(crate) enum DataflowStorageImpl {
-    Local(LocalDataflowStorage),
-    Memory(MemDataflowStorage),
-}
-
-impl DataflowStorageImpl {
-    pub(crate) fn save(&mut self, dataflow: Dataflow) -> Result<(), CommonException> {
-        match self {
-            Self::Local(storage) => storage.save(dataflow),
-            Self::Memory(storage) => storage.save(dataflow),
-        }
-    }
-
-    pub(crate) fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        match self {
-            Self::Local(storage) => storage.get(job_id),
-            Self::Memory(storage) => storage.get(job_id),
-        }
-    }
-
-    pub(crate) fn may_exists(&self, job_id: &ResourceId) -> bool {
-        match self {
-            Self::Local(storage) => storage.may_exists(job_id),
-            Self::Memory(storage) => storage.may_exists(job_id),
-        }
-    }
-
-    pub(crate) fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
-        match self {
-            DataflowStorageImpl::Local(storage) => storage.delete(job_id),
-            DataflowStorageImpl::Memory(storage) => storage.delete(job_id),
-        }
     }
 }

@@ -1,10 +1,11 @@
+use crate::collections::lang;
 use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
 use crate::utils::times::from_prost_timestamp_to_utc_chrono;
 
-use proto::common::Dataflow;
 use proto::common::DataflowMeta;
+use proto::common::{Dataflow, HostAddr};
 
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
@@ -15,7 +16,7 @@ use super::gateway::worker::SafeTaskManagerRpcGateway;
 
 #[derive(Clone, Eq, PartialEq, Debug, Copy)]
 pub enum NodeStatus {
-    /// initialization status of node
+    /// initializated status of node
     Pending,
     /// status if node is running
     Running,
@@ -33,14 +34,20 @@ pub struct Node {
     pub host_addr: PersistableHostAddr,
     // the latest update time of status updating
     lastest_status_update_timestamp: chrono::DateTime<chrono::Utc>,
+    // gateway of task manager
+    gateway: SafeTaskManagerRpcGateway,
+    /// node's id. It's always aligned with the list of [NodeBuilder]
+    node_id: u32,
 }
 
 impl Node {
-    pub fn new(host_addr: PersistableHostAddr) -> Self {
+    pub fn new(host_addr: PersistableHostAddr, gateway: SafeTaskManagerRpcGateway) -> Self {
         Self {
             status: NodeStatus::Pending,
             host_addr,
             lastest_status_update_timestamp: chrono::Utc::now(),
+            gateway,
+            node_id: 0,
         }
     }
 
@@ -49,6 +56,7 @@ impl Node {
         self.lastest_status_update_timestamp = from_prost_timestamp_to_utc_chrono(timestamp)
     }
 
+    #[inline]
     pub fn get_status(&self) -> &NodeStatus {
         &self.status
     }
@@ -57,16 +65,14 @@ impl Node {
         self.status == NodeStatus::Running
     }
 
-    pub fn create_gateway_with_timeout(
-        &self,
-        connect_timeout: u64,
-        rpc_timeout: u64,
-    ) -> SafeTaskManagerRpcGateway {
-        SafeTaskManagerRpcGateway::with_timeout(
-            &to_host_addr(&self.host_addr),
-            connect_timeout,
-            rpc_timeout,
-        )
+    #[inline]
+    pub fn get_gateway(&self) -> &SafeTaskManagerRpcGateway {
+        &self.gateway
+    }
+
+    #[inline]
+    pub fn get_id(&self) -> u32 {
+        self.node_id
     }
 }
 
@@ -76,10 +82,6 @@ impl Node {
 pub struct Cluster {
     /// all remote workers
     workers: Vec<Node>,
-    /// rpc request timeout
-    rpc_timout: u64,
-    /// rpc connect timeout
-    connect_timeout: u64,
 }
 
 impl Cluster {
@@ -117,14 +119,6 @@ impl Cluster {
             .filter(|worker| worker.is_available())
             .next()
             .is_some()
-    }
-
-    pub fn new(addrs: &Vec<NodeConfig>) -> Self {
-        Cluster {
-            workers: addrs.iter().map(|config| config.to_node()).collect(),
-            rpc_timout: super::DEFAULT_RPC_TIMEOUT,
-            connect_timeout: super::DEFAULT_CONNECT_TIMEOUT,
-        }
     }
 
     /// A dataflow will be splitted into several partitions and deploy these sub-dataflow into different workers
@@ -188,49 +182,75 @@ impl Cluster {
             })
             .collect()
     }
-
-    pub fn set_rpc_timeout(&mut self, rpc_timeout: u64) {
-        self.rpc_timout = rpc_timeout
-    }
-
-    pub fn get_rpc_timeout(&self) -> u64 {
-        self.rpc_timout
-    }
-
-    pub fn set_connect_timeout(&mut self, connect_timeout: u64) {
-        self.connect_timeout = connect_timeout
-    }
-
-    pub fn get_connect_timeout(&self) -> u64 {
-        self.connect_timeout
-    }
 }
 
 #[derive(Clone, serde::Deserialize, Debug)]
-pub struct NodeConfig {
+pub struct NodeBuilder {
     pub host: String,
     pub port: u16,
 }
 
-impl NodeConfig {
-    pub fn to_node(&self) -> Node {
-        Node::new(PersistableHostAddr {
-            host: self.host.clone(),
-            port: self.port,
-        })
+impl NodeBuilder {
+    pub fn build(&self, gateway: SafeTaskManagerRpcGateway) -> Node {
+        Node::new(
+            PersistableHostAddr {
+                host: self.host.clone(),
+                port: self.port,
+            },
+            gateway,
+        )
+    }
+}
+
+/// Builder for [Cluster]
+/// It also can be used as structure of the configuration of [Cluster] in a config file.
+/// Config file with types `json` and `yaml` are both supported
+#[derive(Clone, serde::Deserialize, Debug)]
+pub struct ClusterBuilder {
+    /// task manager nodes configurations
+    pub nodes: Vec<NodeBuilder>,
+    /// rpc request timeout
+    pub rpc_timeout: u64,
+    /// rpc connection timeout
+    pub connect_timeout: u64,
+}
+
+impl ClusterBuilder {
+    pub fn build(&self) -> Cluster {
+        Cluster {
+            workers: lang::index_map(&self.nodes, |index, builder| {
+                let mut node = builder.build(SafeTaskManagerRpcGateway::with_timeout(
+                    &HostAddr {
+                        host: builder.host.clone(),
+                        port: builder.port as u32,
+                    },
+                    self.connect_timeout,
+                    self.rpc_timeout,
+                ));
+
+                node.node_id = index as u32;
+                node
+            }),
+        }
     }
 }
 
 #[cfg(test)]
 mod cluster_tests {
+    use crate::net::cluster::ClusterBuilder;
 
     #[tokio::test]
     pub async fn test_cluster_available() {
-        use super::{Cluster, NodeConfig};
-        let mut cluster = Cluster::new(&vec![NodeConfig {
-            host: "localhost".to_string(),
-            port: 8080,
-        }]);
+        use super::NodeBuilder;
+        let builder = ClusterBuilder {
+            nodes: vec![NodeBuilder {
+                host: "localhost".to_string(),
+                port: 8080,
+            }],
+            rpc_timeout: 3,
+            connect_timeout: 3,
+        };
+        let mut cluster = builder.build();
 
         cluster
             .workers
@@ -242,27 +262,32 @@ mod cluster_tests {
 
     #[tokio::test]
     pub async fn test_cluster_partition_dataflow() {
-        use super::{Cluster, NodeConfig};
+        use super::NodeBuilder;
         use proto::common::Dataflow;
         use std::collections::HashMap;
 
         use proto::common::{DataflowMeta, OperatorInfo};
 
         use crate::net::cluster::NodeStatus;
-        let mut cluster = Cluster::new(&vec![
-            NodeConfig {
-                host: "198.0.0.1".to_string(),
-                port: 8080,
-            },
-            NodeConfig {
-                host: "198.0.0.2".to_string(),
-                port: 8080,
-            },
-            NodeConfig {
-                host: "198.0.0.3".to_string(),
-                port: 8080,
-            },
-        ]);
+        let builder = ClusterBuilder {
+            nodes: vec![
+                NodeBuilder {
+                    host: "198.0.0.1".to_string(),
+                    port: 8080,
+                },
+                NodeBuilder {
+                    host: "198.0.0.2".to_string(),
+                    port: 8080,
+                },
+                NodeBuilder {
+                    host: "198.0.0.3".to_string(),
+                    port: 8080,
+                },
+            ],
+            rpc_timeout: 3,
+            connect_timeout: 3,
+        };
+        let mut cluster = builder.build();
         let mut dataflow = Dataflow::default();
 
         let meta_1 = DataflowMeta {
@@ -313,27 +338,32 @@ mod cluster_tests {
 
     #[tokio::test]
     pub async fn test_split_into_subdataflow() {
-        use super::{Cluster, NodeConfig};
+        use super::NodeBuilder;
         use proto::common::Dataflow;
         use std::collections::HashMap;
 
         use proto::common::{DataflowMeta, OperatorInfo};
 
         use crate::net::cluster::NodeStatus;
-        let mut cluster = Cluster::new(&vec![
-            NodeConfig {
-                host: "198.0.0.1".to_string(),
-                port: 8080,
-            },
-            NodeConfig {
-                host: "198.0.0.2".to_string(),
-                port: 8080,
-            },
-            NodeConfig {
-                host: "198.0.0.3".to_string(),
-                port: 8080,
-            },
-        ]);
+        let builder = ClusterBuilder {
+            nodes: vec![
+                NodeBuilder {
+                    host: "198.0.0.1".to_string(),
+                    port: 8080,
+                },
+                NodeBuilder {
+                    host: "198.0.0.2".to_string(),
+                    port: 8080,
+                },
+                NodeBuilder {
+                    host: "198.0.0.3".to_string(),
+                    port: 8080,
+                },
+            ],
+            rpc_timeout: 3,
+            connect_timeout: 3,
+        };
+        let mut cluster = builder.build();
         let mut dataflow = Dataflow::default();
 
         let meta_1 = DataflowMeta {

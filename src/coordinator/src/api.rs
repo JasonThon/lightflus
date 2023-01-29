@@ -9,7 +9,7 @@ pub(crate) struct CoordinatorApiImpl {
     /// # TODO
     ///
     /// [`RwLock`] will block many `receive_heartbeat` and `receive_ack` requests if they are concurrently sent.
-    /// To improve the performance, in next version, an implementation of concurrent [`std::collections::HashMap`] will be added.
+    /// To improve the performance, in next version, an implementation of concurrent [`std::collections::HashMap] will be added.
     /// Such map structure acquires only one lock on a single node which can minimize the scope of locking without locking the entire tree.
     coordinator: RwLock<coord::Coordinator>,
 }

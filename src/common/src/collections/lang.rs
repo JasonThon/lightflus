@@ -17,6 +17,17 @@ pub fn map<U, T, F: FnMut(&U) -> T>(list: &Vec<U>, mapper: F) -> Vec<T> {
     list.iter().map(mapper).collect()
 }
 
+pub fn index_map<U, T, F: Fn(i32, &U) -> T>(list: &Vec<U>, mapper: F) -> Vec<T> {
+    let mut index = 0;
+    list.iter()
+        .map(|elem| {
+            let result = mapper(index, elem);
+            index += 1;
+            result
+        })
+        .collect()
+}
+
 pub fn group<N, T, F: FnMut(&N) -> T>(
     list: &Vec<N>,
     mut key_extractor: F,

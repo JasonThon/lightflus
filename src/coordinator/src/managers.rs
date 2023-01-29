@@ -1,9 +1,11 @@
 use std::collections::BTreeMap;
 
 use common::{
-    net::{cluster, AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr},
+    net::{
+        cluster::{self, ClusterBuilder},
+        AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr,
+    },
     types::HashedResourceId,
-    ExecutionID,
 };
 use mockall_double::double;
 use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId};
@@ -11,9 +13,8 @@ use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId};
 #[double]
 use crate::scheduler::Scheduler;
 use crate::{
-    config::CoordinatorConfig,
     executions::{SubdataflowDeploymentPlan, TaskDeploymentException},
-    storage::DataflowStorageImpl,
+    storage::{DataflowStorage, DataflowStorageBuilder},
 };
 
 /// [`JobManager`] is responsible for
@@ -26,14 +27,20 @@ pub(crate) struct JobManager {
     job_id: ResourceId,
     scheduler: Scheduler,
     location: PersistableHostAddr,
+    storage: Box<dyn DataflowStorage>,
 }
 impl JobManager {
-    pub(crate) fn new(location: &PersistableHostAddr, dataflow: &Dataflow) -> Self {
+    pub(crate) fn new(
+        location: &PersistableHostAddr,
+        dataflow: &Dataflow,
+        storage: &DataflowStorageBuilder,
+    ) -> Self {
         Self {
             dataflow: dataflow.clone(),
             job_id: dataflow.get_job_id(),
             scheduler: Scheduler::new(),
             location: location.clone(),
+            storage: storage.build(),
         }
     }
 
@@ -44,20 +51,19 @@ impl JobManager {
         heartbeat_builder: &HeartbeatBuilder,
         ack_builder: &AckResponderBuilder,
     ) -> Result<(), TaskDeploymentException> {
+        let _ = self.storage.save(&self.dataflow);
+        cluster.partition_dataflow(&mut self.dataflow);
+
         let subdataflow = cluster.split_into_subdataflow(&self.dataflow);
-        let mut execution_id = 0;
         let mut ack_builder = ack_builder.clone();
         ack_builder.nodes = vec![self.location.clone()];
         let executions = subdataflow.iter().map(|pair| {
             let plan = SubdataflowDeploymentPlan::new(
                 pair,
-                ExecutionID(self.job_id.clone(), execution_id),
+                &self.job_id,
                 cluster.get_node(pair.0),
-                cluster.get_connect_timeout(),
-                cluster.get_rpc_timeout(),
                 &ack_builder,
             );
-            execution_id += 1;
             plan
         });
 
@@ -71,12 +77,9 @@ impl JobManager {
         Ok(())
     }
 
-    async fn terminate_dataflow(
-        &mut self,
-        cluster: &mut cluster::Cluster,
-    ) -> Result<DataflowStatus, tonic::Status> {
+    async fn terminate_dataflow(&mut self) -> Result<DataflowStatus, tonic::Status> {
         self.scheduler
-            .terminate_dataflow(cluster)
+            .terminate_dataflow()
             .await
             .map_err(|err| err.to_tonic_status())
     }
@@ -112,83 +115,72 @@ pub(crate) struct Dispatcher {
     /// Change [`BTreeMap`] to an implementation of [`std::collections::HashMap`] to improve the request throughput
     managers: BTreeMap<HashedResourceId, JobManager>,
     cluster: cluster::Cluster,
-    dataflow_storage: DataflowStorageImpl,
     location: PersistableHostAddr,
     heartbeat: HeartbeatBuilder,
     ack: AckResponderBuilder,
+    storage: DataflowStorageBuilder,
 }
 
 impl Dispatcher {
-    pub fn new(config: &CoordinatorConfig) -> Self {
-        let dataflow_storage = config.storage.to_dataflow_storage();
-        let mut cluster = cluster::Cluster::new(&config.cluster);
-        cluster.set_rpc_timeout(config.rpc_timeout);
-        cluster.set_connect_timeout(config.connect_timeout);
+    pub fn new(
+        cluster_builder: &ClusterBuilder,
+        storage_builder: &DataflowStorageBuilder,
+        heartbeat_builder: &HeartbeatBuilder,
+        ack_builder: &AckResponderBuilder,
+        port: usize,
+    ) -> Self {
+        let cluster = cluster_builder.build();
         Self {
             managers: Default::default(),
             cluster,
-            dataflow_storage,
-            location: PersistableHostAddr::local(config.port),
-            heartbeat: config.heartbeat.clone(),
-            ack: config.ack.clone(),
+            location: PersistableHostAddr::local(port),
+            heartbeat: heartbeat_builder.clone(),
+            ack: ack_builder.clone(),
+            storage: storage_builder.clone(),
         }
     }
 
     pub(crate) async fn create_dataflow(
-        &mut self,
-        dataflow: &mut Dataflow,
+        &self,
+        dataflow: Dataflow,
     ) -> Result<(), DispatcherException> {
-        match self.dataflow_storage.save(dataflow.clone()) {
-            Err(err) => {
-                return Err(DispatcherException::Tonic(tonic::Status::internal(
-                    err.message,
-                )))
-            }
-            _ => {
-                self.cluster.partition_dataflow(dataflow);
-                let mut job_manager = JobManager::new(&self.location, dataflow);
-                let result = job_manager
-                    .deploy_dataflow(&self.cluster, &self.heartbeat, &self.ack)
-                    .await
-                    .map_err(|err| DispatcherException::DeploymentError(err));
+        let mut job_manager = JobManager::new(&self.location, &dataflow, &self.storage);
+        let result = job_manager
+            .deploy_dataflow(&self.cluster, &self.heartbeat, &self.ack)
+            .await
+            .map_err(|err| DispatcherException::DeploymentError(err));
 
-                result
-            }
-        }
+        result
     }
 
     pub(crate) async fn terminate_dataflow(
         &mut self,
         job_id: &ResourceId,
     ) -> Result<DataflowStatus, DispatcherException> {
-        if !self.dataflow_storage.may_exists(job_id) {
-            Ok(DataflowStatus::Closed)
-        } else {
-            let hashed_job_id = &HashedResourceId::from(job_id);
-            match self.managers.get_mut(hashed_job_id) {
-                Some(manager) => match manager.terminate_dataflow(&mut self.cluster).await {
-                    Ok(status) => match &status {
-                        DataflowStatus::Initialized => {
-                            Err(DispatcherException::UnexpectedDataflowStatus(status))
-                        }
-                        DataflowStatus::Running => {
-                            Err(DispatcherException::UnexpectedDataflowStatus(status))
-                        }
-                        DataflowStatus::Closing => Ok(status),
-                        DataflowStatus::Closed => {
-                            let _ = self.managers.remove(hashed_job_id);
-                            Ok(status)
-                        }
-                    },
-                    Err(err) => Err(DispatcherException::Tonic(err)),
+        let hashed_job_id = &HashedResourceId::from(job_id);
+        match self.managers.get_mut(hashed_job_id) {
+            Some(manager) => match manager.terminate_dataflow().await {
+                Ok(status) => match &status {
+                    DataflowStatus::Initialized => {
+                        Err(DispatcherException::UnexpectedDataflowStatus(status))
+                    }
+                    DataflowStatus::Running => {
+                        Err(DispatcherException::UnexpectedDataflowStatus(status))
+                    }
+                    DataflowStatus::Closing => Ok(status),
+                    DataflowStatus::Closed => {
+                        let _ = self.managers.remove(hashed_job_id);
+                        Ok(status)
+                    }
                 },
-                None => Ok(DataflowStatus::Closed),
-            }
+                Err(err) => Err(DispatcherException::Tonic(err)),
+            },
+            None => Ok(DataflowStatus::Closed),
         }
     }
 
     pub(crate) fn get_dataflow(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        self.dataflow_storage.get(job_id)
+        todo!()
     }
 
     pub(crate) async fn update_task_manager_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
@@ -255,6 +247,8 @@ mod tests {
             .times(1)
             .returning(|_, _| Ok(()));
 
+        let storage_builder = DataflowStorageBuilder::Memory;
+
         let mut manager = JobManager {
             dataflow: Dataflow {
                 job_id: Default::default(),
@@ -263,12 +257,19 @@ mod tests {
                     neighbors: vec![],
                 }],
                 nodes: HashMap::from_iter([(0, Default::default())].into_iter()),
+                execution_id: Default::default(),
             },
             job_id: Default::default(),
             scheduler: mock_scheduler,
             location: Default::default(),
+            storage: storage_builder.build(),
         };
-        let ref c = cluster::Cluster::new(&vec![]);
+        let builder = ClusterBuilder {
+            nodes: vec![],
+            rpc_timeout: 3,
+            connect_timeout: 3,
+        };
+        let c = builder.build();
         let ref heartbeat_builder = HeartbeatBuilder {
             node_addrs: vec![],
             period: 3,
@@ -284,7 +285,7 @@ mod tests {
         };
 
         let result = manager
-            .deploy_dataflow(c, heartbeat_builder, ack_builder)
+            .deploy_dataflow(&c, heartbeat_builder, ack_builder)
             .await;
         assert!(result.is_ok())
     }

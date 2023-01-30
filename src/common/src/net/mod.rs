@@ -73,7 +73,7 @@ pub fn local_ip() -> Option<String> {
 /// ```
 /// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
-/// 
+///
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
@@ -326,7 +326,7 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 #[cfg(test)]
 mod tests {
 
-    use chrono::Duration;
+    use chrono::{Duration, Timelike};
     use proto::common::{ack::AckType, Ack, HostAddr, NodeType};
 
     use crate::net::gateway::MockRpcGateway;
@@ -425,8 +425,8 @@ mod tests {
                 })
             );
 
-            let duration = end - start;
-            assert!(duration >= Duration::seconds(3))
+            let duration = end.second() - start.second();
+            assert!(duration == 3)
         }
 
         handler.abort();
@@ -462,7 +462,8 @@ mod tests {
             let result = rx.recv().await;
             let end = chrono::Utc::now();
             assert!(result.is_some());
-            assert!(end - start >= Duration::seconds(3));
+
+            assert!(end.second() - start.second() == 3);
         }
 
         handler.abort()

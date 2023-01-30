@@ -119,7 +119,7 @@ jobs:
         run: cargo install cargo-tarpaulin
       - name: Generate code coverage
         run: |
-          cargo tarpaulin --all-features --line -p `cargo pkgid --manifest-path src/common/Cargo.toml` `cargo pkgid --manifest-path src/stream/Cargo.toml` --exclude-files src/proto/* src/apiserver/* src/coordinator/* src/worker/*  --out Xml
+          cargo tarpaulin --all-features --line -p `cargo pkgid --manifest-path src/common/Cargo.toml` `cargo pkgid --manifest-path src/stream/Cargo.toml` -e `cargo pkgid --manifest-path src/proto/Cargo.toml` `cargo pkgid --manifest-path src/coordinator/Cargo.toml` `cargo pkgid --manifest-path src/worker/Cargo.toml` --out Xml
         env:
           KAFKA_HOST: localhost
           REDIS_HOST: localhost

@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(
             result.execution_id,
             Some(ExecutionId {
-                job_id: Some(Default::default()),
+                job_id: None,
                 sub_id: 0,
             })
         );

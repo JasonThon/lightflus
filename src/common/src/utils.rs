@@ -14,6 +14,7 @@ use std::env;
 use std::io::Read;
 
 /// The utils for time convertion
+#[cfg(not(tarpaulin_include))]
 pub mod times {
     use std::time::{Duration, SystemTime};
 

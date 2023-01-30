@@ -66,6 +66,7 @@ impl Node {
     }
 
     #[inline]
+    #[cfg(not(tarpaulin_include))]
     pub fn get_gateway(&self) -> &SafeTaskManagerRpcGateway {
         &self.gateway
     }
@@ -226,7 +227,13 @@ impl ClusterBuilder {
 mod cluster_tests {
     use proto::common::HostAddr;
 
-    use crate::{net::{cluster::{ClusterBuilder, NodeBuilder}, gateway::worker::SafeTaskManagerRpcGateway}, utils::times::prost_now};
+    use crate::{
+        net::{
+            cluster::{ClusterBuilder, NodeBuilder},
+            gateway::worker::SafeTaskManagerRpcGateway,
+        },
+        utils::times::prost_now,
+    };
 
     #[tokio::test]
     pub async fn test_cluster_available() {

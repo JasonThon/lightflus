@@ -7,16 +7,16 @@ use common::{
     net::{
         cluster::{Node, NodeStatus},
         gateway::{worker::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway},
-        to_host_addr, AckResponder, AckResponderBuilder, PersistableHostAddr,
+        AckResponder, AckResponderBuilder,
     },
     types::ExecutorId,
     utils::{self, times::from_utc_chrono_to_prost_timestamp},
-    ExecutionID,
 };
 use proto::{
     common::{
         ack::{AckType, RequestId},
-        Ack, Dataflow, DataflowStatus, ExecutionId, Heartbeat, NodeType, OperatorInfo, ResourceId,
+        Ack, Dataflow, DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType, OperatorInfo,
+        ResourceId,
     },
     worker::CreateSubDataflowRequest,
 };
@@ -73,7 +73,7 @@ pub(crate) struct SubdataflowDeploymentPlan<'a> {
     /// the description of subdataflow
     subdataflow: Dataflow,
     /// the target address of TaskManager
-    addr: PersistableHostAddr,
+    addr: HostAddr,
     /// the job id of the subdataflow's execution
     job_id: ResourceId,
     /// the node of TaskManager
@@ -86,17 +86,13 @@ pub(crate) struct SubdataflowDeploymentPlan<'a> {
 
 impl<'a> SubdataflowDeploymentPlan<'a> {
     pub(crate) fn new(
-        subdataflow: (&PersistableHostAddr, &Dataflow),
+        subdataflow: (&HostAddr, &Dataflow),
         job_id: &ResourceId,
         node: Option<&'a Node>,
         ack_builder: &AckResponderBuilder,
     ) -> Self {
         let (ack, sender) = ack_builder.build(|addr, connect_timeout, rpc_timout| {
-            SafeTaskManagerRpcGateway::with_timeout(
-                &to_host_addr(addr),
-                connect_timeout,
-                rpc_timout,
-            )
+            SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
         });
         Self {
             subdataflow: subdataflow.1.clone(),
@@ -114,7 +110,7 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
         match &self.node {
             Some(node) => {
                 self.subdataflow.execution_id = Some(ExecutionId {
-                    job_id: self.subdataflow.job_id.clone(),
+                    job_id: Some(self.job_id.clone()),
                     sub_id: node.get_id(),
                 });
 
@@ -127,7 +123,10 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
                     Ok(resp) => Ok(SubdataflowExecution::new(
                         (*node).clone(),
                         self.subdataflow,
-                        ExecutionID(self.job_id, node.get_id()),
+                        ExecutionId {
+                            job_id: Some(self.job_id.clone()),
+                            sub_id: node.get_id(),
+                        },
                         resp.status(),
                         ack,
                         self.sender,
@@ -157,7 +156,7 @@ pub(crate) struct SubdataflowExecution {
     /// all vertexes execution contexts
     vertexes: BTreeMap<ExecutorId, VertexExecution>,
     /// the id of the subdataflow execution
-    execution_id: ExecutionID,
+    execution_id: ExecutionId,
     /// the status of subdataflow
     status: DataflowStatus,
     /// the latest heartbeat ack id
@@ -173,7 +172,7 @@ impl SubdataflowExecution {
     pub(crate) fn new<G: 'static + ReceiveAckRpcGateway + Send + Sync>(
         worker: Node,
         subdataflow: Dataflow,
-        execution_id: ExecutionID,
+        execution_id: ExecutionId,
         status: DataflowStatus,
         ack: AckResponder<G>,
         ack_request_queue: mpsc::Sender<Ack>,
@@ -198,7 +197,7 @@ impl SubdataflowExecution {
         todo!()
     }
 
-    pub(crate) fn get_execution_id(&self) -> &ExecutionID {
+    pub(crate) fn get_execution_id(&self) -> &ExecutionId {
         &self.execution_id
     }
 
@@ -214,7 +213,7 @@ impl SubdataflowExecution {
                             timestamp: Some(from_utc_chrono_to_prost_timestamp(now)),
                             ack_type: AckType::Heartbeat as i32,
                             node_type: NodeType::JobManager as i32,
-                            execution_id: Some(self.execution_id.into_prost()),
+                            execution_id: Some(self.execution_id.clone()),
                             request_id: Some(RequestId::HeartbeatId(heartbeat.heartbeat_id)),
                         })
                         .await;
@@ -252,7 +251,7 @@ mod tests {
         net::{
             cluster::{Node, NodeStatus},
             gateway::{worker::SafeTaskManagerRpcGateway, MockRpcGateway},
-            AckResponderBuilder, PersistableHostAddr,
+            AckResponderBuilder,
         },
         utils::times::prost_now,
     };
@@ -266,7 +265,7 @@ mod tests {
         let ack_responder_builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![PersistableHostAddr::default()],
+            nodes: vec![HostAddr::default()],
             connect_timeout: 3,
             rpc_timeout: 3,
         };
@@ -277,7 +276,7 @@ mod tests {
 
         let mut execution = super::SubdataflowExecution {
             worker: Node::new(
-                PersistableHostAddr::default(),
+                HostAddr::default(),
                 SafeTaskManagerRpcGateway::new(&HostAddr::default()),
             ),
             vertexes: Default::default(),
@@ -324,7 +323,7 @@ mod tests {
         let ack_responder_builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![PersistableHostAddr::default()],
+            nodes: vec![HostAddr::default()],
             connect_timeout: 3,
             rpc_timeout: 3,
         };
@@ -335,7 +334,7 @@ mod tests {
 
         let mut execution = super::SubdataflowExecution {
             worker: Node::new(
-                PersistableHostAddr::default(),
+                HostAddr::default(),
                 SafeTaskManagerRpcGateway::new(&HostAddr::default()),
             ),
             vertexes: Default::default(),

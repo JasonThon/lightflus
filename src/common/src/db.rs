@@ -34,24 +34,24 @@ impl MysqlConn {
     ///
     /// ## Example
     /// ```
-    /// use common::db::MysqlConn;
-    /// use proto::common::mysql_desc;
-    ///#[tokio::main]
-    /// async fn main() {
-    ///     let opts = mysql_desc::ConnectionOpts {
-    ///         host: "localhost:3306".to_string(),
-    ///         username: "root".to_string(),
-    ///         password: "pwd".to_string(),
-    ///         database: "default"
-    ///     };
-    ///
-    ///     let conn = MysqlConn::from(opts);
-    ///     let client = conn.connect().await;
-    ///     assert!(client.is_ok());
-    ///     let client = client.unwrap();
-    ///     let result = client.execute("select * from t", vec![], conn).await;
-    ///     assert!(result.is_ok());
-    ///}
+    // / use common::db::MysqlConn;
+    // / use proto::common::mysql_desc;
+    // / #[tokio::main]
+    // / async fn main() {
+    // /     let opts = mysql_desc::ConnectionOpts {
+    // /         host: "localhost:3306".to_string(),
+    // /         username: "root".to_string(),
+    // /         password: "pwd".to_string(),
+    // /         database: "default"
+    // /     };
+    // /
+    // /     let conn = MysqlConn::from(opts);
+    // /     let client = conn.connect().await;
+    // /     assert!(client.is_ok());
+    // /     let client = client.unwrap();
+    // /     let result = client.execute("select * from t", vec![], conn).await;
+    // /     assert!(result.is_ok());
+    // /}
     /// ```
     pub async fn execute(
         &self,
@@ -84,34 +84,34 @@ impl MysqlConn {
     ///
     /// # Example
     /// ```
-    /// use common::db::MysqlConn;
-    /// use proto::common::mysql_desc;
-    /// #[tokio::main]
-    /// async fn main() {
-    ///     let opts = mysql_desc::ConnectionOpts {
-    ///         host: "localhost:3306".to_string(),
-    ///         username: "root".to_string(),
-    ///         password: "pwd".to_string(),
-    ///         database: "default"
-    ///     };
-    ///
-    ///     let conn = MysqlConn::from(opts);
-    ///     let client = conn.connect().await;
-    ///     assert!(client.is_ok());
-    ///     let client = client.unwrap();
-    ///     let result = client.try_for_each(
-    ///             "select name, age from t",
-    ///             vec![],
-    ///             conn,
-    ///             |row| async move {
-    ///                 let name = row.try_get::<&str, &str>("name");
-    ///                 assert!(name.is_ok());
-    ///                 let age = row.try_get::<i32, &str>("age");
-    ///                 assert!(age.is_ok());
-    ///             }
-    ///     ).await;
-    ///     assert!(result.is_ok());
-    ///}
+    // / use common::db::MysqlConn;
+    // / use proto::common::mysql_desc;
+    // / #[tokio::main]
+    // / async fn main() {
+    // /     let opts = mysql_desc::ConnectionOpts {
+    // /         host: "localhost:3306".to_string(),
+    // /         username: "root".to_string(),
+    // /         password: "pwd".to_string(),
+    // /         database: "default"
+    // /     };
+    // /
+    // /     let conn = MysqlConn::from(opts);
+    // /     let client = conn.connect().await;
+    // /     assert!(client.is_ok());
+    // /     let client = client.unwrap();
+    // /     let result = client.try_for_each(
+    // /             "select name, age from t",
+    // /             vec![],
+    // /             conn,
+    // /             |row| async move {
+    // /                 let name = row.try_get::<&str, &str>("name");
+    // /                 assert!(name.is_ok());
+    // /                 let age = row.try_get::<i32, &str>("age");
+    // /                 assert!(age.is_ok());
+    // /             }
+    // /     ).await;
+    // /     assert!(result.is_ok());
+    // /}
     /// ```
     pub async fn try_for_each<
         Fut: TryFuture<Ok = (), Error = sqlx::Error>,

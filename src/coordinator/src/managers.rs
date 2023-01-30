@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 
 use common::net::{
     cluster::{self, ClusterBuilder},
-    AckResponderBuilder, HeartbeatBuilder, PersistableHostAddr,
+    local, AckResponderBuilder, HeartbeatBuilder,
 };
 use mockall_double::double;
-use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId};
+use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
 
 #[double]
 use crate::scheduler::Scheduler;
@@ -23,12 +23,12 @@ pub(crate) struct JobManager {
     dataflow: Dataflow,
     job_id: ResourceId,
     scheduler: Scheduler,
-    location: PersistableHostAddr,
+    location: HostAddr,
     storage: Box<dyn DataflowStorage>,
 }
 impl JobManager {
     pub(crate) fn new(
-        location: &PersistableHostAddr,
+        location: &HostAddr,
         dataflow: Dataflow,
         storage: &DataflowStorageBuilder,
     ) -> Self {
@@ -84,7 +84,7 @@ impl JobManager {
 
     async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
         for execution_id in heartbeat.execution_id.as_ref().iter() {
-            match self.scheduler.get_execution_mut(&(*execution_id).into()) {
+            match self.scheduler.get_execution_mut(*execution_id) {
                 Some(execution) => execution.update_heartbeat_status(heartbeat).await,
                 None => {}
             }
@@ -93,7 +93,7 @@ impl JobManager {
 
     fn ack_from_execution(&mut self, ack: &Ack) {
         for execution_id in ack.execution_id.as_ref().iter() {
-            match self.scheduler.get_execution_mut(&(*execution_id).into()) {
+            match self.scheduler.get_execution_mut(*execution_id) {
                 Some(execution) => execution.ack(ack),
                 None => {}
             }
@@ -113,7 +113,7 @@ pub(crate) struct Dispatcher {
     /// Change [`BTreeMap`] to an implementation of [`std::collections::HashMap`] to improve the request throughput
     managers: BTreeMap<ResourceId, JobManager>,
     cluster: cluster::Cluster,
-    location: PersistableHostAddr,
+    location: HostAddr,
     heartbeat: HeartbeatBuilder,
     ack: AckResponderBuilder,
     storage: DataflowStorageBuilder,
@@ -131,7 +131,7 @@ impl Dispatcher {
         Self {
             managers: Default::default(),
             cluster,
-            location: PersistableHostAddr::local(port),
+            location: local(port),
             heartbeat: heartbeat_builder.clone(),
             ack: ack_builder.clone(),
             storage: storage_builder.clone(),

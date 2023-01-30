@@ -1,19 +1,16 @@
 use std::collections::BTreeMap;
 
-use common::{
-    net::{gateway::worker::SafeTaskManagerRpcGateway, HeartbeatBuilder},
-    ExecutionID,
-};
+use common::net::{gateway::worker::SafeTaskManagerRpcGateway, HeartbeatBuilder};
 use mockall::automock;
-use proto::common::DataflowStatus;
+use proto::common::{DataflowStatus, ExecutionId};
 use tokio::task::JoinHandle;
 
 use crate::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 
 /// The scheduler for a [`JobManager`].
 pub(crate) struct Scheduler {
-    executions: BTreeMap<ExecutionID, SubdataflowExecution>,
-    heartbeat_handlers: BTreeMap<ExecutionID, JoinHandle<()>>,
+    executions: BTreeMap<ExecutionId, SubdataflowExecution>,
+    heartbeat_handlers: BTreeMap<ExecutionId, JoinHandle<()>>,
 }
 
 #[automock]
@@ -61,7 +58,7 @@ impl Scheduler {
 
     pub(crate) fn get_execution_mut<'a>(
         &'a mut self,
-        execution_id: &ExecutionID,
+        execution_id: &ExecutionId,
     ) -> Option<&'a mut SubdataflowExecution> {
         self.executions.get_mut(execution_id)
     }

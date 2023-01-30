@@ -1,5 +1,4 @@
 use crate::collections::lang;
-use crate::net::{to_host_addr, PersistableHostAddr};
 use crate::types;
 use crate::types::SingleKV;
 use crate::utils::times::from_prost_timestamp_to_utc_chrono;
@@ -31,7 +30,7 @@ pub struct Node {
     /// The status of node
     status: NodeStatus,
     /// The address of node
-    pub host_addr: PersistableHostAddr,
+    pub host_addr: HostAddr,
     // the latest update time of status updating
     lastest_status_update_timestamp: chrono::DateTime<chrono::Utc>,
     // gateway of task manager
@@ -41,7 +40,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(host_addr: PersistableHostAddr, gateway: SafeTaskManagerRpcGateway) -> Self {
+    pub fn new(host_addr: HostAddr, gateway: SafeTaskManagerRpcGateway) -> Self {
         Self {
             status: NodeStatus::Pending,
             host_addr,
@@ -85,21 +84,18 @@ pub struct Cluster {
 }
 
 impl Cluster {
-    pub fn get_node(&self, addr: &PersistableHostAddr) -> Option<&Node> {
+    pub fn get_node(&self, addr: &HostAddr) -> Option<&Node> {
         self.workers
             .iter()
             .filter(|worker| &worker.host_addr == addr)
             .next()
     }
 
-    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(
-        &self,
-        keyed: &T,
-    ) -> PersistableHostAddr {
+    pub fn partition_key<T: types::KeyedValue<K, V>, K: Hash, V>(&self, keyed: &T) -> HostAddr {
         let ref mut hasher = DefaultHasher::new();
         keyed.key().hash(hasher);
 
-        let workers: Vec<PersistableHostAddr> = self
+        let workers: Vec<HostAddr> = self
             .workers
             .iter()
             .filter(|worker| worker.is_available())
@@ -127,27 +123,17 @@ impl Cluster {
         dataflow.nodes.iter_mut().for_each(|entry| {
             let addr = self.partition_key(&SingleKV::new(*entry.0));
             if addr.is_valid() {
-                entry.1.host_addr = Some(to_host_addr(&addr));
+                entry.1.host_addr = Some(addr);
             }
         });
     }
 
-    pub fn split_into_subdataflow(
-        &self,
-        dataflow: &Dataflow,
-    ) -> HashMap<PersistableHostAddr, Dataflow> {
-        let mut group = HashMap::<PersistableHostAddr, Vec<&DataflowMeta>>::new();
+    pub fn split_into_subdataflow(&self, dataflow: &Dataflow) -> HashMap<HostAddr, Dataflow> {
+        let mut group = HashMap::<HostAddr, Vec<&DataflowMeta>>::new();
 
         dataflow.meta.iter().for_each(|node| {
             let operator = dataflow.nodes.get(&node.center).unwrap();
-            let addr = operator
-                .host_addr
-                .as_ref()
-                .map(|host_addr| PersistableHostAddr {
-                    host: host_addr.host.clone(),
-                    port: host_addr.port as u16,
-                })
-                .unwrap_or_default();
+            let addr = operator.host_addr.clone().unwrap_or_default();
 
             if group.contains_key(&addr) {
                 group
@@ -193,9 +179,9 @@ pub struct NodeBuilder {
 impl NodeBuilder {
     pub fn build(&self, gateway: SafeTaskManagerRpcGateway) -> Node {
         Node::new(
-            PersistableHostAddr {
+            HostAddr {
                 host: self.host.clone(),
-                port: self.port,
+                port: self.port as u32,
             },
             gateway,
         )

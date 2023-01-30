@@ -20,43 +20,10 @@ pub mod cluster;
 #[cfg(not(tarpaulin_include))]
 pub mod gateway;
 
-#[derive(Clone, Debug)]
-pub struct ClientConfig {
-    // address
-    pub address: PersistableHostAddr,
-    // timeout
-    pub timeout: u32,
-    // retry count
-    pub retry: u32,
-}
-
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, Default, Hash)]
-pub struct PersistableHostAddr {
-    pub host: String,
-    pub port: u16,
-}
-
-impl PersistableHostAddr {
-    pub fn as_uri(&self) -> String {
-        format!("http://{}:{}", &self.host, self.port)
-    }
-
-    fn is_valid(&self) -> bool {
-        !self.host.is_empty() && self.port > 0
-    }
-
-    pub fn local(port: usize) -> Self {
-        Self {
-            host: hostname().unwrap_or_default(),
-            port: port as u16,
-        }
-    }
-}
-
-pub fn to_host_addr(hashable: &PersistableHostAddr) -> HostAddr {
+pub fn local(port: usize) -> HostAddr {
     HostAddr {
-        host: hashable.host.clone(),
-        port: hashable.port as u32,
+        host: hostname().unwrap_or_default(),
+        port: port as u32,
     }
 }
 
@@ -104,49 +71,53 @@ pub fn local_ip() -> Option<String> {
 /// # Example of Tokio spawning
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway::SafeTaskManagerRpcGateway};
-///
+/// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use proto::common::HostAddr;
+/// 
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         node_addrs: vec![PersistableHostAddr {
+///         nodes: vec![HostAddr {
 ///             host: "localhost".to_string(),
 ///             port: 8080
 ///         }],
 ///         period: 3,
-///         connection_timeout: 3
-///         rpc_timeout: 3
+///         connect_timeout: 3,
+///         rpc_timeout: 3,
 ///     };
 ///     
 ///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
-///     let _ = tokio::spawn(heartbeat);
+///     let handler = tokio::spawn(heartbeat);
+///     handler.abort();
 /// }
 /// ```
 ///
 /// # Example of async/await
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway::SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use proto::common::HostAddr;
+/// use std::time::Duration;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         nodes: vec![PersistableHostAddr {
+///         nodes: vec![HostAddr {
 ///             host: "localhost".to_string(),
 ///             port: 8080
 ///         }],
 ///         period: 3,
-///         connect_timeout: 3
-///         rpc_timeout: 3
+///         connect_timeout: 3,
+///         rpc_timeout: 3,
 ///     };
 ///     
 ///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
-///     heartbeat.await
+///     let _ = tokio::time::timeout(Duration::from_secs(1), heartbeat);
 /// }
 /// ```
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct HeartbeatBuilder {
-    pub nodes: Vec<PersistableHostAddr>,
+    pub nodes: Vec<HostAddr>,
     /// period of heartbeat, in seconds
     pub period: u64,
     /// timeout of heartbeat rpc connection, in seconds
@@ -164,7 +135,7 @@ impl HeartbeatBuilder {
             gateways: self
                 .nodes
                 .iter()
-                .map(|addr| to_host_addr(addr))
+                .map(|addr| addr)
                 .map(|host_addr| f(&host_addr, self.connect_timeout, self.rpc_timeout))
                 .collect(),
             interval: tokio::time::interval(Duration::from_secs(self.period)),
@@ -237,16 +208,17 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 /// - Tokio spawn
 /// - async/await
 ///
-/// # Example of Tokio spwan
+/// # Example of Tokio spawn
 /// ```
-/// use common::net::{AckResponderBuilder, gateway::SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use proto::common::HostAddr;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = AckResponderBuilder {
 ///         delay: 3,
 ///         buf_size: 10,
-///         nodes: vec![PersistableHostAddr {
+///         nodes: vec![HostAddr {
 ///             host: "localhost".to_string(),
 ///             port: 8080
 ///         }],
@@ -261,23 +233,25 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///
 /// # Example of Tokio spwan
 /// ```
-/// use common::net::{AckResponderBuilder, gateway::SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use std::time::Duration;
+/// use proto::common::HostAddr;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = AckResponderBuilder {
 ///         delay: 3,
 ///         buf_size: 10,
-///         nodes: vec![PersistableHostAddr {
+///         nodes: vec![HostAddr {
 ///             host: "localhost".to_string(),
 ///             port: 8080
 ///         }],
-///         connection_timeout: 3,
+///         connect_timeout: 3,
 ///         rpc_timeout: 3
 ///     };
 ///     
 ///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
-///     responder.await
+///     let _ = tokio::time::timeout(Duration::from_secs(1), responder);
 /// }
 /// ```
 #[derive(serde::Deserialize, Clone, Debug)]
@@ -287,7 +261,7 @@ pub struct AckResponderBuilder {
     // buffer ack queue size
     pub buf_size: usize,
     // ack nodes
-    pub nodes: Vec<PersistableHostAddr>,
+    pub nodes: Vec<HostAddr>,
     /// timeout of ack rpc connection, in seconds
     pub connect_timeout: u64,
     /// timeout of ack rpc request, in seconds
@@ -295,7 +269,7 @@ pub struct AckResponderBuilder {
 }
 
 impl AckResponderBuilder {
-    pub fn build<F: Fn(&PersistableHostAddr, u64, u64) -> T, T: ReceiveAckRpcGateway>(
+    pub fn build<F: Fn(&HostAddr, u64, u64) -> T, T: ReceiveAckRpcGateway>(
         &self,
         f: F,
     ) -> (AckResponder<T>, mpsc::Sender<Ack>) {
@@ -353,11 +327,11 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 mod tests {
 
     use chrono::Duration;
-    use proto::common::{ack::AckType, Ack, NodeType};
+    use proto::common::{ack::AckType, Ack, HostAddr, NodeType};
 
     use crate::net::gateway::MockRpcGateway;
 
-    use super::{HeartbeatBuilder, PersistableHostAddr};
+    use super::HeartbeatBuilder;
 
     #[test]
     pub fn test_local_ip() {
@@ -365,28 +339,6 @@ mod tests {
         let option = local_ip();
         assert!(option.is_some());
         println!("{}", option.unwrap())
-    }
-
-    #[test]
-    pub fn test_to_host_addr() {
-        let mut addr = super::PersistableHostAddr {
-            host: "198.0.0.1".to_string(),
-            port: 8970,
-        };
-
-        let host_addr = super::to_host_addr(&addr);
-        assert_eq!(host_addr.host.as_str(), "198.0.0.1");
-        assert_eq!(host_addr.port, 8970);
-
-        assert_eq!(addr.as_uri().as_str(), "http://198.0.0.1:8970");
-        assert!(addr.is_valid());
-
-        addr.host = "".to_string();
-        assert!(!addr.is_valid());
-
-        addr.host = "198.0.0.1".to_string();
-        addr.port = 0;
-        assert!(!addr.is_valid());
     }
 
     #[test]
@@ -402,7 +354,7 @@ mod tests {
         let builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![super::PersistableHostAddr {
+            nodes: vec![HostAddr {
                 host: "198.0.0.1".to_string(),
                 port: 8970,
             }],
@@ -483,7 +435,7 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_success() {
         let builder = HeartbeatBuilder {
-            nodes: vec![PersistableHostAddr {
+            nodes: vec![HostAddr {
                 host: "11".to_string(),
                 port: 11,
             }],

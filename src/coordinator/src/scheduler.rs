@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use common::net::{gateway::worker::SafeTaskManagerRpcGateway, HeartbeatBuilder};
 use mockall::automock;
-use proto::common::{DataflowStatus, ExecutionId};
+use proto::common::{DataflowStatus, ExecutionId, Heartbeat};
 use tokio::task::JoinHandle;
 
 use crate::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
@@ -30,19 +30,14 @@ impl Scheduler {
         plan.deploy().await.map(|execution| {
             let execution_id = execution.get_execution_id().clone();
             self.executions.insert(execution_id.clone(), execution);
+            let mut heartbeat =
+                heartbeat_builder.build(|host_addr, connect_timeout, rpc_timeout| {
+                    SafeTaskManagerRpcGateway::with_timeout(host_addr, connect_timeout, rpc_timeout)
+                });
+            heartbeat.update_execution_id(execution_id.clone());
 
-            self.heartbeat_handlers.insert(
-                execution_id,
-                tokio::spawn(
-                    heartbeat_builder.build(|host_addr, connect_timeout, rpc_timeout| {
-                        SafeTaskManagerRpcGateway::with_timeout(
-                            host_addr,
-                            connect_timeout,
-                            rpc_timeout,
-                        )
-                    }),
-                ),
-            );
+            self.heartbeat_handlers
+                .insert(execution_id, tokio::spawn(heartbeat));
         })
     }
 

@@ -60,7 +60,8 @@ impl Node {
         &self.status
     }
 
-    fn is_available(&self) -> bool {
+    #[inline]
+    pub fn is_available(&self) -> bool {
         self.status == NodeStatus::Running
     }
 
@@ -223,7 +224,9 @@ impl ClusterBuilder {
 
 #[cfg(test)]
 mod cluster_tests {
-    use crate::net::cluster::{ClusterBuilder, NodeBuilder};
+    use proto::common::HostAddr;
+
+    use crate::{net::{cluster::{ClusterBuilder, NodeBuilder}, gateway::worker::SafeTaskManagerRpcGateway}, utils::times::prost_now};
 
     #[tokio::test]
     pub async fn test_cluster_available() {
@@ -435,5 +438,66 @@ mod cluster_tests {
                 port: 8792
             }]
         )
+    }
+
+    #[tokio::test]
+    async fn test_node_update_status() {
+        let builder = super::NodeBuilder {
+            host: "localhost".to_string(),
+            port: 9999,
+        };
+
+        let mut node = builder.build(SafeTaskManagerRpcGateway::new(&HostAddr {
+            host: "localhost".to_string(),
+            port: 9999,
+        }));
+
+        assert_eq!(node.get_status(), &super::NodeStatus::Pending);
+        let now = prost_now();
+
+        node.update_status(super::NodeStatus::Running, &now);
+        assert_eq!(node.get_status(), &super::NodeStatus::Running);
+        assert!(node.is_available());
+    }
+
+    #[tokio::test]
+    async fn test_cluster_build() {
+        let builder = super::ClusterBuilder {
+            nodes: vec![
+                super::NodeBuilder {
+                    host: "localhost_1".to_string(),
+                    port: 9999,
+                },
+                super::NodeBuilder {
+                    host: "localhost_2".to_string(),
+                    port: 9999,
+                },
+            ],
+            rpc_timeout: 3,
+            connect_timeout: 3,
+        };
+
+        let cluster = builder.build();
+        let node = cluster.get_node(&HostAddr {
+            host: "localhost_1".to_string(),
+            port: 9999,
+        });
+
+        assert!(node.is_some());
+        let node = node.unwrap();
+
+        assert_eq!(node.get_id(), 0);
+        assert_eq!(node.get_status(), &super::NodeStatus::Pending);
+
+        let node = cluster.get_node(&HostAddr {
+            host: "localhost_2".to_string(),
+            port: 9999,
+        });
+
+        assert!(node.is_some());
+        let node = node.unwrap();
+
+        assert_eq!(node.get_id(), 1);
+        assert_eq!(node.get_status(), &super::NodeStatus::Pending);
     }
 }

@@ -327,7 +327,7 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 mod tests {
 
     use chrono::{Duration, Timelike};
-    use proto::common::{ack::AckType, Ack, HostAddr, NodeType};
+    use proto::common::{ack::AckType, Ack, ExecutionId, HostAddr, NodeType, ResourceId};
 
     use crate::net::gateway::MockRpcGateway;
 
@@ -395,7 +395,7 @@ mod tests {
             );
 
             let duration = end - start;
-            assert!(duration <= Duration::seconds(1))
+            assert!(duration <= Duration::seconds(1));
         }
 
         // send second time
@@ -467,5 +467,39 @@ mod tests {
         }
 
         handler.abort()
+    }
+
+    #[tokio::test]
+    async fn test_heartbeat_update_execution_id() {
+        let builder = HeartbeatBuilder {
+            nodes: vec![HostAddr {
+                host: "11".to_string(),
+                port: 11,
+            }],
+            period: 3,
+            connect_timeout: 3,
+            rpc_timeout: 3,
+        };
+
+        let (gateway, _, _) = MockRpcGateway::new(10, 10);
+
+        let mut heartbeat = builder.build(|_, _, _| gateway.clone());
+        heartbeat.update_execution_id(ExecutionId {
+            job_id: Some(ResourceId {
+                resource_id: "resource_id".to_string(),
+                namespace_id: "namespace_id".to_string(),
+            }),
+            sub_id: 1,
+        });
+        assert_eq!(
+            heartbeat.execution_id,
+            Some(ExecutionId {
+                job_id: Some(ResourceId {
+                    resource_id: "resource_id".to_string(),
+                    namespace_id: "namespace_id".to_string(),
+                }),
+                sub_id: 1,
+            })
+        )
     }
 }

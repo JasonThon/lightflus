@@ -9,12 +9,6 @@ use v8::{HandleScope, Local};
 /// - initialized
 /// - running
 /// - dropped
-/// 
-/// # Example
-///
-///  ```
-/// use stream::v8_runtime::RuntimeEngine
-/// ```
 pub struct RuntimeEngine<'s, 'i> {
     context_scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
     ctx: Local<'s, v8::Context>,

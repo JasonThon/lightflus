@@ -45,6 +45,7 @@ pub mod task_worker_api_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
+    #[doc = "/ RPC Api for Task Manager"]
     #[derive(Debug, Clone)]
     pub struct TaskWorkerApiClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -109,28 +110,7 @@ pub mod task_worker_api_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        pub async fn probe(
-            &mut self,
-            request: impl tonic::IntoRequest<super::super::common::ProbeRequest>,
-        ) -> Result<
-            tonic::Response<super::super::common::ProbeResponse>,
-            tonic::Status,
-        > {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/Probe",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
+        #[doc = "/ Send event to operator"]
         pub async fn send_event_to_operator(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::KeyedDataEvent>,
@@ -150,6 +130,7 @@ pub mod task_worker_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = "/ Attempt to terminate a sub-dataflow"]
         pub async fn stop_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::ResourceId>,
@@ -169,6 +150,7 @@ pub mod task_worker_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = "/ Attempt to create a sub-dataflow"]
         pub async fn create_sub_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateSubDataflowRequest>,
@@ -188,6 +170,46 @@ pub mod task_worker_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        #[doc = "/ Receive heartbeat"]
+        pub async fn receive_heartbeat(
+            &mut self,
+            request: impl tonic::IntoRequest<super::super::common::Heartbeat>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/worker.TaskWorkerApi/ReceiveHeartbeat",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
+        #[doc = "/ Receive ack"]
+        pub async fn receive_ack(
+            &mut self,
+            request: impl tonic::IntoRequest<super::super::common::Ack>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/worker.TaskWorkerApi/ReceiveAck",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -197,23 +219,33 @@ pub mod task_worker_api_server {
     ///Generated trait containing gRPC methods that should be implemented for use with TaskWorkerApiServer.
     #[async_trait]
     pub trait TaskWorkerApi: Send + Sync + 'static {
-        async fn probe(
-            &self,
-            request: tonic::Request<super::super::common::ProbeRequest>,
-        ) -> Result<tonic::Response<super::super::common::ProbeResponse>, tonic::Status>;
+        #[doc = "/ Send event to operator"]
         async fn send_event_to_operator(
             &self,
             request: tonic::Request<super::super::common::KeyedDataEvent>,
         ) -> Result<tonic::Response<super::SendEventToOperatorResponse>, tonic::Status>;
+        #[doc = "/ Attempt to terminate a sub-dataflow"]
         async fn stop_dataflow(
             &self,
             request: tonic::Request<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::StopDataflowResponse>, tonic::Status>;
+        #[doc = "/ Attempt to create a sub-dataflow"]
         async fn create_sub_dataflow(
             &self,
             request: tonic::Request<super::CreateSubDataflowRequest>,
         ) -> Result<tonic::Response<super::CreateSubDataflowResponse>, tonic::Status>;
+        #[doc = "/ Receive heartbeat"]
+        async fn receive_heartbeat(
+            &self,
+            request: tonic::Request<super::super::common::Heartbeat>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
+        #[doc = "/ Receive ack"]
+        async fn receive_ack(
+            &self,
+            request: tonic::Request<super::super::common::Ack>,
+        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
     }
+    #[doc = "/ RPC Api for Task Manager"]
     #[derive(Debug)]
     pub struct TaskWorkerApiServer<T: TaskWorkerApi> {
         inner: _Inner<T>,
@@ -273,44 +305,6 @@ pub mod task_worker_api_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/worker.TaskWorkerApi/Probe" => {
-                    #[allow(non_camel_case_types)]
-                    struct ProbeSvc<T: TaskWorkerApi>(pub Arc<T>);
-                    impl<
-                        T: TaskWorkerApi,
-                    > tonic::server::UnaryService<super::super::common::ProbeRequest>
-                    for ProbeSvc<T> {
-                        type Response = super::super::common::ProbeResponse;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::super::common::ProbeRequest>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move { (*inner).probe(request).await };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = ProbeSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
                 "/worker.TaskWorkerApi/SendEventToOperator" => {
                     #[allow(non_camel_case_types)]
                     struct SendEventToOperatorSvc<T: TaskWorkerApi>(pub Arc<T>);
@@ -420,6 +414,84 @@ pub mod task_worker_api_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = CreateSubDataflowSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/worker.TaskWorkerApi/ReceiveHeartbeat" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReceiveHeartbeatSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    impl<
+                        T: TaskWorkerApi,
+                    > tonic::server::UnaryService<super::super::common::Heartbeat>
+                    for ReceiveHeartbeatSvc<T> {
+                        type Response = super::super::common::Response;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::super::common::Heartbeat>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).receive_heartbeat(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ReceiveHeartbeatSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/worker.TaskWorkerApi/ReceiveAck" => {
+                    #[allow(non_camel_case_types)]
+                    struct ReceiveAckSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    impl<
+                        T: TaskWorkerApi,
+                    > tonic::server::UnaryService<super::super::common::Ack>
+                    for ReceiveAckSvc<T> {
+                        type Response = super::super::common::Response;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::super::common::Ack>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move { (*inner).receive_ack(request).await };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = ReceiveAckSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

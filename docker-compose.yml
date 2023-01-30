@@ -46,27 +46,6 @@ services:
       WORKER_1: worker
     depends_on:
       - worker
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "/lightflus/runtime/tools/healthcheck",
-          "-TARGET",
-          "localhost:8791",
-          "-METHOD",
-          "/coordinator.CoordinatorApi/Probe",
-          "-SERVICE",
-          "0",
-          "-PROBE",
-          "1",
-          "||",
-          "exit",
-          "1"
-        ]
-      interval: 3s
-      timeout: 5s
-      retries: 3
-      start_period: 5s
   worker:
     image: lightflus/worker
     hostname: worker
@@ -74,27 +53,6 @@ services:
       - '8792:8792'
     environment:
       RUST_LOG: INFO
-    healthcheck:
-      test:
-        [
-          "CMD",
-          "/lightflus/runtime/tools/healthcheck",
-          "-TARGET",
-          "localhost:8792",
-          "-METHOD",
-          "/worker.TaskWorkerApi/Probe",
-          "-SERVICE",
-          "1",
-          "-PROBE",
-          "0",
-          "||",
-          "exit",
-          "1"
-        ]
-      interval: 2s
-      timeout: 1s
-      retries: 3
-      start_period: 5s
   apiserver:
     image: lightflus/apiserver
     environment:

@@ -1,16 +1,16 @@
-use std::sync::Arc;
-
 use crate::coord;
-use proto::common::{Dataflow, DataflowStatus};
-use proto::common::{ProbeRequest, ProbeResponse};
+use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId, Response, TaskInfo};
+
 use proto::coordinator::coordinator_api_server::CoordinatorApi;
-use proto::coordinator::{
-    CreateDataflowResponse, GetDataflowRequest, GetDataflowResponse, TerminateDataflowRequest,
-    TerminateDataflowResponse,
-};
+use proto::coordinator::{GetDataflowRequest, GetDataflowResponse};
 use tokio::sync::RwLock;
 
 pub(crate) struct CoordinatorApiImpl {
+    /// # TODO
+    ///
+    /// [`RwLock`] will block many `receive_heartbeat` and `receive_ack` requests if they are concurrently sent.
+    /// To improve the performance, in next version, an implementation of concurrent [`std::collections::HashMap] will be added.
+    /// Such map structure acquires only one lock on a single node which can minimize the scope of locking without locking the entire tree.
     coordinator: RwLock<coord::Coordinator>,
 }
 
@@ -28,46 +28,50 @@ unsafe impl Sync for CoordinatorApiImpl {}
 
 #[tonic::async_trait]
 impl CoordinatorApi for CoordinatorApiImpl {
-    async fn probe(
+    async fn receive_heartbeat(
         &self,
-        _request: tonic::Request<ProbeRequest>,
-    ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
+        request: tonic::Request<Heartbeat>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
-        write_lock.probe_state().await;
-
-        Ok(tonic::Response::new(ProbeResponse {
-            memory: 1.0,
-            cpu: 1.0,
-            available: true,
-        }))
+        write_lock.receive_heartbeart(request.get_ref()).await;
+        Ok(tonic::Response::new(Response::ok()))
     }
+
+    async fn report_task_info(
+        &self,
+        request: tonic::Request<TaskInfo>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
+        todo!()
+    }
+
+    async fn receive_ack(
+        &self,
+        request: tonic::Request<Ack>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
+        let mut write_lock = self.coordinator.write().await;
+        write_lock.receive_ack(request.into_inner()).await;
+        Ok(tonic::Response::new(Response::ok()))
+    }
+
     async fn create_dataflow(
         &self,
         request: tonic::Request<Dataflow>,
-    ) -> Result<tonic::Response<CreateDataflowResponse>, tonic::Status> {
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
         write_lock
             .create_dataflow(request.into_inner())
             .await
-            .map(|_| {
-                tonic::Response::new(CreateDataflowResponse {
-                    status: DataflowStatus::Initialized as i32,
-                })
-            })
+            .map(|_| tonic::Response::new(Response::ok()))
     }
     async fn terminate_dataflow(
         &self,
-        request: tonic::Request<TerminateDataflowRequest>,
-    ) -> Result<tonic::Response<TerminateDataflowResponse>, tonic::Status> {
+        request: tonic::Request<ResourceId>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
         let mut write_lock = self.coordinator.write().await;
         write_lock
-            .terminate_dataflow(request.get_ref().job_id.as_ref().unwrap())
+            .terminate_dataflow(request.get_ref())
             .await
-            .map(|status| {
-                tonic::Response::new(TerminateDataflowResponse {
-                    status: status as i32,
-                })
-            })
+            .map(|status| tonic::Response::new(Response::ok()))
     }
     async fn get_dataflow(
         &self,

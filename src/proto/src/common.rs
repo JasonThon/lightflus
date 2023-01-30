@@ -1,92 +1,3 @@
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProbeRequest {
-    #[prost(enumeration = "probe_request::NodeType", tag = "1")]
-    pub node_type: i32,
-    #[prost(enumeration = "probe_request::ProbeType", tag = "2")]
-    pub probe_type: i32,
-}
-/// Nested message and enum types in `ProbeRequest`.
-pub mod probe_request {
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum NodeType {
-        Coordinator = 0,
-        TaskWorker = 1,
-        Connector = 2,
-    }
-    impl NodeType {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                NodeType::Coordinator => "Coordinator",
-                NodeType::TaskWorker => "TaskWorker",
-                NodeType::Connector => "Connector",
-            }
-        }
-    }
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum ProbeType {
-        Liveness = 0,
-        Readiness = 1,
-    }
-    impl ProbeType {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                ProbeType::Liveness => "Liveness",
-                ProbeType::Readiness => "Readiness",
-            }
-        }
-    }
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ProbeResponse {
-    #[prost(float, tag = "1")]
-    pub memory: f32,
-    #[prost(float, tag = "2")]
-    pub cpu: f32,
-    #[prost(bool, tag = "3")]
-    pub available: bool,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EventRequest {
-    #[prost(bytes = "vec", tag = "1")]
-    pub data: ::prost::alloc::vec::Vec<u8>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct EventResponse {
-    #[prost(int32, tag = "1")]
-    pub code: i32,
-    #[prost(string, tag = "2")]
-    pub msg: ::prost::alloc::string::String,
-}
 /// *
 /// JobId, represents a stream job.
 #[derive(Clone, PartialEq, ::prost::Message)]
@@ -104,6 +15,7 @@ pub struct Response {
     #[prost(string, tag = "2")]
     pub err_msg: ::prost::alloc::string::String,
 }
+/// The common structure of remote host address in Lightflus
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HostAddr {
     #[prost(string, tag = "1")]
@@ -111,6 +23,7 @@ pub struct HostAddr {
     #[prost(uint32, tag = "2")]
     pub port: u32,
 }
+/// The common structure of Timestamp in Lightflus
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Time {
     #[prost(uint64, tag = "1")]
@@ -122,16 +35,169 @@ pub struct Time {
     #[prost(uint32, tag = "4")]
     pub hours: u32,
 }
+/// Id of sub-dataflow execution
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExecutionId {
+    /// Job Id
+    #[prost(message, optional, tag = "1")]
+    pub job_id: ::core::option::Option<ResourceId>,
+    /// Sub Dataflow id
+    #[prost(uint32, tag = "2")]
+    pub sub_id: u32,
+}
+/// structure of heartbeat
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Heartbeat {
+    /// heartbeat id which increases monotonically
+    #[prost(uint64, tag = "1")]
+    pub heartbeat_id: u64,
+    /// The timestamp when the heartbeat sent
+    #[prost(message, optional, tag = "2")]
+    pub timestamp: ::core::option::Option<::prost_types::Timestamp>,
+    /// The client node type
+    #[prost(enumeration = "NodeType", tag = "3")]
+    pub node_type: i32,
+    /// Execution Id of sub-dataflow
+    #[prost(message, optional, tag = "4")]
+    pub execution_id: ::core::option::Option<ExecutionId>,
+}
+/// Some requests from client needs server responds ack asynchronously, like:
+/// - Heartbeat
+/// - Checkpoint
+/// - Metrics
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Ack {
+    /// The timestamp when the ack response sent
+    #[prost(message, optional, tag = "2")]
+    pub timestamp: ::core::option::Option<::prost_types::Timestamp>,
+    /// the ack type
+    #[prost(enumeration = "ack::AckType", tag = "3")]
+    pub ack_type: i32,
+    /// the node type of ack server
+    #[prost(enumeration = "NodeType", tag = "4")]
+    pub node_type: i32,
+    /// the execution id
+    #[prost(message, optional, tag = "6")]
+    pub execution_id: ::core::option::Option<ExecutionId>,
+    /// the id which sent by the request needs to ack. it may points to multiple semantics:
+    /// - for heartbeat, it represents heartbeat id
+    /// - for checkpoint, it represents checkpoint id
+    /// - for metrics, it represents metric id
+    #[prost(oneof = "ack::RequestId", tags = "1")]
+    pub request_id: ::core::option::Option<ack::RequestId>,
+}
+/// Nested message and enum types in `Ack`.
+pub mod ack {
+    /// Ack type, like heartbeat, checkpoint
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum AckType {
+        Heartbeat = 0,
+    }
+    impl AckType {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                AckType::Heartbeat => "HEARTBEAT",
+            }
+        }
+    }
+    /// the id which sent by the request needs to ack. it may points to multiple semantics:
+    /// - for heartbeat, it represents heartbeat id
+    /// - for checkpoint, it represents checkpoint id
+    /// - for metrics, it represents metric id
+    #[derive(Clone, PartialEq, ::prost::Oneof)]
+    pub enum RequestId {
+        #[prost(uint64, tag = "1")]
+        HeartbeatId(u64),
+    }
+}
+/// Basic information of task
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct TaskInfo {
+    /// execution id of task
+    #[prost(message, optional, tag = "1")]
+    pub execution_id: ::core::option::Option<ExecutionId>,
+    /// information of executors
+    #[prost(map = "uint32, message", tag = "2")]
+    pub executors_info: ::std::collections::HashMap<u32, task_info::ExecutorInfo>,
+}
+/// Nested message and enum types in `TaskInfo`.
+pub mod task_info {
+    /// Basic information of executor
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct ExecutorInfo {
+        #[prost(uint32, tag = "1")]
+        pub executor_id: u32,
+        #[prost(enumeration = "ExecutorStatus", tag = "2")]
+        pub status: i32,
+    }
+    /// status of executor
+    #[derive(
+        Clone,
+        Copy,
+        Debug,
+        PartialEq,
+        Eq,
+        Hash,
+        PartialOrd,
+        Ord,
+        ::prost::Enumeration
+    )]
+    #[repr(i32)]
+    pub enum ExecutorStatus {
+        Initialized = 0,
+        Running = 1,
+        Terminating = 2,
+        Terminated = 3,
+    }
+    impl ExecutorStatus {
+        /// String value of the enum field names used in the ProtoBuf definition.
+        ///
+        /// The values are not transformed in any way and thus are considered stable
+        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+        pub fn as_str_name(&self) -> &'static str {
+            match self {
+                ExecutorStatus::Initialized => "EXECUTOR_STATUS_INITIALIZED",
+                ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
+                ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
+                ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
+            }
+        }
+    }
+}
+/// Enum of Data Type. each one corresponds to a primitive type in JavaScript
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum DataTypeEnum {
+    /// undefined
     Unspecified = 0,
+    /// bigint
     Bigint = 1,
+    /// number
     Number = 2,
+    /// null
     Null = 3,
+    /// string
     String = 4,
+    /// boolean
     Boolean = 5,
+    /// object
     Object = 6,
+    /// array
     Array = 7,
 }
 impl DataTypeEnum {
@@ -152,6 +218,7 @@ impl DataTypeEnum {
         }
     }
 }
+/// Some common rpc error code
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
 pub enum ErrorCode {
@@ -185,6 +252,27 @@ impl ErrorCode {
             ErrorCode::DataflowConfigurationMissing => {
                 "ERROR_CODE_DATAFLOW_CONFIGURATION_MISSING"
             }
+        }
+    }
+}
+/// The type of node
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum NodeType {
+    /// Job manager
+    JobManager = 0,
+    /// Task worker
+    TaskWorker = 1,
+}
+impl NodeType {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            NodeType::JobManager => "JOB_MANAGER",
+            NodeType::TaskWorker => "TASK_WORKER",
         }
     }
 }
@@ -456,6 +544,10 @@ pub mod redis_desc {
         pub tls: bool,
     }
 }
+/// An union linked-list structure of the description of Dataflow.
+/// Dataflow can be shared between API, Coordinator and TaskManager.
+/// However, they may check the Dataflow by distinct validators.
+/// Each part's concern is different and they must be sure it's a legal Dataflow to them.
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Dataflow {
     /// job id, for now it is which table the stream graph output will sink
@@ -467,6 +559,9 @@ pub struct Dataflow {
     /// details of nodes
     #[prost(map = "uint32, message", tag = "3")]
     pub nodes: ::std::collections::HashMap<u32, OperatorInfo>,
+    /// execution id, optional for API, mandatory for TaskManager
+    #[prost(message, optional, tag = "4")]
+    pub execution_id: ::core::option::Option<ExecutionId>,
 }
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Window {
@@ -545,6 +640,24 @@ impl DataflowStatus {
             DataflowStatus::Running => "RUNNING",
             DataflowStatus::Closing => "CLOSING",
             DataflowStatus::Closed => "CLOSED",
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum OperatorStatus {
+    OperatorRunning = 0,
+    OperatorTerminated = 1,
+}
+impl OperatorStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            OperatorStatus::OperatorRunning => "OPERATOR_RUNNING",
+            OperatorStatus::OperatorTerminated => "OPERATOR_TERMINATED",
         }
     }
 }

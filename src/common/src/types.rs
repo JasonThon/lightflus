@@ -1,5 +1,5 @@
 use bytes::Buf;
-use proto::common::{DataTypeEnum, ResourceId};
+use proto::common::DataTypeEnum;
 use proto::common::Entry;
 
 use redis::ToRedisArgs;
@@ -7,10 +7,6 @@ use std::cmp::Ordering;
 use std::collections::BTreeMap;
 use std::hash::Hash;
 use std::{ops, vec};
-
-/**
- * TypedValue is the Rust mapping to the value in Javascript. TypedValue can be converted to v8::Value, the reverse works too.
- */
 
 pub(crate) const STRING_SYMBOL: &str = "string";
 pub(crate) const NUMBER_SYMBOL: &str = "number";
@@ -60,7 +56,7 @@ impl PartialOrd for TypedValue {
     }
 }
 
-// TypedValue is the Rust mapping to the value in Javascript
+/// TypedValue is the Rust mapping to the value in Javascript
 #[derive(Clone, serde::Serialize, serde::Deserialize, Debug)]
 pub enum TypedValue {
     // `string` in Javascript
@@ -91,6 +87,15 @@ impl Ord for TypedValue {
     }
 }
 
+/// implementation of [`ToRedisArgs`] for [`TypedValue`]
+/// Redis supports five data structures
+/// - string
+/// - hash
+/// - list
+/// - set
+/// - zset
+/// However, in redis, the commands of data in these data structures is distinct.
+/// For now, Lightflus only support SET command, which means any value will be serialized as string and each key will be rewrite after call SET cmd
 impl ToRedisArgs for TypedValue {
     fn write_redis_args<W>(&self, out: &mut W)
     where
@@ -106,7 +111,7 @@ impl ToRedisArgs for TypedValue {
     }
 }
 
-// The result of to_string() of TypedValue must be the same as Typescript
+/// The result of to_string() of TypedValue must be the same as Typescript
 impl ToString for TypedValue {
     fn to_string(&self) -> String {
         match self {
@@ -201,6 +206,17 @@ ops_assign_helper!(DivAssign, div_assign);
 ops_assign_helper!(AddAssign, add_assign);
 
 impl TypedValue {
+    /// get the slice of bytes with the head of data type symbol
+    /// Example:
+    /// ```
+    /// use common::types::TypedValue;
+    /// use proto::common::DataTypeEnum;
+    ///
+    /// fn main() {
+    ///     let typed_string = TypedValue::String("1".to_string());
+    ///     let data = typed_string.get_data();
+    ///     assert_eq!(data[0], DataTypeEnum::String as u8)
+    /// }
     pub fn get_data(&self) -> Vec<u8> {
         let data_type = self.get_type();
         let mut result = vec![data_type as u8];
@@ -228,6 +244,20 @@ impl TypedValue {
         result
     }
 
+    /// To specify the type of value, we only accept the bytes with the head of data type symbol.
+    /// It may be panic if the data has uncorrect head of data type symbol.
+    /// Example:
+    /// ```
+    /// use common::types::TypedValue;
+    /// use proto::common::DataTypeEnum;
+    ///
+    /// fn main() {
+    ///     let typed_string = TypedValue::String("1".to_string());
+    ///     let data = typed_string.get_data();
+    ///     assert_eq!(data[0], DataTypeEnum::String as u8);
+    ///     let typed_val = TypedValue::from_vec(&data);
+    ///     assert_eq!(typed_val, typed_string)
+    /// }
     pub fn from_vec(data: &Vec<u8>) -> Self {
         if data.is_empty() {
             return Self::Null;
@@ -235,12 +265,10 @@ impl TypedValue {
         let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
-            DataTypeEnum::String => {
-                match String::from_utf8(data[1..data.len()].to_vec()) {
-                    Ok(val) => TypedValue::String(val),
-                    Err(_) => TypedValue::Invalid,
-                }
-            }
+            DataTypeEnum::String => match String::from_utf8(data[1..data.len()].to_vec()) {
+                Ok(val) => TypedValue::String(val),
+                Err(_) => TypedValue::Invalid,
+            },
             DataTypeEnum::Bigint => {
                 TypedValue::BigInt(data[1..data.len()].to_vec().as_slice().get_i64())
             }
@@ -266,6 +294,20 @@ impl TypedValue {
         }
     }
 
+    /// To specify the type of value, we only accept the bytes with the head of data type symbol.
+    /// It may be panic if the data has uncorrect head of data type symbol.
+    /// Example:
+    /// ```
+    /// use common::types::TypedValue;
+    /// use proto::common::DataTypeEnum;
+    ///
+    /// fn main() {
+    ///     let typed_string = TypedValue::String("1".to_string());
+    ///     let data = typed_string.get_data();
+    ///     assert_eq!(data[0], DataTypeEnum::String as u8);
+    ///     let typed_val = TypedValue::from_slice(data.as_slice());
+    ///     assert_eq!(typed_val, typed_string)
+    /// }
     pub fn from_slice(data: &[u8]) -> Self {
         if data.is_empty() {
             return Self::Null;
@@ -273,12 +315,10 @@ impl TypedValue {
         let data_type = DataTypeEnum::from_i32(data[0] as i32).unwrap_or_default();
 
         match data_type {
-            DataTypeEnum::String => {
-                match String::from_utf8(data[1..data.len()].to_vec()) {
-                    Ok(val) => TypedValue::String(val),
-                    Err(_) => TypedValue::Invalid,
-                }
-            }
+            DataTypeEnum::String => match String::from_utf8(data[1..data.len()].to_vec()) {
+                Ok(val) => TypedValue::String(val),
+                Err(_) => TypedValue::Invalid,
+            },
             DataTypeEnum::Bigint => {
                 TypedValue::BigInt(data[1..data.len()].to_vec().as_slice().get_i64())
             }
@@ -304,6 +344,7 @@ impl TypedValue {
         }
     }
 
+    /// get the data type of TypedValue
     pub fn get_type(&self) -> DataTypeEnum {
         match self {
             TypedValue::String(_) => DataTypeEnum::String,
@@ -330,9 +371,7 @@ impl TypedValue {
             DataTypeEnum::Bigint => Self::BigInt(data.get_i64()),
             DataTypeEnum::Number => Self::Number(data.get_f64()),
             DataTypeEnum::Null => Self::Null,
-            DataTypeEnum::String => {
-                Self::String(String::from_utf8_lossy(data).to_string())
-            }
+            DataTypeEnum::String => Self::String(String::from_utf8_lossy(data).to_string()),
             DataTypeEnum::Boolean => Self::Boolean(data[0] == 1),
             DataTypeEnum::Object => {
                 let value = serde_json::from_slice::<serde_json::Value>(data);
@@ -430,27 +469,6 @@ pub trait FromBytes: Sized {
 pub trait KeyedValue<K, V> {
     fn key(&self) -> K;
     fn value(&self) -> V;
-}
-
-#[derive(Clone, Default, Eq, PartialEq, Hash, Ord, PartialOrd, Debug)]
-pub struct HashedResourceId {
-    pub stream_id: String,
-}
-
-impl From<ResourceId> for HashedResourceId {
-    fn from(id: ResourceId) -> Self {
-        Self {
-            stream_id: id.resource_id,
-        }
-    }
-}
-
-impl From<&ResourceId> for HashedResourceId {
-    fn from(id: &ResourceId) -> Self {
-        Self {
-            stream_id: id.resource_id.clone(),
-        }
-    }
 }
 
 pub struct SingleKV<K> {
@@ -1463,10 +1481,8 @@ mod tests {
         use proto::common::DataTypeEnum;
 
         {
-            let val = super::TypedValue::from_slice_with_type(
-                "v1".as_bytes(),
-                DataTypeEnum::String,
-            );
+            let val =
+                super::TypedValue::from_slice_with_type("v1".as_bytes(), DataTypeEnum::String);
             assert_eq!(val.get_type(), DataTypeEnum::String);
             assert_eq!(val, super::TypedValue::String("v1".to_string()));
         }
@@ -1474,8 +1490,7 @@ mod tests {
         {
             let val: i64 = 1;
             let val = val.to_be_bytes();
-            let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Bigint);
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Bigint);
             assert_eq!(val.get_type(), DataTypeEnum::Bigint);
             assert_eq!(val, super::TypedValue::BigInt(1));
         }
@@ -1483,56 +1498,46 @@ mod tests {
         {
             let val: f64 = 1.0;
             let val = val.to_be_bytes();
-            let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Number);
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Number);
             assert_eq!(val.get_type(), DataTypeEnum::Number);
             assert_eq!(val, super::TypedValue::Number(1.0));
         }
 
         {
             let val = [1];
-            let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
             assert_eq!(val.get_type(), DataTypeEnum::Boolean);
             assert_eq!(val, super::TypedValue::Boolean(true));
 
             let val = [0];
-            let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
             assert_eq!(val.get_type(), DataTypeEnum::Boolean);
             assert_eq!(val, super::TypedValue::Boolean(false));
         }
 
         {
             let val = [1];
-            let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Null);
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Null);
             assert_eq!(val.get_type(), DataTypeEnum::Null);
             assert_eq!(val, super::TypedValue::Null);
         }
 
         {
             let val = [];
-            let val = super::TypedValue::from_slice_with_type(
-                &val,
-                DataTypeEnum::Unspecified,
-            );
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Unspecified);
             assert_eq!(val.get_type(), DataTypeEnum::Unspecified);
             assert_eq!(val, super::TypedValue::Invalid);
 
             let val = [];
-            let val =
-                super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
+            let val = super::TypedValue::from_slice_with_type(&val, DataTypeEnum::Boolean);
             assert_eq!(val.get_type(), DataTypeEnum::Null);
             assert_eq!(val, super::TypedValue::Null);
         }
 
         {
             let raw_data = "{\"key_1\": \"value_1\", \"key_2\": 1, \"key_3\": 3.14, \"key_4\": {\"sub_key_1\": \"subval_1\", \"sub_key_2\": 1, \"sub_key_3\": 3.14}, \"key_5\": [1,2,3,4], \"key_6\": [\"v1\", \"v2\", \"v3\"],\"key_7\":true,\"key_8\":null}";
-            let val = super::TypedValue::from_slice_with_type(
-                raw_data.as_bytes(),
-                DataTypeEnum::Object,
-            );
+            let val =
+                super::TypedValue::from_slice_with_type(raw_data.as_bytes(), DataTypeEnum::Object);
             assert_eq!(val.get_type(), DataTypeEnum::Object);
 
             let obj = BTreeMap::from_iter(

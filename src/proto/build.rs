@@ -6,7 +6,6 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     &[
     //         "../../proto/common/common.proto",
     //         "../../proto/common/event.proto",
-    //         "../../proto/common/probe.proto",
     //         "../../proto/common/stream.proto",
     //     ],
     //     &["../../proto"],

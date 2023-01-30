@@ -3,9 +3,12 @@ use common::types::TypedValue;
 use std::collections::BTreeMap;
 use v8::{HandleScope, Local};
 
-/**
- * RuntimeEngine wraps an isolated instance of v8 engine which contains only one function's runtime context.
- */
+/// [`RuntimeEngine`] wraps an isolated instance of v8 engine which contains only one function's runtime context.
+/// A [`RuntimeEngine`] can only be intialized in a single-thread. It cannot be shared or transmitted between multi-threads.
+/// The lifecycle of [`RuntimeEngine`]:
+/// - initialized
+/// - running
+/// - dropped
 pub struct RuntimeEngine<'s, 'i> {
     context_scope: v8::ContextScope<'i, v8::HandleScope<'s>>,
     ctx: Local<'s, v8::Context>,

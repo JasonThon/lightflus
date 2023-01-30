@@ -3,6 +3,7 @@ syntax = "proto3";
 package common;
 option go_package = "lightflus/proto/common";
 option java_package = "lightflus.proto.common.common";
+import "google/protobuf/timestamp.proto";
 
 /**
 JobId, represents a stream job.
@@ -18,22 +19,33 @@ message Response {
   string err_msg = 2;
 }
 
+// The common structure of remote host address in Lightflus
 message HostAddr {
   string host = 1;
   uint32 port = 2;
 }
 
+// Enum of Data Type. each one corresponds to a primitive type in JavaScript
 enum DataTypeEnum {
+  // undefined
   DATA_TYPE_ENUM_UNSPECIFIED = 0;
+  // bigint
   DATA_TYPE_ENUM_BIGINT = 1;
+  // number
   DATA_TYPE_ENUM_NUMBER = 2;
+  // null
   DATA_TYPE_ENUM_NULL = 3;
+  // string
   DATA_TYPE_ENUM_STRING = 4;
+  // boolean
   DATA_TYPE_ENUM_BOOLEAN = 5;
+  // object
   DATA_TYPE_ENUM_OBJECT = 6;
+  // array
   DATA_TYPE_ENUM_ARRAY = 7;
 }
 
+// The common structure of Timestamp in Lightflus
 message Time {
   uint64 millis = 1;
   uint64 seconds = 2;
@@ -41,6 +53,7 @@ message Time {
   uint32 hours = 4;
 }
 
+// Some common rpc error code
 enum ErrorCode {
   ERROR_CODE_UNSPECIFIED = 0;
   ERROR_CODE_RESOURCE_NOT_FOUND = 1;
@@ -51,4 +64,83 @@ enum ErrorCode {
   ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING = 6;
   ERROR_CODE_CYCLIC_DATAFLOW = 7;
   ERROR_CODE_DATAFLOW_CONFIGURATION_MISSING = 8;
+}
+
+// Id of sub-dataflow execution
+message ExecutionId {
+  // Job Id
+  ResourceId job_id = 1;
+  // Sub Dataflow id
+  uint32 sub_id = 2;
+}
+
+// structure of heartbeat
+message Heartbeat {
+  // heartbeat id which increases monotonically
+  uint64 heartbeat_id = 1;
+  // The timestamp when the heartbeat sent
+  google.protobuf.Timestamp timestamp = 2;
+  // The client node type
+  NodeType node_type = 3;
+  // Execution Id of sub-dataflow
+  optional ExecutionId execution_id = 4;
+}
+
+// The type of node
+enum NodeType {
+  // Job manager
+  JOB_MANAGER = 0;
+  // Task worker
+  TASK_WORKER = 1;
+}
+
+// Some requests from client needs server responds ack asynchronously, like:
+// - Heartbeat
+// - Checkpoint
+// - Metrics
+message Ack {
+  // the id which sent by the request needs to ack. it may points to multiple semantics:
+  // - for heartbeat, it represents heartbeat id
+  // - for checkpoint, it represents checkpoint id
+  // - for metrics, it represents metric id
+  oneof request_id {
+    uint64 heartbeat_id = 1;
+  }
+  // The timestamp when the ack response sent
+  google.protobuf.Timestamp timestamp = 2;
+
+  // Ack type, like heartbeat, checkpoint
+  enum AckType {
+    HEARTBEAT = 0;
+  }
+
+  // the ack type
+  AckType ack_type = 3;
+  // the node type of ack server
+  NodeType node_type = 4;
+  // the execution id
+  optional ExecutionId execution_id = 6;
+}
+
+
+// Basic information of task
+message TaskInfo {
+  // execution id of task
+  common.ExecutionId execution_id = 1;
+  // information of executors
+  map<uint32, ExecutorInfo> executors_info = 2;
+
+  // Basic information of executor
+  message ExecutorInfo {
+    uint32 executor_id = 1;
+    ExecutorStatus status = 2;
+  }
+
+  // status of executor
+  enum ExecutorStatus {
+    EXECUTOR_STATUS_INITIALIZED = 0;
+    EXECUTOR_STATUS_RUNNING = 1;
+    EXECUTOR_STATUS_TERMINATING = 2;
+    EXECUTOR_STATUS_TERMINATED = 3;
+  }
 }

@@ -12,6 +12,29 @@ pub trait KeyedEvent<K, V> {
     fn get_value(&self) -> V;
 }
 
+/// [`LocalEvent`] can be only transmitted in a single thread.
+/// [`LocalEvent`] cannot be serialized to be transferred through pipe or network.
+/// # Example
+///
+/// ```
+/// use common::event::LocalEvent;
+/// use proto::common::ResourceId;
+///
+/// #[tokio::main]
+/// async fn main() {
+///     let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+///     let _ = tx.send(LocalEvent::Terminate {
+///         job_id: ResourceId::default(),
+///         to: 1
+///     }).await;
+///     
+///     let result = rx.recv().await;
+///     assert_eq!(result, Some(LocalEvent::Terminate {
+///         job_id: ResourceId::default(),
+///         to: 1
+///     }))
+/// }
+/// ```
 #[derive(Clone, Debug, PartialEq)]
 pub enum LocalEvent {
     Terminate {

@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use common::err::TaskWorkerError;
-use common::types::{ExecutorId, HashedResourceId};
+use common::types::ExecutorId;
 use proto::common::Dataflow;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
@@ -10,7 +10,7 @@ use stream::actor::DataflowContext;
 
 use crate::manager::{ExecutorManager, ExecutorManagerImpl, LocalExecutorManager};
 
-type DataflowCache = tokio::sync::RwLock<BTreeMap<HashedResourceId, ExecutorManagerImpl>>;
+type DataflowCache = tokio::sync::RwLock<BTreeMap<ResourceId, ExecutorManagerImpl>>;
 
 pub struct TaskWorker {
     cache: DataflowCache,
@@ -26,9 +26,8 @@ impl TaskWorker {
     }
 
     pub async fn stop_dataflow(&self, job_id: &ResourceId) -> Result<(), TaskWorkerError> {
-        let ref hashable_job_id = job_id.into();
         let mut managers = self.cache.write().await;
-        managers.remove(hashable_job_id);
+        managers.remove(job_id);
         Ok(())
     }
 
@@ -52,24 +51,28 @@ impl TaskWorker {
 
         managers.insert(job_id.clone().into(), ExecutorManagerImpl::Local(manager));
         managers
-            .get_mut(&job_id.into())
+            .get_mut(job_id)
             .iter_mut()
             .for_each(|manager| manager.run());
 
         Ok(())
     }
 
+    /// TODO: if dataflow has been removed, should return error.
     pub async fn send_event_to_operator(
         &self,
         event: &KeyedDataEvent,
     ) -> Result<SendEventToOperatorStatusEnum, TaskWorkerError> {
         let managers = self.cache.read().await;
-        match managers.get(&event.get_job_id().into()) {
-            Some(manager) => manager
-                .send_event_to_operator(event)
-                .await
-                .map_err(|err| err.into_task_worker_error()),
-            None => todo!(),
+        match event.get_job_id_opt_ref() {
+            Some(job_id) => match managers.get(job_id) {
+                Some(manager) => manager
+                    .send_event_to_operator(event)
+                    .await
+                    .map_err(|err| err.into_task_worker_error()),
+                None => Ok(SendEventToOperatorStatusEnum::Done),
+            },
+            None => Ok(SendEventToOperatorStatusEnum::Done),
         }
     }
 }

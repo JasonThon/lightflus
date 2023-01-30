@@ -5,10 +5,12 @@ use common::utils;
 use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 use tonic::transport::Server;
 
-use crate::coord::Coordinator;
-
 mod api;
-pub mod coord;
+mod coord;
+mod executions;
+mod managers;
+mod scheduler;
+mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -33,7 +35,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let value = env_setup.unwrap();
 
-    let reader = serde_json::from_str::<coord::CoordinatorConfig>(value.as_str());
+    let reader = serde_json::from_str::<coord::CoordinatorBuilder>(value.as_str());
     if reader.is_err() {
         panic!(
             "{}",
@@ -41,14 +43,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         )
     }
 
-    let config = reader.unwrap();
+    let mut builder = reader.unwrap();
+    replace_builder_args_by_env(&mut builder);
 
-    let mut coordinator = Coordinator::new(config.storage.to_dataflow_storage(), &config.cluster);
-    coordinator.probe_state().await;
+    let coordinator = builder.build();
     let server = CoordinatorApiImpl::new(coordinator);
 
-    let addr = format!("0.0.0.0:{}", config.port).parse()?;
-    tracing::info!("service will start at {}", config.port);
+    let addr = format!("0.0.0.0:{}", builder.port).parse()?;
+    tracing::info!("service will start at {}", builder.port);
 
     Server::builder()
         .timeout(Duration::from_secs(3))
@@ -59,3 +61,5 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     Ok(())
 }
+
+fn replace_builder_args_by_env(builder: &mut coord::CoordinatorBuilder) {}

@@ -2,11 +2,12 @@ use std::sync;
 
 use crate::manager::ExecutorManager;
 use crate::worker as w;
+use proto::common::Ack;
 use proto::common::DataflowStatus;
+use proto::common::Heartbeat;
 use proto::common::KeyedDataEvent;
-use proto::common::ProbeRequest;
-use proto::common::ProbeResponse;
 use proto::common::ResourceId;
+use proto::common::Response;
 use proto::worker::task_worker_api_server::TaskWorkerApi;
 use proto::worker::CreateSubDataflowRequest;
 use proto::worker::CreateSubDataflowResponse;
@@ -32,23 +33,12 @@ impl TaskWorkerApiImpl {
 
 #[tonic::async_trait]
 impl TaskWorkerApi for TaskWorkerApiImpl {
-    async fn probe(
-        &self,
-        _request: tonic::Request<ProbeRequest>,
-    ) -> Result<tonic::Response<ProbeResponse>, tonic::Status> {
-        Ok(tonic::Response::new(ProbeResponse {
-            memory: 1.0,
-            cpu: 1.0,
-            available: true,
-        }))
-    }
-
     async fn send_event_to_operator(
         &self,
         request: tonic::Request<KeyedDataEvent>,
     ) -> Result<tonic::Response<SendEventToOperatorResponse>, tonic::Status> {
         self.worker
-            .send_event_to_operator(&request.get_ref())
+            .send_event_to_operator(request.get_ref())
             .await
             .map(|status| {
                 tonic::Response::new(SendEventToOperatorResponse {
@@ -92,5 +82,19 @@ impl TaskWorkerApi for TaskWorkerApiImpl {
                 status: DataflowStatus::Closed as i32,
             })),
         }
+    }
+
+    async fn receive_heartbeat(
+        &self,
+        request: tonic::Request<Heartbeat>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
+        Ok(tonic::Response::new(Response::ok()))
+    }
+
+    async fn receive_ack(
+        &self,
+        request: tonic::Request<Ack>,
+    ) -> Result<tonic::Response<Response>, tonic::Status> {
+        Ok(tonic::Response::new(Response::ok()))
     }
 }

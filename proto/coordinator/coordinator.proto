@@ -1,36 +1,36 @@
 syntax = "proto3";
 
 package coordinator;
-import "common/probe.proto";
 import "common/stream.proto";
 import "common/common.proto";
 
-option go_package = "lightflus/runtime/proto";
+option go_package = "lightflus/proto/coordinator";
 
+/// RPC Api for Coordinator
 service CoordinatorApi {
-  rpc Probe(common.ProbeRequest) returns (common.ProbeResponse) {}
-  rpc CreateDataflow(common.Dataflow) returns (CreateDataflowResponse) {}
-  rpc TerminateDataflow(TerminateDataflowRequest) returns (TerminateDataflowResponse) {}
+  /// Attempt to deploy a new dataflow and create a JobManager.
+  /// Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
+  rpc CreateDataflow(common.Dataflow) returns (common.Response) {}
+  /// Attempt to terminate a dataflow
+  /// Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
+  /// After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator
+  rpc TerminateDataflow(common.ResourceId) returns (common.Response) {}
+  /// Get the details of a dataflow.
+  /// The details contains: each operator's status, metrics, basic information, checkpoint status, etc.
   rpc GetDataflow(GetDataflowRequest) returns (GetDataflowResponse) {}
-}
-
-message CreateDataflowResponse {
-  common.DataflowStatus status = 1;
-}
-
-message TerminateDataflowRequest {
-  common.ResourceId job_id = 1;
-}
-
-message TerminateDataflowResponse {
-  common.DataflowStatus status = 1;
+  /// Receive ack
+  rpc ReceiveAck(common.Ack) returns (common.Response) {}
+  /// Report task info
+  rpc ReportTaskInfo(common.TaskInfo) returns (common.Response) {}
+  /// Receive heartbeat
+  rpc ReceiveHeartbeat(common.Heartbeat) returns (common.Response) {}
 }
 
 message GetDataflowRequest {
   common.ResourceId job_id = 1;
 }
 
-message GetDataflowResponse{
+message GetDataflowResponse {
   common.DataflowStatus status = 1;
   common.Dataflow graph = 2;
 }

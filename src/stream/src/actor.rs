@@ -11,6 +11,7 @@ use common::db::MysqlConn;
 use common::event::{LocalEvent, SinkableMessage, SinkableMessageImpl};
 use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, KafkaProducer};
 
+use common::net::gateway::worker::SafeTaskManagerRpcGateway;
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils::{self, get_env};
@@ -22,7 +23,6 @@ use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorIn
 use proto::common::{Entry, KeyedDataEvent};
 
 use proto::worker::SendEventToOperatorStatusEnum;
-use proto::worker_gateway::SafeTaskWorkerRpcGateway;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::Mutex;
 
@@ -209,6 +209,7 @@ impl Executor for LocalExecutor {
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
         let task = Execution::new(&self.operator, new_state_mgt(&self.job_id), scope);
+
         loop {
             while let Some(msg) = self.source.fetch_msg() {
                 match &msg {
@@ -458,7 +459,7 @@ impl SourceSinkManger {
             *executor_id,
             SinkImpl::Remote(RemoteSink {
                 sink_id: *executor_id,
-                task_worker_gateway: SafeTaskWorkerRpcGateway::new(&host_addr),
+                task_worker_gateway: SafeTaskManagerRpcGateway::new(&host_addr),
             }),
         );
     }
@@ -601,7 +602,7 @@ impl Sink for LocalSink {
 #[derive(Clone)]
 pub struct RemoteSink {
     pub(crate) sink_id: SinkId,
-    pub(crate) task_worker_gateway: SafeTaskWorkerRpcGateway,
+    pub(crate) task_worker_gateway: SafeTaskManagerRpcGateway,
 }
 
 #[async_trait]

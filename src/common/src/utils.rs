@@ -13,6 +13,8 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 
+/// The utils for time convertion
+#[cfg(not(tarpaulin_include))]
 pub mod times {
     use std::time::{Duration, SystemTime};
 
@@ -28,6 +30,27 @@ pub mod times {
         let naive_time =
             chrono::NaiveDateTime::from_timestamp(timestamp.seconds, timestamp.nanos as u32);
         chrono::DateTime::from_utc(naive_time, chrono::Utc)
+    }
+
+    pub fn now() -> chrono::DateTime<chrono::Utc> {
+        chrono::Utc::now()
+    }
+
+    pub fn from_utc_chrono_to_prost_timestamp(
+        timestamp: &chrono::DateTime<chrono::Utc>,
+    ) -> prost_types::Timestamp {
+        prost_types::Timestamp {
+            seconds: timestamp.timestamp(),
+            nanos: timestamp.timestamp_subsec_nanos() as i32,
+        }
+    }
+
+    pub fn prost_now() -> prost_types::Timestamp {
+        let now = now();
+        prost_types::Timestamp {
+            seconds: now.timestamp(),
+            nanos: now.timestamp_subsec_nanos() as i32,
+        }
     }
 }
 
@@ -422,11 +445,12 @@ mod tests {
 
     #[test]
     fn test_serde_env() {
-        let origin = "{\"name\":\"${your.name}\", \"card\": \"${your.card}\"}";
+        let origin = "{\"name\":\"${your.name}\", \"card\": \"${your.card}\", \"info\": {\"address\": \"${your.addr}\", \"second_address\": \"${your.addr}\"}}";
         std::env::set_var("your.name", "jason");
         std::env::set_var("your.card", "111");
+        std::env::set_var("your.addr", "222");
         let target = common::utils::from_str(origin);
-        let result = serde_json::from_str::<Name>(target.as_str());
+        let result = serde_json::from_str::<Personal>(target.as_str());
         if result.is_err() {
             print!("{:?}", result.as_ref().unwrap_err())
         }
@@ -434,6 +458,8 @@ mod tests {
         let name = result.unwrap();
         assert_eq!(&name.name, &"jason".to_string());
         assert_eq!(&name.card, &"111".to_string());
+        assert_eq!(&name.info.address, &"222".to_string());
+        assert_eq!(&name.info.second_address, &"222".to_string());
     }
 
     #[test]
@@ -445,8 +471,15 @@ mod tests {
     }
 
     #[derive(serde::Serialize, serde::Deserialize, Debug)]
-    struct Name {
+    struct Personal {
         name: String,
         card: String,
+        info: DetailInfo,
+    }
+
+    #[derive(serde::Serialize, serde::Deserialize, Debug)]
+    struct DetailInfo {
+        address: String,
+        second_address: String,
     }
 }

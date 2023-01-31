@@ -6,7 +6,7 @@ use std::{
 use common::{
     net::{
         cluster::{Node, NodeStatus},
-        gateway::{worker::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway},
+        gateway::{taskmanager::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway},
         AckResponder, AckResponderBuilder,
     },
     types::ExecutorId,
@@ -18,7 +18,7 @@ use proto::{
         Ack, Dataflow, DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType, OperatorInfo,
         ResourceId,
     },
-    worker::CreateSubDataflowRequest,
+    taskmanager::CreateSubDataflowRequest,
 };
 use tokio::{sync::mpsc, task::JoinHandle};
 
@@ -250,7 +250,7 @@ mod tests {
     use common::{
         net::{
             cluster::{Node, NodeStatus},
-            gateway::{worker::SafeTaskManagerRpcGateway, MockRpcGateway},
+            gateway::{taskmanager::SafeTaskManagerRpcGateway, MockRpcGateway},
             AckResponderBuilder,
         },
         utils::times::prost_now,

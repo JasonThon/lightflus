@@ -2,10 +2,10 @@ use std::time::Duration;
 
 use tonic::codegen::StdError;
 
-use crate::worker::task_worker_api_client::TaskWorkerApiClient;
+use crate::taskmanager::task_manager_api_client::TaskManagerApiClient;
 
-/// Extra implementation of [`TaskWorkerApiClient`]
-impl TaskWorkerApiClient<tonic::transport::Channel> {
+/// Extra implementation of [`TaskManagerApiClient`]
+impl TaskManagerApiClient<tonic::transport::Channel> {
     /// Connect to remote task worker lazily with connection timeout
     pub fn with_connection_timeout<D>(dst: D, timeout: Duration) -> Self
     where

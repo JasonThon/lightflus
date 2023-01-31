@@ -5,7 +5,7 @@ use common::types::ExecutorId;
 use proto::common::Dataflow;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
-use proto::worker::SendEventToOperatorStatusEnum;
+use proto::taskmanager::SendEventToOperatorStatusEnum;
 use stream::actor::DataflowContext;
 
 use crate::manager::{ExecutorManager, ExecutorManagerImpl, LocalExecutorManager};

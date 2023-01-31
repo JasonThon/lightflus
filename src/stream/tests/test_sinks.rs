@@ -17,7 +17,7 @@ use proto::{
         redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, MysqlDesc, RedisDesc,
         ResourceId,
     },
-    worker::SendEventToOperatorStatusEnum,
+    taskmanager::SendEventToOperatorStatusEnum,
 };
 use sqlx::Row;
 use stream::actor::{Kafka, Mysql, Redis, Sink, SinkImpl};

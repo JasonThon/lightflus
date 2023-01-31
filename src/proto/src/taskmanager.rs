@@ -41,16 +41,16 @@ impl SendEventToOperatorStatusEnum {
     }
 }
 /// Generated client implementations.
-pub mod task_worker_api_client {
+pub mod task_manager_api_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
     #[doc = "/ RPC Api for Task Manager"]
     #[derive(Debug, Clone)]
-    pub struct TaskWorkerApiClient<T> {
+    pub struct TaskManagerApiClient<T> {
         inner: tonic::client::Grpc<T>,
     }
-    impl TaskWorkerApiClient<tonic::transport::Channel> {
+    impl TaskManagerApiClient<tonic::transport::Channel> {
         /// Attempt to create a new client by connecting to a given endpoint.
         pub async fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
         where
@@ -61,7 +61,7 @@ pub mod task_worker_api_client {
             Ok(Self::new(conn))
         }
     }
-    impl<T> TaskWorkerApiClient<T>
+    impl<T> TaskManagerApiClient<T>
     where
         T: tonic::client::GrpcService<tonic::body::BoxBody>,
         T::Error: Into<StdError>,
@@ -79,7 +79,7 @@ pub mod task_worker_api_client {
         pub fn with_interceptor<F>(
             inner: T,
             interceptor: F,
-        ) -> TaskWorkerApiClient<InterceptedService<T, F>>
+        ) -> TaskManagerApiClient<InterceptedService<T, F>>
         where
             F: tonic::service::Interceptor,
             T::ResponseBody: Default,
@@ -93,7 +93,7 @@ pub mod task_worker_api_client {
                 http::Request<tonic::body::BoxBody>,
             >>::Error: Into<StdError> + Send + Sync,
         {
-            TaskWorkerApiClient::new(InterceptedService::new(inner, interceptor))
+            TaskManagerApiClient::new(InterceptedService::new(inner, interceptor))
         }
         /// Compress requests with the given encoding.
         ///
@@ -126,7 +126,7 @@ pub mod task_worker_api_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/SendEventToOperator",
+                "/taskmanager.TaskManagerApi/SendEventToOperator",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -146,7 +146,7 @@ pub mod task_worker_api_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/StopDataflow",
+                "/taskmanager.TaskManagerApi/StopDataflow",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -166,7 +166,7 @@ pub mod task_worker_api_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/CreateSubDataflow",
+                "/taskmanager.TaskManagerApi/CreateSubDataflow",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -186,7 +186,7 @@ pub mod task_worker_api_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/ReceiveHeartbeat",
+                "/taskmanager.TaskManagerApi/ReceiveHeartbeat",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
@@ -206,19 +206,19 @@ pub mod task_worker_api_client {
                 })?;
             let codec = tonic::codec::ProstCodec::default();
             let path = http::uri::PathAndQuery::from_static(
-                "/worker.TaskWorkerApi/ReceiveAck",
+                "/taskmanager.TaskManagerApi/ReceiveAck",
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
     }
 }
 /// Generated server implementations.
-pub mod task_worker_api_server {
+pub mod task_manager_api_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with TaskWorkerApiServer.
+    ///Generated trait containing gRPC methods that should be implemented for use with TaskManagerApiServer.
     #[async_trait]
-    pub trait TaskWorkerApi: Send + Sync + 'static {
+    pub trait TaskManagerApi: Send + Sync + 'static {
         #[doc = "/ Send event to operator"]
         async fn send_event_to_operator(
             &self,
@@ -247,13 +247,13 @@ pub mod task_worker_api_server {
     }
     #[doc = "/ RPC Api for Task Manager"]
     #[derive(Debug)]
-    pub struct TaskWorkerApiServer<T: TaskWorkerApi> {
+    pub struct TaskManagerApiServer<T: TaskManagerApi> {
         inner: _Inner<T>,
         accept_compression_encodings: EnabledCompressionEncodings,
         send_compression_encodings: EnabledCompressionEncodings,
     }
     struct _Inner<T>(Arc<T>);
-    impl<T: TaskWorkerApi> TaskWorkerApiServer<T> {
+    impl<T: TaskManagerApi> TaskManagerApiServer<T> {
         pub fn new(inner: T) -> Self {
             Self::from_arc(Arc::new(inner))
         }
@@ -287,9 +287,9 @@ pub mod task_worker_api_server {
             self
         }
     }
-    impl<T, B> tonic::codegen::Service<http::Request<B>> for TaskWorkerApiServer<T>
+    impl<T, B> tonic::codegen::Service<http::Request<B>> for TaskManagerApiServer<T>
     where
-        T: TaskWorkerApi,
+        T: TaskManagerApi,
         B: Body + Send + 'static,
         B::Error: Into<StdError> + Send + 'static,
     {
@@ -305,11 +305,11 @@ pub mod task_worker_api_server {
         fn call(&mut self, req: http::Request<B>) -> Self::Future {
             let inner = self.inner.clone();
             match req.uri().path() {
-                "/worker.TaskWorkerApi/SendEventToOperator" => {
+                "/taskmanager.TaskManagerApi/SendEventToOperator" => {
                     #[allow(non_camel_case_types)]
-                    struct SendEventToOperatorSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    struct SendEventToOperatorSvc<T: TaskManagerApi>(pub Arc<T>);
                     impl<
-                        T: TaskWorkerApi,
+                        T: TaskManagerApi,
                     > tonic::server::UnaryService<super::super::common::KeyedDataEvent>
                     for SendEventToOperatorSvc<T> {
                         type Response = super::SendEventToOperatorResponse;
@@ -345,11 +345,11 @@ pub mod task_worker_api_server {
                     };
                     Box::pin(fut)
                 }
-                "/worker.TaskWorkerApi/StopDataflow" => {
+                "/taskmanager.TaskManagerApi/StopDataflow" => {
                     #[allow(non_camel_case_types)]
-                    struct StopDataflowSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    struct StopDataflowSvc<T: TaskManagerApi>(pub Arc<T>);
                     impl<
-                        T: TaskWorkerApi,
+                        T: TaskManagerApi,
                     > tonic::server::UnaryService<super::super::common::ResourceId>
                     for StopDataflowSvc<T> {
                         type Response = super::StopDataflowResponse;
@@ -385,11 +385,11 @@ pub mod task_worker_api_server {
                     };
                     Box::pin(fut)
                 }
-                "/worker.TaskWorkerApi/CreateSubDataflow" => {
+                "/taskmanager.TaskManagerApi/CreateSubDataflow" => {
                     #[allow(non_camel_case_types)]
-                    struct CreateSubDataflowSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    struct CreateSubDataflowSvc<T: TaskManagerApi>(pub Arc<T>);
                     impl<
-                        T: TaskWorkerApi,
+                        T: TaskManagerApi,
                     > tonic::server::UnaryService<super::CreateSubDataflowRequest>
                     for CreateSubDataflowSvc<T> {
                         type Response = super::CreateSubDataflowResponse;
@@ -425,11 +425,11 @@ pub mod task_worker_api_server {
                     };
                     Box::pin(fut)
                 }
-                "/worker.TaskWorkerApi/ReceiveHeartbeat" => {
+                "/taskmanager.TaskManagerApi/ReceiveHeartbeat" => {
                     #[allow(non_camel_case_types)]
-                    struct ReceiveHeartbeatSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    struct ReceiveHeartbeatSvc<T: TaskManagerApi>(pub Arc<T>);
                     impl<
-                        T: TaskWorkerApi,
+                        T: TaskManagerApi,
                     > tonic::server::UnaryService<super::super::common::Heartbeat>
                     for ReceiveHeartbeatSvc<T> {
                         type Response = super::super::common::Response;
@@ -465,11 +465,11 @@ pub mod task_worker_api_server {
                     };
                     Box::pin(fut)
                 }
-                "/worker.TaskWorkerApi/ReceiveAck" => {
+                "/taskmanager.TaskManagerApi/ReceiveAck" => {
                     #[allow(non_camel_case_types)]
-                    struct ReceiveAckSvc<T: TaskWorkerApi>(pub Arc<T>);
+                    struct ReceiveAckSvc<T: TaskManagerApi>(pub Arc<T>);
                     impl<
-                        T: TaskWorkerApi,
+                        T: TaskManagerApi,
                     > tonic::server::UnaryService<super::super::common::Ack>
                     for ReceiveAckSvc<T> {
                         type Response = super::super::common::Response;
@@ -518,7 +518,7 @@ pub mod task_worker_api_server {
             }
         }
     }
-    impl<T: TaskWorkerApi> Clone for TaskWorkerApiServer<T> {
+    impl<T: TaskManagerApi> Clone for TaskManagerApiServer<T> {
         fn clone(&self) -> Self {
             let inner = self.inner.clone();
             Self {
@@ -528,7 +528,7 @@ pub mod task_worker_api_server {
             }
         }
     }
-    impl<T: TaskWorkerApi> Clone for _Inner<T> {
+    impl<T: TaskManagerApi> Clone for _Inner<T> {
         fn clone(&self) -> Self {
             Self(self.0.clone())
         }
@@ -538,7 +538,7 @@ pub mod task_worker_api_server {
             write!(f, "{:?}", self.0)
         }
     }
-    impl<T: TaskWorkerApi> tonic::server::NamedService for TaskWorkerApiServer<T> {
-        const NAME: &'static str = "worker.TaskWorkerApi";
+    impl<T: TaskManagerApi> tonic::server::NamedService for TaskManagerApiServer<T> {
+        const NAME: &'static str = "taskmanager.TaskManagerApi";
     }
 }

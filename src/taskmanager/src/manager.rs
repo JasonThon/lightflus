@@ -2,7 +2,7 @@ use common::event::LocalEvent;
 use common::event::SinkableMessageImpl;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
-use proto::worker::SendEventToOperatorStatusEnum;
+use proto::taskmanager::SendEventToOperatorStatusEnum;
 use rayon::prelude::*;
 use stream::actor::{DataflowContext, Sink, SinkImpl};
 use stream::err::SinkException;

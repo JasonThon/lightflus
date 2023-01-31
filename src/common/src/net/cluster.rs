@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::vec;
 
-use super::gateway::worker::SafeTaskManagerRpcGateway;
+use super::gateway::taskmanager::SafeTaskManagerRpcGateway;
 
 #[derive(Clone, Eq, PartialEq, Debug, Copy)]
 pub enum NodeStatus {
@@ -230,7 +230,7 @@ mod cluster_tests {
     use crate::{
         net::{
             cluster::{ClusterBuilder, NodeBuilder},
-            gateway::worker::SafeTaskManagerRpcGateway,
+            gateway::taskmanager::SafeTaskManagerRpcGateway,
         },
         utils::times::prost_now,
     };

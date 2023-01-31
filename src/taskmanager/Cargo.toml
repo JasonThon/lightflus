@@ -1,5 +1,5 @@
 [package]
-name = "worker"
+name = "taskmanager"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 common = { path = "../common" }
 stream = { path = "../stream" }
-proto = { path = "../proto", features = ["worker"] }
+proto = { path = "../proto", features = ["taskmanager"] }
 tonic = "0.8"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1", features = ["rt-multi-thread", "sync", "signal", "macros"] }

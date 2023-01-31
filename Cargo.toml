@@ -3,7 +3,7 @@ members = [
     "src/proto",
     "src/stream",
     "src/common",
-    "src/worker",
+    "src/taskmanager",
     "src/coordinator",
     "src/apiserver"
 ]

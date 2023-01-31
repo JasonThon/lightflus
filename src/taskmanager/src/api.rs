@@ -8,31 +8,31 @@ use proto::common::Heartbeat;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
 use proto::common::Response;
-use proto::worker::task_worker_api_server::TaskWorkerApi;
-use proto::worker::CreateSubDataflowRequest;
-use proto::worker::CreateSubDataflowResponse;
-use proto::worker::SendEventToOperatorResponse;
-use proto::worker::StopDataflowResponse;
+use proto::taskmanager::task_manager_api_server::TaskManagerApi;
+use proto::taskmanager::CreateSubDataflowRequest;
+use proto::taskmanager::CreateSubDataflowResponse;
+use proto::taskmanager::SendEventToOperatorResponse;
+use proto::taskmanager::StopDataflowResponse;
 
 #[derive(Clone)]
-pub(crate) struct TaskWorkerApiImpl {
+pub(crate) struct TaskManagerApiImpl {
     worker: sync::Arc<w::TaskWorker>,
 }
 
-unsafe impl Send for TaskWorkerApiImpl {}
+unsafe impl Send for TaskManagerApiImpl {}
 
-unsafe impl Sync for TaskWorkerApiImpl {}
+unsafe impl Sync for TaskManagerApiImpl {}
 
-impl TaskWorkerApiImpl {
-    pub(crate) fn new(worker: w::TaskWorker) -> TaskWorkerApiImpl {
-        TaskWorkerApiImpl {
+impl TaskManagerApiImpl {
+    pub(crate) fn new(worker: w::TaskWorker) -> TaskManagerApiImpl {
+        TaskManagerApiImpl {
             worker: sync::Arc::new(worker),
         }
     }
 }
 
 #[tonic::async_trait]
-impl TaskWorkerApi for TaskWorkerApiImpl {
+impl TaskManagerApi for TaskManagerApiImpl {
     async fn send_event_to_operator(
         &self,
         request: tonic::Request<KeyedDataEvent>,

@@ -11,7 +11,7 @@ use common::db::MysqlConn;
 use common::event::{LocalEvent, SinkableMessage, SinkableMessageImpl};
 use common::kafka::{run_consumer, run_producer, KafkaConsumer, KafkaMessage, KafkaProducer};
 
-use common::net::gateway::worker::SafeTaskManagerRpcGateway;
+use common::net::gateway::taskmanager::SafeTaskManagerRpcGateway;
 use common::redis::RedisClient;
 use common::types::{ExecutorId, SinkId, SourceId, TypedValue};
 use common::utils::{self, get_env};
@@ -22,7 +22,7 @@ use proto::common::ResourceId;
 use proto::common::{sink, source, DataflowMeta, KafkaDesc, MysqlDesc, OperatorInfo, RedisDesc};
 use proto::common::{Entry, KeyedDataEvent};
 
-use proto::worker::SendEventToOperatorStatusEnum;
+use proto::taskmanager::SendEventToOperatorStatusEnum;
 use tokio::sync::mpsc::error::TryRecvError;
 use tokio::sync::Mutex;
 

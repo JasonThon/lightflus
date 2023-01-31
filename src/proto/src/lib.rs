@@ -9,10 +9,10 @@ pub mod coordinator;
 #[cfg(feature = "coordinator")]
 pub mod coordinator_impl;
 
-#[cfg(feature = "worker")]
-pub mod worker;
-#[cfg(feature = "worker")]
-pub mod worker_impl;
+#[cfg(feature = "taskmanager")]
+pub mod taskmanager;
+#[cfg(feature = "taskmanager")]
+pub mod taskmanager_impl;
 
 #[cfg(feature = "apiserver")]
 pub mod apiserver;

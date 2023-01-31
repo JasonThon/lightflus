@@ -16,11 +16,11 @@ futures-executor = "0.3"
 tracing = "0.1"
 
 [features]
-worker = ["proto-common"]
+taskmanager = ["proto-common"]
 coordinator = ["proto-common"]
 apiserver = ["proto-common"]
 proto-common = []
-all = ["worker", "coordinator", "proto-common"]
+all = ["taskmanager", "coordinator", "proto-common"]
 
 [build-dependencies]
 tonic-build = "0.8"

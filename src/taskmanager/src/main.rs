@@ -1,5 +1,5 @@
 use common::utils::{self, get_env};
-use proto::worker::task_worker_api_server::TaskWorkerApiServer;
+use proto::taskmanager::task_manager_api_server::TaskManagerApiServer;
 use std::fs;
 use stream::initialize_v8;
 use tonic::transport::Server;
@@ -56,7 +56,7 @@ fn main() {
             tracing_subscriber::fmt::init();
             let task_worker = worker::new_worker();
 
-            let server = TaskWorkerApiServer::new(api::TaskWorkerApiImpl::new(task_worker));
+            let server = TaskManagerApiServer::new(api::TaskManagerApiImpl::new(task_worker));
             let addr = format!("0.0.0.0:{}", config.port).parse().unwrap();
 
             tracing::info!("service will start at {}", config.port);

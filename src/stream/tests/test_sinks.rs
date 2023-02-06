@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use bytes::Buf;
 use common::{
     db::MysqlConn,
-    event::{LocalEvent, SinkableMessageImpl},
+    event::LocalEvent,
     kafka::{run_consumer, KafkaMessage},
     redis::RedisClient,
     types::TypedValue,
@@ -20,7 +20,7 @@ use proto::{
     taskmanager::SendEventToOperatorStatusEnum,
 };
 use sqlx::Row;
-use stream::actor::{Kafka, Mysql, Redis, Sink, SinkImpl};
+use stream::connector::{Kafka, Mysql, Redis, Sink, SinkImpl};
 
 static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 
@@ -74,7 +74,7 @@ async fn test_kafka_sink() {
         to_operator_id: 1,
         data: vec![
             Entry {
-                data_type: DataTypeEnum::Object as i32,
+                data_type: DataTypeEnum::Objectasi32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key_1".to_string(), TypedValue::String("val_1".to_string())),
@@ -86,7 +86,7 @@ async fn test_kafka_sink() {
                 .get_data(),
             },
             Entry {
-                data_type: DataTypeEnum::Object as i32,
+                data_type: DataTypeEnum::Objectasi32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key_1".to_string(), TypedValue::String("val_1".to_string())),
@@ -99,23 +99,19 @@ async fn test_kafka_sink() {
             },
         ],
         event_time: None,
-        process_time: None,
         from_operator_id: 0,
         window: None,
+        event_id: 1,
     };
 
     let result = kafka_sink
-        .sink(SinkableMessageImpl::LocalMessage(
-            LocalEvent::KeyedDataStreamEvent(event),
-        ))
+        .sink(&LocalEvent::KeyedDataStreamEvent(event))
         .await;
     if result.is_err() {
         panic!("{:?}", result.unwrap_err());
     }
 
     assert!(result.is_ok());
-    let status = result.unwrap();
-    assert_eq!(status, SendEventToOperatorStatusEnum::Done);
 
     fn processor(message: KafkaMessage) {
         let key = serde_json::from_slice::<serde_json::Value>(&message.key);
@@ -169,7 +165,7 @@ async fn test_redis_sink_success() {
         to_operator_id: 1,
         data: vec![
             Entry {
-                data_type: DataTypeEnum::Object as i32,
+                data_type: DataTypeEnum::Objectasi32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key".to_string(), TypedValue::String("word-1".to_string())),
@@ -181,7 +177,7 @@ async fn test_redis_sink_success() {
                 .get_data(),
             },
             Entry {
-                data_type: DataTypeEnum::Object as i32,
+                data_type: DataTypeEnum::Objectasi32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key".to_string(), TypedValue::String("word-2".to_string())),
@@ -194,15 +190,13 @@ async fn test_redis_sink_success() {
             },
         ],
         event_time: None,
-        process_time: None,
         from_operator_id: 0,
         window: None,
+        event_id: 1,
     };
 
     let result = redis_sink
-        .sink(SinkableMessageImpl::LocalMessage(
-            LocalEvent::KeyedDataStreamEvent(event),
-        ))
+        .sink(&LocalEvent::KeyedDataStreamEvent(event))
         .await;
 
     assert!(result.is_ok());
@@ -281,7 +275,7 @@ async fn test_mysql_sink() {
         key: None,
         to_operator_id: 1,
         data: vec![Entry {
-            data_type: DataTypeEnum::Object as i32,
+            data_type: DataTypeEnum::Objectasi32,
             value: TypedValue::Object(BTreeMap::from_iter(
                 [
                     (
@@ -301,16 +295,12 @@ async fn test_mysql_sink() {
             .get_data(),
         }],
         event_time: None,
-        process_time: None,
         from_operator_id: 0,
         window: None,
+        event_id: 1,
     };
 
-    let result = mysql
-        .sink(SinkableMessageImpl::LocalMessage(
-            LocalEvent::KeyedDataStreamEvent(event),
-        ))
-        .await;
+    let result = mysql.sink(&LocalEvent::KeyedDataStreamEvent(event)).await;
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), SendEventToOperatorStatusEnum::Done);
 

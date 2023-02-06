@@ -1,12 +1,7 @@
-use common::{
-    event::{LocalEvent, SinkableMessageImpl},
-    kafka::run_producer,
-    types::TypedValue,
-    utils::get_env,
-};
+use common::{event::LocalEvent, kafka::run_producer, types::TypedValue, utils::get_env};
 
 use proto::common::{kafka_desc::KafkaOptions, DataTypeEnum, KafkaDesc, ResourceId};
-use stream::actor::{Kafka, Source};
+use stream::connector::{Kafka, Source};
 
 #[tokio::test]
 async fn test_kafka_source() {
@@ -36,24 +31,22 @@ async fn test_kafka_source() {
 
     let result = producer.send("key".as_bytes(), "value".as_bytes()).await;
     assert!(result.is_ok());
-    let msg = kafka_source.fetch_msg();
+    let msg = kafka_source.async_fetch_msg().await;
     assert!(msg.is_some());
 
     let msg = msg.unwrap();
     match msg {
-        SinkableMessageImpl::LocalMessage(event) => match event {
-            LocalEvent::KeyedDataStreamEvent(e) => {
-                assert_eq!(e.data.len(), 1);
-                assert_eq!(e.data[0].data_type(), DataTypeEnum::String);
-                let value = TypedValue::from_slice(&e.data[0].value);
-                assert_eq!(value.get_type(), DataTypeEnum::String);
-                match value {
-                    TypedValue::String(v) => assert_eq!(v.as_str(), "value"),
-                    _ => panic!("unexpected type"),
-                }
-                assert!(e.event_time.is_some());
+        LocalEvent::KeyedDataStreamEvent(e) => {
+            assert_eq!(e.data.len(), 1);
+            assert_eq!(e.data[0].data_type(), DataTypeEnum::String);
+            let value = TypedValue::from_slice(&e.data[0].value);
+            assert_eq!(value.get_type(), DataTypeEnum::String);
+            match value {
+                TypedValue::String(v) => assert_eq!(v.as_str(), "value"),
+                _ => panic!("unexpected type"),
             }
-            _ => panic!("unexpected event"),
-        },
+            assert!(e.event_time.is_some());
+        }
+        _ => panic!("unexpected event"),
     }
 }

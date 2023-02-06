@@ -269,8 +269,9 @@ impl ExecutionException {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum TaskWorkerError {
+    DataflowValidateError(DataflowValidateError),
     ChannelDisconnected,
     ChannelEmpty,
     ExecutionError(String),

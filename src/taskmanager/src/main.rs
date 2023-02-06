@@ -4,9 +4,8 @@ use std::fs;
 use stream::initialize_v8;
 use tonic::transport::Server;
 
-mod api;
-pub mod manager;
-pub mod worker;
+mod taskmanager;
+pub mod taskworker;
 
 const DEFAULT_WORKER_THREADS_NUM: usize = 100;
 
@@ -33,7 +32,7 @@ fn main() {
     }
 
     let value = env_setup.unwrap();
-    let reader = serde_json::from_str::<worker::TaskWorkerConfig>(value.as_str());
+    let reader = serde_json::from_str::<taskmanager::TaskManagerBuilder>(value.as_str());
 
     if reader.is_err() {
         panic!(
@@ -46,7 +45,7 @@ fn main() {
         .and_then(|num| num.parse::<usize>().ok())
         .unwrap_or(DEFAULT_WORKER_THREADS_NUM);
 
-    let ref mut config = reader.unwrap();
+    let ref mut builder = reader.unwrap();
     tokio::runtime::Builder::new_multi_thread()
         .worker_threads(worker_threads)
         .enable_all()
@@ -54,12 +53,11 @@ fn main() {
         .unwrap()
         .block_on(async {
             tracing_subscriber::fmt::init();
-            let task_worker = worker::new_worker();
 
-            let server = TaskManagerApiServer::new(api::TaskManagerApiImpl::new(task_worker));
-            let addr = format!("0.0.0.0:{}", config.port).parse().unwrap();
+            let server = TaskManagerApiServer::new(builder.build());
+            let addr = format!("0.0.0.0:{}", builder.port).parse().unwrap();
 
-            tracing::info!("service will start at {}", config.port);
+            tracing::info!("service will start at {}", builder.port);
 
             initialize_v8();
             let _ = Server::builder().add_service(server).serve(addr).await;

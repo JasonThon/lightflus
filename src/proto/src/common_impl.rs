@@ -1,10 +1,6 @@
 use std::hash::Hash;
 
 use chrono::Duration;
-use serde::{
-    de::{Error, Visitor},
-    ser::SerializeStruct,
-};
 
 use crate::common::{
     mysql_desc::{self, Statement},
@@ -12,8 +8,9 @@ use crate::common::{
     sink, source,
     trigger::Watermark,
     window::{self, FixedWindow, SessionWindow, SlidingWindow},
-    DataTypeEnum, Dataflow, Entry, ExecutionId, Func, HostAddr, KafkaDesc, KeyedDataEvent,
-    MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Response, Sink, Source, Time, Trigger, Window,
+    Ack, DataTypeEnum, Dataflow, Entry, ExecutionId, Func, Heartbeat, HostAddr, KafkaDesc,
+    KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Response, Sink, Source, Time,
+    Trigger, Window,
 };
 
 pub const SUCCESS_RPC_RESPONSE: &str = "success";
@@ -44,6 +41,10 @@ impl OperatorInfo {
             .as_ref()
             .map(|addr| addr.clone())
             .unwrap_or_default()
+    }
+
+    pub fn get_host_addr_ref(&self) -> Option<&HostAddr> {
+        self.host_addr.as_ref()
     }
 
     pub fn get_source(&self) -> Source {
@@ -235,6 +236,10 @@ impl Dataflow {
             .map(|id| id.clone())
             .unwrap_or_default()
     }
+
+    pub fn get_execution_id_ref(&self) -> Option<&ExecutionId> {
+        self.execution_id.as_ref()
+    }
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -301,17 +306,14 @@ impl KeyedDataEvent {
         self.job_id.as_ref()
     }
 
+    #[inline]
     pub fn get_key(&self) -> Entry {
         self.key.as_ref().map(|key| key.clone()).unwrap_or_default()
     }
 
-    pub fn get_event_time(&self) -> Option<chrono::DateTime<chrono::Utc>> {
+    #[inline]
+    pub fn get_event_time(&self) -> i64 {
         self.event_time
-            .as_ref()
-            .map(|event_time| {
-                chrono::NaiveDateTime::from_timestamp(event_time.seconds, event_time.nanos as u32)
-            })
-            .map(|datetime| chrono::DateTime::from_utc(datetime, chrono::Utc))
     }
 }
 
@@ -359,6 +361,7 @@ impl SessionWindow {
 }
 
 impl Time {
+    #[inline]
     pub fn to_duration(&self) -> Duration {
         let secs = (self.hours * 3600) as u64 + (self.minutes * 60) as u64 + self.seconds;
         Duration::seconds(secs as i64)
@@ -403,102 +406,6 @@ impl Ord for ResourceId {
             Some(order) => order,
             None => std::cmp::Ordering::Equal,
         }
-    }
-}
-
-impl serde::Serialize for ResourceId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut resource_id = serializer.serialize_struct("ResourceId", 2)?;
-        resource_id.serialize_field("resource_id", &self.resource_id)?;
-        resource_id.serialize_field("namespace_id", &self.namespace_id)?;
-        resource_id.end()
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ResourceId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const RESOURCE_ID_FIELDS: &'static [&'static str] = &["resource_id", "namespace_id"];
-        enum Field {
-            ResourceId,
-            NamespaceId,
-        }
-
-        impl<'de> serde::Deserialize<'de> for Field {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct FieldVisitor;
-
-                impl<'de> Visitor<'de> for FieldVisitor {
-                    type Value = Field;
-                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        formatter.write_str("resource id field")
-                    }
-
-                    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match v {
-                            "resource_id" => Ok(Field::ResourceId),
-                            "namespace_id" => Ok(Field::NamespaceId),
-                            _ => return Err(Error::unknown_field(v, RESOURCE_ID_FIELDS)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(FieldVisitor)
-            }
-        }
-
-        struct ResourceIdVisitor;
-
-        impl<'de> Visitor<'de> for ResourceIdVisitor {
-            type Value = ResourceId;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("resource id")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                let mut resource_id: Option<String> = None;
-                let mut namespace_id: Option<String> = None;
-                while let Ok(Some(key)) = map.next_key::<Field>() {
-                    match key {
-                        Field::ResourceId => resource_id = Some(map.next_value()?),
-                        Field::NamespaceId => namespace_id = Some(map.next_value()?),
-                    }
-                }
-                let resource_id = match resource_id {
-                    Some(id) => id,
-                    None => return Err(<A::Error as Error>::missing_field("resource_id")),
-                };
-
-                let namespace_id = match namespace_id {
-                    Some(id) => id,
-                    None => return Err(<A::Error as Error>::missing_field("namespace_id")),
-                };
-                Ok(ResourceId {
-                    resource_id,
-                    namespace_id,
-                })
-            }
-        }
-        deserializer.deserialize_struct(
-            "ResourceId",
-            &["resource_id", "namespace_id"],
-            ResourceIdVisitor,
-        )
     }
 }
 
@@ -547,95 +454,6 @@ impl Hash for ExecutionId {
     }
 }
 
-impl serde::Serialize for ExecutionId {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut s = serializer.serialize_struct("ExecutionId", 2)?;
-        s.serialize_field("job_id", &self.job_id)?;
-        s.serialize_field("sub_id", &self.sub_id)?;
-        s.end()
-    }
-}
-
-impl<'de> serde::Deserialize<'de> for ExecutionId {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const EXECUTION_ID_FIELDS: &'static [&'static str] = &["job_id", "sub_id"];
-        enum Field {
-            JobId,
-            SubId,
-        }
-
-        impl<'de> serde::Deserialize<'de> for Field {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct FieldVisitor;
-
-                impl<'de> Visitor<'de> for FieldVisitor {
-                    type Value = Field;
-                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        formatter.write_str("execution id")
-                    }
-
-                    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match v {
-                            "job_id" => Ok(Field::JobId),
-                            "sub_id" => Ok(Field::SubId),
-                            _ => return Err(Error::unknown_field(v, EXECUTION_ID_FIELDS)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(FieldVisitor)
-            }
-        }
-
-        struct ExecutionIdVisitor;
-
-        impl<'de> Visitor<'de> for ExecutionIdVisitor {
-            type Value = ExecutionId;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("execution id")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                let mut job_id: Option<Option<ResourceId>> = None;
-                let mut sub_id: Option<u32> = None;
-                while let Ok(Some(key)) = map.next_key::<Field>() {
-                    match key {
-                        Field::JobId => job_id = Some(map.next_value()?),
-                        Field::SubId => sub_id = Some(map.next_value()?),
-                    }
-                }
-                let job_id = match job_id {
-                    Some(id) => id,
-                    None => None,
-                };
-
-                let sub_id = match sub_id {
-                    Some(id) => id,
-                    None => 0,
-                };
-                Ok(ExecutionId { job_id, sub_id })
-            }
-        }
-        deserializer.deserialize_struct("ExecutionId", EXECUTION_ID_FIELDS, ExecutionIdVisitor)
-    }
-}
-
 macro_rules! get_func {
     ($name:ident,$import:ident) => {
         use crate::common::{$import, $name};
@@ -677,91 +495,16 @@ impl Hash for HostAddr {
 
 impl Eq for HostAddr {}
 
-impl serde::Serialize for HostAddr {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let mut s = serializer.serialize_struct("HostAddr", 2)?;
-        s.serialize_field("host", &self.host)?;
-        s.serialize_field("port", &self.port)?;
-        s.end()
+impl Heartbeat {
+    #[inline]
+    pub fn get_execution_id(&self) -> Option<&ExecutionId> {
+        self.execution_id.as_ref()
     }
 }
 
-impl<'de> serde::Deserialize<'de> for HostAddr {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        const HOST_ADDR_FIELDS: &'static [&'static str] = &["host", "port"];
-        enum Field {
-            Host,
-            Port,
-        }
-
-        impl<'de> serde::Deserialize<'de> for Field {
-            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-            where
-                D: serde::Deserializer<'de>,
-            {
-                struct FieldVisitor;
-
-                impl<'de> Visitor<'de> for FieldVisitor {
-                    type Value = Field;
-                    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                        formatter.write_str("host address fields")
-                    }
-
-                    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-                    where
-                        E: serde::de::Error,
-                    {
-                        match v {
-                            "host" => Ok(Field::Host),
-                            "port" => Ok(Field::Port),
-                            _ => return Err(Error::unknown_field(v, HOST_ADDR_FIELDS)),
-                        }
-                    }
-                }
-
-                deserializer.deserialize_identifier(FieldVisitor)
-            }
-        }
-
-        struct HostAddrVisitor;
-
-        impl<'de> Visitor<'de> for HostAddrVisitor {
-            type Value = HostAddr;
-
-            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
-                formatter.write_str("host address")
-            }
-
-            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
-            where
-                A: serde::de::MapAccess<'de>,
-            {
-                let mut host: Option<String> = None;
-                let mut port: Option<u32> = None;
-                while let Ok(Some(key)) = map.next_key::<Field>() {
-                    match key {
-                        Field::Host => host = Some(map.next_value()?),
-                        Field::Port => port = Some(map.next_value()?),
-                    }
-                }
-                let host = match host {
-                    Some(host) => host,
-                    None => return Err(<A::Error as Error>::missing_field("resource_id")),
-                };
-
-                let port = match port {
-                    Some(port) => port,
-                    None => return Err(<A::Error as Error>::missing_field("namespace_id")),
-                };
-                Ok(HostAddr { host, port })
-            }
-        }
-        deserializer.deserialize_struct("HostAddr", HOST_ADDR_FIELDS, HostAddrVisitor)
+impl Ack {
+    #[inline]
+    pub fn get_execution_id(&self) -> Option<&ExecutionId> {
+        self.execution_id.as_ref()
     }
 }

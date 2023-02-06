@@ -48,14 +48,6 @@ impl ExecutorManager for ExecutorManagerImpl {
     }
 }
 
-impl ExecutorManagerImpl {
-    pub fn run(&mut self) {
-        match self {
-            ExecutorManagerImpl::Local(manager) => manager.run(),
-        }
-    }
-}
-
 pub struct LocalExecutorManager {
     pub job_id: ResourceId,
     handlers: Vec<JoinHandle<()>>,
@@ -125,11 +117,5 @@ impl LocalExecutorManager {
             handlers: vec![],
             ctx,
         }
-    }
-
-    fn run(&mut self) {
-        let executors = self.ctx.create_executors();
-        self.inner_sinks = executors.iter().map(|exec| exec.as_sinkable()).collect();
-        self.handlers = executors.into_iter().map(|exec| exec.run()).collect();
     }
 }

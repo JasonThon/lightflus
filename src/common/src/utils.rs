@@ -52,6 +52,10 @@ pub mod times {
             nanos: now.timestamp_subsec_nanos() as i32,
         }
     }
+
+    pub fn now_timestamp() -> i64 {
+        now().timestamp_millis()
+    }
 }
 
 pub struct Args {
@@ -164,7 +168,7 @@ fn replace_by_env(value: &str) -> String {
 }
 
 pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
-    let host_addr = &operator.host_addr.as_ref();
+    let host_addr = operator.host_addr.as_ref();
     if host_addr.is_none() || host_addr.filter(|addr| &addr.host == "localhost").is_some() {
         return false;
     }

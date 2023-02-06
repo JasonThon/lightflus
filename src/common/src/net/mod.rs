@@ -127,7 +127,7 @@ pub struct HeartbeatBuilder {
 }
 
 impl HeartbeatBuilder {
-    pub fn build<F: Fn(&HostAddr, u64, u64) -> T, T: ReceiveHeartbeatRpcGateway>(
+    pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveHeartbeatRpcGateway>(
         &self,
         f: F,
     ) -> HeartbeatSender<T> {
@@ -136,7 +136,13 @@ impl HeartbeatBuilder {
                 .nodes
                 .iter()
                 .map(|addr| addr)
-                .map(|host_addr| f(&host_addr, self.connect_timeout, self.rpc_timeout))
+                .map(|host_addr| {
+                    f(
+                        &host_addr,
+                        Duration::from_secs(self.connect_timeout),
+                        Duration::from_secs(self.rpc_timeout),
+                    )
+                })
                 .collect(),
             interval: tokio::time::interval(Duration::from_secs(self.period)),
             execution_id: None,
@@ -269,7 +275,7 @@ pub struct AckResponderBuilder {
 }
 
 impl AckResponderBuilder {
-    pub fn build<F: Fn(&HostAddr, u64, u64) -> T, T: ReceiveAckRpcGateway>(
+    pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveAckRpcGateway>(
         &self,
         f: F,
     ) -> (AckResponder<T>, mpsc::Sender<Ack>) {
@@ -281,7 +287,13 @@ impl AckResponderBuilder {
                 gateway: self
                     .nodes
                     .iter()
-                    .map(|addr| f(addr, self.connect_timeout, self.rpc_timeout))
+                    .map(|addr| {
+                        f(
+                            addr,
+                            Duration::from_secs(self.connect_timeout),
+                            Duration::from_secs(self.rpc_timeout),
+                        )
+                    })
                     .collect(),
             },
             tx,

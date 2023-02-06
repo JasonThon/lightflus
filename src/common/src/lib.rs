@@ -7,6 +7,8 @@ pub mod net;
 pub mod redis;
 pub mod types;
 pub mod utils;
+#[cfg(not(tarpaulin_include))]
+pub mod consts;
 
 pub const NANOS_PER_MILLI: u32 = 1_000_000;
 

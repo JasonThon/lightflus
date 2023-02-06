@@ -9,6 +9,7 @@ use proto::common::{Dataflow, HostAddr};
 use std::collections::hash_map::DefaultHasher;
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 use std::vec;
 
 use super::gateway::taskmanager::SafeTaskManagerRpcGateway;
@@ -212,8 +213,8 @@ impl ClusterBuilder {
                         host: builder.host.clone(),
                         port: builder.port as u32,
                     },
-                    self.connect_timeout,
-                    self.rpc_timeout,
+                    Duration::from_secs(self.connect_timeout),
+                    Duration::from_secs(self.rpc_timeout),
                 ));
 
                 node.node_id = index as u32;

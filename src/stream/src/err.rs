@@ -1,8 +1,10 @@
+use std::fmt;
+
 use common::{
     err::{KafkaException, RedisException, TaskWorkerError},
-    event::{KafkaEventError, SinkableMessageImpl},
+    event::KafkaEventError,
+    types::NodeIdx,
 };
-use tokio::sync::mpsc::error::SendError;
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
@@ -23,15 +25,6 @@ pub struct SinkException {
 impl SinkException {
     pub fn into_task_worker_error(&self) -> TaskWorkerError {
         TaskWorkerError::EventSendFailure(format!("{:?}", self))
-    }
-}
-
-impl From<SendError<SinkableMessageImpl>> for SinkException {
-    fn from(err: SendError<SinkableMessageImpl>) -> Self {
-        Self {
-            kind: ErrorKind::MessageSendFailed,
-            msg: format!("message {:?} send to channel failed", err.0),
-        }
     }
 }
 
@@ -97,5 +90,15 @@ impl From<&mut tonic::transport::Error> for SinkException {
 
 #[derive(Debug)]
 pub enum RunnableTaskError {
-    OperatorUnimplemented,
+    OperatorUnimplemented(NodeIdx),
+}
+
+impl fmt::Display for RunnableTaskError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OperatorUnimplemented(operator_id) => {
+                f.write_str(format!("operator {} does not implement", operator_id).as_str())
+            }
+        }
+    }
 }

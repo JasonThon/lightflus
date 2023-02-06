@@ -485,9 +485,9 @@ mod tests {
                 to_operator_id: 1,
                 data: vec![],
                 event_time: Some(event_time),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 1,
             };
 
             let windows = assigner.assign_windows(event.clone());
@@ -546,9 +546,9 @@ mod tests {
                     seconds: now.timestamp(),
                     nanos: now.timestamp_subsec_nanos() as i32,
                 }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 1,
             };
             let windows = assigner.assign_windows(event);
             let window_start =
@@ -577,9 +577,9 @@ mod tests {
                                 seconds: now.timestamp(),
                                 nanos: now.timestamp_subsec_nanos() as i32,
                             }),
-                            process_time: None,
                             from_operator_id: 0,
-                            window: None
+                            window: None,
+                            event_id: 1
                         },
                         event_time: Some(now.clone()),
                         window_start: from_millis_to_utc_chrono(start),
@@ -625,9 +625,9 @@ mod tests {
                 seconds: now.timestamp(),
                 nanos: now.timestamp_subsec_nanos() as i32,
             }),
-            process_time: None,
             from_operator_id: 0,
             window: None,
+            event_id: 1,
         };
         let windows = assigner.assign_windows(event.clone());
         assert_eq!(
@@ -660,9 +660,9 @@ mod tests {
                 seconds: now.timestamp(),
                 nanos: now.timestamp_subsec_nanos() as i32,
             }),
-            process_time: None,
             from_operator_id: 0,
             window: None,
+            event_id: 1,
         };
         let windows = assigner.assign_windows(event.clone());
         let event_time = event.get_event_time();
@@ -709,9 +709,9 @@ mod tests {
                     seconds: now.timestamp(),
                     nanos: now.timestamp_subsec_nanos() as i32,
                 }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 1,
             },
             KeyedDataEvent {
                 job_id: None,
@@ -730,9 +730,9 @@ mod tests {
                         seconds: t.timestamp(),
                         nanos: t.timestamp_subsec_nanos() as i32,
                     }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 2,
             },
             KeyedDataEvent {
                 job_id: None,
@@ -751,9 +751,9 @@ mod tests {
                         seconds: t.timestamp(),
                         nanos: t.timestamp_subsec_nanos() as i32,
                     }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 3,
             },
             KeyedDataEvent {
                 job_id: None,
@@ -772,9 +772,9 @@ mod tests {
                         seconds: t.timestamp(),
                         nanos: t.timestamp_subsec_nanos() as i32,
                     }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 4,
             },
             KeyedDataEvent {
                 job_id: None,
@@ -793,9 +793,9 @@ mod tests {
                         seconds: t.timestamp(),
                         nanos: t.timestamp_subsec_nanos() as i32,
                     }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 5,
             },
             KeyedDataEvent {
                 job_id: None,
@@ -814,9 +814,9 @@ mod tests {
                         seconds: t.timestamp(),
                         nanos: t.timestamp_subsec_nanos() as i32,
                     }),
-                process_time: None,
                 from_operator_id: 0,
                 window: None,
+                event_id: 6,
             },
         ];
 
@@ -875,9 +875,9 @@ mod tests {
                             nanos: (now.timestamp_subsec_nanos() + 10 * common::NANOS_PER_MILLI)
                                 as i32
                         }),
-                        process_time: None,
                         from_operator_id: 0,
-                        window: None
+                        window: None,
+                        event_id: 1,
                     },
                     event_time: from_millis_to_utc_chrono(window_start),
                     window_start: from_millis_to_utc_chrono(window_start),
@@ -925,9 +925,9 @@ mod tests {
                                 seconds: t.timestamp(),
                                 nanos: t.timestamp_subsec_nanos() as i32,
                             }),
-                        process_time: None,
                         from_operator_id: 0,
-                        window: None
+                        window: None,
+                        event_id: 1
                     },
                     event_time: window_start
                         .and_then(|timestamp| from_millis_to_utc_chrono(timestamp)),

@@ -1,6 +1,7 @@
 /// *
 /// JobId, represents a stream job.
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceId {
     #[prost(string, tag = "1")]
@@ -9,6 +10,7 @@ pub struct ResourceId {
     pub namespace_id: ::prost::alloc::string::String,
 }
 /// common Rpc Response
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Response {
     #[prost(string, tag = "1")]
@@ -18,6 +20,7 @@ pub struct Response {
 }
 /// The common structure of remote host address in Lightflus
 #[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HostAddr {
     #[prost(string, tag = "1")]
@@ -26,6 +29,7 @@ pub struct HostAddr {
     pub port: u32,
 }
 /// The common structure of Timestamp in Lightflus
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Time {
     #[prost(uint64, tag = "1")]
@@ -38,6 +42,7 @@ pub struct Time {
     pub hours: u32,
 }
 /// Id of sub-dataflow execution
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExecutionId {
     /// Job Id
@@ -48,6 +53,7 @@ pub struct ExecutionId {
     pub sub_id: u32,
 }
 /// structure of heartbeat
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Heartbeat {
     /// heartbeat id which increases monotonically
@@ -67,6 +73,7 @@ pub struct Heartbeat {
 /// - Heartbeat
 /// - Checkpoint
 /// - Metrics
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Ack {
     /// The timestamp when the ack response sent
@@ -116,11 +123,19 @@ pub mod ack {
                 AckType::Heartbeat => "HEARTBEAT",
             }
         }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "HEARTBEAT" => Some(Self::Heartbeat),
+                _ => None,
+            }
+        }
     }
     /// the id which sent by the request needs to ack. it may points to multiple semantics:
     /// - for heartbeat, it represents heartbeat id
     /// - for checkpoint, it represents checkpoint id
     /// - for metrics, it represents metric id
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum RequestId {
         #[prost(uint64, tag = "1")]
@@ -128,6 +143,7 @@ pub mod ack {
     }
 }
 /// Basic information of task
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct TaskInfo {
     /// execution id of task
@@ -140,6 +156,7 @@ pub struct TaskInfo {
 /// Nested message and enum types in `TaskInfo`.
 pub mod task_info {
     /// Basic information of executor
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ExecutorInfo {
         #[prost(uint32, tag = "1")]
@@ -177,6 +194,16 @@ pub mod task_info {
                 ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
                 ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
                 ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
+            }
+        }
+        /// Creates an enum from field names used in the ProtoBuf definition.
+        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+            match value {
+                "EXECUTOR_STATUS_INITIALIZED" => Some(Self::Initialized),
+                "EXECUTOR_STATUS_RUNNING" => Some(Self::Running),
+                "EXECUTOR_STATUS_TERMINATING" => Some(Self::Terminating),
+                "EXECUTOR_STATUS_TERMINATED" => Some(Self::Terminated),
+                _ => None,
             }
         }
     }
@@ -219,6 +246,20 @@ impl DataTypeEnum {
             DataTypeEnum::Array => "DATA_TYPE_ENUM_ARRAY",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "DATA_TYPE_ENUM_UNSPECIFIED" => Some(Self::Unspecified),
+            "DATA_TYPE_ENUM_BIGINT" => Some(Self::Bigint),
+            "DATA_TYPE_ENUM_NUMBER" => Some(Self::Number),
+            "DATA_TYPE_ENUM_NULL" => Some(Self::Null),
+            "DATA_TYPE_ENUM_STRING" => Some(Self::String),
+            "DATA_TYPE_ENUM_BOOLEAN" => Some(Self::Boolean),
+            "DATA_TYPE_ENUM_OBJECT" => Some(Self::Object),
+            "DATA_TYPE_ENUM_ARRAY" => Some(Self::Array),
+            _ => None,
+        }
+    }
 }
 /// Some common rpc error code
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -256,6 +297,25 @@ impl ErrorCode {
             }
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "ERROR_CODE_UNSPECIFIED" => Some(Self::Unspecified),
+            "ERROR_CODE_RESOURCE_NOT_FOUND" => Some(Self::ResourceNotFound),
+            "ERROR_CODE_RPC_UNAUTHORIZED" => Some(Self::RpcUnauthorized),
+            "ERROR_CODE_RPC_INVALID_ARGUMENT" => Some(Self::RpcInvalidArgument),
+            "ERROR_CODE_RPC_PERMISSION_DENIED" => Some(Self::RpcPermissionDenied),
+            "ERROR_CODE_INTERNAL_ERROR" => Some(Self::InternalError),
+            "ERROR_CODE_DATAFLOW_OPERATOR_INFO_MISSING" => {
+                Some(Self::DataflowOperatorInfoMissing)
+            }
+            "ERROR_CODE_CYCLIC_DATAFLOW" => Some(Self::CyclicDataflow),
+            "ERROR_CODE_DATAFLOW_CONFIGURATION_MISSING" => {
+                Some(Self::DataflowConfigurationMissing)
+            }
+            _ => None,
+        }
+    }
 }
 /// The type of node
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -277,9 +337,70 @@ impl NodeType {
             NodeType::TaskWorker => "TASK_WORKER",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "JOB_MANAGER" => Some(Self::JobManager),
+            "TASK_WORKER" => Some(Self::TaskWorker),
+            _ => None,
+        }
+    }
+}
+/// Event that keyed transferred between operators
+/// KeyedDataEvent can be traced in a distributed system with event id
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct KeyedDataEvent {
+    #[prost(message, optional, tag = "1")]
+    pub job_id: ::core::option::Option<ResourceId>,
+    /// key of data event
+    #[prost(message, optional, tag = "2")]
+    pub key: ::core::option::Option<Entry>,
+    /// operator_id this event will be sent
+    #[prost(uint32, tag = "3")]
+    pub to_operator_id: u32,
+    /// mandatory
+    #[prost(message, repeated, tag = "5")]
+    pub data: ::prost::alloc::vec::Vec<Entry>,
+    /// event time
+    #[prost(int64, tag = "6")]
+    pub event_time: i64,
+    /// operator_id this event where be sent
+    #[prost(uint32, tag = "7")]
+    pub from_operator_id: u32,
+    /// the window of this event
+    #[prost(message, optional, tag = "8")]
+    pub window: ::core::option::Option<keyed_data_event::Window>,
+    /// event id, generated by source
+    #[prost(int64, tag = "9")]
+    pub event_id: i64,
+}
+/// Nested message and enum types in `KeyedDataEvent`.
+pub mod keyed_data_event {
+    #[derive(serde::Serialize, serde::Deserialize)]
+    #[allow(clippy::derive_partial_eq_without_eq)]
+    #[derive(Clone, PartialEq, ::prost::Message)]
+    pub struct Window {
+        #[prost(int64, tag = "1")]
+        pub start_time: i64,
+        #[prost(int64, tag = "2")]
+        pub end_time: i64,
+    }
+}
+#[derive(serde::Serialize, serde::Deserialize)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct Entry {
+    #[prost(enumeration = "DataTypeEnum", tag = "1")]
+    pub data_type: i32,
+    /// entry value
+    #[prost(bytes = "bytes", tag = "2")]
+    pub value: ::prost::bytes::Bytes,
 }
 /// *
 /// StreamGraph metadata, it stores the structural information of a stream graph
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DataflowMeta {
     /// center node id
@@ -291,6 +412,7 @@ pub struct DataflowMeta {
 }
 /// *
 /// OperatorInfo, stores detail information of an operator
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct OperatorInfo {
     #[prost(uint32, tag = "1")]
@@ -308,6 +430,7 @@ pub struct OperatorInfo {
 /// Nested message and enum types in `OperatorInfo`.
 pub mod operator_info {
     /// optional for different operator type
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Details {
         /// for source
@@ -331,6 +454,7 @@ pub mod operator_info {
         Window(super::Window),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Reducer {
     #[prost(oneof = "reducer::Value", tags = "1")]
@@ -338,12 +462,14 @@ pub struct Reducer {
 }
 /// Nested message and enum types in `Reducer`.
 pub mod reducer {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
         Func(super::Func),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct FlatMap {
     #[prost(oneof = "flat_map::Value", tags = "1")]
@@ -351,12 +477,14 @@ pub struct FlatMap {
 }
 /// Nested message and enum types in `FlatMap`.
 pub mod flat_map {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
         Func(super::Func),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Join {
     #[prost(oneof = "join::Value", tags = "1")]
@@ -364,6 +492,7 @@ pub struct Join {
 }
 /// Nested message and enum types in `Join`.
 pub mod join {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct StreamJoin {
         #[prost(uint32, tag = "1")]
@@ -371,12 +500,14 @@ pub mod join {
         #[prost(message, optional, tag = "2")]
         pub func: ::core::option::Option<super::Func>,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
         StreamJoin(StreamJoin),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Mapper {
     #[prost(oneof = "mapper::Value", tags = "1")]
@@ -384,17 +515,20 @@ pub struct Mapper {
 }
 /// Nested message and enum types in `Mapper`.
 pub mod mapper {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
         Func(super::Func),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Func {
     #[prost(string, tag = "1")]
     pub function: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Filter {
     #[prost(oneof = "filter::Value", tags = "1")]
@@ -402,12 +536,14 @@ pub struct Filter {
 }
 /// Nested message and enum types in `Filter`.
 pub mod filter {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
         Func(super::Func),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyBy {
     #[prost(oneof = "key_by::Value", tags = "1")]
@@ -415,12 +551,14 @@ pub struct KeyBy {
 }
 /// Nested message and enum types in `KeyBy`.
 pub mod key_by {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
         Func(super::Func),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sink {
     #[prost(oneof = "sink::Desc", tags = "1, 2, 3")]
@@ -428,6 +566,7 @@ pub struct Sink {
 }
 /// Nested message and enum types in `Sink`.
 pub mod sink {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Desc {
         #[prost(message, tag = "1")]
@@ -440,6 +579,7 @@ pub mod sink {
 }
 /// *
 /// Constant operator
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ConstOp {
     /// value of constant, format: [<flag byte>, <data bytes>]
@@ -449,6 +589,7 @@ pub struct ConstOp {
     #[prost(uint32, tag = "2")]
     pub operator_id: u32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Source {
     #[prost(oneof = "source::Desc", tags = "3")]
@@ -456,12 +597,14 @@ pub struct Source {
 }
 /// Nested message and enum types in `Source`.
 pub mod source {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Desc {
         #[prost(message, tag = "3")]
         Kafka(super::KafkaDesc),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KafkaDesc {
     #[prost(string, repeated, tag = "1")]
@@ -475,6 +618,7 @@ pub struct KafkaDesc {
 }
 /// Nested message and enum types in `KafkaDesc`.
 pub mod kafka_desc {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct KafkaOptions {
         #[prost(string, optional, tag = "1")]
@@ -483,6 +627,7 @@ pub mod kafka_desc {
         pub partition: ::core::option::Option<u32>,
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct MysqlDesc {
     #[prost(message, optional, tag = "1")]
@@ -492,6 +637,7 @@ pub struct MysqlDesc {
 }
 /// Nested message and enum types in `MysqlDesc`.
 pub mod mysql_desc {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ConnectionOpts {
         #[prost(string, tag = "1")]
@@ -503,6 +649,7 @@ pub mod mysql_desc {
         #[prost(string, tag = "4")]
         pub database: ::prost::alloc::string::String,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Statement {
         #[prost(string, tag = "1")]
@@ -512,6 +659,7 @@ pub mod mysql_desc {
     }
     /// Nested message and enum types in `Statement`.
     pub mod statement {
+        #[allow(clippy::derive_partial_eq_without_eq)]
         #[derive(Clone, PartialEq, ::prost::Message)]
         pub struct Extractor {
             #[prost(uint32, tag = "1")]
@@ -521,6 +669,7 @@ pub mod mysql_desc {
         }
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct RedisDesc {
     #[prost(message, optional, tag = "1")]
@@ -532,6 +681,7 @@ pub struct RedisDesc {
 }
 /// Nested message and enum types in `RedisDesc`.
 pub mod redis_desc {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct ConnectionOpts {
         #[prost(string, tag = "1")]
@@ -550,6 +700,7 @@ pub mod redis_desc {
 /// Dataflow can be shared between API, Coordinator and TaskManager.
 /// However, they may check the Dataflow by distinct validators.
 /// Each part's concern is different and they must be sure it's a legal Dataflow to them.
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Dataflow {
     /// job id, for now it is which table the stream graph output will sink
@@ -565,6 +716,7 @@ pub struct Dataflow {
     #[prost(message, optional, tag = "4")]
     pub execution_id: ::core::option::Option<ExecutionId>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Window {
     #[prost(message, optional, tag = "4")]
@@ -574,12 +726,14 @@ pub struct Window {
 }
 /// Nested message and enum types in `Window`.
 pub mod window {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct FixedWindow {
         /// Only for sliding & fixed window
         #[prost(message, optional, tag = "1")]
         pub size: ::core::option::Option<super::Time>,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SlidingWindow {
         #[prost(message, optional, tag = "1")]
@@ -587,12 +741,14 @@ pub mod window {
         #[prost(message, optional, tag = "2")]
         pub period: ::core::option::Option<super::Time>,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct SessionWindow {
         /// Only for Session Window
         #[prost(message, optional, tag = "1")]
         pub timeout: ::core::option::Option<super::Time>,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
@@ -603,6 +759,7 @@ pub mod window {
         Session(SessionWindow),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Trigger {
     #[prost(oneof = "trigger::Value", tags = "1")]
@@ -610,11 +767,13 @@ pub struct Trigger {
 }
 /// Nested message and enum types in `Trigger`.
 pub mod trigger {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Watermark {
         #[prost(message, optional, tag = "1")]
         pub trigger_time: ::core::option::Option<super::Time>,
     }
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Value {
         #[prost(message, tag = "1")]
@@ -644,6 +803,16 @@ impl DataflowStatus {
             DataflowStatus::Closed => "CLOSED",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "INITIALIZED" => Some(Self::Initialized),
+            "RUNNING" => Some(Self::Running),
+            "CLOSING" => Some(Self::Closing),
+            "CLOSED" => Some(Self::Closed),
+            _ => None,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
 #[repr(i32)]
@@ -662,51 +831,12 @@ impl OperatorStatus {
             OperatorStatus::OperatorTerminated => "OPERATOR_TERMINATED",
         }
     }
-}
-/// Event that keyed transferred between operators
-/// KeyedDataEvent can be traced in a distributed system with event id
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct KeyedDataEvent {
-    /// key of data event
-    #[prost(message, optional, tag = "2")]
-    pub key: ::core::option::Option<Entry>,
-    /// operator_id this event will be sent
-    #[prost(uint32, tag = "3")]
-    pub to_operator_id: u32,
-    /// mandatory
-    #[prost(message, repeated, tag = "5")]
-    pub data: ::prost::alloc::vec::Vec<Entry>,
-    /// event time
-    #[prost(int64, tag = "6")]
-    pub event_time: i64,
-    /// operator_id this event where be sent
-    #[prost(uint32, tag = "7")]
-    pub from_operator_id: u32,
-    /// the window of this event
-    #[prost(message, optional, tag = "8")]
-    pub window: ::core::option::Option<keyed_data_event::Window>,
-    /// event id, generated by source
-    #[prost(int64, tag = "9")]
-    pub event_id: i64,
-}
-/// Nested message and enum types in `KeyedDataEvent`.
-pub mod keyed_data_event {
-    #[derive(serde::Serialize, serde::Deserialize)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct Window {
-        #[prost(int64, tag = "1")]
-        pub start_time: i64,
-        #[prost(int64, tag = "2")]
-        pub end_time: i64,
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "OPERATOR_RUNNING" => Some(Self::OperatorRunning),
+            "OPERATOR_TERMINATED" => Some(Self::OperatorTerminated),
+            _ => None,
+        }
     }
-}
-#[derive(serde::Serialize, serde::Deserialize)]
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct Entry {
-    #[prost(enumeration = "DataTypeEnum", tag = "1")]
-    pub data_type: i32,
-    /// entry value
-    #[prost(bytes = "vec", tag = "2")]
-    pub value: ::prost::alloc::vec::Vec<u8>,
 }

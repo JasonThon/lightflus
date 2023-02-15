@@ -7,6 +7,7 @@ use std::{
 };
 
 use common::{
+    collections::lang,
     consts::{
         default_configs::{
             DEFAULT_CHANNEL_SIZE, DEFAULT_SEND_OPERATOR_EVENT_CONNECT_TIMEOUT_MILLIS,
@@ -16,7 +17,7 @@ use common::{
             CHANNEL_SIZE, SEND_OPERATOR_EVENT_CONNECT_TIMEOUT, SEND_OPERATOR_EVENT_RPC_TIMEOUT,
         },
     },
-    event::{LocalEvent, StreamEvent},
+    event::LocalEvent,
     net::gateway::taskmanager::UnsafeTaskManagerRpcGateway,
     types::{ExecutorId, SinkId},
     utils::get_env,
@@ -84,8 +85,8 @@ impl Task {
 
 pub enum EdgeBuilder<'a> {
     Local {
-        tx: Sender<LocalEvent>,
-        rx: Receiver<LocalEvent>,
+        tx: Sender<bytes::Bytes>,
+        rx: Receiver<bytes::Bytes>,
         operator_info: &'a OperatorInfo,
     },
     Remote {
@@ -201,132 +202,82 @@ impl StreamExecutor {
     ) {
         match execution.process(&event) {
             Ok(events) => {
-                let mut events = events
+                // clone events here is not exhaustable because Entry is a zero-copy structure.
+                let mut futures = events
                     .into_iter()
                     .map(|event| LocalEvent::KeyedDataStreamEvent(event))
+                    .map(|mut event| {
+                        let sink_futures = self
+                            .external_sinks
+                            .iter()
+                            .map(|(executor_id, sink)| {
+                                match &mut event {
+                                    LocalEvent::KeyedDataStreamEvent(e) => {
+                                        e.to_operator_id = *executor_id;
+                                    }
+                                    _ => {}
+                                };
+
+                                sink.sink(event.clone())
+                            })
+                            .collect::<Vec<_>>();
+                        let out_edge_futures = self
+                            .out_edges
+                            .iter()
+                            .map(|(executor_id, edge)| {
+                                match &mut event {
+                                    LocalEvent::KeyedDataStreamEvent(e) => {
+                                        e.to_operator_id = *executor_id
+                                    }
+                                    _ => {}
+                                };
+
+                                edge.send(event.clone())
+                            })
+                            .collect::<Vec<_>>();
+                        (sink_futures, out_edge_futures)
+                    })
                     .collect::<Vec<_>>();
-                // first, you should materialze a multiple running futures view
-                let sink_futures = self
-                    .external_sinks
-                    .iter()
-                    .map(|(executor_id, sink)| {
-                        events.iter_mut().for_each(|mut event| match event {
-                            LocalEvent::KeyedDataStreamEvent(e) => {
-                                e.to_operator_id = *executor_id;
+
+                while let true = lang::any_match_mut(&mut futures, |(sink_fut, out_edge_fut)| {
+                    lang::any_match_mut(sink_fut, |fut| {
+                        let result = fut.poll_unpin(cx);
+                        match result {
+                            std::task::Poll::Ready(r) => {
+                                match r {
+                                    Err(err) => {
+                                        tracing::error!(
+                                            "event job {:?} sink to external sink failed. details: {:?}",
+                                            &self.job_id,
+                                            err
+                                        );
+                                    }
+                                    _ => {}
+                                }
+                                false
                             }
-                            _ => {}
-                        });
-
-                        (
-                            *executor_id,
-                            events
-                                .iter()
-                                .map(|event| (event.event_id(), sink.sink(event)))
-                                .collect::<Vec<_>>(),
-                        )
-                    })
-                    .collect::<BTreeMap<ExecutorId, Vec<_>>>();
-
-                let out_edge_futures = self
-                    .out_edges
-                    .iter()
-                    .map(|(executor_id, out_edge)| {
-                        events.iter_mut().for_each(|mut event| match event {
-                            LocalEvent::KeyedDataStreamEvent(event) => {
-                                event.to_operator_id = *executor_id
+                            std::task::Poll::Pending => true,
+                        }
+                    }) && lang::any_match_mut(out_edge_fut, |fut| {
+                        let result = fut.poll_unpin(cx);
+                        match result {
+                            std::task::Poll::Ready(r) => {
+                                match r {
+                                    Err(err) => {
+                                        tracing::error!(
+                                            "event job {:?} sink to external sink failed. details: {:?}",
+                                            &self.job_id,
+                                            err
+                                        );
+                                    }
+                                    _ => {}
+                                }
+                                false
                             }
-                            _ => {}
-                        });
-
-                        (
-                            *executor_id,
-                            events
-                                .iter()
-                                .map(|event| (event.event_id(), out_edge.send(event)))
-                                .collect::<Vec<_>>(),
-                        )
+                            std::task::Poll::Pending => true,
+                        }
                     })
-                    .collect::<BTreeMap<ExecutorId, Vec<_>>>();
-
-                // create a pending sink executors iterator
-                let pending_sink_executor_iter = sink_futures.iter_mut().filter(|(_, futures)| {
-                    (*futures)
-                        .iter_mut()
-                        .filter(|(_, poll)| poll.poll_unpin(cx).is_pending())
-                        .next()
-                        .is_some()
-                });
-                // create a pending out edge executors iterator
-                let pending_out_edge_executor_iter =
-                    out_edge_futures.iter_mut().filter(|(_, futures)| {
-                        (*futures)
-                            .iter_mut()
-                            .filter(|(_, poll)| poll.poll_unpin(cx).is_pending())
-                            .next()
-                            .is_some()
-                    });
-
-                // then, join all running futures until they are all finished.
-                // these futures will be executed concurrently
-                loop {
-                    let if_all_event_sinked = pending_sink_executor_iter.fold(
-                        false,
-                        |prev, (executor_id, event_futures)| {
-                            prev && event_futures
-                                .iter_mut()
-                                .map(
-                                    |(event_id, event_future)| match event_future.poll_unpin(cx) {
-                                        std::task::Poll::Ready(r) => match r {
-                                            Ok(_) => true,
-                                            Err(err) => {
-                                                tracing::error!(
-                                                "event {} for job {:?} sink to external sink failed. details: {:?}",
-                                                event_id,
-                                                &self.job_id,
-                                                err
-                                            );
-                                                true
-                                            }
-                                        },
-                                        std::task::Poll::Pending => false,
-                                    },
-                                )
-                                .reduce(|prev, current| prev && current)
-                                == Some(true)
-                        },
-                    );
-
-                    let if_all_event_out_edge = pending_sink_executor_iter.fold(
-                        false,
-                        |prev, (executor_id, event_futures)| {
-                            prev && event_futures
-                                .iter_mut()
-                                .map(
-                                    |(event_id, event_future)| match event_future.poll_unpin(cx) {
-                                        std::task::Poll::Ready(r) => match r {
-                                            Ok(_) => true,
-                                            Err(err) => {
-                                                tracing::error!(
-                                                "event {} for job {:?} sink to external sink failed. details: {:?}",
-                                                event_id,
-                                                &self.job_id,
-                                                err
-                                            );
-                                                true
-                                            }
-                                        },
-                                        std::task::Poll::Pending => false,
-                                    },
-                                )
-                                .reduce(|prev, current| prev && current)
-                                == Some(true)
-                        },
-                    );
-
-                    if if_all_event_out_edge && if_all_event_sinked {
-                        break;
-                    }
-                }
+                }) {}
             }
             Err(err) => tracing::error!("{}", err),
         }

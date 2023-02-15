@@ -29,11 +29,11 @@ async fn test_kafka_pub_sub() {
 
     let opt = consumer
         .fetch(|msg| {
-            let key = String::from_utf8(msg.key);
+            let key = String::from_utf8(msg.key.to_vec());
             assert!(key.is_ok());
             let key = key.unwrap();
 
-            let value = String::from_utf8(msg.payload);
+            let value = String::from_utf8(msg.payload.to_vec());
 
             assert!(value.is_ok());
 

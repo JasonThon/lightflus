@@ -15,8 +15,8 @@ use proto::common::KeyedDataEvent;
 
 use proto::common::NodeType;
 use proto::taskmanager::SendEventToOperatorStatusEnum;
-use stream::actor::SinkImpl;
 
+use stream::connector::SinkImpl;
 use stream::edge::OutEdge;
 use stream::task::EdgeBuilder;
 
@@ -86,7 +86,7 @@ impl<'a> TaskWorkerBuilder<'a> {
 
                         // if operator is not Source, it should create an out-edge for [`TaskWorker`] to send operator
                         if !operator_info.has_source() {
-                            let builder = edge_builders.get(&executor_id).unwrap();
+                            let builder = edge_builders.remove(&executor_id).unwrap();
                             worker
                                 .in_edges
                                 .insert(executor_id, builder.build_out_edge());
@@ -114,7 +114,7 @@ impl TaskWorker {
         let executor_id = event.to_operator_id;
         match self.in_edges.get(&executor_id) {
             Some(in_edge) => in_edge
-                .send(&LocalEvent::KeyedDataStreamEvent(event))
+                .send(LocalEvent::KeyedDataStreamEvent(event))
                 .await
                 .map(|_| SendEventToOperatorStatusEnum::Done)
                 .map_err(|err| TaskWorkerError::EventSendFailure(err.to_string())),
@@ -122,7 +122,7 @@ impl TaskWorker {
         }
     }
 
-    pub async fn terminate_execution(self) {}
+    pub async fn terminate_execution(&self) {}
 
     #[inline]
     pub fn receive_heartbeat(&self, heartbeat: &Heartbeat) {
@@ -130,7 +130,7 @@ impl TaskWorker {
             NodeType::JobManager => self.last_receive_heartbeat_id.store(
                 self.last_receive_heartbeat_id
                     .fetch_max(heartbeat.heartbeat_id, atomic::Ordering::Relaxed),
-                atomic::Ordering::AcqRel,
+                atomic::Ordering::SeqCst,
             ),
             _ => {}
         }

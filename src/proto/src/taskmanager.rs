@@ -1,13 +1,16 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct SendEventToOperatorResponse {
     #[prost(enumeration = "SendEventToOperatorStatusEnum", tag = "1")]
     pub status: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StopDataflowResponse {
     #[prost(message, optional, tag = "1")]
     pub resp: ::core::option::Option<super::common::Response>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateSubDataflowRequest {
     #[prost(message, optional, tag = "1")]
@@ -15,6 +18,7 @@ pub struct CreateSubDataflowRequest {
     #[prost(message, optional, tag = "2")]
     pub dataflow: ::core::option::Option<super::common::Dataflow>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateSubDataflowResponse {
     #[prost(enumeration = "super::common::DataflowStatus", tag = "1")]
@@ -39,13 +43,22 @@ impl SendEventToOperatorStatusEnum {
             SendEventToOperatorStatusEnum::Failure => "FAILURE",
         }
     }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "DISPATCHING" => Some(Self::Dispatching),
+            "DONE" => Some(Self::Done),
+            "FAILURE" => Some(Self::Failure),
+            _ => None,
+        }
+    }
 }
 /// Generated client implementations.
 pub mod task_manager_api_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
-    #[doc = "/ RPC Api for Task Manager"]
+    /// / RPC Api for Task Manager
     #[derive(Debug, Clone)]
     pub struct TaskManagerApiClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -110,7 +123,7 @@ pub mod task_manager_api_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        #[doc = "/ Send event to operator"]
+        /// / Send event to operator
         pub async fn send_event_to_operator(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::KeyedDataEvent>,
@@ -130,7 +143,7 @@ pub mod task_manager_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Attempt to terminate a sub-dataflow"]
+        /// / Attempt to terminate a sub-dataflow
         pub async fn stop_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::ResourceId>,
@@ -150,7 +163,7 @@ pub mod task_manager_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Attempt to create a sub-dataflow"]
+        /// / Attempt to create a sub-dataflow
         pub async fn create_sub_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::CreateSubDataflowRequest>,
@@ -170,7 +183,7 @@ pub mod task_manager_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Receive heartbeat"]
+        /// / Receive heartbeat
         pub async fn receive_heartbeat(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Heartbeat>,
@@ -190,7 +203,7 @@ pub mod task_manager_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Receive ack"]
+        /// / Receive ack
         pub async fn receive_ack(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Ack>,
@@ -216,36 +229,36 @@ pub mod task_manager_api_client {
 pub mod task_manager_api_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with TaskManagerApiServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with TaskManagerApiServer.
     #[async_trait]
     pub trait TaskManagerApi: Send + Sync + 'static {
-        #[doc = "/ Send event to operator"]
+        /// / Send event to operator
         async fn send_event_to_operator(
             &self,
             request: tonic::Request<super::super::common::KeyedDataEvent>,
         ) -> Result<tonic::Response<super::SendEventToOperatorResponse>, tonic::Status>;
-        #[doc = "/ Attempt to terminate a sub-dataflow"]
+        /// / Attempt to terminate a sub-dataflow
         async fn stop_dataflow(
             &self,
             request: tonic::Request<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::StopDataflowResponse>, tonic::Status>;
-        #[doc = "/ Attempt to create a sub-dataflow"]
+        /// / Attempt to create a sub-dataflow
         async fn create_sub_dataflow(
             &self,
             request: tonic::Request<super::CreateSubDataflowRequest>,
         ) -> Result<tonic::Response<super::CreateSubDataflowResponse>, tonic::Status>;
-        #[doc = "/ Receive heartbeat"]
+        /// / Receive heartbeat
         async fn receive_heartbeat(
             &self,
             request: tonic::Request<super::super::common::Heartbeat>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Receive ack"]
+        /// / Receive ack
         async fn receive_ack(
             &self,
             request: tonic::Request<super::super::common::Ack>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
     }
-    #[doc = "/ RPC Api for Task Manager"]
+    /// / RPC Api for Task Manager
     #[derive(Debug)]
     pub struct TaskManagerApiServer<T: TaskManagerApi> {
         inner: _Inner<T>,

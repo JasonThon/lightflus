@@ -1,31 +1,40 @@
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
-use std::ops::Deref;
 use std::time::SystemTime;
 
-use prost::Message;
 use proto::common::KeyedDataEvent;
 use proto::common::ResourceId;
-use serde::ser::SerializeStruct;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::kafka::KafkaMessage;
 use crate::types::{self, TypedValue};
 
-pub trait KeyedEvent<K, V> {
-    fn event_time(&self) -> chrono::DateTime<chrono::Utc>;
-    fn get_key(&self) -> K;
-    fn get_value(&self) -> V;
-}
-
 /// The trait that is a stream event
 /// A [`StreamEvent`] can be serialized to be sent to external sink (e.g. Kafka, Database).
-pub trait StreamEvent: Send + Serialize {
-    fn generate_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError>;
-    fn from_slice(slice: &[u8]) -> Self;
+///
+/// # Thread-safety
+///
+/// [`StreamEvent`] should implement [`Send`] and [`Sync`] which means:
+/// - a [`StreamEvent`] can be shared between threads safely;
+/// - you can use [tokio::sync::mpsc::Sender] and [tokio::sync::mpsc::Receiver] to transfer a [`StreamEvent`] across threads;
+///
+/// # Serialize
+///
+/// [`StreamEvent`] also implements [serde::Serialize]. You can serialize a [`StreamEvent`] if the serializer supports serde.
+pub trait StreamEvent: Send + Sync + Serialize + Sized {
+    /// Each stream event can be transformed to kafka message.
+    fn to_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError>;
+    /// Deserialize from slice.
+    /// Deserializer will be choosed
+    fn from_slice(slice: &[u8]) -> Result<Self, StreamEventDeserializeError>;
+    /// stream event may has a id
     fn event_id(&self) -> i64;
+    /// stream event may has a timestamp to indicate when it is generated
     fn event_time(&self) -> i64;
+}
+
+#[derive(Debug)]
+pub enum StreamEventDeserializeError {
+    RmpDecodeError(rmp_serde::decode::Error),
 }
 
 /// [`LocalEvent`] can be transferred between threads safely by channel.
@@ -51,7 +60,7 @@ pub trait StreamEvent: Send + Serialize {
 ///     }))
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum LocalEvent {
     Terminate {
         job_id: ResourceId,
@@ -63,34 +72,6 @@ pub enum LocalEvent {
 
 unsafe impl Send for LocalEvent {}
 unsafe impl Sync for LocalEvent {}
-
-impl Serialize for LocalEvent {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            LocalEvent::Terminate {
-                job_id,
-                to,
-                event_time,
-            } => {
-                let mut s = serializer.serialize_struct("Terminate", 3)?;
-                s.serialize_field("job_id", job_id)?;
-                s.serialize_field("to", to)?;
-                s.serialize_field("event_time", event_time)?;
-                s.end()
-            }
-            LocalEvent::KeyedDataStreamEvent(event) => {
-                let mut s = serializer.serialize_struct("KeyedDataStreamEvent", 1)?;
-                let ref mut buf = vec![];
-                event.encode(buf);
-                s.serialize_field("event", buf)?;
-                s.end()
-            }
-        }
-    }
-}
 
 #[derive(Debug)]
 pub enum KafkaEventError {
@@ -110,7 +91,7 @@ impl From<serde_json::Error> for KafkaEventError {
 }
 
 impl StreamEvent for LocalEvent {
-    fn generate_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError> {
+    fn to_kafka_message(&self) -> Result<Vec<KafkaMessage>, KafkaEventError> {
         match self {
             LocalEvent::Terminate { .. } => Err(KafkaEventError::UnsupportedEvent),
             LocalEvent::KeyedDataStreamEvent(e) => {
@@ -136,8 +117,8 @@ impl StreamEvent for LocalEvent {
                             }
 
                             messages.push(KafkaMessage {
-                                key: k.to_vec(),
-                                payload: payload_result.unwrap(),
+                                key: bytes::Bytes::copy_from_slice(&k),
+                                payload: bytes::Bytes::from(payload_result.unwrap()),
                                 timestamp: Some(timestamp.timestamp_millis()),
                             })
                         }
@@ -149,8 +130,8 @@ impl StreamEvent for LocalEvent {
         }
     }
 
-    fn from_slice(slice: &[u8]) -> Self {
-        todo!()
+    fn from_slice(slice: &[u8]) -> Result<Self, StreamEventDeserializeError> {
+        rmp_serde::from_slice(slice).map_err(|err| StreamEventDeserializeError::RmpDecodeError(err))
     }
 
     fn event_id(&self) -> i64 {

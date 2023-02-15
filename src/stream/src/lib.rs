@@ -8,7 +8,6 @@ mod v8_runtime;
 mod window;
 
 pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
-pub(crate) const DEFAULT_CHANNEL_SIZE: usize = 1000;
 
 pub(crate) type Receiver<Output> = tokio::sync::mpsc::Receiver<Output>;
 pub(crate) type Sender<Output> = tokio::sync::mpsc::Sender<Output>;

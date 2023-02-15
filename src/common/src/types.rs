@@ -445,6 +445,10 @@ impl TypedValue {
             TypedValue::Invalid => serde_json::Value::Null,
         }
     }
+
+    pub fn get_data_bytes(&self) -> bytes::Bytes {
+        bytes::Bytes::from(self.get_data())
+    }
 }
 
 impl From<&Entry> for TypedValue {

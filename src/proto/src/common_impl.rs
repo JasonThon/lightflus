@@ -15,6 +15,89 @@ use crate::common::{
 
 pub const SUCCESS_RPC_RESPONSE: &str = "success";
 
+const RESOURCE_ID_SCHEMA: &str = r#"{
+    "name": "ResourceId", 
+    "type": "record", 
+    "fields": [{
+        "name": "resource_id", 
+        "type": "string"
+    },
+    {
+        "name": "namespace_id", 
+        "type": "string"
+    }]
+}"#;
+
+const ENTRY_SCHEMA: &str = r#"{
+    "name": "Entry",
+    "type": "record", 
+    "fields": [
+        {
+            "name": "data_type", 
+            "type": "int"
+        },
+        {
+            "name": "value", 
+            "type": "bytes"
+        }
+    ]
+}"#;
+
+const WINDOW_SCHEMA: &str = r#"{
+    "name": "Window",
+    "type": "record",
+    "fields": [
+        {
+            "name": "start_time",
+            "type": "long"
+        },
+        {
+            "name": "end_time",
+            "type": "long"
+        }
+    ]
+}"#;
+
+const KEYED_DATA_EVENT_SCHEMA: &str = r#"{
+    "type": "record",
+    "name": "KeyedDataEvent",
+    "fields": [
+        {
+            "name": "job_id", 
+            "type": "ResourceId"
+        },
+        {
+            "name": "key", 
+            "type": "Entry", 
+        },
+        {
+            "name": "data", 
+            "type": "array", 
+            "items": "Entry"
+        }
+        {
+            "name": "to_operator_id", 
+            "type": "int"
+        }
+        {
+            "name": "event_time", 
+            "type": "long"
+        }
+        {
+            "name": "from_operator_id", 
+            "type": "int"
+        }
+        {
+            "name": "window", 
+            "type": "Window"
+        }
+        {
+            "name": "event_id", 
+            "type": "long"
+        }
+    ]
+}"#;
+
 impl OperatorInfo {
     pub fn has_source(&self) -> bool {
         self.details
@@ -288,10 +371,6 @@ impl Sink {
 }
 
 impl KeyedDataEvent {
-    pub fn set_job_id(&mut self, resource_id: ResourceId) {
-        self.job_id = Some(resource_id)
-    }
-
     #[inline]
     pub fn get_job_id(&self) -> ResourceId {
         if self.job_id.is_none() {
@@ -507,4 +586,49 @@ impl Ack {
     pub fn get_execution_id(&self) -> Option<&ExecutionId> {
         self.execution_id.as_ref()
     }
+}
+
+impl KeyedDataEvent {
+    pub fn as_bytes(self) -> Result<bytes::Bytes, KeyedDataEventError> {
+        apache_avro::Schema::parse_list(&[
+            RESOURCE_ID_SCHEMA,
+            WINDOW_SCHEMA,
+            ENTRY_SCHEMA,
+            KEYED_DATA_EVENT_SCHEMA,
+        ])
+        .and_then(|schemas| {
+            let mut writer = apache_avro::Writer::new(&schemas[3], vec![]);
+
+            writer
+                .append_ser(self)
+                .and_then(|_| writer.into_inner().map(|buf| bytes::Bytes::from(buf)))
+        })
+        .map_err(|err| KeyedDataEventError::AvroError(err))
+    }
+
+    pub fn from_slice(buf: &[u8]) -> Result<Self, KeyedDataEventError> {
+        apache_avro::Schema::parse_list(&[
+            RESOURCE_ID_SCHEMA,
+            WINDOW_SCHEMA,
+            ENTRY_SCHEMA,
+            KEYED_DATA_EVENT_SCHEMA,
+        ])
+        .and_then(|schemas| {
+            apache_avro::Reader::with_schema(&schemas[3], buf).and_then(|reader| {
+                for value in reader {
+                    match value {
+                        Ok(val) => return apache_avro::from_value::<KeyedDataEvent>(&val),
+                        Err(err) => return Err(err),
+                    }
+                }
+
+                Ok(Default::default())
+            })
+        })
+        .map_err(|err| KeyedDataEventError::AvroError(err))
+    }
+}
+
+pub enum KeyedDataEventError {
+    AvroError(apache_avro::Error),
 }

@@ -22,6 +22,7 @@ prost-types = "0.11"
 tonic = "0.8"
 sqlx = { version = "0.6", features = [ "runtime-tokio-rustls", "mysql" ] }
 tracing = "0.1"
+rmp-serde = "1.1.1"
 
 [dependencies.uuid]
 version = "1.2.1"

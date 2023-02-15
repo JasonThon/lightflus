@@ -1,8 +1,10 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetDataflowRequest {
     #[prost(message, optional, tag = "1")]
     pub job_id: ::core::option::Option<super::common::ResourceId>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetDataflowResponse {
     #[prost(enumeration = "super::common::DataflowStatus", tag = "1")]
@@ -15,7 +17,7 @@ pub mod coordinator_api_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
-    #[doc = "/ RPC Api for Coordinator"]
+    /// / RPC Api for Coordinator
     #[derive(Debug, Clone)]
     pub struct CoordinatorApiClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -80,8 +82,8 @@ pub mod coordinator_api_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        #[doc = "/ Attempt to deploy a new dataflow and create a JobManager."]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
+        /// / Attempt to deploy a new dataflow and create a JobManager.
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
         pub async fn create_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Dataflow>,
@@ -101,9 +103,9 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Attempt to terminate a dataflow"]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
-        #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
+        /// / Attempt to terminate a dataflow
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
+        /// / After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator
         pub async fn terminate_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::ResourceId>,
@@ -123,8 +125,8 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Get the details of a dataflow."]
-        #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
+        /// / Get the details of a dataflow.
+        /// / The details contains: each operator's status, metrics, basic information, checkpoint status, etc.
         pub async fn get_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDataflowRequest>,
@@ -144,7 +146,7 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Receive ack"]
+        /// / Receive ack
         pub async fn receive_ack(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Ack>,
@@ -164,7 +166,7 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Report task info"]
+        /// / Report task info
         pub async fn report_task_info(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::TaskInfo>,
@@ -184,7 +186,7 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Receive heartbeat"]
+        /// / Receive heartbeat
         pub async fn receive_heartbeat(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Heartbeat>,
@@ -210,45 +212,45 @@ pub mod coordinator_api_client {
 pub mod coordinator_api_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with CoordinatorApiServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with CoordinatorApiServer.
     #[async_trait]
     pub trait CoordinatorApi: Send + Sync + 'static {
-        #[doc = "/ Attempt to deploy a new dataflow and create a JobManager."]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
+        /// / Attempt to deploy a new dataflow and create a JobManager.
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
         async fn create_dataflow(
             &self,
             request: tonic::Request<super::super::common::Dataflow>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Attempt to terminate a dataflow"]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
-        #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
+        /// / Attempt to terminate a dataflow
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
+        /// / After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator
         async fn terminate_dataflow(
             &self,
             request: tonic::Request<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Get the details of a dataflow."]
-        #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
+        /// / Get the details of a dataflow.
+        /// / The details contains: each operator's status, metrics, basic information, checkpoint status, etc.
         async fn get_dataflow(
             &self,
             request: tonic::Request<super::GetDataflowRequest>,
         ) -> Result<tonic::Response<super::GetDataflowResponse>, tonic::Status>;
-        #[doc = "/ Receive ack"]
+        /// / Receive ack
         async fn receive_ack(
             &self,
             request: tonic::Request<super::super::common::Ack>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Report task info"]
+        /// / Report task info
         async fn report_task_info(
             &self,
             request: tonic::Request<super::super::common::TaskInfo>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Receive heartbeat"]
+        /// / Receive heartbeat
         async fn receive_heartbeat(
             &self,
             request: tonic::Request<super::super::common::Heartbeat>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
     }
-    #[doc = "/ RPC Api for Coordinator"]
+    /// / RPC Api for Coordinator
     #[derive(Debug)]
     pub struct CoordinatorApiServer<T: CoordinatorApi> {
         inner: _Inner<T>,

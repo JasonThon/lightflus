@@ -56,6 +56,10 @@ pub mod times {
     pub fn now_timestamp() -> i64 {
         now().timestamp_millis()
     }
+
+    pub fn timestamp(timestamp: &chrono::DateTime<chrono::Utc>) -> i64 {
+        timestamp.timestamp_millis()
+    }
 }
 
 pub struct Args {

@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use crossbeam_skiplist::SkipMap;
 use proto::{
     common::{Ack, DataflowStatus, ExecutionId, Heartbeat, KeyedDataEvent, ResourceId, Response},
@@ -8,7 +6,7 @@ use proto::{
         CreateSubDataflowResponse, SendEventToOperatorResponse, StopDataflowResponse,
     },
 };
-use tokio::sync::RwLock;
+
 use tonic::async_trait;
 
 use crate::taskworker::{TaskWorker, TaskWorkerBuilder};
@@ -47,8 +45,8 @@ impl TaskManagerApi for TaskManager {
     ) -> RpcResponse<SendEventToOperatorResponse> {
         let event = request.into_inner();
         match event.get_job_id_opt_ref() {
-            Some(job_id) => match self.job_id_map_execution_id.read().await.get(job_id) {
-                Some(execution_id) => match self.workers.get(execution_id) {
+            Some(job_id) => match self.job_id_map_execution_id.get(job_id) {
+                Some(execution_id) => match self.workers.get(execution_id.value()) {
                     Some(worker) => worker
                         .value()
                         .send_event_to_operator(event)
@@ -71,14 +69,20 @@ impl TaskManagerApi for TaskManager {
         &self,
         request: RpcRequest<ResourceId>,
     ) -> RpcResponse<StopDataflowResponse> {
-        match self.workers.get(request.get_ref()) {
+        match self.job_id_map_execution_id.get(request.get_ref()) {
             Some(entry) => {
-                let worker = entry.value();
-                worker.terminate_execution().await;
-                entry.remove();
-                RpcResponse::Ok(StopDataflowResponse::default())
+                match self.workers.remove(entry.value()) {
+                    Some(entry) => {
+                        let worker = entry.value();
+                        worker.terminate_execution().await;
+                        entry.remove();
+                    }
+                    None => {}
+                }
+
+                RpcResponse::Ok(tonic::Response::new(StopDataflowResponse::default()))
             }
-            None => RpcResponse::Ok(StopDataflowResponse::default()),
+            None => RpcResponse::Ok(tonic::Response::new(StopDataflowResponse::default())),
         }
     }
 
@@ -127,7 +131,7 @@ impl TaskManagerApi for TaskManager {
             Some(execution_id) => {
                 for entry in self.workers.get(execution_id).iter() {
                     let worker = entry.value();
-                    worker.write().await.receive_heartbeat(&heartbeat)
+                    worker.receive_heartbeat(&heartbeat)
                 }
 
                 Ok(tonic::Response::new(Response::ok()))

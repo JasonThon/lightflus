@@ -82,8 +82,16 @@ where
     result
 }
 
-pub fn any_match<T, F: FnMut(&T) -> bool>(elems: &Vec<T>, mut predicate: F) -> bool {
-    elems.iter().filter(|e| predicate(*e)).next().is_some()
+pub fn any_match<T, F: Fn(&T) -> bool>(elems: &Vec<T>, predicate: F) -> bool {
+    elems.iter().any(predicate)
+}
+
+pub fn any_match_mut<T, F: FnMut(&mut T) -> bool>(elems: &mut Vec<T>, predicate: F) -> bool {
+    elems.iter_mut().any(predicate)
+}
+
+pub fn all_match<T, F: Fn(&T) -> bool>(elems: &Vec<T>, predicate: F) -> bool {
+    elems.iter().all(predicate)
 }
 
 #[cfg(test)]

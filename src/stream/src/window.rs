@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, VecDeque};
 
 use chrono::Duration;
-use common::{collections::lang, utils::times::from_millis_to_utc_chrono};
-use prost_types::Timestamp;
-use proto::common::{keyed_data_event, KeyedDataEvent, OperatorInfo};
+use common::collections::lang;
+
+use proto::common::{KeyedDataEvent, OperatorInfo};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
+use tonic::async_trait;
 
 use crate::DETAULT_WATERMARK;
 
@@ -50,8 +51,8 @@ impl WindowAssignerImpl {
                 vec![KeyedWindow {
                     inner: keyed_event,
                     event_time,
-                    window_start: None,
-                    window_end: None,
+                    window_start: 0,
+                    window_end: 0,
                 }]
             }
         }
@@ -129,7 +130,7 @@ impl WindowAssignerImpl {
 /// 1. [`FixedEventTimeKeyedWindowAssigner`] support fixed event-time window
 /// 2. [`SlideEventTimeKeyedWindowAssigner`] support sliding event-time window
 /// 3. [`SessionKeyedWindowAssigner`] support session event-time window
-#[async_trait::async_trait]
+#[async_trait]
 pub trait KeyedWindowAssigner {
     fn assign_windows(&self, event: KeyedDataEvent) -> Vec<KeyedWindow>;
 
@@ -161,24 +162,15 @@ impl FixedEventTimeKeyedWindowAssigner {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl KeyedWindowAssigner for FixedEventTimeKeyedWindowAssigner {
     fn assign_windows(&self, event: KeyedDataEvent) -> Vec<KeyedWindow> {
         let event_time = event.get_event_time();
-        let window_start = event_time
-            .as_ref()
-            .map(|datetime| {
-                KeyedWindow::get_window_start_with_offset(
-                    datetime.timestamp_millis(),
-                    0,
-                    self.size.num_milliseconds(),
-                )
-            })
-            .and_then(|start| from_millis_to_utc_chrono(start));
+        let window_start =
+            KeyedWindow::get_window_start_with_offset(event_time, 0, self.size.num_milliseconds());
 
-        let window_end = window_start
-            .as_ref()
-            .and_then(|start_time| start_time.checked_add_signed(self.size));
+        let window_end = window_start + self.size.num_milliseconds();
+
         vec![KeyedWindow {
             inner: event,
             event_time: event_time.clone(),
@@ -196,37 +188,12 @@ impl KeyedWindowAssigner for FixedEventTimeKeyedWindowAssigner {
 #[derive(Clone, PartialEq, Debug, Default)]
 pub struct KeyedWindow {
     inner: KeyedDataEvent,
-    pub event_time: Option<chrono::DateTime<chrono::Utc>>,
-    pub window_start: Option<chrono::DateTime<chrono::Utc>>,
-    pub window_end: Option<chrono::DateTime<chrono::Utc>>,
+    pub event_time: i64,
+    pub window_start: i64,
+    pub window_end: i64,
 }
 
 impl KeyedWindow {
-    pub(crate) fn as_event(&mut self) -> &KeyedDataEvent {
-        self.inner.event_time = self.event_time.map(|time| Timestamp {
-            seconds: time.timestamp(),
-            nanos: time.timestamp_subsec_nanos() as i32,
-        });
-
-        self.inner.window = self
-            .window_end
-            .iter()
-            .zip(self.window_start.iter())
-            .map(|pair| keyed_data_event::Window {
-                start_time: Some(Timestamp {
-                    seconds: pair.1.timestamp(),
-                    nanos: pair.1.timestamp_subsec_nanos() as i32,
-                }),
-                end_time: Some(Timestamp {
-                    seconds: pair.0.timestamp(),
-                    nanos: pair.0.timestamp_subsec_nanos() as i32,
-                }),
-            })
-            .next();
-
-        &self.inner
-    }
-
     pub(crate) fn get_window_start_with_offset(
         timestamp: i64,
         offset: i64,
@@ -258,11 +225,13 @@ impl KeyedWindow {
 
     /// ExpandToElements operation
     pub(crate) fn expand(&mut self) {
-        self.event_time = self.window_start.clone();
+        self.event_time = self.window_start;
     }
 
     /// merge all windows
-    fn merge_windows(windows: &mut VecDeque<KeyedWindow>) -> BTreeMap<Vec<u8>, Vec<KeyedWindow>> {
+    fn merge_windows(
+        windows: &mut VecDeque<KeyedWindow>,
+    ) -> BTreeMap<bytes::Bytes, Vec<KeyedWindow>> {
         // GroupByKey
         let mut group_by_key = Self::group_by_key(windows);
         group_by_key.par_iter_mut().for_each(|entry| {
@@ -291,7 +260,9 @@ impl KeyedWindow {
         group_by_key
     }
 
-    fn group_by_key(windows: &mut VecDeque<KeyedWindow>) -> BTreeMap<Vec<u8>, Vec<KeyedWindow>> {
+    fn group_by_key(
+        windows: &mut VecDeque<KeyedWindow>,
+    ) -> BTreeMap<bytes::Bytes, Vec<KeyedWindow>> {
         lang::group_deque_as_btree_map(windows, |item| {
             item.inner.window = None;
             item.inner.get_key().value.clone()
@@ -324,35 +295,27 @@ impl SlideEventTimeKeyedWindowAssigner {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl KeyedWindowAssigner for SlideEventTimeKeyedWindowAssigner {
     fn assign_windows(&self, event: KeyedDataEvent) -> Vec<KeyedWindow> {
         let mut results = vec![];
-        let timestamp = event
-            .get_event_time()
-            .map(|event_time| event_time.timestamp_millis());
-        let window_start = timestamp.map(|ts| {
-            KeyedWindow::get_window_start_with_offset(ts, 0, self.size.num_milliseconds())
-        });
+        let timestamp = event.get_event_time();
+        let window_start =
+            KeyedWindow::get_window_start_with_offset(timestamp, 0, self.size.num_milliseconds());
         let size = self.size.num_milliseconds();
         let event_time = event.get_event_time();
         let period = self.period.num_milliseconds();
 
-        timestamp
-            .iter()
-            .zip(window_start.iter())
-            .for_each(|(timestamp, window_start)| {
-                let mut start = *window_start;
-                while start > timestamp - size {
-                    results.push(KeyedWindow {
-                        inner: event.clone(),
-                        event_time: event_time.clone(),
-                        window_start: from_millis_to_utc_chrono(start),
-                        window_end: from_millis_to_utc_chrono(start + size),
-                    });
-                    start -= period;
-                }
+        let mut start = window_start;
+        while start > timestamp - size {
+            results.push(KeyedWindow {
+                inner: event.clone(),
+                event_time,
+                window_start: start,
+                window_end: start + size,
             });
+            start -= period;
+        }
 
         results
     }
@@ -382,14 +345,12 @@ impl SessionKeyedWindowAssigner {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl KeyedWindowAssigner for SessionKeyedWindowAssigner {
     fn assign_windows(&self, event: KeyedDataEvent) -> Vec<KeyedWindow> {
         let event_time = event.get_event_time();
         let window_start = event_time.clone();
-        let window_end = event_time
-            .as_ref()
-            .and_then(|t| t.checked_add_signed(self.timeout));
+        let window_end = event_time + self.timeout.num_milliseconds();
         vec![KeyedWindow {
             inner: event,
             event_time,
@@ -448,7 +409,7 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use common::utils::times::from_millis_to_utc_chrono;
+    use common::utils::times::{from_millis_to_utc_chrono, timestamp};
     use prost_types::Timestamp;
     use proto::common::{
         window::{FixedWindow, SessionWindow, SlidingWindow},
@@ -484,7 +445,7 @@ mod tests {
                 key: None,
                 to_operator_id: 1,
                 data: vec![],
-                event_time: Some(event_time),
+                event_time: now.timestamp_millis(),
                 from_operator_id: 0,
                 window: None,
                 event_id: 1,
@@ -498,9 +459,9 @@ mod tests {
                 windows,
                 vec![KeyedWindow {
                     inner: event,
-                    event_time: Some(now.clone()),
-                    window_start: from_millis_to_utc_chrono(window_start),
-                    window_end: from_millis_to_utc_chrono(window_start + 300)
+                    event_time: timestamp(&now),
+                    window_start: window_start,
+                    window_end: window_start + 300
                 }]
             );
         }
@@ -535,17 +496,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![3],
+                    value: bytes::Bytes::from(vec![3]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![7],
+                    value: bytes::Bytes::from(vec![7]),
                 }],
-                event_time: Some(Timestamp {
-                    seconds: now.timestamp(),
-                    nanos: now.timestamp_subsec_nanos() as i32,
-                }),
+                event_time: timestamp(&now),
                 from_operator_id: 0,
                 window: None,
                 event_id: 1,
@@ -566,24 +524,21 @@ mod tests {
                             job_id: None,
                             key: Some(Entry {
                                 data_type: 1,
-                                value: vec![3]
+                                value: bytes::Bytes::from(vec![3])
                             }),
                             to_operator_id: 1,
                             data: vec![Entry {
                                 data_type: 1,
-                                value: vec![7]
+                                value: bytes::Bytes::from(vec![7])
                             }],
-                            event_time: Some(Timestamp {
-                                seconds: now.timestamp(),
-                                nanos: now.timestamp_subsec_nanos() as i32,
-                            }),
+                            event_time: timestamp(&now),
                             from_operator_id: 0,
                             window: None,
                             event_id: 1
                         },
-                        event_time: Some(now.clone()),
-                        window_start: from_millis_to_utc_chrono(start),
-                        window_end: from_millis_to_utc_chrono(start + window_size)
+                        event_time: timestamp(&now),
+                        window_start: start,
+                        window_end: start + window_size
                     }
                 )
             });
@@ -614,17 +569,14 @@ mod tests {
             job_id: None,
             key: Some(Entry {
                 data_type: 1,
-                value: vec![3],
+                value: bytes::Bytes::from(vec![3]),
             }),
             to_operator_id: 1,
             data: vec![Entry {
                 data_type: 1,
-                value: vec![7],
+                value: bytes::Bytes::from(vec![7]),
             }],
-            event_time: Some(Timestamp {
-                seconds: now.timestamp(),
-                nanos: now.timestamp_subsec_nanos() as i32,
-            }),
+            event_time: timestamp(&now),
             from_operator_id: 0,
             window: None,
             event_id: 1,
@@ -634,9 +586,10 @@ mod tests {
             windows,
             vec![KeyedWindow {
                 inner: event,
-                event_time: Some(now.clone()),
-                window_start: Some(now.clone()),
-                window_end: now.checked_add_signed(session.get_timeout().to_duration())
+                event_time: timestamp(&now),
+                window_start: timestamp(&now),
+                window_end: timestamp(&now)
+                    + session.get_timeout().to_duration().num_milliseconds()
             }]
         )
     }
@@ -649,17 +602,14 @@ mod tests {
             job_id: None,
             key: Some(Entry {
                 data_type: 1,
-                value: vec![3],
+                value: bytes::Bytes::from(vec![3]),
             }),
             to_operator_id: 1,
             data: vec![Entry {
                 data_type: 1,
-                value: vec![7],
+                value: bytes::Bytes::from(vec![7]),
             }],
-            event_time: Some(Timestamp {
-                seconds: now.timestamp(),
-                nanos: now.timestamp_subsec_nanos() as i32,
-            }),
+            event_time: timestamp(&now),
             from_operator_id: 0,
             window: None,
             event_id: 1,
@@ -671,8 +621,8 @@ mod tests {
             vec![KeyedWindow {
                 inner: event,
                 event_time,
-                window_start: None,
-                window_end: None,
+                window_start: 0,
+                window_end: 0,
             }]
         )
     }
@@ -698,17 +648,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![1],
+                    value: bytes::Bytes::from(vec![1]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![2],
+                    value: bytes::Bytes::from(vec![2]),
                 }],
-                event_time: Some(Timestamp {
-                    seconds: now.timestamp(),
-                    nanos: now.timestamp_subsec_nanos() as i32,
-                }),
+                event_time: timestamp(&now),
                 from_operator_id: 0,
                 window: None,
                 event_id: 1,
@@ -717,19 +664,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![1],
+                    value: bytes::Bytes::from(vec![1]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![3],
+                    value: bytes::Bytes::from(vec![3]),
                 }],
-                event_time: now
-                    .checked_add_signed(chrono::Duration::milliseconds(35))
-                    .map(|t| Timestamp {
-                        seconds: t.timestamp(),
-                        nanos: t.timestamp_subsec_nanos() as i32,
-                    }),
+                event_time: timestamp(&now) + 35,
                 from_operator_id: 0,
                 window: None,
                 event_id: 2,
@@ -738,19 +680,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![1],
+                    value: bytes::Bytes::from(vec![1]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![4],
+                    value: bytes::Bytes::from(vec![4]),
                 }],
-                event_time: now
-                    .checked_add_signed(chrono::Duration::milliseconds(10))
-                    .map(|t| Timestamp {
-                        seconds: t.timestamp(),
-                        nanos: t.timestamp_subsec_nanos() as i32,
-                    }),
+                event_time: timestamp(&now) + 10,
                 from_operator_id: 0,
                 window: None,
                 event_id: 3,
@@ -759,19 +696,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![2],
+                    value: bytes::Bytes::from(vec![2]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![5],
+                    value: bytes::Bytes::from(vec![5]),
                 }],
-                event_time: now
-                    .checked_add_signed(chrono::Duration::milliseconds(20))
-                    .map(|t| Timestamp {
-                        seconds: t.timestamp(),
-                        nanos: t.timestamp_subsec_nanos() as i32,
-                    }),
+                event_time: timestamp(&now) + 20,
                 from_operator_id: 0,
                 window: None,
                 event_id: 4,
@@ -780,19 +712,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![2],
+                    value: bytes::Bytes::from(vec![2]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![6],
+                    value: bytes::Bytes::from(vec![6]),
                 }],
-                event_time: now
-                    .checked_add_signed(chrono::Duration::milliseconds(350))
-                    .map(|t| Timestamp {
-                        seconds: t.timestamp(),
-                        nanos: t.timestamp_subsec_nanos() as i32,
-                    }),
+                event_time: 350 + timestamp(&now),
                 from_operator_id: 0,
                 window: None,
                 event_id: 5,
@@ -801,19 +728,14 @@ mod tests {
                 job_id: None,
                 key: Some(Entry {
                     data_type: 1,
-                    value: vec![3],
+                    value: bytes::Bytes::from(vec![3]),
                 }),
                 to_operator_id: 1,
                 data: vec![Entry {
                     data_type: 1,
-                    value: vec![7],
+                    value: bytes::Bytes::from(vec![7]),
                 }],
-                event_time: now
-                    .checked_add_signed(chrono::Duration::milliseconds(250))
-                    .map(|t| Timestamp {
-                        seconds: t.timestamp(),
-                        nanos: t.timestamp_subsec_nanos() as i32,
-                    }),
+                event_time: 250 + timestamp(&now),
                 from_operator_id: 0,
                 window: None,
                 event_id: 6,
@@ -839,7 +761,7 @@ mod tests {
                 w.inner.key
                     == Some(Entry {
                         data_type: 1,
-                        value: vec![1],
+                        value: bytes::Bytes::from(vec![1]),
                     })
             });
 
@@ -853,35 +775,31 @@ mod tests {
                         job_id: None,
                         key: Some(Entry {
                             data_type: 1,
-                            value: vec![1]
+                            value: bytes::Bytes::from(vec![1])
                         }),
                         to_operator_id: 1,
                         data: vec![
                             Entry {
                                 data_type: 1,
-                                value: vec![4]
+                                value: bytes::Bytes::from(vec![4])
                             },
                             Entry {
                                 data_type: 1,
-                                value: vec![3]
+                                value: bytes::Bytes::from(vec![3])
                             },
                             Entry {
                                 data_type: 1,
-                                value: vec![2]
+                                value: bytes::Bytes::from(vec![2])
                             }
                         ],
-                        event_time: Some(Timestamp {
-                            seconds: now.timestamp(),
-                            nanos: (now.timestamp_subsec_nanos() + 10 * common::NANOS_PER_MILLI)
-                                as i32
-                        }),
+                        event_time: 10 * common::NANOS_PER_MILLI + timestamp(&now),
                         from_operator_id: 0,
                         window: None,
                         event_id: 1,
                     },
-                    event_time: from_millis_to_utc_chrono(window_start),
-                    window_start: from_millis_to_utc_chrono(window_start),
-                    window_end: from_millis_to_utc_chrono(window_start + window_size)
+                    event_time: window_start,
+                    window_start: window_start,
+                    window_end: window_start + window_size
                 })
             )
         }
@@ -891,7 +809,7 @@ mod tests {
                 w.inner.key
                     == Some(Entry {
                         data_type: 1,
-                        value: vec![3],
+                        value: bytes::Bytes::from(vec![3]),
                     })
             });
 
@@ -912,29 +830,21 @@ mod tests {
                         job_id: None,
                         key: Some(Entry {
                             data_type: 1,
-                            value: vec![3]
+                            value: bytes::Bytes::from(vec![3])
                         }),
                         to_operator_id: 1,
                         data: vec![Entry {
                             data_type: 1,
-                            value: vec![7]
+                            value: bytes::Bytes::from(vec![7])
                         }],
-                        event_time: now
-                            .checked_add_signed(chrono::Duration::milliseconds(250))
-                            .map(|t| Timestamp {
-                                seconds: t.timestamp(),
-                                nanos: t.timestamp_subsec_nanos() as i32,
-                            }),
+                        event_time: 250 + timestamp(&now),
                         from_operator_id: 0,
                         window: None,
                         event_id: 1
                     },
-                    event_time: window_start
-                        .and_then(|timestamp| from_millis_to_utc_chrono(timestamp)),
-                    window_start: window_start
-                        .and_then(|timestamp| from_millis_to_utc_chrono(timestamp)),
-                    window_end: window_start
-                        .and_then(|timestamp| from_millis_to_utc_chrono(timestamp + 300))
+                    event_time: window_start.unwrap_or_default(),
+                    window_start: window_start.unwrap_or_default(),
+                    window_end: window_start.unwrap_or_default() + 300
                 })
             )
         }

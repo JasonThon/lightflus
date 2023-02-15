@@ -438,6 +438,9 @@ name = "bytes"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec8a7b6a70fde80372154c65702f00a0f56f3e1c36abbc6c440484be248856db"
+dependencies = [
+ "serde",
+]
 
 [[package]]
 name = "bytestring"
@@ -501,6 +504,7 @@ dependencies = [
  "rdkafka",
  "redis",
  "regex",
+ "rmp-serde",
  "serde",
  "serde_json",
  "sqlx",
@@ -1703,6 +1707,8 @@ dependencies = [
 name = "proto"
 version = "0.1.0"
 dependencies = [
+ "apache-avro",
+ "bytes",
  "chrono",
  "futures-executor",
  "prost",
@@ -1882,6 +1888,28 @@ name = "rle-decode-fast"
 version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3582f63211428f83597b51b2ddb88e2a91a9d52d12831f9d08f5e624e8977422"
+
+[[package]]
+name = "rmp"
+version = "0.8.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "44519172358fd6d58656c86ab8e7fbc9e1490c3e8f14d35ed78ca0dd07403c9f"
+dependencies = [
+ "byteorder",
+ "num-traits",
+ "paste",
+]
+
+[[package]]
+name = "rmp-serde"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5b13be192e0220b8afb7222aa5813cb62cc269ebb5cac346ca6487681d2913e"
+dependencies = [
+ "byteorder",
+ "rmp",
+ "serde",
+]
 
 [[package]]
 name = "rsa"
@@ -2214,8 +2242,6 @@ dependencies = [
 name = "stream"
 version = "0.1.0"
 dependencies = [
- "apache-avro",
- "async-trait",
  "bytes",
  "chrono",
  "common",
@@ -2225,6 +2251,7 @@ dependencies = [
  "prost-types",
  "proto",
  "rayon",
+ "rmp-serde",
  "serde",
  "serde_json",
  "sled",
@@ -2518,9 +2545,9 @@ dependencies = [
 
 [[package]]
 name = "tonic-build"
-version = "0.8.2"
+version = "0.8.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "48c6fd7c2581e36d63388a9e04c350c21beb7a8b059580b2e93993c526899ddc"
+checksum = "5bf5e9b9c0f7e0a7c027dcfaba7b2c60816c7049171f679d99ee2ff65d0de8c4"
 dependencies = [
  "prettyplease",
  "proc-macro2",

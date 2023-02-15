@@ -9,6 +9,7 @@ option java_package = "lightflus.proto.common.event";
 // Event that keyed transferred between operators
 // KeyedDataEvent can be traced in a distributed system with event id
 message KeyedDataEvent {
+  common.ResourceId job_id = 1;
   // key of data event
   common.Entry key = 2;
   // operator_id this event will be sent
@@ -31,6 +32,9 @@ message KeyedDataEvent {
   int64 event_id = 9;
 }
 
+// Entry that represents a structure of Typed Value
+// For improving performance, when being compiled by tonic, the type of value after compilation is recommended to set as
+// bytes::Bytes so that Entry's value can be a zero-copy bytes slice.
 message Entry {
   DataTypeEnum data_type = 1;
   bytes value = 2; // entry value

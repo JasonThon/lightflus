@@ -95,10 +95,12 @@ pub struct KafkaConsumer {
     consumer: StreamConsumer,
 }
 
+/// A wrapper of kafka message with key, payload and timestamp
+/// Differently, key and payload are [bytes::Bytes] which may zero-copy when sharing kafka message between threads
 #[derive(Clone)]
 pub struct KafkaMessage {
-    pub key: Vec<u8>,
-    pub payload: Vec<u8>,
+    pub key: bytes::Bytes,
+    pub payload: bytes::Bytes,
     pub timestamp: Option<i64>,
 }
 
@@ -116,10 +118,13 @@ impl KafkaConsumer {
                 Ok(msg) => {
                     let msg = msg.detach();
                     msg.payload().map(|payload| {
-                        let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
+                        let key = msg
+                            .key()
+                            .map(|key| bytes::Bytes::copy_from_slice(key))
+                            .unwrap_or_default();
                         processor(KafkaMessage {
                             key,
-                            payload: payload.to_vec(),
+                            payload: bytes::Bytes::copy_from_slice(payload),
                             timestamp: msg.timestamp().to_millis(),
                         })
                     })
@@ -142,10 +147,13 @@ impl KafkaConsumer {
                     Ok(msg) => {
                         let msg = msg.detach();
                         msg.payload().map(|payload| {
-                            let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
+                            let key = msg
+                                .key()
+                                .map(|key| bytes::Bytes::copy_from_slice(key))
+                                .unwrap_or_default();
                             processor(KafkaMessage {
                                 key,
-                                payload: payload.to_vec(),
+                                payload: bytes::Bytes::copy_from_slice(payload),
                                 timestamp: msg.timestamp().to_millis(),
                             })
                         })

@@ -3,7 +3,6 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use async_trait::async_trait;
 use common::{
     db::MysqlConn,
     event::{LocalEvent, StreamEvent},
@@ -18,6 +17,7 @@ use proto::common::{
     operator_info, Entry, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId,
 };
 use tokio::sync::mpsc::error::TryRecvError;
+use tonic::async_trait;
 
 use crate::{err::SinkException, v8_runtime::RuntimeEngine, Receiver, Sender};
 /**
@@ -70,7 +70,7 @@ pub trait Sink {
      * However, if we want to make sure EXACTLY-ONCE or AT-LEAST-ONCE delivery, fault tolerance is essential.
      * In 1.0 release version, we will support checkpoint for fault tolerance and users can choose which guarantee they want Lightflus to satisfy.
      */
-    async fn sink(&self, msg: &LocalEvent) -> Result<(), SinkException>;
+    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException>;
 
     /**
      * Gracefully close sink
@@ -161,7 +161,7 @@ impl Sink for SinkImpl {
         }
     }
 
-    async fn sink(&self, msg: &LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
         match self {
             Self::Kafka(sink) => sink.sink(msg).await,
             Self::Mysql(sink) => sink.sink(msg).await,
@@ -270,21 +270,20 @@ impl Kafka {
 
     fn process(&self, message: KafkaMessage) -> LocalEvent {
         let data_type = self.conf.data_type();
-        let payload = message.payload.as_slice();
-        let key = TypedValue::from_vec(&message.key);
-        let val = TypedValue::from_slice_with_type(payload, data_type);
+        let key = TypedValue::from_slice(&message.key);
+        let val = TypedValue::from_slice_with_type(&message.payload, data_type);
         let event_id = self.generate_new_event_id();
 
         let result = LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
             job_id: Some(self.job_id.clone()),
             key: Some(Entry {
                 data_type: key.get_type() as i32,
-                value: key.get_data(),
+                value: key.get_data_bytes(),
             }),
             to_operator_id: 0,
             data: vec![Entry {
                 data_type: self.conf.data_type() as i32,
-                value: val.get_data(),
+                value: val.get_data_bytes(),
             }],
 
             event_time: message.timestamp.unwrap_or_else(|| now_timestamp()),
@@ -342,16 +341,16 @@ impl Source for Kafka {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl Sink for Kafka {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    async fn sink(&self, msg: &LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
         match &self.producer {
             Some(producer) => {
-                let result = msg.generate_kafka_message();
+                let result = msg.to_kafka_message();
                 match result.map_err(|err| err.into()) {
                     Ok(messages) => {
                         for msg in messages {
@@ -428,8 +427,8 @@ impl Sink for Mysql {
         self.connector_id
     }
 
-    async fn sink(&self, msg: &LocalEvent) -> Result<(), SinkException> {
-        let row_arguments = self.get_arguments(msg);
+    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
+        let row_arguments = self.get_arguments(&msg);
         let ref mut conn_result = self.conn.connect().await;
         match conn_result {
             Ok(conn) => {
@@ -488,16 +487,16 @@ impl Redis {
     }
 }
 
-#[async_trait::async_trait]
+#[async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
         self.connector_id
     }
 
-    async fn sink(&self, msg: &LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
         let key_values = extract_arguments(
             &[self.key_extractor.clone(), self.value_extractor.clone()],
-            msg,
+            &msg,
             "redis_extractor",
         );
         let mut conn_result = self.client.connect();
@@ -544,11 +543,13 @@ fn extract_arguments(
 #[cfg(test)]
 mod tests {
     use common::event::LocalEvent;
-    use proto::common::{mysql_desc, redis_desc, KafkaDesc, MysqlDesc, RedisDesc, ResourceId};
+    use proto::common::{
+        mysql_desc, redis_desc, Entry, Func, KafkaDesc, MysqlDesc, RedisDesc, ResourceId,
+    };
 
     use crate::new_event_channel;
 
-    use super::{SinkImpl, SourceImpl};
+    use super::{Sink, SinkImpl, Source, SourceImpl};
 
     struct SetupGuard {}
 
@@ -578,7 +579,6 @@ mod tests {
         use common::event::LocalEvent;
         use proto::common::KeyedDataEvent;
 
-        use crate::actor::SinkableMessageImpl;
         use std::collections::BTreeMap;
 
         use common::types::TypedValue;
@@ -620,7 +620,7 @@ mod tests {
         });
         event.data = Vec::from_iter([TypedValue::Object(entry_1)].iter().map(|value| Entry {
             data_type: value.get_type() as i32,
-            value: value.get_data(),
+            value: value.get_data_bytes(),
         }));
         let message = LocalEvent::KeyedDataStreamEvent(event);
         let arguments = mysql.get_arguments(&message);
@@ -654,7 +654,7 @@ mod tests {
 
         let mut kafka_sink = SinkImpl::Kafka(super::Kafka::with_sink_config(&job_id, 0, &desc));
 
-        kafka_source.close();
+        kafka_source.close_source();
 
         match &mut kafka_source {
             SourceImpl::Kafka(kafka, tx, rx) => {
@@ -669,7 +669,7 @@ mod tests {
                     }
                 );
                 assert!(tx.is_closed());
-                let result = rx.lock().await.try_recv();
+                let result = rx.try_recv();
                 assert!(result.is_err())
             }
             _ => {}

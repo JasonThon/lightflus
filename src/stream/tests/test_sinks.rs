@@ -10,14 +10,11 @@ use common::{
     utils::get_env,
 };
 
-use proto::{
-    common::{
-        kafka_desc,
-        mysql_desc::{self, statement},
-        redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, MysqlDesc, RedisDesc,
-        ResourceId,
-    },
-    taskmanager::SendEventToOperatorStatusEnum,
+use proto::common::{
+    kafka_desc,
+    mysql_desc::{self, statement},
+    redis_desc, DataTypeEnum, Entry, Func, KafkaDesc, KeyedDataEvent, MysqlDesc, RedisDesc,
+    ResourceId,
 };
 use sqlx::Row;
 use stream::connector::{Kafka, Mysql, Redis, Sink, SinkImpl};
@@ -74,7 +71,7 @@ async fn test_kafka_sink() {
         to_operator_id: 1,
         data: vec![
             Entry {
-                data_type: DataTypeEnum::Objectasi32,
+                data_type: DataTypeEnum::Object as i32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key_1".to_string(), TypedValue::String("val_1".to_string())),
@@ -83,10 +80,10 @@ async fn test_kafka_sink() {
                     .iter()
                     .map(|entry| (entry.0.clone(), entry.1.clone())),
                 ))
-                .get_data(),
+                .get_data_bytes(),
             },
             Entry {
-                data_type: DataTypeEnum::Objectasi32,
+                data_type: DataTypeEnum::Object as i32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key_1".to_string(), TypedValue::String("val_1".to_string())),
@@ -95,17 +92,17 @@ async fn test_kafka_sink() {
                     .iter()
                     .map(|entry| (entry.0.clone(), entry.1.clone())),
                 ))
-                .get_data(),
+                .get_data_bytes(),
             },
         ],
-        event_time: None,
+        event_time: 0,
         from_operator_id: 0,
         window: None,
         event_id: 1,
     };
 
     let result = kafka_sink
-        .sink(&LocalEvent::KeyedDataStreamEvent(event))
+        .sink(LocalEvent::KeyedDataStreamEvent(event))
         .await;
     if result.is_err() {
         panic!("{:?}", result.unwrap_err());
@@ -165,7 +162,7 @@ async fn test_redis_sink_success() {
         to_operator_id: 1,
         data: vec![
             Entry {
-                data_type: DataTypeEnum::Objectasi32,
+                data_type: DataTypeEnum::Object as i32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key".to_string(), TypedValue::String("word-1".to_string())),
@@ -174,10 +171,10 @@ async fn test_redis_sink_success() {
                     .iter()
                     .map(|entry| (entry.0.clone(), entry.1.clone())),
                 ))
-                .get_data(),
+                .get_data_bytes(),
             },
             Entry {
-                data_type: DataTypeEnum::Objectasi32,
+                data_type: DataTypeEnum::Object as i32,
                 value: TypedValue::Object(BTreeMap::from_iter(
                     [
                         ("key".to_string(), TypedValue::String("word-2".to_string())),
@@ -186,17 +183,17 @@ async fn test_redis_sink_success() {
                     .iter()
                     .map(|entry| (entry.0.clone(), entry.1.clone())),
                 ))
-                .get_data(),
+                .get_data_bytes(),
             },
         ],
-        event_time: None,
+        event_time: 0,
         from_operator_id: 0,
         window: None,
         event_id: 1,
     };
 
     let result = redis_sink
-        .sink(&LocalEvent::KeyedDataStreamEvent(event))
+        .sink(LocalEvent::KeyedDataStreamEvent(event))
         .await;
 
     assert!(result.is_ok());
@@ -275,7 +272,7 @@ async fn test_mysql_sink() {
         key: None,
         to_operator_id: 1,
         data: vec![Entry {
-            data_type: DataTypeEnum::Objectasi32,
+            data_type: DataTypeEnum::Object as i32,
             value: TypedValue::Object(BTreeMap::from_iter(
                 [
                     (
@@ -292,17 +289,16 @@ async fn test_mysql_sink() {
                 .iter()
                 .map(|entry| (entry.0.clone(), entry.1.clone())),
             ))
-            .get_data(),
+            .get_data_bytes(),
         }],
-        event_time: None,
+        event_time: 0,
         from_operator_id: 0,
         window: None,
         event_id: 1,
     };
 
-    let result = mysql.sink(&LocalEvent::KeyedDataStreamEvent(event)).await;
+    let result = mysql.sink(LocalEvent::KeyedDataStreamEvent(event)).await;
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), SendEventToOperatorStatusEnum::Done);
 
     let result = conn
         .try_for_each(

@@ -314,3 +314,9 @@ impl Future for StreamExecutor {
         }
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+
+}

@@ -45,7 +45,6 @@ async fn test_kafka_source() {
                 TypedValue::String(v) => assert_eq!(v.as_str(), "value"),
                 _ => panic!("unexpected type"),
             }
-            assert!(e.event_time.is_some());
         }
         _ => panic!("unexpected event"),
     }

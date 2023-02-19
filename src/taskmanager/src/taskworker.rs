@@ -50,12 +50,11 @@ impl<'a> TaskWorkerBuilder<'a> {
                 let info_set = &self.dataflow.nodes;
                 self.dataflow.meta.iter().for_each(|meta| {
                     let info = info_set.get(&meta.center).unwrap();
-                    let mut task = Task::new(job_id, &meta);
+                    let task = Task::new(job_id, &meta);
                     edge_builders.insert(meta.center, EdgeBuilder::local(info));
 
                     meta.neighbors.iter().for_each(|neighbor_id| {
                         let neighbor_info = info_set.get(neighbor_id).unwrap();
-                        let host_addr = neighbor_info.get_host_addr_ref().unwrap();
                         if is_remote_operator(neighbor_info)
                             && !edge_builders.contains_key(neighbor_id)
                         {

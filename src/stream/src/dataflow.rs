@@ -5,7 +5,7 @@ use common::types::{ExecutorId, NodeIdx, TypedValue};
 use proto::common::{operator_info::Details, Entry, KeyedDataEvent};
 use v8::HandleScope;
 
-use crate::{err::RunnableTaskError, state, v8_runtime::RuntimeEngine};
+use crate::{err::ExecutionError, state, v8_runtime::RuntimeEngine};
 
 /// This is the execution context of an operator. Execution's lifecycle must be explict because one execution corresponds to one v8 instance.
 /// After execution is dropped, the v8 instance will be destroied at the same time.
@@ -82,7 +82,7 @@ where
     pub(crate) fn process(
         &self,
         event: &KeyedDataEvent,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError> {
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError> {
         self.operator.process_event(event, &self.rt_engine)
     }
 }
@@ -103,7 +103,7 @@ pub(crate) trait IOperator {
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
     where
         'p: 'i;
 }
@@ -122,7 +122,7 @@ impl<S: state::StateManager> OperatorImpl<S> {
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
     where
         'p: 'i,
     {
@@ -132,7 +132,7 @@ impl<S: state::StateManager> OperatorImpl<S> {
             Self::KeyBy(op) => op.call_fn(event, rt_engine),
             Self::FlatMap(op) => op.call_fn(event, rt_engine),
             Self::Reduce(op) => op.call_fn(event, rt_engine),
-            Self::Empty(operator_id) => Err(RunnableTaskError::OperatorUnimplemented(*operator_id)),
+            Self::Empty(operator_id) => Err(ExecutionError::OperatorUnimplemented(*operator_id)),
         }
     }
 }
@@ -142,7 +142,7 @@ impl<S: state::StateManager> IOperator for KeyByOperator<S> {
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
     where
         'p: 'i,
     {
@@ -199,7 +199,7 @@ impl<S: state::StateManager> IOperator for ReduceOperator<S> {
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
     where
         'p: 'i,
     {
@@ -248,7 +248,7 @@ impl<S: state::StateManager> IOperator for FilterOperator<S> {
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
     where
         'p: 'i,
     {
@@ -279,7 +279,7 @@ impl<S: state::StateManager> IOperator for FlatMapOperator<S> {
         &self,
         event: &KeyedDataEvent,
         rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-    ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+    ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
     where
         'p: 'i,
     {
@@ -351,7 +351,7 @@ macro_rules! stateless_operator_impl {
                 &self,
                 event: &KeyedDataEvent,
                 rt_engine: &RefCell<RuntimeEngine<'p, 'i>>,
-            ) -> Result<Vec<KeyedDataEvent>, RunnableTaskError>
+            ) -> Result<Vec<KeyedDataEvent>, ExecutionError>
             where
                 'p: 'i,
             {

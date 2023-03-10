@@ -97,7 +97,7 @@ pub struct KafkaConsumer {
 
 /// A wrapper of kafka message with key, payload and timestamp
 /// Differently, key and payload are [bytes::Bytes] which may zero-copy when sharing kafka message between threads
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct KafkaMessage {
     pub key: bytes::Bytes,
     pub payload: bytes::Bytes,

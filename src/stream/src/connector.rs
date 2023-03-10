@@ -3,6 +3,7 @@ use std::{
     hash::{Hash, Hasher},
 };
 
+use chrono::Local;
 use common::{
     db::MysqlConn,
     event::{LocalEvent, StreamEvent},
@@ -14,12 +15,18 @@ use common::{
 use prost::Message;
 
 use proto::common::{
-    operator_info, Entry, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId,
+    operator_info, source, Entry, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc,
+    ResourceId,
 };
 use tokio::sync::mpsc::error::TryRecvError;
 use tonic::async_trait;
 
-use crate::{err::SinkException, v8_runtime::RuntimeEngine, Receiver, Sender};
+use crate::{
+    err::{BatchSinkException, SinkException},
+    new_event_channel,
+    v8_runtime::RuntimeEngine,
+    Receiver, Sender,
+};
 /**
  * Source and Sink Connectors
  *
@@ -71,6 +78,8 @@ pub trait Sink {
      * In 1.0 release version, we will support checkpoint for fault tolerance and users can choose which guarantee they want Lightflus to satisfy.
      */
     async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException>;
+
+    async fn batch_sink(&self, mut msg: Vec<LocalEvent>) -> Result<(), BatchSinkException>;
 
     /**
      * Gracefully close sink
@@ -137,9 +146,20 @@ impl Source for SourceImpl {
     }
 }
 
-impl From<&operator_info::Details> for SourceImpl {
-    fn from(details: &operator_info::Details) -> Self {
-        todo!()
+impl From<(&ResourceId, SourceId, &operator_info::Details)> for SourceImpl {
+    fn from(args: (&ResourceId, SourceId, &operator_info::Details)) -> Self {
+        let (tx, rx) = new_event_channel(1);
+        match args.2 {
+            operator_info::Details::Source(source) => match source.desc.as_ref() {
+                Some(desc) => match desc {
+                    source::Desc::Kafka(conf) => {
+                        SourceImpl::Kafka(Kafka::with_source_config(args.0, args.1, conf), tx, rx)
+                    }
+                },
+                None => SourceImpl::Empty(args.1, tx, rx),
+            },
+            _ => SourceImpl::Empty(args.1, tx, rx),
+        }
     }
 }
 
@@ -176,6 +196,15 @@ impl Sink for SinkImpl {
             Self::Mysql(sink) => sink.close_sink(),
             Self::Redis(sink) => sink.close_sink(),
             Self::Empty(id) => drop(id),
+        }
+    }
+
+    async fn batch_sink(&self, mut msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+        match self {
+            Self::Kafka(sink) => sink.batch_sink(msgs).await,
+            Self::Mysql(sink) => sink.batch_sink(msgs).await,
+            Self::Empty(_) => Ok(()),
+            Self::Redis(redis) => redis.batch_sink(msgs).await,
         }
     }
 }
@@ -296,14 +325,11 @@ impl Kafka {
     }
 
     fn generate_new_event_id(&self) -> i64 {
-        const RESOURCE_ID_BITS: u32 = 22;
-        const TIMESTAMP_BITS: u32 = 41;
         const EPOCH: i64 = 1640966400;
-        const SHIFT: i64 = -1 ^ (-1 << RESOURCE_ID_BITS);
 
-        let timestamp = now().timestamp_millis();
+        let timestamp = now_timestamp();
         let diff = timestamp - EPOCH;
-        diff << SHIFT | (self.job_id_hash as i64)
+        diff + (self.job_id_hash as i64)
     }
 }
 
@@ -376,6 +402,42 @@ impl Sink for Kafka {
         self.producer
             .iter_mut()
             .for_each(|producer| producer.close())
+    }
+
+    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+        match &self.producer {
+            Some(producer) => {
+                for event in msgs {
+                    let kafka_msg = event.to_kafka_message();
+                    match kafka_msg {
+                        Ok(messages) => {
+                            for msg in messages {
+                                match producer.send(&msg.key, &msg.payload).await {
+                                    Err(err) => {
+                                        tracing::error!(
+                                            "sink [{:?}] to kafka failed: {}",
+                                            &msg,
+                                            err
+                                        )
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            tracing::error!(
+                                "LocalEvent {:?} to KafkaMessage failed: {:?}",
+                                &event,
+                                err
+                            )
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 }
 
@@ -455,6 +517,10 @@ impl Sink for Mysql {
         drop(self.connector_id);
         self.statement.clear();
     }
+
+    async fn batch_sink(&self, mut msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+        Ok(())
+    }
 }
 
 /// An unified implement for Redis Source and Sink
@@ -516,6 +582,10 @@ impl Sink for Redis {
         self.key_extractor.clear();
         self.value_extractor.clear();
     }
+
+    async fn batch_sink(&self, mut msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+        Ok(())
+    }
 }
 
 fn extract_arguments(
@@ -542,7 +612,6 @@ fn extract_arguments(
 
 #[cfg(test)]
 mod tests {
-    use common::event::LocalEvent;
     use proto::common::{
         mysql_desc, redis_desc, Entry, Func, KafkaDesc, MysqlDesc, RedisDesc, ResourceId,
     };
@@ -654,7 +723,7 @@ mod tests {
 
         let mut kafka_sink = SinkImpl::Kafka(super::Kafka::with_sink_config(&job_id, 0, &desc));
 
-        kafka_source.close_source();
+        kafka_source.close_source().await;
 
         match &mut kafka_source {
             SourceImpl::Kafka(kafka, tx, rx) => {

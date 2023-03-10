@@ -60,7 +60,7 @@ pub enum StreamEventDeserializeError {
 ///     }))
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize, Eq)]
 pub enum LocalEvent {
     Terminate {
         job_id: ResourceId,
@@ -68,6 +68,36 @@ pub enum LocalEvent {
         event_time: i64,
     },
     KeyedDataStreamEvent(KeyedDataEvent),
+}
+
+impl PartialOrd for LocalEvent {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        match self {
+            LocalEvent::KeyedDataStreamEvent(e1) => match other {
+                LocalEvent::KeyedDataStreamEvent(e2) => e1.event_id.partial_cmp(&e2.event_id),
+                _ => None,
+            },
+            _ => None,
+        }
+    }
+}
+
+impl Ord for LocalEvent {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        match self.partial_cmp(other) {
+            Some(order) => order,
+            None => std::cmp::Ordering::Equal,
+        }
+    }
+}
+
+impl LocalEvent {
+    pub fn set_to_operator_id(&mut self, to_operator_id: u32) {
+        match self {
+            LocalEvent::KeyedDataStreamEvent(e) => e.to_operator_id = to_operator_id,
+            _ => {}
+        }
+    }
 }
 
 unsafe impl Send for LocalEvent {}

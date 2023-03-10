@@ -7,23 +7,27 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     .bytes(&["common.Entry.value"])
     //     .type_attribute(
     //         "common.Entry",
-    //         "#[derive(serde::Serialize,serde::Deserialize)]",
+    //         "#[derive(serde::Serialize,serde::Deserialize,Eq)]",
     //     )
     //     .type_attribute(
     //         "common.KeyedDataEvent",
-    //         "#[derive(serde::Serialize,serde::Deserialize)]",
+    //         "#[derive(serde::Serialize,serde::Deserialize,Eq)]",
     //     )
     //     .type_attribute(
     //         "common.KeyedDataEvent.Window",
-    //         "#[derive(serde::Serialize,serde::Deserialize)]",
+    //         "#[derive(serde::Serialize,serde::Deserialize,Eq)]",
     //     )
     //     .type_attribute(
     //         "common.ResourceId",
-    //         "#[derive(serde::Serialize,serde::Deserialize)]",
+    //         "#[derive(serde::Serialize,serde::Deserialize,Eq,PartialOrd,Ord,Hash)]",
     //     )
     //     .type_attribute(
     //         "common.HostAddr",
-    //         "#[derive(serde::Serialize,serde::Deserialize)]",
+    //         "#[derive(serde::Serialize,serde::Deserialize,Eq,Hash)]",
+    //     )
+    //     .type_attribute(
+    //         "common.ExecutionId",
+    //         "#[derive(serde::Serialize,serde::Deserialize,Eq,Hash,PartialOrd)]",
     //     )
     //     .out_dir("src");
 

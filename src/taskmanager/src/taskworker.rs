@@ -113,15 +113,13 @@ impl TaskWorker {
         let executor_id = event.to_operator_id;
         match self.in_edges.get(&executor_id) {
             Some(in_edge) => in_edge
-                .send(LocalEvent::KeyedDataStreamEvent(event))
+                .write(LocalEvent::KeyedDataStreamEvent(event))
                 .await
                 .map(|_| SendEventToOperatorStatusEnum::Done)
                 .map_err(|err| TaskWorkerError::EventSendFailure(err.to_string())),
             None => Ok(SendEventToOperatorStatusEnum::Done),
         }
     }
-
-    pub async fn terminate_execution(&self) {}
 
     #[inline]
     pub fn receive_heartbeat(&self, heartbeat: &Heartbeat) {
@@ -136,5 +134,47 @@ impl TaskWorker {
     }
 
     #[inline]
-    pub fn receive_ack(&self, ack: &Ack) {}
+    pub fn receive_ack(&self, ack: &Ack) {
+        match ack.get_execution_id() {
+            Some(execution_id) => match self.tasks.get(&execution_id.sub_id) {
+                Some(task) => task.receive_ack(ack),
+                None => {}
+            },
+            None => {}
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use proto::common::{Dataflow, ExecutionId, OperatorInfo, ResourceId};
+
+    use super::TaskWorkerBuilder;
+
+    #[tokio::test]
+    async fn test_task_worker_build() {
+        let dataflow = Dataflow {
+            job_id: Some(ResourceId {
+                resource_id: "resource_id".to_string(),
+                namespace_id: "namespace_id".to_string(),
+            }),
+            meta: vec![],
+            nodes: HashMap::from_iter(vec![(0, OperatorInfo::default())].into_iter()),
+            execution_id: Some(ExecutionId {
+                job_id: Some(ResourceId {
+                    resource_id: "resource_id".to_string(),
+                    namespace_id: "namespace_id".to_string(),
+                }),
+                sub_id: 0,
+            }),
+        };
+        let builder = TaskWorkerBuilder::new(&dataflow);
+        let result = builder.build().await;
+        assert!(result.is_ok())
+    }
+
+    #[tokio::test]
+    async fn test_edge_builder_build_out_edge() {}
 }

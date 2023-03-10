@@ -13,16 +13,38 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 
+pub mod futures {
+    use std::{collections::BTreeSet, pin::Pin, task::Context};
+
+    use futures_util::{Future, FutureExt};
+
+    use crate::collections::lang;
+
+    pub fn join_all<'a, T, F: Fn(T)>(
+        cx: &mut Context<'_>,
+        fut_list: &mut Vec<Pin<Box<dyn Future<Output = T> + Send + 'a>>>,
+        callback: F,
+    ) {
+        let mut ready_index = BTreeSet::default();
+        while let true = lang::index_all_match_mut(fut_list, |idx, fut| {
+            if ready_index.contains(&idx) {
+                return true;
+            }
+            match fut.poll_unpin(cx) {
+                std::task::Poll::Ready(val) => {
+                    callback(val);
+                    ready_index.insert(idx);
+                    true
+                }
+                std::task::Poll::Pending => false,
+            }
+        }) {}
+    }
+}
+
 /// The utils for time convertion
 #[cfg(not(tarpaulin_include))]
 pub mod times {
-    use std::time::{Duration, SystemTime};
-
-    pub fn from_millis_to_utc_chrono(millis: i64) -> Option<chrono::DateTime<chrono::Utc>> {
-        SystemTime::UNIX_EPOCH
-            .checked_add(Duration::from_millis(millis as u64))
-            .map(|sys_time| chrono::DateTime::<chrono::Utc>::from(sys_time))
-    }
 
     pub fn from_prost_timestamp_to_utc_chrono(
         timestamp: &prost_types::Timestamp,
@@ -59,6 +81,19 @@ pub mod times {
 
     pub fn timestamp(timestamp: &chrono::DateTime<chrono::Utc>) -> i64 {
         timestamp.timestamp_millis()
+    }
+}
+
+pub mod results {
+    pub fn match_process_result<F0: Fn(E) -> T1, F1: Fn(T) -> T1, T, E, T1>(
+        result: Result<T, E>,
+        err_processor: F0,
+        ok_processor: F1,
+    ) -> T1 {
+        match result {
+            Ok(val) => ok_processor(val),
+            Err(err) => err_processor(err),
+        }
     }
 }
 

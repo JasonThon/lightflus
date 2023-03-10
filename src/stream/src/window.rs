@@ -409,7 +409,7 @@ mod tests {
         time::{Duration, Instant},
     };
 
-    use common::utils::times::{from_millis_to_utc_chrono, timestamp};
+    use common::utils::times::timestamp;
     use prost_types::Timestamp;
     use proto::common::{
         window::{FixedWindow, SessionWindow, SlidingWindow},

@@ -2,19 +2,23 @@ use std::marker::PhantomData;
 
 use common::{
     event::{LocalEvent, StreamEvent},
-    net::gateway::taskmanager::UnsafeTaskManagerRpcGateway,
+    net::gateway::taskmanager::SafeTaskManagerRpcGateway,
 };
 use tonic::async_trait;
+
+use crate::{Receiver, Sender};
 
 #[async_trait]
 pub trait OutEdge: Send + Sync {
     type Output;
 
-    async fn send(&self, val: Self::Output) -> Result<(), OutEdgeError>;
+    async fn write(&self, val: Self::Output) -> Result<(), OutEdgeError>;
+
+    async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError>;
 }
 
 pub struct LocalOutEdge<T> {
-    tx: tokio::sync::mpsc::Sender<bytes::Bytes>,
+    tx: Sender<bytes::Bytes>,
     _data_type: PhantomData<T>,
 }
 
@@ -22,7 +26,7 @@ unsafe impl<T> Send for LocalOutEdge<T> {}
 unsafe impl<T> Sync for LocalOutEdge<T> {}
 
 impl<T> LocalOutEdge<T> {
-    pub fn new(tx: tokio::sync::mpsc::Sender<bytes::Bytes>) -> Self {
+    pub fn new(tx: Sender<bytes::Bytes>) -> Self {
         Self {
             tx,
             _data_type: PhantomData,
@@ -34,7 +38,7 @@ impl<T> LocalOutEdge<T> {
 impl<T: StreamEvent> OutEdge for LocalOutEdge<T> {
     type Output = T;
 
-    async fn send(&self, val: T) -> Result<(), OutEdgeError> {
+    async fn write(&self, val: T) -> Result<(), OutEdgeError> {
         let mut buf = vec![];
         let mut serializer = rmp_serde::Serializer::new(&mut buf);
         val.serialize(&mut serializer)
@@ -45,31 +49,41 @@ impl<T: StreamEvent> OutEdge for LocalOutEdge<T> {
             .await
             .map_err(|err| OutEdgeError::SendToLocalFailed(err.to_string()))
     }
+
+    async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError> {
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
 pub enum OutEdgeError {
     SendToLocalFailed(String),
+    SendToRemoteFailed(tonic::Status),
+    EncodeError(rmp_serde::encode::Error),
 }
 
 impl From<rmp_serde::encode::Error> for OutEdgeError {
     fn from(err: rmp_serde::encode::Error) -> Self {
-        todo!()
+        Self::EncodeError(err)
     }
 }
 
 impl ToString for OutEdgeError {
     fn to_string(&self) -> String {
-        todo!()
+        match self {
+            OutEdgeError::SendToLocalFailed(message) => format!("SendToLocalFailed: {}", message),
+            OutEdgeError::SendToRemoteFailed(status) => format!("SendToRemoteFailed: {}", status),
+            OutEdgeError::EncodeError(err) => format!("RmpEncodeError: {}", err),
+        }
     }
 }
 
 pub struct RemoteOutEdge {
-    gateway: UnsafeTaskManagerRpcGateway,
+    gateway: SafeTaskManagerRpcGateway,
 }
 
 impl RemoteOutEdge {
-    pub fn new(gateway: UnsafeTaskManagerRpcGateway) -> Self {
+    pub fn new(gateway: SafeTaskManagerRpcGateway) -> Self {
         Self { gateway }
     }
 }
@@ -81,8 +95,20 @@ unsafe impl Sync for RemoteOutEdge {}
 impl OutEdge for RemoteOutEdge {
     type Output = LocalEvent;
 
-    async fn send(&self, val: LocalEvent) -> Result<(), OutEdgeError> {
-        todo!()
+    async fn write(&self, val: LocalEvent) -> Result<(), OutEdgeError> {
+        match val {
+            LocalEvent::Terminate { .. } => Ok(()),
+            LocalEvent::KeyedDataStreamEvent(event) => self
+                .gateway
+                .send_event_to_operator(event)
+                .await
+                .map(|_| ())
+                .map_err(|err| OutEdgeError::SendToRemoteFailed(err)),
+        }
+    }
+
+    async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError> {
+        Ok(())
     }
 }
 
@@ -100,8 +126,14 @@ pub trait InEdge: Send + Sync + Unpin {
 }
 
 pub struct LocalInEdge<T> {
-    rx: tokio::sync::mpsc::Receiver<bytes::Bytes>,
+    rx: Receiver<bytes::Bytes>,
     _data_type: PhantomData<T>,
+}
+
+impl<T> Drop for LocalInEdge<T> {
+    fn drop(&mut self) {
+        self.rx.close()
+    }
 }
 
 unsafe impl<T> Send for LocalInEdge<T> {}
@@ -136,10 +168,36 @@ impl<T: StreamEvent> InEdge for LocalInEdge<T> {
 }
 
 impl<T> LocalInEdge<T> {
-    pub fn new(rx: tokio::sync::mpsc::Receiver<bytes::Bytes>) -> Self {
+    pub fn new(rx: Receiver<bytes::Bytes>) -> Self {
         Self {
             rx,
             _data_type: PhantomData,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use common::event::LocalEvent;
+    use proto::common::KeyedDataEvent;
+
+    use crate::{edge::InEdge, new_event_channel};
+
+    use super::{LocalInEdge, LocalOutEdge, OutEdge};
+
+    #[tokio::test]
+    async fn test_local_edge_success() {
+        let (tx, rx) = new_event_channel(10);
+
+        let mut in_edge = LocalInEdge::<LocalEvent>::new(rx);
+        let out_edge = LocalOutEdge::<LocalEvent>::new(tx);
+
+        let result = out_edge
+            .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent::default()))
+            .await;
+        assert!(result.is_ok());
+
+        let opt = in_edge.receive_data_stream().await;
+        assert!(opt.is_some());
     }
 }

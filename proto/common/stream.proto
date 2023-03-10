@@ -85,6 +85,7 @@ message Sink {
     MysqlDesc mysql = 2;
     RedisDesc redis = 3;
   }
+  DeliveryGuarentee delivery_guarentee = 4;
 }
 
 /**
@@ -210,4 +211,10 @@ message Trigger {
 enum OperatorStatus {
   OPERATOR_RUNNING = 0;
   OPERATOR_TERMINATED = 1;
+}
+
+enum DeliveryGuarentee {
+  DELIVERY_GUARENTEE_NONE = 0;
+  DELIVERY_AT_LEAST_ONCE = 1;
+  DELIVERY_EXACTLY_ONCE = 2;
 }

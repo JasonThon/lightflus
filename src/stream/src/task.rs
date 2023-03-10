@@ -7,7 +7,6 @@ use std::{
 };
 
 use common::{
-    collections::lang,
     consts::{
         default_configs::{
             DEFAULT_CHANNEL_SIZE, DEFAULT_SEND_OPERATOR_EVENT_CONNECT_TIMEOUT_MILLIS,
@@ -18,14 +17,15 @@ use common::{
         },
     },
     event::LocalEvent,
-    net::gateway::taskmanager::UnsafeTaskManagerRpcGateway,
+    map_iter,
+    net::gateway::taskmanager::SafeTaskManagerRpcGateway,
     types::{ExecutorId, SinkId},
-    utils::get_env,
+    utils::{futures::join_all, get_env},
 };
 use futures_util::ready;
 use futures_util::FutureExt;
 use proto::common::{
-    operator_info::Details, DataflowMeta, KeyedDataEvent, OperatorInfo, ResourceId,
+    operator_info::Details, Ack, DataflowMeta, KeyedDataEvent, OperatorInfo, ResourceId,
 };
 use tokio::task::JoinHandle;
 
@@ -33,6 +33,7 @@ use crate::{
     connector::{Sink, SinkImpl, Source, SourceImpl},
     dataflow::Execution,
     edge::{InEdge, LocalInEdge, LocalOutEdge, OutEdge, RemoteOutEdge},
+    err::ExecutionError,
     new_event_channel,
     state::{new_state_mgt, StateManager},
     Receiver, Sender,
@@ -46,6 +47,8 @@ pub struct Task {
 }
 
 impl Task {
+    pub fn receive_ack(&self, ack: &Ack) {}
+
     pub fn new(job_id: &ResourceId, adjacent_node: &DataflowMeta) -> Self {
         Self {
             executor_id: adjacent_node.center,
@@ -62,7 +65,11 @@ impl Task {
     pub fn create_stream_executor(&self, operator_info: &OperatorInfo) -> StreamExecutor {
         let details = operator_info.details.clone().unwrap();
         let source = if operator_info.has_source() {
-            Some(SourceImpl::from(&details))
+            Some(SourceImpl::from((
+                &self.job_id,
+                operator_info.operator_id,
+                &details,
+            )))
         } else {
             None
         };
@@ -90,7 +97,7 @@ pub enum EdgeBuilder<'a> {
         operator_info: &'a OperatorInfo,
     },
     Remote {
-        gateway: UnsafeTaskManagerRpcGateway,
+        gateway: SafeTaskManagerRpcGateway,
     },
 }
 
@@ -116,7 +123,7 @@ impl<'a> EdgeBuilder<'a> {
             .and_then(|size| size.parse::<u64>().ok())
             .unwrap_or(DEFAULT_SEND_OPERATOR_EVENT_RPC_TIMEOUT_MILLIS);
         Self::Remote {
-            gateway: UnsafeTaskManagerRpcGateway::with_timeout(
+            gateway: SafeTaskManagerRpcGateway::with_timeout(
                 host_addr,
                 Duration::from_secs(connect_timeout),
                 Duration::from_secs(rpc_timeout),
@@ -194,6 +201,7 @@ impl StreamExecutor {
         }
     }
 
+    #[inline]
     fn process<T: StateManager>(
         &mut self,
         execution: &Execution<'_, '_, T>,
@@ -201,86 +209,56 @@ impl StreamExecutor {
         cx: &mut Context<'_>,
     ) {
         match execution.process(&event) {
-            Ok(events) => {
-                // clone events here is not exhaustable because Entry is a zero-copy structure.
-                let mut futures = events
-                    .into_iter()
-                    .map(|event| LocalEvent::KeyedDataStreamEvent(event))
-                    .map(|mut event| {
-                        let sink_futures = self
-                            .external_sinks
-                            .iter()
-                            .map(|(executor_id, sink)| {
-                                match &mut event {
-                                    LocalEvent::KeyedDataStreamEvent(e) => {
-                                        e.to_operator_id = *executor_id;
-                                    }
-                                    _ => {}
-                                };
-
-                                sink.sink(event.clone())
-                            })
-                            .collect::<Vec<_>>();
-                        let out_edge_futures = self
-                            .out_edges
-                            .iter()
-                            .map(|(executor_id, edge)| {
-                                match &mut event {
-                                    LocalEvent::KeyedDataStreamEvent(e) => {
-                                        e.to_operator_id = *executor_id
-                                    }
-                                    _ => {}
-                                };
-
-                                edge.send(event.clone())
-                            })
-                            .collect::<Vec<_>>();
-                        (sink_futures, out_edge_futures)
-                    })
-                    .collect::<Vec<_>>();
-
-                while let true = lang::any_match_mut(&mut futures, |(sink_fut, out_edge_fut)| {
-                    lang::any_match_mut(sink_fut, |fut| {
-                        let result = fut.poll_unpin(cx);
-                        match result {
-                            std::task::Poll::Ready(r) => {
-                                match r {
-                                    Err(err) => {
-                                        tracing::error!(
-                                            "event job {:?} sink to external sink failed. details: {:?}",
-                                            &self.job_id,
-                                            err
-                                        );
-                                    }
-                                    _ => {}
-                                }
-                                false
-                            }
-                            std::task::Poll::Pending => true,
-                        }
-                    }) && lang::any_match_mut(out_edge_fut, |fut| {
-                        let result = fut.poll_unpin(cx);
-                        match result {
-                            std::task::Poll::Ready(r) => {
-                                match r {
-                                    Err(err) => {
-                                        tracing::error!(
-                                            "event job {:?} sink to external sink failed. details: {:?}",
-                                            &self.job_id,
-                                            err
-                                        );
-                                    }
-                                    _ => {}
-                                }
-                                false
-                            }
-                            std::task::Poll::Pending => true,
-                        }
-                    })
-                }) {}
-            }
-            Err(err) => tracing::error!("{}", err),
+            Ok(events) => self.sink_to_external_and_local(events, cx),
+            Err(err) => match err {
+                ExecutionError::OperatorUnimplemented(_) => {
+                    self.sink_to_external_and_local(vec![event], cx)
+                },
+                _ => tracing::error!("process event failed: job_id: {:?}, operator_id: {}, event: {:?}. error details: {}", &self.job_id,self.executor_id, event, err)
+            },
         }
+    }
+
+    #[inline]
+    fn sink_to_external_and_local(&mut self, events: Vec<KeyedDataEvent>, cx: &mut Context<'_>) {
+        // clone events here is not exhaustable because Entry is a zero-copy structure.
+        let ref mut sink_futures = map_iter!(self.external_sinks, |(executor_id, sink)| {
+            sink.batch_sink(
+                events
+                    .iter()
+                    .map(|event| LocalEvent::KeyedDataStreamEvent(event.clone()))
+                    .map(|mut event| {
+                        event.set_to_operator_id(*executor_id);
+                        event
+                    })
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+        let ref mut out_edge_futures = map_iter!(self.out_edges, |(executor_id, out_edge)| {
+            out_edge.batch_write(
+                events
+                    .iter()
+                    .map(|event| LocalEvent::KeyedDataStreamEvent(event.clone()))
+                    .map(|mut event| {
+                        event.set_to_operator_id(*executor_id);
+                        event
+                    })
+                    .collect(),
+            )
+        })
+        .collect::<Vec<_>>();
+
+        join_all(cx, sink_futures, |r| match r {
+            Ok(_) => {}
+            Err(err) => tracing::error!("{:?}", err),
+        });
+
+        join_all(cx, out_edge_futures, |r| match r {
+            Ok(_) => {}
+            Err(err) => tracing::error!("{:?}", err),
+        })
     }
 }
 
@@ -305,18 +283,187 @@ impl Future for StreamExecutor {
         loop {
             while let Some(event) = ready!(this.poll_recv_data_stream(cx)) {
                 match event {
-                    LocalEvent::Terminate { .. } => return std::task::Poll::Ready(()),
                     LocalEvent::KeyedDataStreamEvent(keyed_event) => {
                         this.process(&execution, keyed_event, cx)
                     }
+                    _ => return std::task::Poll::Ready(()),
                 }
             }
         }
     }
 }
 
-
 #[cfg(test)]
 mod tests {
+    use common::{event::LocalEvent, types::TypedValue, utils::times::now_timestamp};
+    use proto::common::{
+        mapper, operator_info, source, DataTypeEnum, DataflowMeta, Entry, Func, KafkaDesc,
+        KeyedDataEvent, Mapper, OperatorInfo, ResourceId, Source,
+    };
 
+    use crate::{
+        edge::{InEdge, LocalInEdge, LocalOutEdge, OutEdge},
+        new_event_channel,
+    };
+
+    use super::{StreamExecutor, Task};
+
+    struct TestStreamExecutorSuite {
+        pub executor: StreamExecutor,
+        pub in_edge_tx_endpoint: LocalOutEdge<LocalEvent>,
+        pub out_edge_rx_endpoint: LocalInEdge<LocalEvent>,
+    }
+
+    struct SetupGuard {}
+
+    impl Drop for SetupGuard {
+        fn drop(&mut self) {}
+    }
+
+    fn setup() -> SetupGuard {
+        use crate::MOD_TEST_START;
+        MOD_TEST_START.call_once(|| {
+            v8::V8::set_flags_from_string(
+                "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",
+              );
+                  v8::V8::initialize_platform(v8::new_default_platform(0, false).make_shared());
+                  v8::V8::initialize();
+        });
+        std::env::set_var("STATE_MANAGER", "MEM");
+
+        SetupGuard {}
+    }
+
+    #[test]
+    fn test_task_get_downstream_id_iter() {
+        let job_id = ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        };
+
+        let meta = DataflowMeta {
+            center: 0,
+            neighbors: vec![1, 2, 3, 4],
+        };
+        let task = Task::new(&job_id, &meta);
+
+        let mut index = 1;
+        task.get_downstream_id_iter().for_each(|x| {
+            assert_eq!(*x, index);
+            index += 1;
+        });
+    }
+
+    #[tokio::test]
+    async fn test_task_create_stream_executor() {
+        let job_id = ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        };
+
+        let meta = DataflowMeta {
+            center: 0,
+            neighbors: vec![1, 2, 3, 4],
+        };
+        let task = Task::new(&job_id, &meta);
+        let executor = task.create_stream_executor(&OperatorInfo {
+            operator_id: 0,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(operator_info::Details::Source(Source {
+                desc: Some(source::Desc::Kafka(KafkaDesc::default())),
+            })),
+        });
+
+        assert_eq!(&executor.job_id, &job_id);
+        assert!(executor.source.is_some());
+        assert!(executor.in_edge.is_none());
+        assert!(executor.external_sinks.is_empty());
+        assert!(executor.out_edges.is_empty());
+    }
+
+    // #[tokio::test]
+    async fn test_stream_executor_process() {
+        let _ = setup();
+        let job_id = ResourceId {
+            resource_id: "resource_id".to_string(),
+            namespace_id: "namespace_id".to_string(),
+        };
+
+        let meta = DataflowMeta {
+            center: 0,
+            neighbors: vec![1, 2, 3, 4],
+        };
+        let task = Task::new(&job_id, &meta);
+        let mut executor = task.create_stream_executor(&OperatorInfo {
+            operator_id: 1,
+            host_addr: None,
+            upstreams: Default::default(),
+            details: Some(operator_info::Details::Mapper(Mapper {
+                value: Some(mapper::Value::Func(Func {
+                    function: "function _operator_map_process(a) { return a+1 }".to_string(),
+                })),
+            })),
+        });
+
+        let (tx, rx) = new_event_channel(10);
+
+        executor.set_in_edge(Some(Box::pin(LocalInEdge::new(rx))));
+        let in_edge_tx_endpoint = LocalOutEdge::new(tx);
+        let (tx, rx) = new_event_channel(10);
+
+        executor.add_out_edge(2, Box::new(LocalOutEdge::new(tx)));
+        let out_edge_rx_endpoint = LocalInEdge::new(rx);
+
+        let mut suite = TestStreamExecutorSuite {
+            executor,
+            in_edge_tx_endpoint,
+            out_edge_rx_endpoint,
+        };
+
+        let handler = tokio::spawn(suite.executor);
+        let timestamp = now_timestamp();
+        let result = suite
+            .in_edge_tx_endpoint
+            .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                job_id: Some(ResourceId {
+                    resource_id: "resource_id".to_string(),
+                    namespace_id: "ns_id".to_string(),
+                }),
+                key: None,
+                to_operator_id: 2,
+                data: vec![Entry {
+                    data_type: DataTypeEnum::Number as i32,
+                    value: TypedValue::Number(1.0).get_data_bytes(),
+                }],
+                event_time: timestamp,
+                from_operator_id: 0,
+                window: None,
+                event_id: 0,
+            }))
+            .await;
+        assert!(result.is_ok());
+
+        let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
+        assert_eq!(
+            opt,
+            Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                job_id: Some(ResourceId {
+                    resource_id: "resource_id".to_string(),
+                    namespace_id: "ns_id".to_string(),
+                }),
+                key: None,
+                to_operator_id: 2,
+                data: vec![Entry {
+                    data_type: DataTypeEnum::Number as i32,
+                    value: TypedValue::Number(2.0).get_data_bytes(),
+                }],
+                event_time: timestamp,
+                from_operator_id: 0,
+                window: None,
+                event_id: 0,
+            }))
+        );
+        handler.abort()
+    }
 }

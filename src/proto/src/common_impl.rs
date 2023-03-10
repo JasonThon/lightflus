@@ -460,34 +460,6 @@ impl mysql_desc::ConnectionOpts {
     }
 }
 
-impl Hash for ResourceId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.resource_id.hash(state);
-        self.namespace_id.hash(state);
-    }
-}
-
-impl PartialOrd for ResourceId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.resource_id.partial_cmp(&other.resource_id) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.namespace_id.partial_cmp(&other.namespace_id)
-    }
-}
-
-impl Eq for ResourceId {}
-
-impl Ord for ResourceId {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        match self.partial_cmp(other) {
-            Some(order) => order,
-            None => std::cmp::Ordering::Equal,
-        }
-    }
-}
-
 impl Response {
     pub fn ok() -> Self {
         Self {
@@ -506,30 +478,11 @@ impl ExecutionId {
     }
 }
 
-impl Eq for ExecutionId {}
-
-impl PartialOrd for ExecutionId {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        match self.job_id.partial_cmp(&other.job_id) {
-            Some(core::cmp::Ordering::Equal) => {}
-            ord => return ord,
-        }
-        self.sub_id.partial_cmp(&other.sub_id)
-    }
-}
-
 impl Ord for ExecutionId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let job_id_order = self.job_id.cmp(&other.job_id);
         let sub_id_order = self.sub_id.cmp(&other.sub_id);
         job_id_order.then(sub_id_order)
-    }
-}
-
-impl Hash for ExecutionId {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.job_id.hash(state);
-        self.sub_id.hash(state);
     }
 }
 
@@ -564,15 +517,6 @@ impl HostAddr {
         !self.host.is_empty() && self.port > 0
     }
 }
-
-impl Hash for HostAddr {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.host.hash(state);
-        self.port.hash(state);
-    }
-}
-
-impl Eq for HostAddr {}
 
 impl Heartbeat {
     #[inline]

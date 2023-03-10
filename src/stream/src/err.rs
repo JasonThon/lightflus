@@ -12,7 +12,7 @@ pub enum ErrorKind {
     MessageSendFailed,
     KafkaMessageSendFailed,
     SqlExecutionFailed,
-    RemoteSinkFailed,
+    EventSentToRemoteFailed,
     RedisSinkFailed,
 }
 
@@ -84,16 +84,25 @@ impl From<KafkaEventError> for SinkException {
 
 impl From<&mut tonic::transport::Error> for SinkException {
     fn from(err: &mut tonic::transport::Error) -> Self {
-        todo!()
+        Self {
+            kind: ErrorKind::EventSentToRemoteFailed,
+            msg: err.to_string(),
+        }
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct BatchSinkException {
+    pub err: SinkException,
+    pub event_id: u64,
+}
+
 #[derive(Debug)]
-pub enum RunnableTaskError {
+pub enum ExecutionError {
     OperatorUnimplemented(NodeIdx),
 }
 
-impl fmt::Display for RunnableTaskError {
+impl fmt::Display for ExecutionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::OperatorUnimplemented(operator_id) => {

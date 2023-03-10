@@ -94,6 +94,37 @@ pub fn all_match<T, F: Fn(&T) -> bool>(elems: &Vec<T>, predicate: F) -> bool {
     elems.iter().all(predicate)
 }
 
+pub fn all_match_mut<T, F: FnMut(&mut T) -> bool>(elems: &mut Vec<T>, predicate: F) -> bool {
+    elems.iter_mut().all(predicate)
+}
+
+pub fn index_all_match_mut<T, F: FnMut(usize, &mut T) -> bool>(
+    elems: &mut Vec<T>,
+    mut predicate: F,
+) -> bool {
+    let mut idx = 0;
+    elems.iter_mut().all(|elem| {
+        let r = predicate(idx, elem);
+        idx += 1;
+        r
+    })
+}
+
+pub fn index_for_each_mut<T, F: FnMut(usize, &mut T)>(elems: &mut Vec<T>, mut callback: F) {
+    let mut idx: usize = 0;
+    elems.iter_mut().for_each(|elem| {
+        callback(idx, elem);
+        idx += 1;
+    })
+}
+
+#[macro_export]
+macro_rules! map_iter {
+    ($val:expr,$callback:expr) => {
+        $val.iter().map($callback)
+    };
+}
+
 #[cfg(test)]
 mod tests {
 

@@ -73,8 +73,6 @@ impl TaskManagerApi for TaskManager {
             Some(entry) => {
                 match self.workers.remove(entry.value()) {
                     Some(entry) => {
-                        let worker = entry.value();
-                        worker.terminate_execution().await;
                         entry.remove();
                     }
                     None => {}
@@ -96,12 +94,10 @@ impl TaskManagerApi for TaskManager {
                     match self.workers.remove(*execution_id) {
                         Some(entry) => {
                             entry.remove();
-                            let worker = entry.value();
-                            let closer = worker.terminate_execution();
                             let worker_builder = TaskWorkerBuilder::new(dataflow);
                             let worker = worker_builder.build();
-                            let (_, worker) = tokio::join!(closer, worker);
-                            match worker {
+                            let result = worker.await;
+                            match result {
                                 Ok(worker) => {
                                     self.workers.insert((*execution_id).clone(), worker);
                                     self.job_id_map_execution_id

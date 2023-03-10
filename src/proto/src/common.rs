@@ -1,6 +1,6 @@
 /// *
 /// JobId, represents a stream job.
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Eq, PartialOrd, Ord, Hash)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ResourceId {
@@ -19,7 +19,7 @@ pub struct Response {
     pub err_msg: ::prost::alloc::string::String,
 }
 /// The common structure of remote host address in Lightflus
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Eq, Hash)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct HostAddr {
@@ -42,6 +42,7 @@ pub struct Time {
     pub hours: u32,
 }
 /// Id of sub-dataflow execution
+#[derive(serde::Serialize, serde::Deserialize, Eq, Hash, PartialOrd)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ExecutionId {
@@ -348,7 +349,7 @@ impl NodeType {
 }
 /// Event that keyed transferred between operators
 /// KeyedDataEvent can be traced in a distributed system with event id
-#[derive(serde::Serialize, serde::Deserialize)]
+#[derive(serde::Serialize, serde::Deserialize, Eq)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct KeyedDataEvent {
@@ -378,7 +379,7 @@ pub struct KeyedDataEvent {
 }
 /// Nested message and enum types in `KeyedDataEvent`.
 pub mod keyed_data_event {
-    #[derive(serde::Serialize, serde::Deserialize)]
+    #[derive(serde::Serialize, serde::Deserialize, Eq)]
     #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Message)]
     pub struct Window {
@@ -388,7 +389,10 @@ pub mod keyed_data_event {
         pub end_time: i64,
     }
 }
-#[derive(serde::Serialize, serde::Deserialize)]
+/// Entry that represents a structure of Typed Value
+/// For improving performance, when being compiled by tonic, the type of value after compilation is recommended to set as
+/// bytes::Bytes so that Entry's value can be a zero-copy bytes slice.
+#[derive(serde::Serialize, serde::Deserialize, Eq)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Entry {
@@ -561,6 +565,8 @@ pub mod key_by {
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Sink {
+    #[prost(enumeration = "DeliveryGuarentee", tag = "4")]
+    pub delivery_guarentee: i32,
     #[prost(oneof = "sink::Desc", tags = "1, 2, 3")]
     pub desc: ::core::option::Option<sink::Desc>,
 }
@@ -836,6 +842,35 @@ impl OperatorStatus {
         match value {
             "OPERATOR_RUNNING" => Some(Self::OperatorRunning),
             "OPERATOR_TERMINATED" => Some(Self::OperatorTerminated),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum DeliveryGuarentee {
+    None = 0,
+    DeliveryAtLeastOnce = 1,
+    DeliveryExactlyOnce = 2,
+}
+impl DeliveryGuarentee {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            DeliveryGuarentee::None => "DELIVERY_GUARENTEE_NONE",
+            DeliveryGuarentee::DeliveryAtLeastOnce => "DELIVERY_AT_LEAST_ONCE",
+            DeliveryGuarentee::DeliveryExactlyOnce => "DELIVERY_EXACTLY_ONCE",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "DELIVERY_GUARENTEE_NONE" => Some(Self::None),
+            "DELIVERY_AT_LEAST_ONCE" => Some(Self::DeliveryAtLeastOnce),
+            "DELIVERY_EXACTLY_ONCE" => Some(Self::DeliveryExactlyOnce),
             _ => None,
         }
     }

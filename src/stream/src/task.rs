@@ -382,7 +382,7 @@ mod tests {
         assert!(executor.out_edges.is_empty());
     }
 
-    // #[tokio::test]
+    #[tokio::test]
     async fn test_stream_executor_process() {
         let _ = setup();
         let job_id = ResourceId {
@@ -407,12 +407,19 @@ mod tests {
         });
 
         let (tx, rx) = new_event_channel(10);
+        {
+            executor.set_in_edge(Some(Box::pin(LocalInEdge::new(rx))));
+            assert!(executor.in_edge.is_some());
+        }
 
-        executor.set_in_edge(Some(Box::pin(LocalInEdge::new(rx))));
         let in_edge_tx_endpoint = LocalOutEdge::new(tx);
         let (tx, rx) = new_event_channel(10);
 
-        executor.add_out_edge(2, Box::new(LocalOutEdge::new(tx)));
+        {
+            executor.add_out_edge(2, Box::new(LocalOutEdge::new(tx)));
+            assert_eq!(executor.out_edges.len(), 1);
+        }
+
         let out_edge_rx_endpoint = LocalInEdge::new(rx);
 
         let mut suite = TestStreamExecutorSuite {
@@ -423,47 +430,53 @@ mod tests {
 
         let handler = tokio::spawn(suite.executor);
         let timestamp = now_timestamp();
-        let result = suite
-            .in_edge_tx_endpoint
-            .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                job_id: Some(ResourceId {
-                    resource_id: "resource_id".to_string(),
-                    namespace_id: "ns_id".to_string(),
-                }),
-                key: None,
-                to_operator_id: 2,
-                data: vec![Entry {
-                    data_type: DataTypeEnum::Number as i32,
-                    value: TypedValue::Number(1.0).get_data_bytes(),
-                }],
-                event_time: timestamp,
-                from_operator_id: 0,
-                window: None,
-                event_id: 0,
-            }))
-            .await;
-        assert!(result.is_ok());
 
-        let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
-        assert_eq!(
-            opt,
-            Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                job_id: Some(ResourceId {
-                    resource_id: "resource_id".to_string(),
-                    namespace_id: "ns_id".to_string(),
-                }),
-                key: None,
-                to_operator_id: 2,
-                data: vec![Entry {
-                    data_type: DataTypeEnum::Number as i32,
-                    value: TypedValue::Number(2.0).get_data_bytes(),
-                }],
-                event_time: timestamp,
-                from_operator_id: 0,
-                window: None,
-                event_id: 0,
-            }))
-        );
+        {
+            let result = suite
+                .in_edge_tx_endpoint
+                .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                    job_id: Some(ResourceId {
+                        resource_id: "resource_id".to_string(),
+                        namespace_id: "ns_id".to_string(),
+                    }),
+                    key: None,
+                    to_operator_id: 2,
+                    data: vec![Entry {
+                        data_type: DataTypeEnum::Number as i32,
+                        value: TypedValue::Number(1.0).get_data_bytes(),
+                    }],
+                    event_time: timestamp,
+                    from_operator_id: 0,
+                    window: None,
+                    event_id: 0,
+                }))
+                .await;
+            assert!(result.is_ok());
+        }
+
+        {
+            let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
+            assert_eq!(
+                opt,
+                Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                    job_id: Some(ResourceId {
+                        resource_id: "resource_id".to_string(),
+                        namespace_id: "ns_id".to_string(),
+                    }),
+                    key: None,
+                    to_operator_id: 2,
+                    data: vec![Entry {
+                        data_type: DataTypeEnum::Number as i32,
+                        value: TypedValue::Number(2.0).get_data_bytes(),
+                    }],
+                    event_time: timestamp,
+                    from_operator_id: 0,
+                    window: None,
+                    event_id: 0,
+                }))
+            );
+        }
+
         handler.abort()
     }
 }

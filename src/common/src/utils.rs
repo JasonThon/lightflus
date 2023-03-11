@@ -26,7 +26,10 @@ pub mod futures {
         callback: F,
     ) {
         let mut ready_index = BTreeSet::default();
-        while let true = lang::index_all_match_mut(fut_list, |idx, fut| {
+        if fut_list.is_empty() {
+            return;
+        }
+        while let false = lang::index_all_match_mut(fut_list, |idx, fut| {
             if ready_index.contains(&idx) {
                 return true;
             }

@@ -13,7 +13,7 @@ fn main() {
     let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
 
     let result =
-        fs::File::open(config_file_path.unwrap_or("src/worker/etc/worker.json".to_string()));
+        fs::File::open(config_file_path.unwrap_or("src/taskmanager/etc/taskmanager.json".to_string()));
     if result.is_err() {
         panic!(
             "{}",

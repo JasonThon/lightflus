@@ -1,9 +1,13 @@
-use std::marker::PhantomData;
+use std::{marker::PhantomData, vec};
 
 use common::{
+    collections::lang,
     event::{LocalEvent, StreamEvent},
     net::gateway::taskmanager::SafeTaskManagerRpcGateway,
+    utils::futures::join_all,
 };
+use rayon::prelude::{IntoParallelIterator, ParallelIterator};
+use tokio::sync::mpsc::error::TrySendError;
 use tonic::async_trait;
 
 use crate::{Receiver, Sender};
@@ -34,6 +38,22 @@ impl<T> LocalOutEdge<T> {
     }
 }
 
+impl<T: StreamEvent> LocalOutEdge<T> {
+    fn try_write(&self, val: T) -> Result<(), OutEdgeError> {
+        let mut buf = vec![];
+        let mut serializer = rmp_serde::Serializer::new(&mut buf);
+        val.serialize(&mut serializer)
+            .map_err(|err| OutEdgeError::from(err))?;
+
+        self.tx
+            .try_send(bytes::Bytes::from(buf))
+            .map_err(|err| match err {
+                TrySendError::Full(_) => OutEdgeError::QueueFull,
+                TrySendError::Closed(_) => OutEdgeError::QueueClosed,
+            })
+    }
+}
+
 #[async_trait]
 impl<T: StreamEvent> OutEdge for LocalOutEdge<T> {
     type Output = T;
@@ -51,7 +71,30 @@ impl<T: StreamEvent> OutEdge for LocalOutEdge<T> {
     }
 
     async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError> {
-        Ok(())
+        let failed_events = iter
+            .into_par_iter()
+            .map(|event| {
+                let event_id = event.event_id();
+                match self.try_write(event) {
+                    Ok(_) => (event_id, None),
+                    Err(err) => (event_id, Some(err)),
+                }
+            })
+            .collect::<Vec<_>>();
+        if lang::all_match(&failed_events, |(_, err)| err.is_none()) {
+            Ok(())
+        } else {
+            let mut errors = vec![];
+            failed_events
+                .into_iter()
+                .filter(|(_, err)| err.is_some())
+                .for_each(|(event_id, opt)| {
+                    let err = opt.unwrap();
+                    errors.push((event_id, err));
+                });
+
+            Err(OutEdgeError::BatchSendFailed(errors))
+        }
     }
 }
 
@@ -60,6 +103,9 @@ pub enum OutEdgeError {
     SendToLocalFailed(String),
     SendToRemoteFailed(tonic::Status),
     EncodeError(rmp_serde::encode::Error),
+    QueueFull,
+    QueueClosed,
+    BatchSendFailed(Vec<(i64, OutEdgeError)>),
 }
 
 impl From<rmp_serde::encode::Error> for OutEdgeError {
@@ -74,6 +120,11 @@ impl ToString for OutEdgeError {
             OutEdgeError::SendToLocalFailed(message) => format!("SendToLocalFailed: {}", message),
             OutEdgeError::SendToRemoteFailed(status) => format!("SendToRemoteFailed: {}", status),
             OutEdgeError::EncodeError(err) => format!("RmpEncodeError: {}", err),
+            OutEdgeError::QueueFull => "Local queue is full".to_string(),
+            OutEdgeError::QueueClosed => "local queue is closed".to_string(),
+            OutEdgeError::BatchSendFailed(errors) => {
+                format!("Batchly send event failed: [{:?}]", errors)
+            }
         }
     }
 }

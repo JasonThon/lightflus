@@ -47,6 +47,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+      - name: Update Rustup
+        run: rustup update
       - name: Check packages
         run: |
           cargo check --manifest-path src/proto/Cargo.toml --all-features

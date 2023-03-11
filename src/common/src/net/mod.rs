@@ -71,7 +71,7 @@ pub fn local_ip() -> Option<String> {
 /// # Example of Tokio spawning
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
 ///
 /// #[tokio::main]
@@ -95,7 +95,7 @@ pub fn local_ip() -> Option<String> {
 /// # Example of async/await
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
 /// use std::time::Duration;
 ///
@@ -216,7 +216,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///
 /// # Example of Tokio spawn
 /// ```
-/// use common::net::{AckResponderBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
 ///
 /// #[tokio::main]
@@ -239,7 +239,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///
 /// # Example of Tokio spwan
 /// ```
-/// use common::net::{AckResponderBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use std::time::Duration;
 /// use proto::common::HostAddr;
 ///

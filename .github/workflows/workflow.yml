@@ -51,7 +51,7 @@ jobs:
         run: |
           cargo check --manifest-path src/proto/Cargo.toml --all-features
           cargo check --manifest-path src/coordinator/Cargo.toml
-          cargo check --manifest-path src/worker/Cargo.toml
+          cargo check --manifest-path src/taskmanager/Cargo.toml
           cargo check --manifest-path src/apiserver/Cargo.toml
       - name: Run tests
         run: |

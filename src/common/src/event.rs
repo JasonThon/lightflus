@@ -50,13 +50,15 @@ pub enum StreamEventDeserializeError {
 ///     let (tx, mut rx) = tokio::sync::mpsc::channel(10);
 ///     let _ = tx.send(LocalEvent::Terminate {
 ///         job_id: ResourceId::default(),
-///         to: 1
+///         to: 1,
+///         event_time: 123,
 ///     }).await;
 ///     
 ///     let result = rx.recv().await;
 ///     assert_eq!(result, Some(LocalEvent::Terminate {
 ///         job_id: ResourceId::default(),
-///         to: 1
+///         to: 1,
+///         event_time: 123,
 ///     }))
 /// }
 /// ```

@@ -1,5 +1,5 @@
 use std::{
-    collections::{btree_set::Iter, BTreeMap, BTreeSet},
+    collections::{btree_set::Iter, BTreeMap, BTreeSet, VecDeque},
     future::Future,
     pin::Pin,
     task::Context,
@@ -17,13 +17,14 @@ use common::{
         },
     },
     event::LocalEvent,
+    futures::{join_all, select},
     map_iter,
     net::gateway::taskmanager::SafeTaskManagerRpcGateway,
     types::{ExecutorId, SinkId},
-    utils::{futures::join_all, get_env},
+    utils::get_env,
 };
-use futures_util::ready;
 use futures_util::FutureExt;
+use futures_util::{future::Either, ready};
 use proto::common::{
     operator_info::Details, Ack, DataflowMeta, KeyedDataEvent, OperatorInfo, ResourceId,
 };
@@ -36,6 +37,7 @@ use crate::{
     err::ExecutionError,
     new_event_channel,
     state::{new_state_mgt, StateManager},
+    window::WindowAssignerImpl,
     Receiver, Sender,
 };
 
@@ -142,7 +144,7 @@ impl<'a> EdgeBuilder<'a> {
     /// For different edge type, [EdgeBuilder] will return two different values:
     ///
     /// - [EdgeBuilder::Local] can create in-edge and return [Some]
-    /// - the else will return [None]
+    /// - then else will return [None]
     pub fn build_in_edge(self) -> Option<Pin<Box<dyn InEdge<Output = LocalEvent>>>> {
         match self {
             Self::Local { tx: _, rx, .. } => Some(Box::pin(LocalInEdge::<LocalEvent>::new(rx))),
@@ -220,7 +222,7 @@ impl StreamExecutor {
     }
 
     #[inline]
-    fn sink_to_external_and_local(&mut self, events: Vec<KeyedDataEvent>, cx: &mut Context<'_>) {
+    fn sink_to_external_and_local(&self, events: Vec<KeyedDataEvent>, cx: &mut Context<'_>) {
         // clone events here is not exhaustable because Entry is a zero-copy structure.
         let ref mut sink_futures = map_iter!(self.external_sinks, |(executor_id, sink)| {
             sink.batch_sink(
@@ -273,20 +275,55 @@ impl Future for StreamExecutor {
         let this = self.get_mut();
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
-        let execution = Execution::new(
-            this.executor_id,
-            &this.operator_details,
-            new_state_mgt(&this.job_id),
-            scope,
-        );
-
-        loop {
-            while let Some(event) = ready!(this.poll_recv_data_stream(cx)) {
-                match event {
-                    LocalEvent::KeyedDataStreamEvent(keyed_event) => {
-                        this.process(&execution, keyed_event, cx)
+        let ref mut this_windows = VecDeque::default();
+        match &this.operator_details {
+            Details::Window(window) => {
+                let mut assigner = WindowAssignerImpl::new(window);
+                loop {
+                    match select(this.poll_recv_data_stream(cx), assigner.poll_trigger(cx)) {
+                        Some(either) => match either {
+                            Either::Left(opt) => match opt {
+                                Some(event) => match event {
+                                    LocalEvent::Terminate { .. } => {
+                                        return std::task::Poll::Ready(())
+                                    }
+                                    LocalEvent::KeyedDataStreamEvent(event) => {
+                                        let windows = assigner.assign_windows(event);
+                                        this_windows.extend(windows)
+                                    }
+                                },
+                                None => {}
+                            },
+                            Either::Right(_) => this.sink_to_external_and_local(
+                                assigner
+                                    .group_by_key_and_window(this_windows)
+                                    .into_iter()
+                                    .map(|window| window.to_event())
+                                    .collect(),
+                                cx,
+                            ),
+                        },
+                        None => {}
                     }
-                    _ => return std::task::Poll::Ready(()),
+                }
+            }
+            _ => {
+                let execution = Execution::new(
+                    this.executor_id,
+                    &this.operator_details,
+                    new_state_mgt(&this.job_id),
+                    scope,
+                );
+
+                loop {
+                    while let Some(event) = ready!(this.poll_recv_data_stream(cx)) {
+                        match event {
+                            LocalEvent::KeyedDataStreamEvent(keyed_event) => {
+                                this.process(&execution, keyed_event, cx)
+                            }
+                            _ => return std::task::Poll::Ready(()),
+                        }
+                    }
                 }
             }
         }
@@ -478,5 +515,10 @@ mod tests {
         }
 
         handler.abort()
+    }
+
+    #[tokio::test]
+    async fn test_stream_executor_window() {
+        
     }
 }

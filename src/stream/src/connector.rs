@@ -3,7 +3,6 @@ use std::{
     hash::{Hash, Hasher},
 };
 
-use chrono::Local;
 use common::{
     db::MysqlConn,
     event::{LocalEvent, StreamEvent},
@@ -15,8 +14,8 @@ use common::{
 use prost::Message;
 
 use proto::common::{
-    operator_info, source, Entry, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc,
-    ResourceId,
+    operator_info::{self, Details},
+    source, Entry, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId,
 };
 use tokio::sync::mpsc::error::TryRecvError;
 use tonic::async_trait;
@@ -199,7 +198,7 @@ impl Sink for SinkImpl {
         }
     }
 
-    async fn batch_sink(&self, mut msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
         match self {
             Self::Kafka(sink) => sink.batch_sink(msgs).await,
             Self::Mysql(sink) => sink.batch_sink(msgs).await,
@@ -209,9 +208,24 @@ impl Sink for SinkImpl {
     }
 }
 
-impl From<&OperatorInfo> for SinkImpl {
-    fn from(info: &OperatorInfo) -> Self {
-        todo!()
+impl From<(&ResourceId, &OperatorInfo)> for SinkImpl {
+    fn from((resource_id, info): (&ResourceId, &OperatorInfo)) -> Self {
+        match &info.details {
+            Some(detail) => {
+                match detail {
+                    Details::Source(source) => match &source.desc {
+                        Some(desc) => match desc {
+                            source::Desc::Kafka(desc) => SinkImpl::Kafka(
+                                Kafka::with_source_config(resource_id, info.operator_id, desc),
+                            ),
+                        },
+                        None => Self::Empty(info.operator_id),
+                    },
+                    _ => todo!(),
+                }
+            }
+            None => Self::Empty(info.operator_id),
+        }
     }
 }
 
@@ -518,7 +532,7 @@ impl Sink for Mysql {
         self.statement.clear();
     }
 
-    async fn batch_sink(&self, mut msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
         Ok(())
     }
 }
@@ -583,7 +597,7 @@ impl Sink for Redis {
         self.value_extractor.clear();
     }
 
-    async fn batch_sink(&self, mut msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
         Ok(())
     }
 }

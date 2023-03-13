@@ -75,7 +75,8 @@ impl<'a> TaskWorkerBuilder<'a> {
                             edge_builders.get(dowstream_id).iter().for_each(|builder| {
                                 let neighbor_info = info_set.get(dowstream_id).unwrap();
                                 if neighbor_info.has_sink() {
-                                    executor.add_external_sink(SinkImpl::from(neighbor_info))
+                                    executor
+                                        .add_external_sink(SinkImpl::from((job_id, neighbor_info)))
                                 } else {
                                     let out_edge = (*builder).build_out_edge();
                                     executor.add_out_edge(*dowstream_id, out_edge);

@@ -1,10 +1,14 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::{
+    collections::{BTreeMap, VecDeque},
+    task::{Context, Poll},
+};
 
 use chrono::Duration;
 use common::collections::lang;
 
-use proto::common::{KeyedDataEvent, OperatorInfo};
+use proto::common::{keyed_data_event, KeyedDataEvent, Window};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
+use tokio::time::Instant;
 use tonic::async_trait;
 
 use crate::DETAULT_WATERMARK;
@@ -22,8 +26,7 @@ pub enum WindowAssignerImpl {
 }
 
 impl WindowAssignerImpl {
-    pub fn new(operator: &OperatorInfo) -> Self {
-        let window = operator.get_window();
+    pub fn new(window: &Window) -> Self {
         let trigger = window.get_trigger();
         match window.get_value() {
             Some(window) => match window {
@@ -117,10 +120,19 @@ impl WindowAssignerImpl {
 
     pub(crate) async fn trigger(&mut self) {
         match self {
-            WindowAssignerImpl::Fixed(fixed) => fixed.trigger().await,
-            WindowAssignerImpl::Slide(slide) => slide.trigger().await,
-            WindowAssignerImpl::Session(session) => session.trigger().await,
-            WindowAssignerImpl::Empty => {}
+            Self::Fixed(fixed) => fixed.trigger().await,
+            Self::Slide(slide) => slide.trigger().await,
+            Self::Session(session) => session.trigger().await,
+            Self::Empty => {}
+        }
+    }
+
+    pub(crate) fn poll_trigger(&mut self, cx: &mut Context<'_>) -> Poll<Instant> {
+        match self {
+            Self::Fixed(fixed) => fixed.poll_trigger(cx),
+            Self::Slide(slide) => slide.poll_trigger(cx),
+            Self::Session(session) => session.poll_trigger(cx),
+            Self::Empty => Poll::Ready(Instant::now()),
         }
     }
 }
@@ -135,6 +147,8 @@ pub trait KeyedWindowAssigner {
     fn assign_windows(&self, event: KeyedDataEvent) -> Vec<KeyedWindow>;
 
     async fn trigger(&mut self);
+
+    fn poll_trigger(&mut self, cx: &mut Context<'_>) -> Poll<Instant>;
 }
 
 /// EventTime-based Fixed Window Assigner
@@ -181,6 +195,10 @@ impl KeyedWindowAssigner for FixedEventTimeKeyedWindowAssigner {
 
     async fn trigger(&mut self) {
         self.trigger.emit().await;
+    }
+
+    fn poll_trigger(&mut self, cx: &mut Context<'_>) -> Poll<Instant> {
+        self.trigger.poll_emit(cx)
     }
 }
 
@@ -268,6 +286,16 @@ impl KeyedWindow {
             item.inner.get_key().value.clone()
         })
     }
+
+    pub fn to_event(mut self) -> KeyedDataEvent {
+        self.inner.event_time = self.event_time;
+        self.inner.window = Some(keyed_data_event::Window {
+            start_time: self.window_start,
+            end_time: self.window_end,
+        });
+
+        self.inner
+    }
 }
 
 pub struct SlideEventTimeKeyedWindowAssigner {
@@ -323,6 +351,10 @@ impl KeyedWindowAssigner for SlideEventTimeKeyedWindowAssigner {
     async fn trigger(&mut self) {
         self.trigger.emit().await;
     }
+
+    fn poll_trigger(&mut self, cx: &mut Context<'_>) -> Poll<Instant> {
+        self.trigger.poll_emit(cx)
+    }
 }
 
 pub struct SessionKeyedWindowAssigner {
@@ -362,6 +394,10 @@ impl KeyedWindowAssigner for SessionKeyedWindowAssigner {
     async fn trigger(&mut self) {
         self.trigger.emit().await;
     }
+
+    fn poll_trigger(&mut self, cx: &mut Context<'_>) -> Poll<Instant> {
+        self.trigger.poll_emit(cx)
+    }
 }
 
 pub enum TriggerImpl {
@@ -397,6 +433,15 @@ impl TriggerImpl {
                 timer.reset();
                 let instant = timer.tick().await.into_std();
                 tracing::info!("watermark trigger emit at {:?}", &instant);
+            }
+        }
+    }
+
+    fn poll_emit(&mut self, cx: &mut Context) -> Poll<Instant> {
+        match self {
+            Self::Watermark { timer } => {
+                timer.reset();
+                timer.poll_tick(cx)
             }
         }
     }

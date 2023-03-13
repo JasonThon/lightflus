@@ -13,38 +13,6 @@ use std::collections::HashMap;
 use std::env;
 use std::io::Read;
 
-pub mod futures {
-    use std::{collections::BTreeSet, pin::Pin, task::Context};
-
-    use futures_util::{Future, FutureExt};
-
-    use crate::collections::lang;
-
-    pub fn join_all<'a, T, F: Fn(T)>(
-        cx: &mut Context<'_>,
-        fut_list: &mut Vec<Pin<Box<dyn Future<Output = T> + Send + 'a>>>,
-        callback: F,
-    ) {
-        let mut ready_index = BTreeSet::default();
-        if fut_list.is_empty() {
-            return;
-        }
-        while let false = lang::index_all_match_mut(fut_list, |idx, fut| {
-            if ready_index.contains(&idx) {
-                return true;
-            }
-            match fut.poll_unpin(cx) {
-                std::task::Poll::Ready(val) => {
-                    callback(val);
-                    ready_index.insert(idx);
-                    true
-                }
-                std::task::Poll::Pending => false,
-            }
-        }) {}
-    }
-}
-
 /// The utils for time convertion
 #[cfg(not(tarpaulin_include))]
 pub mod times {
@@ -284,6 +252,7 @@ pub fn uuid() -> String {
 
 #[cfg(test)]
 mod tests {
+
     use proto::{
         common::{operator_info::Details, ResourceId},
         common_impl::DataflowValidateError,

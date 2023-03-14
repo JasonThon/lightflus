@@ -2,7 +2,7 @@ use std::{
     collections::{btree_set::Iter, BTreeMap, BTreeSet, VecDeque},
     future::Future,
     pin::Pin,
-    task::Context,
+    task::{Context, Poll},
     time::Duration,
 };
 
@@ -268,10 +268,7 @@ impl StreamExecutor {
 impl Future for StreamExecutor {
     type Output = ();
 
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
+    fn poll(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
@@ -284,9 +281,7 @@ impl Future for StreamExecutor {
                         Some(either) => match either {
                             Either::Left(opt) => match opt {
                                 Some(event) => match event {
-                                    LocalEvent::Terminate { .. } => {
-                                        return std::task::Poll::Ready(())
-                                    }
+                                    LocalEvent::Terminate { .. } => return Poll::Ready(()),
                                     LocalEvent::KeyedDataStreamEvent(event) => {
                                         let windows = assigner.assign_windows(event);
                                         this_windows.extend(windows)
@@ -518,7 +513,5 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_stream_executor_window() {
-        
-    }
+    async fn test_stream_executor_window() {}
 }

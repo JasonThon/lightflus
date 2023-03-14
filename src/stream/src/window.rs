@@ -1,10 +1,11 @@
 use std::{
-    collections::{BTreeMap, VecDeque},
+    collections::{hash_map::DefaultHasher, BTreeMap, VecDeque},
+    hash::{Hash, Hasher},
     task::{Context, Poll},
 };
 
 use chrono::Duration;
-use common::collections::lang;
+use common::{collections::lang, utils::times::now_timestamp};
 
 use proto::common::{keyed_data_event, KeyedDataEvent, Window};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
@@ -238,6 +239,9 @@ impl KeyedWindow {
         };
         if self.window_end < other.window_end {
             self.window_end = other.window_end.clone()
+        }
+        if self.inner.event_id < other.inner.event_id {
+            self.inner.event_id = other.inner.event_id
         }
     }
 
@@ -837,10 +841,10 @@ mod tests {
                                 value: bytes::Bytes::from(vec![2])
                             }
                         ],
-                        event_time: 10 * common::NANOS_PER_MILLI + timestamp(&now),
+                        event_time: 10 + timestamp(&now),
                         from_operator_id: 0,
                         window: None,
-                        event_id: 1,
+                        event_id: 3,
                     },
                     event_time: window_start,
                     window_start: window_start,
@@ -885,7 +889,7 @@ mod tests {
                         event_time: 250 + timestamp(&now),
                         from_operator_id: 0,
                         window: None,
-                        event_id: 1
+                        event_id: 6
                     },
                     event_time: window_start.unwrap_or_default(),
                     window_start: window_start.unwrap_or_default(),

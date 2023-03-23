@@ -2,15 +2,10 @@ use std::{fs, time::Duration};
 
 use api::CoordinatorApiImpl;
 use common::utils;
+use lightflus_core::coordinator::coord;
 use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 use tonic::transport::Server;
 
-mod api;
-mod coord;
-mod executions;
-mod managers;
-mod scheduler;
-mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -47,7 +42,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     replace_builder_args_by_env(&mut builder);
 
     let coordinator = builder.build();
-    let server = CoordinatorApiImpl::new(coordinator);
 
     let addr = format!("0.0.0.0:{}", builder.port).parse()?;
     tracing::info!("service will start at {}", builder.port);
@@ -55,7 +49,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Server::builder()
         .timeout(Duration::from_secs(3))
         .concurrency_limit_per_connection(5)
-        .add_service(CoordinatorApiServer::new(server))
+        .add_service(coordinator)
         .serve(addr)
         .await?;
 

@@ -1,10 +1,17 @@
-use std::{marker::PhantomData, vec};
+use std::{
+    fmt::Display,
+    marker::PhantomData,
+    task::{Context, Poll},
+    vec,
+};
 
 use common::{
     collections::lang,
     event::{LocalEvent, StreamEvent},
     net::gateway::taskmanager::SafeTaskManagerRpcGateway,
+    types::ExecutorId,
 };
+use proto::common::{KeyedDataEvent, KeyedEventSet, ResourceId};
 use rayon::prelude::{IntoParallelIterator, ParallelIterator};
 use tokio::sync::mpsc::error::TrySendError;
 use tonic::async_trait;
@@ -17,7 +24,13 @@ pub trait OutEdge: Send + Sync {
 
     async fn write(&self, val: Self::Output) -> Result<(), OutEdgeError>;
 
-    async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError>;
+    async fn batch_write(
+        &self,
+        job_id: &Option<ResourceId>,
+        to_operator_id: ExecutorId,
+        from_operator_id: ExecutorId,
+        iter: Vec<Self::Output>,
+    ) -> Result<(), OutEdgeError>;
 }
 
 pub struct LocalOutEdge<T> {
@@ -69,11 +82,18 @@ impl<T: StreamEvent> OutEdge for LocalOutEdge<T> {
             .map_err(|err| OutEdgeError::SendToLocalFailed(err.to_string()))
     }
 
-    async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError> {
+    async fn batch_write(
+        &self,
+        job_id: &Option<ResourceId>,
+        to_operator_id: ExecutorId,
+        from_operator_id: ExecutorId,
+        iter: Vec<Self::Output>,
+    ) -> Result<(), OutEdgeError> {
         let failed_events = iter
             .into_par_iter()
-            .map(|event| {
+            .map(|mut event| {
                 let event_id = event.event_id();
+                event.set_to_operator_id(to_operator_id);
                 match self.try_write(event) {
                     Ok(_) => (event_id, None),
                     Err(err) => (event_id, Some(err)),
@@ -113,16 +133,20 @@ impl From<rmp_serde::encode::Error> for OutEdgeError {
     }
 }
 
-impl ToString for OutEdgeError {
-    fn to_string(&self) -> String {
+impl Display for OutEdgeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OutEdgeError::SendToLocalFailed(message) => format!("SendToLocalFailed: {}", message),
-            OutEdgeError::SendToRemoteFailed(status) => format!("SendToRemoteFailed: {}", status),
-            OutEdgeError::EncodeError(err) => format!("RmpEncodeError: {}", err),
-            OutEdgeError::QueueFull => "Local queue is full".to_string(),
-            OutEdgeError::QueueClosed => "local queue is closed".to_string(),
+            OutEdgeError::SendToLocalFailed(message) => {
+                f.write_fmt(format_args!("SendToLocalFailed: {}", message))
+            }
+            OutEdgeError::SendToRemoteFailed(status) => {
+                f.write_fmt(format_args!("SendToRemoteFailed: {}", status))
+            }
+            OutEdgeError::EncodeError(err) => f.write_fmt(format_args!("RmpEncodeError: {}", err)),
+            OutEdgeError::QueueFull => f.write_str("Local queue is full"),
+            OutEdgeError::QueueClosed => f.write_str("local queue is closed"),
             OutEdgeError::BatchSendFailed(errors) => {
-                format!("Batchly send event failed: [{:?}]", errors)
+                f.write_fmt(format_args!("Batchly send event failed: [{:?}]", errors))
             }
         }
     }
@@ -157,8 +181,31 @@ impl OutEdge for RemoteOutEdge {
         }
     }
 
-    async fn batch_write(&self, iter: Vec<Self::Output>) -> Result<(), OutEdgeError> {
-        Ok(())
+    async fn batch_write(
+        &self,
+        job_id: &Option<ResourceId>,
+        to_operator_id: ExecutorId,
+        from_operator_id: ExecutorId,
+        iter: Vec<Self::Output>,
+    ) -> Result<(), OutEdgeError> {
+        let events = iter
+            .into_iter()
+            .map(|event| match event {
+                LocalEvent::KeyedDataStreamEvent(e) => e,
+                LocalEvent::Terminate { .. } => KeyedDataEvent::default(),
+            })
+            .collect();
+
+        self.gateway
+            .batch_send_events_to_operator(KeyedEventSet {
+                events,
+                job_id: job_id.clone(),
+                to_operator_id,
+                from_operator_id,
+            })
+            .await
+            .map(|_| {})
+            .map_err(|err| OutEdgeError::SendToRemoteFailed(err))
     }
 }
 
@@ -169,10 +216,7 @@ pub trait InEdge: Send + Sync + Unpin {
 
     async fn receive_data_stream(&mut self) -> Option<Self::Output>;
 
-    fn poll_recv_data_stream(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Output>>;
+    fn poll_receive_data_stream(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>>;
 }
 
 pub struct LocalInEdge<T> {
@@ -202,18 +246,14 @@ impl<T: StreamEvent> InEdge for LocalInEdge<T> {
         })
     }
 
-    fn poll_recv_data_stream(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Output>> {
-        match self.rx.poll_recv(cx) {
-            std::task::Poll::Ready(buf) => std::task::Poll::Ready(buf.and_then(|buf| {
-                T::from_slice(&buf)
-                    .map_err(|err| tracing::error!("{:?}", err))
+    fn poll_receive_data_stream(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>> {
+        self.rx.poll_recv(cx).map(|r| {
+            r.and_then(|data| {
+                T::from_slice(&data)
+                    .map_err(|err| tracing::error!("deserialize event failed: {}", err))
                     .ok()
-            })),
-            std::task::Poll::Pending => std::task::Poll::Pending,
-        }
+            })
+        })
     }
 }
 

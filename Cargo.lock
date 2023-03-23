@@ -542,14 +542,12 @@ name = "coordinator"
 version = "0.1.0"
 dependencies = [
  "common",
- "mockall",
- "mockall_double",
+ "lightflus-core",
  "prost",
  "prost-types",
  "proto",
  "serde",
  "serde_json",
- "sled",
  "tokio",
  "tonic",
  "tracing",
@@ -1185,6 +1183,28 @@ dependencies = [
  "libc",
  "pkg-config",
  "vcpkg",
+]
+
+[[package]]
+name = "lightflus-core"
+version = "0.1.0"
+dependencies = [
+ "common",
+ "crossbeam-skiplist",
+ "futures-executor",
+ "mockall",
+ "mockall_double",
+ "prost",
+ "prost-types",
+ "proto",
+ "rayon",
+ "serde",
+ "serde_json",
+ "sled",
+ "stream",
+ "tokio",
+ "tonic",
+ "tracing",
 ]
 
 [[package]]
@@ -2260,6 +2280,7 @@ dependencies = [
  "tokio",
  "tonic",
  "tracing",
+ "tracing-subscriber",
  "v8",
 ]
 
@@ -2320,11 +2341,7 @@ name = "taskmanager"
 version = "0.1.0"
 dependencies = [
  "common",
- "crossbeam-skiplist",
- "futures-executor",
- "proto",
- "rayon",
- "serde",
+ "lightflus-core",
  "serde_json",
  "stream",
  "tokio",
@@ -2762,9 +2779,9 @@ dependencies = [
 
 [[package]]
 name = "v8"
-version = "0.51.0"
+version = "0.54.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e72791f754a6517e86d88e4521baad3a7d428ce54e266ba560b8747b2a99b946"
+checksum = "3b63103bd7caa4c3571e8baafe58f3e04818df70505304ed814737e655d1d8d6"
 dependencies = [
  "bitflags",
  "fslock",

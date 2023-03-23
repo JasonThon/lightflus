@@ -79,10 +79,11 @@ pub mod taskmanager {
 
     use prost::Message;
     use proto::{
-        common::{Ack, Heartbeat, HostAddr, KeyedDataEvent, ResourceId, Response},
+        common::{Ack, Heartbeat, HostAddr, KeyedDataEvent, KeyedEventSet, ResourceId, Response},
         taskmanager::{
-            task_manager_api_client::TaskManagerApiClient, CreateSubDataflowRequest,
-            CreateSubDataflowResponse, SendEventToOperatorResponse, StopDataflowResponse,
+            task_manager_api_client::TaskManagerApiClient, BatchSendEventsToOperatorResponse,
+            CreateSubDataflowRequest, CreateSubDataflowResponse, SendEventToOperatorResponse,
+            StopDataflowResponse,
         },
     };
     use tonic::async_trait;
@@ -247,6 +248,27 @@ pub mod taskmanager {
         pub fn close(&mut self) {
             self.host_addr.clear();
             drop(self.inner.as_ref())
+        }
+
+        pub async fn batch_send_events_to_operator(
+            &self,
+            req: KeyedEventSet,
+        ) -> Result<BatchSendEventsToOperatorResponse, tonic::Status> {
+            let mut guard = self.inner.lock().await;
+            let inner = guard.get_or_insert_with(|| {
+                TaskManagerApiClient::with_connection_timeout(
+                    self.host_addr.as_uri(),
+                    self.connect_timeout,
+                )
+            });
+
+            let mut request = tonic::Request::new(req);
+            request.set_timeout(self.rpc_timeout);
+
+            inner
+                .batch_send_events_to_operator(request)
+                .await
+                .map(|resp| resp.into_inner())
         }
     }
 

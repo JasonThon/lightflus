@@ -6,6 +6,9 @@ pub struct SendEventToOperatorResponse {
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
+pub struct BatchSendEventsToOperatorResponse {}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
 pub struct StopDataflowResponse {
     #[prost(message, optional, tag = "1")]
     pub resp: ::core::option::Option<super::common::Response>,
@@ -223,6 +226,29 @@ pub mod task_manager_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        /// / Send all events batchly
+        pub async fn batch_send_events_to_operator(
+            &mut self,
+            request: impl tonic::IntoRequest<super::super::common::KeyedEventSet>,
+        ) -> Result<
+            tonic::Response<super::BatchSendEventsToOperatorResponse>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/taskmanager.TaskManagerApi/BatchSendEventsToOperator",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -257,6 +283,14 @@ pub mod task_manager_api_server {
             &self,
             request: tonic::Request<super::super::common::Ack>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
+        /// / Send all events batchly
+        async fn batch_send_events_to_operator(
+            &self,
+            request: tonic::Request<super::super::common::KeyedEventSet>,
+        ) -> Result<
+            tonic::Response<super::BatchSendEventsToOperatorResponse>,
+            tonic::Status,
+        >;
     }
     /// / RPC Api for Task Manager
     #[derive(Debug)]
@@ -505,6 +539,46 @@ pub mod task_manager_api_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = ReceiveAckSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/taskmanager.TaskManagerApi/BatchSendEventsToOperator" => {
+                    #[allow(non_camel_case_types)]
+                    struct BatchSendEventsToOperatorSvc<T: TaskManagerApi>(pub Arc<T>);
+                    impl<
+                        T: TaskManagerApi,
+                    > tonic::server::UnaryService<super::super::common::KeyedEventSet>
+                    for BatchSendEventsToOperatorSvc<T> {
+                        type Response = super::BatchSendEventsToOperatorResponse;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::super::common::KeyedEventSet>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).batch_send_events_to_operator(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = BatchSendEventsToOperatorSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

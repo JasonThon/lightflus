@@ -1,4 +1,4 @@
-use std::fmt;
+use std::fmt::{self, Display};
 
 use common::{
     err::{KafkaException, RedisException, TaskWorkerError},
@@ -95,6 +95,12 @@ impl From<&mut tonic::transport::Error> for SinkException {
 pub struct BatchSinkException {
     pub err: SinkException,
     pub event_id: u64,
+}
+
+impl Display for BatchSinkException {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
+    }
 }
 
 #[derive(Debug)]

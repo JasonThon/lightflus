@@ -6,8 +6,11 @@ use std::{
 use common::{
     net::{
         cluster::{Node, NodeStatus},
-        gateway::{taskmanager::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway},
-        AckResponder, AckResponderBuilder,
+        gateway::{
+            taskmanager::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway,
+            ReceiveHeartbeatRpcGateway,
+        },
+        AckResponder, AckResponderBuilder, HeartbeatBuilder, HeartbeatSender,
     },
     types::ExecutorId,
     utils::{self, times::from_utc_chrono_to_prost_timestamp},
@@ -15,8 +18,8 @@ use common::{
 use proto::{
     common::{
         ack::{AckType, RequestId},
-        Ack, Dataflow, DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType, OperatorInfo,
-        ResourceId,
+        Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, NodeType, OperatorInfo, ResourceId,
+        SubDataflowId,
     },
     taskmanager::CreateSubDataflowRequest,
 };
@@ -82,6 +85,8 @@ pub(crate) struct SubdataflowDeploymentPlan<'a> {
     ack: AckResponder<SafeTaskManagerRpcGateway>,
     /// the initialized enqueue-entrypoint of a ack request queue
     sender: mpsc::Sender<Ack>,
+    // heartbeat sender
+    heartbeat: HeartbeatSender<SafeTaskManagerRpcGateway>,
 }
 
 impl<'a> SubdataflowDeploymentPlan<'a> {
@@ -90,8 +95,13 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
         job_id: &ResourceId,
         node: Option<&'a Node>,
         ack_builder: &AckResponderBuilder,
+        heartbeat_builder: &HeartbeatBuilder,
     ) -> Self {
         let (ack, sender) = ack_builder.build(|addr, connect_timeout, rpc_timout| {
+            SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
+        });
+
+        let heartbeat = heartbeat_builder.build(|host_addr, connect_timeout, rpc_timeout| {
             SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
         });
         Self {
@@ -101,6 +111,7 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
             node,
             ack,
             sender,
+            heartbeat,
         }
     }
 
@@ -109,7 +120,7 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
         let ack = self.ack;
         match &self.node {
             Some(node) => {
-                self.subdataflow.execution_id = Some(ExecutionId {
+                self.subdataflow.execution_id = Some(SubDataflowId {
                     job_id: Some(self.job_id.clone()),
                     sub_id: node.get_id(),
                 });
@@ -123,13 +134,14 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
                     Ok(resp) => Ok(SubdataflowExecution::new(
                         (*node).clone(),
                         self.subdataflow,
-                        ExecutionId {
+                        SubDataflowId {
                             job_id: Some(self.job_id.clone()),
                             sub_id: node.get_id(),
                         },
                         resp.status(),
                         ack,
                         self.sender,
+                        self.heartbeat,
                     )),
                     Err(err) => Err(TaskDeploymentException::RpcError(err)),
                 }
@@ -156,7 +168,7 @@ pub(crate) struct SubdataflowExecution {
     /// all vertexes execution contexts
     vertexes: BTreeMap<ExecutorId, VertexExecution>,
     /// the id of the subdataflow execution
-    execution_id: ExecutionId,
+    execution_id: SubDataflowId,
     /// the status of subdataflow
     status: DataflowStatus,
     /// the latest heartbeat ack id
@@ -167,15 +179,21 @@ pub(crate) struct SubdataflowExecution {
     ack_handler: JoinHandle<()>,
     /// the enqueue-entrypoint of a ack request queue
     ack_request_queue: mpsc::Sender<Ack>,
+    // the asynchronous task of the heartbeat sender
+    heartbeat_handler: JoinHandle<()>,
 }
 impl SubdataflowExecution {
-    pub(crate) fn new<G: 'static + ReceiveAckRpcGateway + Send + Sync>(
+    pub(crate) fn new<
+        G: 'static + ReceiveAckRpcGateway + Send + Sync,
+        F: 'static + ReceiveHeartbeatRpcGateway + Send + Sync,
+    >(
         worker: Node,
         subdataflow: Dataflow,
-        execution_id: ExecutionId,
+        execution_id: SubDataflowId,
         status: DataflowStatus,
         ack: AckResponder<G>,
         ack_request_queue: mpsc::Sender<Ack>,
+        heartbeat: HeartbeatSender<F>,
     ) -> Self {
         Self {
             worker,
@@ -190,6 +208,7 @@ impl SubdataflowExecution {
             latest_ack_heartbeat_timestamp: AtomicU64::default(),
             ack_handler: tokio::spawn(ack),
             ack_request_queue,
+            heartbeat_handler: tokio::spawn(heartbeat),
         }
     }
 
@@ -197,7 +216,7 @@ impl SubdataflowExecution {
         todo!()
     }
 
-    pub(crate) fn get_execution_id(&self) -> &ExecutionId {
+    pub(crate) fn get_execution_id(&self) -> &SubDataflowId {
         &self.execution_id
     }
 
@@ -257,7 +276,7 @@ mod tests {
     };
     use proto::common::{
         ack::{AckType, RequestId},
-        Ack, DataflowStatus, ExecutionId, Heartbeat, HostAddr, NodeType,
+        Ack, DataflowStatus, Heartbeat, HostAddr, NodeType, SubDataflowId,
     };
 
     #[tokio::test]
@@ -293,7 +312,7 @@ mod tests {
                 heartbeat_id: 1,
                 timestamp: Some(prost_now()),
                 node_type: NodeType::TaskWorker as i32,
-                execution_id: Some(ExecutionId {
+                subdataflow_id: Some(SubDataflowId {
                     job_id: Some(Default::default()),
                     sub_id: 0,
                 }),
@@ -311,7 +330,7 @@ mod tests {
         assert_eq!(result.node_type(), NodeType::JobManager);
         assert_eq!(
             result.execution_id,
-            Some(ExecutionId {
+            Some(SubDataflowId {
                 job_id: None,
                 sub_id: 0,
             })
@@ -352,7 +371,7 @@ mod tests {
                 timestamp: Some(now.clone()),
                 ack_type: AckType::Heartbeat as i32,
                 node_type: NodeType::TaskWorker as i32,
-                execution_id: Some(ExecutionId {
+                execution_id: Some(SubDataflowId {
                     job_id: Default::default(),
                     sub_id: 1,
                 }),
@@ -379,7 +398,7 @@ mod tests {
                 timestamp: Some(now_1.clone()),
                 ack_type: AckType::Heartbeat as i32,
                 node_type: NodeType::TaskWorker as i32,
-                execution_id: Some(ExecutionId {
+                execution_id: Some(SubDataflowId {
                     job_id: Default::default(),
                     sub_id: 1,
                 }),

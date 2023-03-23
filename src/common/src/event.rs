@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::time::SystemTime;
 
 use proto::common::KeyedDataEvent;
@@ -6,6 +7,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::kafka::KafkaMessage;
+use crate::types::ExecutorId;
 use crate::types::{self, TypedValue};
 
 /// The trait that is a stream event
@@ -30,11 +32,19 @@ pub trait StreamEvent: Send + Sync + Serialize + Sized {
     fn event_id(&self) -> i64;
     /// stream event may has a timestamp to indicate when it is generated
     fn event_time(&self) -> i64;
+
+    fn set_to_operator_id(&mut self, to_operator_id: ExecutorId);
 }
 
 #[derive(Debug)]
 pub enum StreamEventDeserializeError {
     RmpDecodeError(rmp_serde::decode::Error),
+}
+
+impl Display for StreamEventDeserializeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        todo!()
+    }
 }
 
 /// [`LocalEvent`] can be transferred between threads safely by channel.
@@ -185,6 +195,17 @@ impl StreamEvent for LocalEvent {
                 event_time,
             } => *event_time,
             LocalEvent::KeyedDataStreamEvent(event) => event.get_event_time(),
+        }
+    }
+
+    fn set_to_operator_id(&mut self, to_operator_id: ExecutorId) {
+        match self {
+            LocalEvent::Terminate {
+                job_id: _,
+                to,
+                event_time: _,
+            } => *to = to_operator_id,
+            LocalEvent::KeyedDataStreamEvent(event) => event.to_operator_id = to_operator_id,
         }
     }
 }

@@ -7,7 +7,7 @@ use std::{
 };
 
 use futures_util::{ready, Future, FutureExt};
-use proto::common::{Ack, ExecutionId, Heartbeat, HostAddr, NodeType};
+use proto::common::{Ack, Heartbeat, HostAddr, NodeType, SubDataflowId};
 use tokio::sync::mpsc;
 
 use crate::utils;
@@ -154,11 +154,11 @@ impl HeartbeatBuilder {
 pub struct HeartbeatSender<T: ReceiveHeartbeatRpcGateway> {
     gateways: Vec<T>,
     interval: tokio::time::Interval,
-    execution_id: Option<ExecutionId>,
+    execution_id: Option<SubDataflowId>,
     current_heartbeat_id: AtomicU64,
 }
 impl<T: ReceiveHeartbeatRpcGateway> HeartbeatSender<T> {
-    pub fn update_execution_id(&mut self, execution_id: ExecutionId) {
+    pub fn update_execution_id(&mut self, execution_id: SubDataflowId) {
         self.execution_id = Some(execution_id)
     }
 }
@@ -186,7 +186,8 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
                             nanos: now.timestamp_subsec_nanos() as i32,
                         }),
                         node_type: NodeType::JobManager as i32,
-                        execution_id: this.execution_id.clone(),
+                        subdataflow_id: this.execution_id.clone(),
+                        task_id: 0,
                     })
                 })
                 .into_iter()
@@ -339,7 +340,7 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 mod tests {
 
     use chrono::{Duration, Timelike};
-    use proto::common::{ack::AckType, Ack, ExecutionId, HostAddr, NodeType, ResourceId};
+    use proto::common::{ack::AckType, Ack, HostAddr, NodeType, ResourceId, SubDataflowId};
 
     use crate::net::gateway::MockRpcGateway;
 
@@ -496,7 +497,7 @@ mod tests {
         let (gateway, _, _) = MockRpcGateway::new(10, 10);
 
         let mut heartbeat = builder.build(|_, _, _| gateway.clone());
-        heartbeat.update_execution_id(ExecutionId {
+        heartbeat.update_execution_id(SubDataflowId {
             job_id: Some(ResourceId {
                 resource_id: "resource_id".to_string(),
                 namespace_id: "namespace_id".to_string(),
@@ -505,7 +506,7 @@ mod tests {
         });
         assert_eq!(
             heartbeat.execution_id,
-            Some(ExecutionId {
+            Some(SubDataflowId {
                 job_id: Some(ResourceId {
                     resource_id: "resource_id".to_string(),
                     namespace_id: "namespace_id".to_string(),

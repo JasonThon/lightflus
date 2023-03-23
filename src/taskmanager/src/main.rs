@@ -1,11 +1,9 @@
 use common::utils::{self, get_env};
+use lightflus_core::taskmanager;
 use proto::taskmanager::task_manager_api_server::TaskManagerApiServer;
 use std::fs;
 use stream::initialize_v8;
 use tonic::transport::Server;
-
-mod taskmanager;
-pub mod taskworker;
 
 const DEFAULT_WORKER_THREADS_NUM: usize = 100;
 
@@ -32,7 +30,7 @@ fn main() {
     }
 
     let value = env_setup.unwrap();
-    let reader = serde_json::from_str::<taskmanager::TaskManagerBuilder>(value.as_str());
+    let reader = serde_json::from_str::<taskmanager::rpc::TaskManagerBuilder>(value.as_str());
 
     if reader.is_err() {
         panic!(
@@ -54,7 +52,7 @@ fn main() {
         .block_on(async {
             tracing_subscriber::fmt::init();
 
-            let server = TaskManagerApiServer::new(builder.build());
+            let server = builder.build();
             let addr = format!("0.0.0.0:{}", builder.port).parse().unwrap();
 
             tracing::info!("service will start at {}", builder.port);

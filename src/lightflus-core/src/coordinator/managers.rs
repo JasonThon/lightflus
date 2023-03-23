@@ -4,13 +4,11 @@ use common::net::{
     cluster::{self, ClusterBuilder},
     local, AckResponderBuilder, HeartbeatBuilder,
 };
-use mockall_double::double;
 use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
 
-#[double]
-use crate::scheduler::Scheduler;
-use crate::{
+use super::{
     executions::{SubdataflowDeploymentPlan, TaskDeploymentException},
+    scheduler::Scheduler,
     storage::{DataflowStorage, DataflowStorageBuilder},
 };
 
@@ -61,12 +59,13 @@ impl JobManager {
                 &self.job_id,
                 cluster.get_node(pair.0),
                 &ack_builder,
+                heartbeat_builder,
             );
             plan
         });
 
         for execution in executions {
-            match self.scheduler.execute(execution, heartbeat_builder).await {
+            match self.scheduler.execute(execution).await {
                 Ok(_) => {}
                 Err(err) => return Err(err),
             }
@@ -83,7 +82,7 @@ impl JobManager {
     }
 
     async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
-        for execution_id in heartbeat.execution_id.as_ref().iter() {
+        for execution_id in heartbeat.subdataflow_id.as_ref().iter() {
             match self.scheduler.get_execution_mut(*execution_id) {
                 Some(execution) => execution.update_heartbeat_status(heartbeat).await,
                 None => {}
@@ -181,7 +180,7 @@ impl Dispatcher {
     }
 
     pub(crate) async fn update_task_manager_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
-        match heartbeat.execution_id.as_ref() {
+        match heartbeat.subdataflow_id.as_ref() {
             Some(execution_id) => {
                 for resource_id in execution_id.job_id.as_ref().iter() {
                     match self.managers.get_mut(*resource_id) {

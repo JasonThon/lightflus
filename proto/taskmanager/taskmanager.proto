@@ -19,6 +19,8 @@ service TaskManagerApi {
   rpc ReceiveHeartbeat(common.Heartbeat) returns (common.Response) {}
   /// Receive ack
   rpc ReceiveAck(common.Ack) returns (common.Response) {}
+  /// Send all events batchly
+  rpc BatchSendEventsToOperator(common.KeyedEventSet) returns (BatchSendEventsToOperatorResponse) {}
 }
 
 message SendEventToOperatorResponse {
@@ -30,6 +32,8 @@ enum SendEventToOperatorStatusEnum {
   DONE = 1;
   FAILURE = 2;
 }
+
+message BatchSendEventsToOperatorResponse {}
 
 message StopDataflowResponse {
   common.Response resp = 1;

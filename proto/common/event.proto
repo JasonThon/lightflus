@@ -39,3 +39,12 @@ message Entry {
   DataTypeEnum data_type = 1;
   bytes value = 2; // entry value
 }
+
+message KeyedEventSet {
+  repeated KeyedDataEvent events = 1;
+  common.ResourceId job_id = 2;
+  // operator_id this event will be sent
+  uint32 to_operator_id = 3;
+  // operator_id this event where be sent
+  uint32 from_operator_id = 4;
+}

@@ -102,11 +102,6 @@ export class KeyedDataflow<K, T> extends Dataflow<T> {
     super.flatMap(callbackFn);
     return new KeyedDataflow<K, U>(this.ctx);
   }
-
-  window(window: IWindow): WindowDataflow<T> {
-    this.ctx.addChild(this.operator_id, new WindowOp(this.ctx.incrementAndGetId(), window).toOperatorInfo());
-    return new WindowDataflow<T>(this.ctx);
-  }
 }
 
 export class WindowDataflow<T> extends Dataflow<T> {

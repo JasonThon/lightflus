@@ -172,7 +172,7 @@ message Dataflow {
   // details of nodes
   map<uint32, common.OperatorInfo> nodes = 3;
   // execution id, optional for API, mandatory for TaskManager
-  optional common.ExecutionId execution_id = 4;
+  optional common.SubDataflowId execution_id = 4;
 }
 
 message Window {

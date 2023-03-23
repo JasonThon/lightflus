@@ -6,7 +6,7 @@ use crate::common::{
     sink, source,
     trigger::Watermark,
     window::{self, FixedWindow, SessionWindow, SlidingWindow},
-    Ack, DataTypeEnum, Dataflow, Entry, ExecutionId, Func, Heartbeat, HostAddr, KafkaDesc,
+    Ack, DataTypeEnum, Dataflow, Entry, SubDataflowId, Func, Heartbeat, HostAddr, KafkaDesc,
     KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId, Response, Sink, Source, Time,
     Trigger, Window,
 };
@@ -318,7 +318,7 @@ impl Dataflow {
             .unwrap_or_default()
     }
 
-    pub fn get_execution_id_ref(&self) -> Option<&ExecutionId> {
+    pub fn get_execution_id_ref(&self) -> Option<&SubDataflowId> {
         self.execution_id.as_ref()
     }
 }
@@ -467,7 +467,7 @@ impl Response {
     }
 }
 
-impl ExecutionId {
+impl SubDataflowId {
     pub fn get_job_id(&self) -> ResourceId {
         self.job_id
             .as_ref()
@@ -476,7 +476,7 @@ impl ExecutionId {
     }
 }
 
-impl Ord for ExecutionId {
+impl Ord for SubDataflowId {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         let job_id_order = self.job_id.cmp(&other.job_id);
         let sub_id_order = self.sub_id.cmp(&other.sub_id);
@@ -518,14 +518,14 @@ impl HostAddr {
 
 impl Heartbeat {
     #[inline]
-    pub fn get_execution_id(&self) -> Option<&ExecutionId> {
-        self.execution_id.as_ref()
+    pub fn get_execution_id(&self) -> Option<&SubDataflowId> {
+        self.subdataflow_id.as_ref()
     }
 }
 
 impl Ack {
     #[inline]
-    pub fn get_execution_id(&self) -> Option<&ExecutionId> {
+    pub fn get_execution_id(&self) -> Option<&SubDataflowId> {
         self.execution_id.as_ref()
     }
 }

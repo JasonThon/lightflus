@@ -1,9 +1,10 @@
-use crate::coord;
+use super::coord;
 use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, ResourceId, Response, TaskInfo};
 
 use proto::coordinator::coordinator_api_server::CoordinatorApi;
 use proto::coordinator::{GetDataflowRequest, GetDataflowResponse};
 use tokio::sync::RwLock;
+use tonic::async_trait;
 
 pub(crate) struct CoordinatorApiImpl {
     /// # TODO
@@ -26,7 +27,7 @@ unsafe impl Send for CoordinatorApiImpl {}
 
 unsafe impl Sync for CoordinatorApiImpl {}
 
-#[tonic::async_trait]
+#[async_trait]
 impl CoordinatorApi for CoordinatorApiImpl {
     async fn receive_heartbeat(
         &self,

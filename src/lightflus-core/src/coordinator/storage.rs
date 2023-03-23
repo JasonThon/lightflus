@@ -8,13 +8,13 @@ use prost::Message;
 use proto::common::{Dataflow, ResourceId};
 
 #[derive(serde::Deserialize, Clone, Debug)]
-pub(crate) enum DataflowStorageBuilder {
+pub enum DataflowStorageBuilder {
     Local { dataflow_store_path: String },
     Memory,
 }
 
 impl DataflowStorageBuilder {
-    pub(crate) fn build(&self) -> Box<dyn DataflowStorage> {
+    pub fn build(&self) -> Box<dyn DataflowStorage> {
         match self {
             Self::Local {
                 dataflow_store_path,
@@ -24,7 +24,7 @@ impl DataflowStorageBuilder {
     }
 }
 
-pub(crate) trait DataflowStorage: Send + Sync {
+pub trait DataflowStorage: Send + Sync {
     fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException>;
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow>;
     fn may_exists(&self, job_id: &ResourceId) -> bool;

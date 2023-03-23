@@ -150,7 +150,7 @@ impl TaskWorker {
 mod tests {
     use std::collections::HashMap;
 
-    use proto::common::{Dataflow, ExecutionId, OperatorInfo, ResourceId};
+    use proto::common::{Dataflow, SubDataflowId, OperatorInfo, ResourceId};
 
     use super::TaskWorkerBuilder;
 
@@ -163,7 +163,7 @@ mod tests {
             }),
             meta: vec![],
             nodes: HashMap::from_iter(vec![(0, OperatorInfo::default())].into_iter()),
-            execution_id: Some(ExecutionId {
+            execution_id: Some(SubDataflowId {
                 job_id: Some(ResourceId {
                     resource_id: "resource_id".to_string(),
                     namespace_id: "namespace_id".to_string(),

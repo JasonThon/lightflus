@@ -1,11 +1,10 @@
 use std::{
-    collections::{hash_map::DefaultHasher, BTreeMap, VecDeque},
-    hash::{Hash, Hasher},
+    collections::{BTreeMap, VecDeque},
     task::{Context, Poll},
 };
 
 use chrono::Duration;
-use common::{collections::lang, utils::times::now_timestamp};
+use common::collections::lang;
 
 use proto::common::{keyed_data_event, KeyedDataEvent, Window};
 use rayon::prelude::{IntoParallelRefMutIterator, ParallelIterator};
@@ -116,15 +115,6 @@ impl WindowAssignerImpl {
                     })
                     .unwrap_or_default()
             }
-        }
-    }
-
-    pub(crate) async fn trigger(&mut self) {
-        match self {
-            Self::Fixed(fixed) => fixed.trigger().await,
-            Self::Slide(slide) => slide.trigger().await,
-            Self::Session(session) => session.trigger().await,
-            Self::Empty => {}
         }
     }
 
@@ -485,10 +475,6 @@ mod tests {
 
         fn test_assign_windows(assigner: &WindowAssignerImpl) {
             let now = chrono::Utc::now();
-            let event_time = Timestamp {
-                seconds: now.timestamp(),
-                nanos: now.timestamp_subsec_nanos() as i32,
-            };
             let event = KeyedDataEvent {
                 job_id: None,
                 key: None,

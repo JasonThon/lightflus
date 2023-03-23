@@ -8,14 +8,16 @@ use proto::common::DataflowStatus;
 use proto::common::Heartbeat;
 use proto::common::NodeType;
 use proto::common::ResourceId;
+use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 
-use crate::managers::Dispatcher;
-use crate::storage::DataflowStorageBuilder;
+use super::api::CoordinatorApiImpl;
+use super::managers::Dispatcher;
+use super::storage::DataflowStorageBuilder;
 
 /// Builder for [Coordinator]
 /// It's also the configuration of Coordinator. You can see in the file `etc/coord.json`
 #[derive(serde::Deserialize, Clone, Debug)]
-pub(crate) struct CoordinatorBuilder {
+pub struct CoordinatorBuilder {
     /// Coordinator port
     pub port: usize,
     /// TaskManager Cluster builder
@@ -29,8 +31,8 @@ pub(crate) struct CoordinatorBuilder {
 }
 
 impl CoordinatorBuilder {
-    pub fn build(&self) -> Coordinator {
-        Coordinator {
+    pub fn build(&self) -> CoordinatorApiServer<CoordinatorApiImpl> {
+        CoordinatorApiServer::new(CoordinatorApiImpl::new(Coordinator {
             dispatcher: Dispatcher::new(
                 &self.cluster,
                 &self.storage,
@@ -38,7 +40,7 @@ impl CoordinatorBuilder {
                 &self.ack,
                 self.port,
             ),
-        }
+        }))
     }
 }
 

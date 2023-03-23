@@ -45,7 +45,7 @@ pub struct Time {
 #[derive(serde::Serialize, serde::Deserialize, Eq, Hash, PartialOrd)]
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct ExecutionId {
+pub struct SubDataflowId {
     /// Job Id
     #[prost(message, optional, tag = "1")]
     pub job_id: ::core::option::Option<ResourceId>,
@@ -68,7 +68,10 @@ pub struct Heartbeat {
     pub node_type: i32,
     /// Execution Id of sub-dataflow
     #[prost(message, optional, tag = "4")]
-    pub execution_id: ::core::option::Option<ExecutionId>,
+    pub subdataflow_id: ::core::option::Option<SubDataflowId>,
+    /// id of task executor
+    #[prost(uint32, tag = "5")]
+    pub task_id: u32,
 }
 /// Some requests from client needs server responds ack asynchronously, like:
 /// - Heartbeat
@@ -88,7 +91,7 @@ pub struct Ack {
     pub node_type: i32,
     /// the execution id
     #[prost(message, optional, tag = "6")]
-    pub execution_id: ::core::option::Option<ExecutionId>,
+    pub execution_id: ::core::option::Option<SubDataflowId>,
     /// the id which sent by the request needs to ack. it may points to multiple semantics:
     /// - for heartbeat, it represents heartbeat id
     /// - for checkpoint, it represents checkpoint id
@@ -149,7 +152,7 @@ pub mod ack {
 pub struct TaskInfo {
     /// execution id of task
     #[prost(message, optional, tag = "1")]
-    pub execution_id: ::core::option::Option<ExecutionId>,
+    pub execution_id: ::core::option::Option<SubDataflowId>,
     /// information of executors
     #[prost(map = "uint32, message", tag = "2")]
     pub executors_info: ::std::collections::HashMap<u32, task_info::ExecutorInfo>,
@@ -401,6 +404,21 @@ pub struct Entry {
     /// entry value
     #[prost(bytes = "bytes", tag = "2")]
     pub value: ::prost::bytes::Bytes,
+}
+#[derive(serde::Serialize, serde::Deserialize, Eq)]
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct KeyedEventSet {
+    #[prost(message, repeated, tag = "1")]
+    pub events: ::prost::alloc::vec::Vec<KeyedDataEvent>,
+    #[prost(message, optional, tag = "2")]
+    pub job_id: ::core::option::Option<ResourceId>,
+    /// operator_id this event will be sent
+    #[prost(uint32, tag = "3")]
+    pub to_operator_id: u32,
+    /// operator_id this event where be sent
+    #[prost(uint32, tag = "4")]
+    pub from_operator_id: u32,
 }
 /// *
 /// StreamGraph metadata, it stores the structural information of a stream graph
@@ -720,7 +738,7 @@ pub struct Dataflow {
     pub nodes: ::std::collections::HashMap<u32, OperatorInfo>,
     /// execution id, optional for API, mandatory for TaskManager
     #[prost(message, optional, tag = "4")]
-    pub execution_id: ::core::option::Option<ExecutionId>,
+    pub execution_id: ::core::option::Option<SubDataflowId>,
 }
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]

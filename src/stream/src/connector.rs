@@ -15,7 +15,8 @@ use prost::Message;
 
 use proto::common::{
     operator_info::{self, Details},
-    source, Entry, KafkaDesc, KeyedDataEvent, MysqlDesc, OperatorInfo, RedisDesc, ResourceId,
+    source, Entry, KafkaDesc, KeyedDataEvent, KeyedEventSet, MysqlDesc, OperatorInfo, RedisDesc,
+    ResourceId,
 };
 use tokio::sync::mpsc::error::TryRecvError;
 use tonic::async_trait;
@@ -78,7 +79,7 @@ pub trait Sink {
      */
     async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException>;
 
-    async fn batch_sink(&self, mut msg: Vec<LocalEvent>) -> Result<(), BatchSinkException>;
+    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException>;
 
     /**
      * Gracefully close sink
@@ -198,12 +199,12 @@ impl Sink for SinkImpl {
         }
     }
 
-    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         match self {
-            Self::Kafka(sink) => sink.batch_sink(msgs).await,
-            Self::Mysql(sink) => sink.batch_sink(msgs).await,
+            Self::Kafka(sink) => sink.batch_sink(event_set).await,
+            Self::Mysql(sink) => sink.batch_sink(event_set).await,
             Self::Empty(_) => Ok(()),
-            Self::Redis(redis) => redis.batch_sink(msgs).await,
+            Self::Redis(redis) => redis.batch_sink(event_set).await,
         }
     }
 }
@@ -418,10 +419,14 @@ impl Sink for Kafka {
             .for_each(|producer| producer.close())
     }
 
-    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         match &self.producer {
             Some(producer) => {
-                for event in msgs {
+                for event in event_set
+                    .events
+                    .into_iter()
+                    .map(|event| LocalEvent::KeyedDataStreamEvent(event))
+                {
                     let kafka_msg = event.to_kafka_message();
                     match kafka_msg {
                         Ok(messages) => {
@@ -532,7 +537,7 @@ impl Sink for Mysql {
         self.statement.clear();
     }
 
-    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         Ok(())
     }
 }
@@ -574,10 +579,11 @@ impl Sink for Redis {
     }
 
     async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
+        const REDIS_EXTRACTOR_FUN_NAME: &str = "redis_extractor";
         let key_values = extract_arguments(
             &[self.key_extractor.clone(), self.value_extractor.clone()],
             &msg,
-            "redis_extractor",
+            REDIS_EXTRACTOR_FUN_NAME,
         );
         let mut conn_result = self.client.connect();
         conn_result
@@ -597,7 +603,7 @@ impl Sink for Redis {
         self.value_extractor.clear();
     }
 
-    async fn batch_sink(&self, msgs: Vec<LocalEvent>) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         Ok(())
     }
 }

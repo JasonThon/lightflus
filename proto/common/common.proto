@@ -67,7 +67,7 @@ enum ErrorCode {
 }
 
 // Id of sub-dataflow execution
-message ExecutionId {
+message SubDataflowId {
   // Job Id
   ResourceId job_id = 1;
   // Sub Dataflow id
@@ -83,7 +83,9 @@ message Heartbeat {
   // The client node type
   NodeType node_type = 3;
   // Execution Id of sub-dataflow
-  optional ExecutionId execution_id = 4;
+  SubDataflowId subdataflow_id = 4;
+  // id of task executor
+  uint32 task_id = 5;
 }
 
 // The type of node
@@ -119,14 +121,14 @@ message Ack {
   // the node type of ack server
   NodeType node_type = 4;
   // the execution id
-  optional ExecutionId execution_id = 6;
+  optional common.SubDataflowId execution_id = 6;
 }
 
 
 // Basic information of task
 message TaskInfo {
   // execution id of task
-  common.ExecutionId execution_id = 1;
+  common.SubDataflowId execution_id = 1;
   // information of executors
   map<uint32, ExecutorInfo> executors_info = 2;
 

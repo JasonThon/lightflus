@@ -32,12 +32,12 @@ pub fn join_all<'a, T, F: Fn(T)>(
     }) {}
 }
 
-pub fn select<Left, Right>(left: Poll<Left>, right: Poll<Right>) -> Option<Either<Left, Right>> {
+pub fn select<Left, Right>(left: Poll<Left>, right: Poll<Right>) -> Poll<Either<Left, Right>> {
     match left {
-        Poll::Ready(val) => Some(Either::Left(val)),
+        Poll::Ready(val) => Poll::Ready(Either::Left(val)),
         Poll::Pending => match right {
-            Poll::Ready(val) => Some(Either::Right(val)),
-            Poll::Pending => None,
+            Poll::Ready(val) => Poll::Ready(Either::Right(val)),
+            Poll::Pending => Poll::Pending,
         },
     }
 }

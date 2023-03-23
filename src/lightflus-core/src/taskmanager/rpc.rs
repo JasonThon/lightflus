@@ -1,21 +1,25 @@
 use crossbeam_skiplist::SkipMap;
 use proto::{
-    common::{Ack, DataflowStatus, ExecutionId, Heartbeat, KeyedDataEvent, ResourceId, Response},
+    common::{
+        Ack, DataflowStatus, SubDataflowId, Heartbeat, KeyedDataEvent, KeyedEventSet, ResourceId,
+        Response,
+    },
     taskmanager::{
-        task_manager_api_server::TaskManagerApi, CreateSubDataflowRequest,
-        CreateSubDataflowResponse, SendEventToOperatorResponse, StopDataflowResponse,
+        task_manager_api_server::{TaskManagerApi, TaskManagerApiServer},
+        BatchSendEventsToOperatorResponse, CreateSubDataflowRequest, CreateSubDataflowResponse,
+        SendEventToOperatorResponse, StopDataflowResponse,
     },
 };
 
 use tonic::async_trait;
 
-use crate::taskworker::{TaskWorker, TaskWorkerBuilder};
+use crate::taskmanager::taskworker::{TaskWorker, TaskWorkerBuilder};
 
 type RpcResponse<T> = Result<tonic::Response<T>, tonic::Status>;
 type RpcRequest<T> = tonic::Request<T>;
 
 #[derive(Debug, Clone, serde::Deserialize)]
-pub(crate) struct TaskManagerBuilder {
+pub struct TaskManagerBuilder {
     // port of TaskManager
     pub port: usize,
     // max available number of jobs
@@ -23,18 +27,18 @@ pub(crate) struct TaskManagerBuilder {
 }
 
 impl TaskManagerBuilder {
-    pub fn build(&self) -> TaskManager {
+    pub fn build(&self) -> TaskManagerApiServer<TaskManager> {
         let workers = SkipMap::new();
-        TaskManager {
+        TaskManagerApiServer::new(TaskManager {
             workers,
             job_id_map_execution_id: SkipMap::new(),
-        }
+        })
     }
 }
 
-pub(crate) struct TaskManager {
-    workers: SkipMap<ExecutionId, TaskWorker>,
-    job_id_map_execution_id: SkipMap<ResourceId, ExecutionId>,
+pub struct TaskManager {
+    workers: SkipMap<SubDataflowId, TaskWorker>,
+    job_id_map_execution_id: SkipMap<ResourceId, SubDataflowId>,
 }
 
 #[async_trait]
@@ -149,5 +153,20 @@ impl TaskManagerApi for TaskManager {
             }
             None => Err(tonic::Status::invalid_argument("no execution_id provided")),
         }
+    }
+
+    async fn batch_send_events_to_operator(
+        &self,
+        request: RpcRequest<KeyedEventSet>,
+    ) -> RpcResponse<BatchSendEventsToOperatorResponse> {
+        let event_set = request.into_inner();
+        match event_set.job_id.as_ref() {
+            Some(resource_id) => match self.job_id_map_execution_id.get(resource_id) {
+                Some(execution_id) => {}
+                None => {}
+            },
+            None => Ok(tonic::Response::new(BatchSendEventsToOperatorResponse {})),
+        }
+        Ok(tonic::Response::new(BatchSendEventsToOperatorResponse {}))
     }
 }

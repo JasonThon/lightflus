@@ -131,19 +131,19 @@ message TaskInfo {
   common.SubDataflowId execution_id = 1;
   // information of executors
   map<uint32, ExecutorInfo> executors_info = 2;
+}
 
-  // Basic information of executor
-  message ExecutorInfo {
-    uint32 executor_id = 1;
-    ExecutorStatus status = 2;
-  }
+// Basic information of executor
+message ExecutorInfo {
+  uint32 executor_id = 1;
+  ExecutorStatus status = 2;
+}
 
-  // status of executor
-  enum ExecutorStatus {
-    EXECUTOR_STATUS_INITIALIZED = 0;
-    EXECUTOR_STATUS_RUNNING = 1;
-    EXECUTOR_STATUS_TERMINATING = 2;
-    EXECUTOR_STATUS_TERMINATED = 3;
-  }
+// status of executor
+enum ExecutorStatus {
+  EXECUTOR_STATUS_INITIALIZED = 0;
+  EXECUTOR_STATUS_RUNNING = 1;
+  EXECUTOR_STATUS_TERMINATING = 2;
+  EXECUTOR_STATUS_TERMINATED = 3;
 }
 

@@ -1,19 +1,12 @@
-use std::{
-    collections::BTreeMap,
-    sync::atomic::{self, AtomicU64},
-};
+use std::{collections::BTreeMap, sync::atomic::AtomicU64};
 
 use common::{
     net::{
-        cluster::{Node, NodeStatus},
-        gateway::{
-            taskmanager::SafeTaskManagerRpcGateway, ReceiveAckRpcGateway,
-            ReceiveHeartbeatRpcGateway,
-        },
-        AckResponder, AckResponderBuilder, HeartbeatBuilder, HeartbeatSender,
+        cluster::Node, gateway::taskmanager::SafeTaskManagerRpcGateway, AckResponderBuilder,
+        HeartbeatBuilder,
     },
     types::ExecutorId,
-    utils::{self, times::from_utc_chrono_to_prost_timestamp},
+    utils,
 };
 use proto::{
     common::{
@@ -69,6 +62,7 @@ pub(crate) struct VertexExecution {
 
 impl VertexExecution {
     pub(crate) fn new(
+        execution_id: &SubDataflowId,
         executor_id: ExecutorId,
         operator: &OperatorInfo,
         ack_builder: &AckResponderBuilder,
@@ -79,10 +73,14 @@ impl VertexExecution {
             SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
         });
 
-        let heartbeat =
-            heartbeat_builder.build(&host_addr, |host_addr, connect_timeout, rpc_timeout| {
-                SafeTaskManagerRpcGateway::with_timeout(host_addr, connect_timeout, rpc_timout)
-            });
+        let mut heartbeat = heartbeat_builder.build(
+            &host_addr,
+            executor_id,
+            |host_addr, connect_timeout, rpc_timeout| {
+                SafeTaskManagerRpcGateway::with_timeout(host_addr, connect_timeout, rpc_timeout)
+            },
+        );
+        heartbeat.update_execution_id(execution_id.clone());
         Self {
             executor_id,
             operator: operator.clone(),
@@ -186,8 +184,6 @@ pub(crate) struct SubdataflowExecution {
     vertexes: BTreeMap<ExecutorId, VertexExecution>,
     /// the id of the subdataflow execution
     execution_id: SubDataflowId,
-    /// the status of subdataflow
-    status: DataflowStatus,
 }
 impl SubdataflowExecution {
     pub(crate) fn new(
@@ -207,12 +203,11 @@ impl SubdataflowExecution {
                 .map(|(executor_id, info)| {
                     (
                         *executor_id,
-                        VertexExecution::new(*executor_id, info, ack, heartbeat),
+                        VertexExecution::new(&execution_id, *executor_id, info, ack, heartbeat),
                     )
                 })
                 .collect(),
             execution_id,
-            status,
         }
     }
 
@@ -228,18 +223,7 @@ impl SubdataflowExecution {
         match heartbeat.timestamp.as_ref() {
             Some(timestamp) => match heartbeat.node_type() {
                 NodeType::TaskWorker => {
-                    self.worker.update_status(NodeStatus::Running, timestamp);
                     let ref now = utils::times::now();
-                    let _ = self
-                        .ack_request_queue
-                        .send(Ack {
-                            timestamp: Some(from_utc_chrono_to_prost_timestamp(now)),
-                            ack_type: AckType::Heartbeat as i32,
-                            node_type: NodeType::JobManager as i32,
-                            execution_id: Some(self.execution_id.clone()),
-                            request_id: Some(RequestId::HeartbeatId(heartbeat.heartbeat_id)),
-                        })
-                        .await;
                 }
                 _ => {}
             },
@@ -250,17 +234,7 @@ impl SubdataflowExecution {
     pub(crate) fn ack(&mut self, ack: &Ack) {
         match ack.ack_type() {
             AckType::Heartbeat => {
-                if let Some(&RequestId::HeartbeatId(heartbeat_id)) = ack.request_id.as_ref() {
-                    self.status = DataflowStatus::Running;
-                    if self.latest_ack_heartbeat_id.load(atomic::Ordering::Relaxed) < heartbeat_id {
-                        self.latest_ack_heartbeat_id
-                            .swap(heartbeat_id, atomic::Ordering::AcqRel);
-                        ack.timestamp.as_ref().iter().for_each(|timestamp| {
-                            self.latest_ack_heartbeat_timestamp
-                                .swap(timestamp.seconds as u64, atomic::Ordering::AcqRel);
-                        })
-                    }
-                }
+                if let Some(&RequestId::HeartbeatId(heartbeat_id)) = ack.request_id.as_ref() {}
             }
         }
     }
@@ -268,7 +242,7 @@ impl SubdataflowExecution {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{self, AtomicU64};
+    use std::sync::atomic;
 
     use common::{
         net::{
@@ -280,7 +254,7 @@ mod tests {
     };
     use proto::common::{
         ack::{AckType, RequestId},
-        Ack, DataflowStatus, Heartbeat, HostAddr, NodeType, SubDataflowId,
+        Ack, Heartbeat, HostAddr, NodeType, SubDataflowId,
     };
 
     #[tokio::test]
@@ -304,11 +278,6 @@ mod tests {
             ),
             vertexes: Default::default(),
             execution_id: Default::default(),
-            status: DataflowStatus::Initialized,
-            ack_handler: tokio::spawn(ack_responder),
-            ack_request_queue: ack_tx,
-            latest_ack_heartbeat_id: AtomicU64::default(),
-            latest_ack_heartbeat_timestamp: AtomicU64::default(),
         };
 
         execution
@@ -362,11 +331,6 @@ mod tests {
             ),
             vertexes: Default::default(),
             execution_id: Default::default(),
-            status: DataflowStatus::Initialized,
-            ack_handler: tokio::spawn(ack_responder),
-            ack_request_queue: ack_tx,
-            latest_ack_heartbeat_id: AtomicU64::default(),
-            latest_ack_heartbeat_timestamp: AtomicU64::default(),
         };
         let now = prost_now();
 
@@ -382,18 +346,6 @@ mod tests {
                 request_id: Some(RequestId::HeartbeatId(2)),
             });
 
-            assert_eq!(
-                execution
-                    .latest_ack_heartbeat_id
-                    .load(atomic::Ordering::Relaxed),
-                2
-            );
-            assert_eq!(
-                execution
-                    .latest_ack_heartbeat_timestamp
-                    .load(atomic::Ordering::Relaxed),
-                now.seconds as u64
-            );
         }
 
         let now_1 = prost_now();

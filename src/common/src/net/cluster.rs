@@ -32,8 +32,6 @@ pub struct Node {
     status: NodeStatus,
     /// The address of node
     pub host_addr: HostAddr,
-    // the latest update time of status updating
-    lastest_status_update_timestamp: chrono::DateTime<chrono::Utc>,
     // gateway of task manager
     gateway: SafeTaskManagerRpcGateway,
     /// node's id. It's always aligned with the list of [NodeBuilder]
@@ -45,7 +43,6 @@ impl Node {
         Self {
             status: NodeStatus::Pending,
             host_addr,
-            lastest_status_update_timestamp: chrono::Utc::now(),
             gateway,
             node_id: 0,
         }
@@ -53,7 +50,6 @@ impl Node {
 
     pub fn update_status(&mut self, status: NodeStatus, timestamp: &prost_types::Timestamp) {
         self.status = status;
-        self.lastest_status_update_timestamp = from_prost_timestamp_to_utc_chrono(timestamp)
     }
 
     #[inline]

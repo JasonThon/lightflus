@@ -2,6 +2,7 @@ use std::{
     collections::{btree_set::Iter, BTreeMap, BTreeSet},
     ops::ControlFlow,
     pin::Pin,
+    sync::atomic::{AtomicU64, Ordering},
     task::{Context, Poll},
     time::Duration,
 };
@@ -26,8 +27,8 @@ use common::{
 
 use futures_util::{ready, Future};
 use proto::common::{
-    operator_info::Details, Ack, DataflowMeta, KeyedDataEvent, KeyedEventSet, OperatorInfo,
-    ResourceId,
+    operator_info::Details, Ack, DataflowMeta, Heartbeat, KeyedDataEvent, KeyedEventSet,
+    OperatorInfo, ResourceId,
 };
 use rayon::prelude::ParallelIterator;
 use tokio::task::JoinHandle;
@@ -36,10 +37,9 @@ use crate::{
     connector::{Sink, SinkImpl, Source, SourceImpl},
     dataflow::Execution,
     edge::{InEdge, LocalInEdge, LocalOutEdge, OutEdge, RemoteOutEdge},
-    err::ExecutionError,
+    err::{ExecutionError, TaskError},
     new_event_channel,
     state::{new_state_mgt, StateManager},
-    window::WindowAssignerImpl,
     Receiver, Sender,
 };
 
@@ -48,6 +48,8 @@ pub struct Task {
     job_id: ResourceId,
     main_executor_handle: Option<JoinHandle<()>>,
     downstream: BTreeSet<ExecutorId>,
+    last_receive_heartbeat_id: AtomicU64,
+    in_edge: Option<Box<dyn OutEdge<Output = LocalEvent>>>,
 }
 
 impl Task {
@@ -59,6 +61,8 @@ impl Task {
             job_id: job_id.clone(),
             main_executor_handle: None,
             downstream: adjacent_node.neighbors.iter().map(|id| *id).collect(),
+            last_receive_heartbeat_id: Default::default(),
+            in_edge: None,
         }
     }
 
@@ -91,6 +95,50 @@ impl Task {
 
     pub fn start(&mut self, executor: StreamExecutor) {
         self.main_executor_handle = Some(tokio::spawn(executor))
+    }
+
+    pub async fn send_event_to_operator(&self, event: LocalEvent) -> Result<(), TaskError> {
+        match &self.in_edge {
+            Some(in_edge) => in_edge
+                .write(event)
+                .await
+                .map_err(|err| TaskError::OutEdgeError(err)),
+            None => Ok(()),
+        }
+    }
+
+    pub fn set_in_edge(&mut self, in_edge: Box<dyn OutEdge<Output = LocalEvent>>) {
+        self.in_edge = Some(in_edge)
+    }
+
+    pub async fn batch_send_event_to_operator(
+        &self,
+        event_set: KeyedEventSet,
+    ) -> Result<(), TaskError> {
+        match &self.in_edge {
+            Some(in_edge) => in_edge
+                .batch_write(
+                    &event_set.job_id,
+                    event_set.to_operator_id,
+                    event_set.from_operator_id,
+                    event_set
+                        .events
+                        .into_iter()
+                        .map(|event| LocalEvent::KeyedDataStreamEvent(event))
+                        .collect(),
+                )
+                .await
+                .map_err(|err| TaskError::OutEdgeError(err)),
+            None => Ok(()),
+        }
+    }
+
+    pub fn receive_heartbeat(&self, heartbeat: &Heartbeat) {
+        self.last_receive_heartbeat_id.store(
+            self.last_receive_heartbeat_id
+                .fetch_max(heartbeat.heartbeat_id, Ordering::Relaxed),
+            Ordering::SeqCst,
+        )
     }
 }
 

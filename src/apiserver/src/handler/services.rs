@@ -2,7 +2,7 @@ use actix_web::{
     error::{ErrorBadRequest, ErrorInternalServerError},
     HttpResponse,
 };
-use common::{err::ApiError, utils::pb_to_bytes_mut};
+use common::utils::pb_to_bytes_mut;
 use proto::{
     apiserver::{
         CreateResourceRequest, CreateResourceResponse, GetResourceResponse, Resource,
@@ -11,7 +11,7 @@ use proto::{
     coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
 };
 
-use crate::types::GetResourceArgs;
+use crate::{err::ApiError, types::GetResourceArgs};
 
 use super::COORDINATOR_URI_ENV;
 

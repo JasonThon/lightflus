@@ -1,10 +1,12 @@
 use std::fmt::{self, Display};
 
 use common::{
-    err::{KafkaException, RedisException, TaskWorkerError},
+    err::{KafkaException, RedisException},
     event::KafkaEventError,
     types::NodeIdx,
 };
+
+use crate::edge::OutEdgeError;
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
@@ -20,12 +22,6 @@ pub enum ErrorKind {
 pub struct SinkException {
     pub kind: ErrorKind,
     pub msg: String,
-}
-
-impl SinkException {
-    pub fn into_task_worker_error(&self) -> TaskWorkerError {
-        TaskWorkerError::EventSendFailure(format!("{:?}", self))
-    }
 }
 
 impl From<KafkaException> for SinkException {
@@ -115,5 +111,16 @@ impl fmt::Display for ExecutionError {
                 f.write_str(format!("operator {} does not implement", operator_id).as_str())
             }
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum TaskError {
+    OutEdgeError(OutEdgeError),
+}
+
+impl fmt::Display for TaskError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        todo!()
     }
 }

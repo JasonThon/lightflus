@@ -10,7 +10,7 @@ use futures_util::{ready, Future, FutureExt};
 use proto::common::{Ack, Heartbeat, HostAddr, NodeType, SubDataflowId};
 use tokio::sync::mpsc;
 
-use crate::{futures::join_all, utils};
+use crate::{futures::join_all, types::ExecutorId, utils};
 
 use self::gateway::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway};
 
@@ -129,6 +129,7 @@ impl HeartbeatBuilder {
     pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveHeartbeatRpcGateway>(
         &self,
         host_addr: &HostAddr,
+        task_id: ExecutorId,
         f: F,
     ) -> HeartbeatSender<T> {
         HeartbeatSender {
@@ -140,6 +141,7 @@ impl HeartbeatBuilder {
             interval: tokio::time::interval(Duration::from_secs(self.period)),
             execution_id: None,
             current_heartbeat_id: AtomicU64::default(),
+            task_id,
         }
     }
 }
@@ -149,6 +151,7 @@ pub struct HeartbeatSender<T: ReceiveHeartbeatRpcGateway> {
     interval: tokio::time::Interval,
     execution_id: Option<SubDataflowId>,
     current_heartbeat_id: AtomicU64,
+    task_id: ExecutorId,
 }
 impl<T: ReceiveHeartbeatRpcGateway> HeartbeatSender<T> {
     pub fn update_execution_id(&mut self, execution_id: SubDataflowId) {

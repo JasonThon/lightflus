@@ -162,7 +162,14 @@ impl TaskManagerApi for TaskManager {
         let event_set = request.into_inner();
         match event_set.job_id.as_ref() {
             Some(resource_id) => match self.job_id_map_execution_id.get(resource_id) {
-                Some(execution_id) => {}
+                Some(execution_id) => {
+                    match self.workers.get(execution_id.value()) {
+                        Some(worker) => {
+                            worker.value().batch_send_event_to_operator(event_set).await
+                        },
+                        None => {}
+                    }
+                }
                 None => {}
             },
             None => Ok(tonic::Response::new(BatchSendEventsToOperatorResponse {})),

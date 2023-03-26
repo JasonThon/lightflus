@@ -17,20 +17,13 @@ service CoordinatorApi {
   rpc TerminateDataflow(common.ResourceId) returns (common.Response) {}
   /// Get the details of a dataflow.
   /// The details contains: each operator's status, metrics, basic information, checkpoint status, etc.
-  rpc GetDataflow(GetDataflowRequest) returns (GetDataflowResponse) {}
+  rpc GetDataflow(GetDataflowRequest) returns (common.DataflowStates) {}
   /// Receive ack
   rpc ReceiveAck(common.Ack) returns (common.Response) {}
-  /// Report task info
-  rpc ReportTaskInfo(common.TaskInfo) returns (common.Response) {}
   /// Receive heartbeat
   rpc ReceiveHeartbeat(common.Heartbeat) returns (common.Response) {}
 }
 
 message GetDataflowRequest {
   common.ResourceId job_id = 1;
-}
-
-message GetDataflowResponse {
-  common.DataflowStatus status = 1;
-  common.Dataflow graph = 2;
 }

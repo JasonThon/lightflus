@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 
-use std::sync::atomic;
 use std::sync::atomic::AtomicU64;
 
-use common::err::TaskWorkerError;
 
 use common::event::LocalEvent;
 use common::types::ExecutorId;
@@ -13,18 +11,45 @@ use proto::common::Dataflow;
 use proto::common::Heartbeat;
 use proto::common::KeyedDataEvent;
 
+use proto::common::KeyedEventSet;
 use proto::common::NodeType;
+use proto::common_impl::DataflowValidateError;
 use proto::taskmanager::SendEventToOperatorStatusEnum;
 
 use stream::connector::SinkImpl;
-use stream::edge::OutEdge;
 use stream::task::EdgeBuilder;
 
 use stream::task::Task;
+use tokio::sync::mpsc;
+
+#[derive(Debug)]
+pub enum TaskWorkerError {
+    DataflowValidateError(DataflowValidateError),
+    ChannelDisconnected,
+    ChannelEmpty,
+    ExecutionError(String),
+    EventSendFailure(String),
+}
+
+impl From<mpsc::error::TryRecvError> for TaskWorkerError {
+    fn from(err: mpsc::error::TryRecvError) -> Self {
+        match err {
+            mpsc::error::TryRecvError::Empty => TaskWorkerError::ChannelEmpty,
+            mpsc::error::TryRecvError::Disconnected => TaskWorkerError::ChannelDisconnected,
+        }
+    }
+}
+
+
+impl TaskWorkerError {
+    pub fn into_grpc_status(&self) -> tonic::Status {
+        todo!()
+    }
+}
+
 
 #[derive(Default)]
 pub struct TaskWorker {
-    in_edges: HashMap<ExecutorId, Box<dyn OutEdge<Output = LocalEvent>>>,
     last_receive_heartbeat_id: AtomicU64,
     tasks: HashMap<ExecutorId, Task>,
 }
@@ -87,9 +112,7 @@ impl<'a> TaskWorkerBuilder<'a> {
                         // if operator is not Source, it should create an out-edge for [`TaskWorker`] to send operator
                         if !operator_info.has_source() {
                             let builder = edge_builders.remove(&executor_id).unwrap();
-                            worker
-                                .in_edges
-                                .insert(executor_id, builder.build_out_edge());
+                            task.set_in_edge(builder.build_out_edge());
                             executor.set_in_edge(builder.build_in_edge())
                         }
 
@@ -112,9 +135,9 @@ impl TaskWorker {
         event: KeyedDataEvent,
     ) -> Result<SendEventToOperatorStatusEnum, TaskWorkerError> {
         let executor_id = event.to_operator_id;
-        match self.in_edges.get(&executor_id) {
-            Some(in_edge) => in_edge
-                .write(LocalEvent::KeyedDataStreamEvent(event))
+        match self.tasks.get(&executor_id) {
+            Some(task) => task
+                .send_event_to_operator(LocalEvent::KeyedDataStreamEvent(event))
                 .await
                 .map(|_| SendEventToOperatorStatusEnum::Done)
                 .map_err(|err| TaskWorkerError::EventSendFailure(err.to_string())),
@@ -125,11 +148,10 @@ impl TaskWorker {
     #[inline]
     pub fn receive_heartbeat(&self, heartbeat: &Heartbeat) {
         match heartbeat.node_type() {
-            NodeType::JobManager => self.last_receive_heartbeat_id.store(
-                self.last_receive_heartbeat_id
-                    .fetch_max(heartbeat.heartbeat_id, atomic::Ordering::Relaxed),
-                atomic::Ordering::SeqCst,
-            ),
+            NodeType::JobManager => match self.tasks.get(&heartbeat.task_id) {
+                Some(task) => task.receive_heartbeat(heartbeat),
+                None => {}
+            },
             _ => {}
         }
     }
@@ -144,13 +166,27 @@ impl TaskWorker {
             None => {}
         }
     }
+
+    pub async fn batch_send_event_to_operator(
+        &self,
+        event_set: KeyedEventSet,
+    ) -> Result<SendEventToOperatorStatusEnum, TaskWorkerError> {
+        match self.tasks.get(&event_set.to_operator_id) {
+            Some(task) => task
+                .batch_send_event_to_operator(event_set)
+                .await
+                .map(|_| SendEventToOperatorStatusEnum::Done)
+                .map_err(|err| TaskWorkerError::EventSendFailure(err.to_string())),
+            None => Ok(SendEventToOperatorStatusEnum::Done),
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use proto::common::{Dataflow, SubDataflowId, OperatorInfo, ResourceId};
+    use proto::common::{Dataflow, OperatorInfo, ResourceId, SubDataflowId};
 
     use super::TaskWorkerBuilder;
 

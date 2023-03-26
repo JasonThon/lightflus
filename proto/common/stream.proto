@@ -218,3 +218,12 @@ enum DeliveryGuarentee {
   DELIVERY_AT_LEAST_ONCE = 1;
   DELIVERY_EXACTLY_ONCE = 2;
 }
+
+
+message DataflowStates {
+  // the structure of the dataflow
+  common.Dataflow graph = 1;
+  // task infos of all subdataflow
+  map<common.SubDataflowId, common.TaskInfo> task_infos = 2;
+  common.DataflowStatus status = 3;
+}

@@ -55,13 +55,42 @@ use tokio::{sync::mpsc, task::JoinHandle};
 pub(crate) struct VertexExecution {
     executor_id: ExecutorId,
     operator: OperatorInfo,
+    /// the asynchronous task of the ack sender
+    ack_handler: JoinHandle<()>,
+    /// the enqueue-entrypoint of a ack request queue
+    ack_request_queue: mpsc::Sender<Ack>,
+    // the asynchronous task of the heartbeat sender
+    heartbeat_handler: JoinHandle<()>,
+    /// the latest heartbeat ack id
+    latest_ack_heartbeat_id: AtomicU64,
+    /// the latest heartbeat timestamp
+    latest_ack_heartbeat_timestamp: AtomicU64,
 }
 
 impl VertexExecution {
-    pub(crate) fn new(executor_id: ExecutorId, operator: &OperatorInfo) -> Self {
+    pub(crate) fn new(
+        executor_id: ExecutorId,
+        operator: &OperatorInfo,
+        ack_builder: &AckResponderBuilder,
+        heartbeat_builder: &HeartbeatBuilder,
+    ) -> Self {
+        let host_addr = operator.get_host_addr();
+        let (ack, sender) = ack_builder.build(&host_addr, |addr, connect_timeout, rpc_timout| {
+            SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
+        });
+
+        let heartbeat =
+            heartbeat_builder.build(&host_addr, |host_addr, connect_timeout, rpc_timeout| {
+                SafeTaskManagerRpcGateway::with_timeout(host_addr, connect_timeout, rpc_timout)
+            });
         Self {
             executor_id,
             operator: operator.clone(),
+            heartbeat_handler: tokio::spawn(heartbeat),
+            ack_handler: tokio::spawn(ack),
+            ack_request_queue: sender,
+            latest_ack_heartbeat_id: Default::default(),
+            latest_ack_heartbeat_timestamp: Default::default(),
         }
     }
 }
@@ -82,11 +111,9 @@ pub(crate) struct SubdataflowDeploymentPlan<'a> {
     /// the node of TaskManager
     node: Option<&'a Node>,
     /// ack responder
-    ack: AckResponder<SafeTaskManagerRpcGateway>,
-    /// the initialized enqueue-entrypoint of a ack request queue
-    sender: mpsc::Sender<Ack>,
+    ack: &'a AckResponderBuilder,
     // heartbeat sender
-    heartbeat: HeartbeatSender<SafeTaskManagerRpcGateway>,
+    heartbeat: &'a HeartbeatBuilder,
 }
 
 impl<'a> SubdataflowDeploymentPlan<'a> {
@@ -97,27 +124,18 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
         ack_builder: &AckResponderBuilder,
         heartbeat_builder: &HeartbeatBuilder,
     ) -> Self {
-        let (ack, sender) = ack_builder.build(|addr, connect_timeout, rpc_timout| {
-            SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
-        });
-
-        let heartbeat = heartbeat_builder.build(|host_addr, connect_timeout, rpc_timeout| {
-            SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timout)
-        });
         Self {
             subdataflow: subdataflow.1.clone(),
             addr: subdataflow.0.clone(),
             job_id: job_id.clone(),
             node,
-            ack,
-            sender,
-            heartbeat,
+            ack: ack_builder,
+            heartbeat: heartbeat_builder,
         }
     }
 
     #[inline]
     pub(crate) async fn deploy(mut self) -> Result<SubdataflowExecution, TaskDeploymentException> {
-        let ack = self.ack;
         match &self.node {
             Some(node) => {
                 self.subdataflow.execution_id = Some(SubDataflowId {
@@ -139,8 +157,7 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
                             sub_id: node.get_id(),
                         },
                         resp.status(),
-                        ack,
-                        self.sender,
+                        self.ack,
                         self.heartbeat,
                     )),
                     Err(err) => Err(TaskDeploymentException::RpcError(err)),
@@ -171,44 +188,31 @@ pub(crate) struct SubdataflowExecution {
     execution_id: SubDataflowId,
     /// the status of subdataflow
     status: DataflowStatus,
-    /// the latest heartbeat ack id
-    latest_ack_heartbeat_id: AtomicU64,
-    /// the latest heartbeat timestamp
-    latest_ack_heartbeat_timestamp: AtomicU64,
-    /// the asynchronous task of the ack sender
-    ack_handler: JoinHandle<()>,
-    /// the enqueue-entrypoint of a ack request queue
-    ack_request_queue: mpsc::Sender<Ack>,
-    // the asynchronous task of the heartbeat sender
-    heartbeat_handler: JoinHandle<()>,
 }
 impl SubdataflowExecution {
-    pub(crate) fn new<
-        G: 'static + ReceiveAckRpcGateway + Send + Sync,
-        F: 'static + ReceiveHeartbeatRpcGateway + Send + Sync,
-    >(
+    pub(crate) fn new(
         worker: Node,
         subdataflow: Dataflow,
         execution_id: SubDataflowId,
         status: DataflowStatus,
-        ack: AckResponder<G>,
-        ack_request_queue: mpsc::Sender<Ack>,
-        heartbeat: HeartbeatSender<F>,
+        ack: &AckResponderBuilder,
+        heartbeat: &HeartbeatBuilder,
     ) -> Self {
+        let addr = worker.host_addr.clone();
         Self {
             worker,
             vertexes: subdataflow
                 .nodes
                 .iter()
-                .map(|(executor_id, info)| (*executor_id, VertexExecution::new(*executor_id, info)))
+                .map(|(executor_id, info)| {
+                    (
+                        *executor_id,
+                        VertexExecution::new(*executor_id, info, ack, heartbeat),
+                    )
+                })
                 .collect(),
             execution_id,
             status,
-            latest_ack_heartbeat_id: AtomicU64::default(),
-            latest_ack_heartbeat_timestamp: AtomicU64::default(),
-            ack_handler: tokio::spawn(ack),
-            ack_request_queue,
-            heartbeat_handler: tokio::spawn(heartbeat),
         }
     }
 

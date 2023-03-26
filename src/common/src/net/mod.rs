@@ -10,7 +10,7 @@ use futures_util::{ready, Future, FutureExt};
 use proto::common::{Ack, Heartbeat, HostAddr, NodeType, SubDataflowId};
 use tokio::sync::mpsc;
 
-use crate::utils;
+use crate::{futures::join_all, utils};
 
 use self::gateway::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway};
 
@@ -117,7 +117,6 @@ pub fn local_ip() -> Option<String> {
 /// ```
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct HeartbeatBuilder {
-    pub nodes: Vec<HostAddr>,
     /// period of heartbeat, in seconds
     pub period: u64,
     /// timeout of heartbeat rpc connection, in seconds
@@ -129,21 +128,15 @@ pub struct HeartbeatBuilder {
 impl HeartbeatBuilder {
     pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveHeartbeatRpcGateway>(
         &self,
+        host_addr: &HostAddr,
         f: F,
     ) -> HeartbeatSender<T> {
         HeartbeatSender {
-            gateways: self
-                .nodes
-                .iter()
-                .map(|addr| addr)
-                .map(|host_addr| {
-                    f(
-                        &host_addr,
-                        Duration::from_secs(self.connect_timeout),
-                        Duration::from_secs(self.rpc_timeout),
-                    )
-                })
-                .collect(),
+            gateway: f(
+                host_addr,
+                Duration::from_secs(self.connect_timeout),
+                Duration::from_secs(self.rpc_timeout),
+            ),
             interval: tokio::time::interval(Duration::from_secs(self.period)),
             execution_id: None,
             current_heartbeat_id: AtomicU64::default(),
@@ -152,7 +145,7 @@ impl HeartbeatBuilder {
 }
 
 pub struct HeartbeatSender<T: ReceiveHeartbeatRpcGateway> {
-    gateways: Vec<T>,
+    gateway: T,
     interval: tokio::time::Interval,
     execution_id: Option<SubDataflowId>,
     current_heartbeat_id: AtomicU64,
@@ -168,35 +161,23 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
-        loop {
-            ready!(Pin::new(&mut this.interval).poll_tick(cx));
-            let now = utils::times::now();
-            tracing::debug!("heartbeat sent at time {:?}", now);
-
-            while let Some(true) = this
-                .gateways
-                .iter()
-                .map(|gateway| {
-                    gateway.receive_heartbeat(Heartbeat {
-                        heartbeat_id: this
-                            .current_heartbeat_id
-                            .fetch_add(1, atomic::Ordering::SeqCst),
-                        timestamp: Some(prost_types::Timestamp {
-                            seconds: now.timestamp(),
-                            nanos: now.timestamp_subsec_nanos() as i32,
-                        }),
-                        node_type: NodeType::JobManager as i32,
-                        subdataflow_id: this.execution_id.clone(),
-                        task_id: 0,
-                    })
-                })
-                .into_iter()
-                .map(|mut future| future.poll_unpin(cx).is_ready())
-                .reduce(|a, b| a && b)
-            {
-                break;
-            }
-        }
+        ready!(Pin::new(&mut this.interval).poll_tick(cx));
+        let now = utils::times::now();
+        tracing::debug!("heartbeat sent at time {:?}", now);
+        let mut future = this.gateway.receive_heartbeat(Heartbeat {
+            heartbeat_id: this
+                .current_heartbeat_id
+                .fetch_add(1, atomic::Ordering::SeqCst),
+            timestamp: Some(prost_types::Timestamp {
+                seconds: now.timestamp(),
+                nanos: now.timestamp_subsec_nanos() as i32,
+            }),
+            node_type: NodeType::JobManager as i32,
+            subdataflow_id: this.execution_id.clone(),
+            task_id: 0,
+        });
+        while let false = future.poll_unpin(cx).is_ready() {}
+        Poll::Pending
     }
 }
 
@@ -278,6 +259,7 @@ pub struct AckResponderBuilder {
 impl AckResponderBuilder {
     pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveAckRpcGateway>(
         &self,
+        host_addr: &HostAddr,
         f: F,
     ) -> (AckResponder<T>, mpsc::Sender<Ack>) {
         let (tx, rx) = mpsc::channel(self.buf_size);
@@ -285,17 +267,11 @@ impl AckResponderBuilder {
             AckResponder {
                 delay_interval: tokio::time::interval(Duration::from_secs(self.delay)),
                 recv: rx,
-                gateway: self
-                    .nodes
-                    .iter()
-                    .map(|addr| {
-                        f(
-                            addr,
-                            Duration::from_secs(self.connect_timeout),
-                            Duration::from_secs(self.rpc_timeout),
-                        )
-                    })
-                    .collect(),
+                gateway: f(
+                    host_addr,
+                    Duration::from_secs(self.connect_timeout),
+                    Duration::from_secs(self.rpc_timeout),
+                ),
             },
             tx,
         )
@@ -305,7 +281,7 @@ impl AckResponderBuilder {
 pub struct AckResponder<T: ReceiveAckRpcGateway> {
     delay_interval: tokio::time::Interval,
     recv: mpsc::Receiver<Ack>,
-    gateway: Vec<T>,
+    gateway: T,
 }
 
 impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
@@ -313,24 +289,22 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
+        ready!(Pin::new(&mut this.delay_interval).poll_tick(cx));
+        let mut all_ack_futures = vec![];
         loop {
-            ready!(Pin::new(&mut this.delay_interval).poll_tick(cx));
-            this.delay_interval.reset();
-
             match this.recv.poll_recv(cx) {
                 Poll::Ready(Some(ack)) => {
-                    while let Some(true) = this
-                        .gateway
-                        .iter()
-                        .map(|gateway| gateway.receive_ack(ack.clone()))
-                        .into_iter()
-                        .map(|mut future| future.poll_unpin(cx).is_ready())
-                        .reduce(|a, b| a && b)
-                    {
-                        break;
-                    }
+                    let future = this.gateway.receive_ack(ack.clone());
+                    all_ack_futures.push(future);
                 }
-                _ => {}
+                Poll::Ready(None) => continue,
+                _ => {
+                    join_all(cx, &mut all_ack_futures, |r| match r {
+                        Ok(_) => todo!(),
+                        Err(status) => {}
+                    });
+                    return Poll::Pending;
+                }
             }
         }
     }

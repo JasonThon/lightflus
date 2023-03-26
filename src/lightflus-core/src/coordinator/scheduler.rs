@@ -1,9 +1,6 @@
 use std::collections::BTreeMap;
 
-use common::net::{gateway::taskmanager::SafeTaskManagerRpcGateway, HeartbeatBuilder};
-use mockall::automock;
 use proto::common::{DataflowStatus, SubDataflowId};
-use tokio::task::JoinHandle;
 
 use super::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 

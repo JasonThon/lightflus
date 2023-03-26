@@ -24,7 +24,7 @@ use common::{
     utils::get_env,
 };
 
-use futures_util::Future;
+use futures_util::{ready, Future};
 use proto::common::{
     operator_info::Details, Ack, DataflowMeta, KeyedDataEvent, KeyedEventSet, OperatorInfo,
     ResourceId,
@@ -293,18 +293,16 @@ impl Future for StreamExecutor {
             scope,
         );
         loop {
-            match this.poll_recv_data_stream(cx) {
-                Poll::Ready(event) => match event.into_iter().try_for_each(|event| match event {
-                    LocalEvent::Terminate { .. } => return ControlFlow::Break(()),
-                    LocalEvent::KeyedDataStreamEvent(event) => {
-                        this.process(&execution, event, cx);
-                        ControlFlow::Continue(())
-                    }
-                }) {
-                    ControlFlow::Continue(_) => continue,
-                    ControlFlow::Break(_) => return Poll::Ready(()),
-                },
-                Poll::Pending => return Poll::Pending,
+            let event = ready!(this.poll_recv_data_stream(cx));
+            match event.into_iter().try_for_each(|event| match event {
+                LocalEvent::Terminate { .. } => return ControlFlow::Break(()),
+                LocalEvent::KeyedDataStreamEvent(event) => {
+                    this.process(&execution, event, cx);
+                    ControlFlow::Continue(())
+                }
+            }) {
+                ControlFlow::Continue(_) => continue,
+                ControlFlow::Break(_) => return Poll::Ready(()),
             }
         }
     }
@@ -446,92 +444,62 @@ mod tests {
 
         let handler = tokio::spawn(executor);
         let timestamp = now_timestamp();
-
-        {
-            let result = suite
-                .in_edge_tx_endpoint
-                .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                    job_id: Some(ResourceId {
-                        resource_id: "resource_id".to_string(),
-                        namespace_id: "ns_id".to_string(),
-                    }),
-                    key: None,
-                    to_operator_id: 2,
-                    data: vec![Entry {
-                        data_type: DataTypeEnum::Number as i32,
-                        value: TypedValue::Number(1.0).get_data_bytes(),
-                    }],
-                    event_time: timestamp,
-                    from_operator_id: 0,
-                    window: None,
-                    event_id: 0,
-                }))
-                .await;
-            assert!(result.is_ok());
-            let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
-            assert_eq!(
-                opt,
-                Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                    job_id: Some(ResourceId {
-                        resource_id: "resource_id".to_string(),
-                        namespace_id: "ns_id".to_string(),
-                    }),
-                    key: None,
-                    to_operator_id: 2,
-                    data: vec![Entry {
-                        data_type: DataTypeEnum::Number as i32,
-                        value: TypedValue::Number(2.0).get_data_bytes(),
-                    }],
-                    event_time: timestamp,
-                    from_operator_id: 0,
-                    window: None,
-                    event_id: 0,
-                }))
-            );
+        for _ in 0..10 {
+            {
+                let result = suite
+                    .in_edge_tx_endpoint
+                    .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                        job_id: Some(ResourceId {
+                            resource_id: "resource_id".to_string(),
+                            namespace_id: "ns_id".to_string(),
+                        }),
+                        key: None,
+                        to_operator_id: 2,
+                        data: vec![Entry {
+                            data_type: DataTypeEnum::Number as i32,
+                            value: TypedValue::Number(1.0).get_data_bytes(),
+                        }],
+                        event_time: timestamp,
+                        from_operator_id: 0,
+                        window: None,
+                        event_id: 0,
+                    }))
+                    .await;
+                assert!(result.is_ok());
+                let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
+                assert_eq!(
+                    opt,
+                    Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
+                        job_id: Some(ResourceId {
+                            resource_id: "resource_id".to_string(),
+                            namespace_id: "ns_id".to_string(),
+                        }),
+                        key: None,
+                        to_operator_id: 2,
+                        data: vec![Entry {
+                            data_type: DataTypeEnum::Number as i32,
+                            value: TypedValue::Number(2.0).get_data_bytes(),
+                        }],
+                        event_time: timestamp,
+                        from_operator_id: 0,
+                        window: None,
+                        event_id: 0,
+                    }))
+                );
+            }
         }
 
-        {
-            let result = suite
-                .in_edge_tx_endpoint
-                .write(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                    job_id: Some(ResourceId {
-                        resource_id: "resource_id".to_string(),
-                        namespace_id: "ns_id".to_string(),
-                    }),
-                    key: None,
-                    to_operator_id: 2,
-                    data: vec![Entry {
-                        data_type: DataTypeEnum::Number as i32,
-                        value: TypedValue::Number(1.0).get_data_bytes(),
-                    }],
-                    event_time: timestamp,
-                    from_operator_id: 0,
-                    window: None,
-                    event_id: 0,
-                }))
-                .await;
-            assert!(result.is_ok());
-            let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
-            assert_eq!(
-                opt,
-                Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {
-                    job_id: Some(ResourceId {
-                        resource_id: "resource_id".to_string(),
-                        namespace_id: "ns_id".to_string(),
-                    }),
-                    key: None,
-                    to_operator_id: 2,
-                    data: vec![Entry {
-                        data_type: DataTypeEnum::Number as i32,
-                        value: TypedValue::Number(2.0).get_data_bytes(),
-                    }],
-                    event_time: timestamp,
-                    from_operator_id: 0,
-                    window: None,
-                    event_id: 0,
-                }))
-            );
-        }
+        let result = suite
+            .in_edge_tx_endpoint
+            .write(LocalEvent::Terminate {
+                job_id: Default::default(),
+                to: 1,
+                event_time: now_timestamp(),
+            })
+            .await;
+        assert!(result.is_ok());
+
+        let _ = handler.await;
     }
 
     #[tokio::test]

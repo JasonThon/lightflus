@@ -354,7 +354,13 @@ mod tests {
 
         let (gateway, mut rx, _) = MockRpcGateway::new(builder.buf_size, 10);
 
-        let (responder, tx) = builder.build(|_, _, _| gateway.clone());
+        let (responder, tx) = builder.build(
+            &HostAddr {
+                host: "198.0.0.1".to_string(),
+                port: 8970,
+            },
+            |_, _, _| gateway.clone(),
+        );
 
         let handler = tokio::spawn(responder);
         // send first time
@@ -425,10 +431,6 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_success() {
         let builder = HeartbeatBuilder {
-            nodes: vec![HostAddr {
-                host: "11".to_string(),
-                port: 11,
-            }],
             period: 3,
             connect_timeout: 3,
             rpc_timeout: 3,
@@ -436,7 +438,14 @@ mod tests {
 
         let (gateway, _, mut rx) = MockRpcGateway::new(10, 10);
 
-        let heartbeat = builder.build(|_, _, _| gateway.clone());
+        let heartbeat = builder.build(
+            &HostAddr {
+                host: "11".to_string(),
+                port: 11,
+            },
+            0,
+            |_, _, _| gateway.clone(),
+        );
         let handler = tokio::spawn(heartbeat);
 
         {
@@ -462,10 +471,6 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_update_execution_id() {
         let builder = HeartbeatBuilder {
-            nodes: vec![HostAddr {
-                host: "11".to_string(),
-                port: 11,
-            }],
             period: 3,
             connect_timeout: 3,
             rpc_timeout: 3,
@@ -473,7 +478,14 @@ mod tests {
 
         let (gateway, _, _) = MockRpcGateway::new(10, 10);
 
-        let mut heartbeat = builder.build(|_, _, _| gateway.clone());
+        let mut heartbeat = builder.build(
+            &HostAddr {
+                host: "11".to_string(),
+                port: 11,
+            },
+            0,
+            |_, _, _| gateway.clone(),
+        );
         heartbeat.update_execution_id(SubDataflowId {
             job_id: Some(ResourceId {
                 resource_id: "resource_id".to_string(),

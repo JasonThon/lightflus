@@ -1,12 +1,11 @@
-use std::collections::BTreeMap;
-
-use proto::common::{DataflowStatus, SubDataflowId};
+use crossbeam_skiplist::SkipMap;
+use proto::common::{Ack, DataflowStatus, Heartbeat, SubDataflowId};
 
 use super::executions::{SubdataflowDeploymentPlan, SubdataflowExecution, TaskDeploymentException};
 
 /// The scheduler for a [`JobManager`].
 pub(crate) struct Scheduler {
-    executions: BTreeMap<SubDataflowId, SubdataflowExecution>,
+    executions: SkipMap<SubDataflowId, SubdataflowExecution>,
 }
 
 impl Scheduler {
@@ -27,20 +26,27 @@ impl Scheduler {
     }
 
     pub(crate) async fn terminate_dataflow(
-        &mut self,
+        &self,
     ) -> Result<DataflowStatus, TaskExecutionException> {
-        for (_, execution) in self.executions.iter_mut() {
-            execution.try_terminate()
+        for entry in self.executions.iter() {
+            entry.value().try_terminate();
         }
 
         Ok(DataflowStatus::Closing)
     }
 
-    pub(crate) fn get_execution_mut<'a>(
-        &'a mut self,
-        execution_id: &SubDataflowId,
-    ) -> Option<&'a mut SubdataflowExecution> {
-        self.executions.get_mut(execution_id)
+    pub(crate) async fn receive_heartbeat(&self, heartbeat: &Heartbeat) {
+        match heartbeat
+            .get_execution_id()
+            .and_then(|execution_id| self.executions.get(execution_id))
+        {
+            Some(entry) => entry.value().update_heartbeat_status(heartbeat).await,
+            None => {}
+        }
+    }
+
+    pub(crate) fn ack(&self, ack: &Ack) {
+        todo!()
     }
 }
 

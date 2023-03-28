@@ -84,9 +84,9 @@ impl<T: StreamEvent> OutEdge for LocalOutEdge<T> {
 
     async fn batch_write(
         &self,
-        job_id: &Option<ResourceId>,
+        _job_id: &Option<ResourceId>,
         to_operator_id: ExecutorId,
-        from_operator_id: ExecutorId,
+        _from_operator_id: ExecutorId,
         iter: Vec<Self::Output>,
     ) -> Result<(), OutEdgeError> {
         let failed_events = iter

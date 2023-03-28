@@ -5,7 +5,6 @@ pub mod err;
 mod state;
 pub mod task;
 mod v8_runtime;
-mod window;
 
 pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 

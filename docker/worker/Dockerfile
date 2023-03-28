@@ -3,13 +3,11 @@ WORKDIR /lightflus/runtime/tools
 COPY ./tools .
 RUN go build -ldflags="-s -w" -o /lightflus/runtime/tools/healthcheck health-check/main.go
 
-FROM rust:1.62.0 as builder
+FROM rust:1.68.0 as builder
 WORKDIR /lightflus/runtime
-RUN apt-get update && apt-get -y install make build-essential cmake curl pkg-config bash lld
+RUN apt-get update && apy-get upgrade -y && apt-get -y install make build-essential cmake curl pkg-config bash lld
 COPY docker/config ${CARGO_HOME}/config
 COPY . .
-# for local build
-# COPY docker/cargo ${CARGO_HOME}/config
 RUN cargo build --manifest-path /lightflus/runtime/src/worker/Cargo.toml --target-dir /lightflus/runtime/target --release
 
 FROM debian:bullseye

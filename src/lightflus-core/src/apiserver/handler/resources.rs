@@ -3,7 +3,7 @@ use common::utils::{from_pb_slice, pb_to_bytes_mut};
 use futures_util::StreamExt;
 use proto::apiserver::{CreateResourceRequest, CreateResourceResponse, ResourceTypeEnum};
 
-use crate::{
+use crate::apiserver::{
     handler::services::create_dataflow,
     types::{GetResourceArgs, ListResourcesArgs},
 };

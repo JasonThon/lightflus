@@ -1,3 +1,5 @@
+use common::err::BizCode;
+
 pub mod rpc;
 pub mod taskworker;
 

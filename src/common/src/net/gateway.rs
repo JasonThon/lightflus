@@ -86,7 +86,8 @@ pub mod taskmanager {
             StopDataflowResponse,
         },
     };
-    use tonic::async_trait;
+    use tokio::sync::Mutex;
+    use tonic::{async_trait, transport::Channel};
 
     use crate::net::DEFAULT_RPC_TIMEOUT;
 
@@ -100,7 +101,7 @@ pub mod taskmanager {
     /// [`SafeTaskWorkerRpcGateway`] can be shared in different threads safely.
     #[derive(Debug, Clone)]
     pub struct SafeTaskManagerRpcGateway {
-        inner: Arc<tokio::sync::Mutex<Option<TaskManagerApiClient<tonic::transport::Channel>>>>,
+        inner: Arc<Mutex<Option<TaskManagerApiClient<Channel>>>>,
         host_addr: HostAddr,
         connect_timeout: Duration,
         rpc_timeout: Duration,
@@ -351,10 +352,10 @@ pub mod coordinator {
     use tonic::async_trait;
 
     use proto::{
-        common::{Ack, Dataflow, Heartbeat, HostAddr, ResourceId, Response, TaskInfo},
-        coordinator::{
-            coordinator_api_client::CoordinatorApiClient, GetDataflowRequest, GetDataflowResponse,
+        common::{
+            Ack, Dataflow, DataflowStates, Heartbeat, HostAddr, ResourceId, Response, TaskInfo,
         },
+        coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
     };
 
     use crate::net::{DEFAULT_CONNECT_TIMEOUT, DEFAULT_RPC_TIMEOUT};
@@ -469,7 +470,7 @@ pub mod coordinator {
         pub async fn get_dataflow(
             &self,
             req: GetDataflowRequest,
-        ) -> Result<GetDataflowResponse, tonic::Status> {
+        ) -> Result<DataflowStates, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
                 CoordinatorApiClient::with_connection_timeout(
@@ -483,27 +484,6 @@ pub mod coordinator {
 
             inner
                 .get_dataflow(request)
-                .await
-                .map(|resp| resp.into_inner())
-        }
-
-        pub async fn report_task_info(
-            &mut self,
-            request: TaskInfo,
-        ) -> Result<Response, tonic::Status> {
-            let mut guard = self.inner.lock().await;
-            let inner = guard.get_or_insert_with(|| {
-                CoordinatorApiClient::with_connection_timeout(
-                    self.host_addr.as_uri(),
-                    Duration::from_secs(self.connect_timeout),
-                )
-            });
-
-            let mut request = tonic::Request::new(request);
-            request.set_timeout(Duration::from_secs(self.rpc_timeout));
-
-            inner
-                .report_task_info(request)
                 .await
                 .map(|resp| resp.into_inner())
         }

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use std::sync::atomic::AtomicU64;
 
-
 use common::event::LocalEvent;
 use common::types::ExecutorId;
 use common::utils::is_remote_operator;
@@ -13,40 +12,15 @@ use proto::common::KeyedDataEvent;
 
 use proto::common::KeyedEventSet;
 use proto::common::NodeType;
-use proto::common_impl::DataflowValidateError;
+
 use proto::taskmanager::SendEventToOperatorStatusEnum;
 
 use stream::connector::SinkImpl;
 use stream::task::EdgeBuilder;
 
 use stream::task::Task;
-use tokio::sync::mpsc;
 
-#[derive(Debug)]
-pub enum TaskWorkerError {
-    DataflowValidateError(DataflowValidateError),
-    ChannelDisconnected,
-    ChannelEmpty,
-    ExecutionError(String),
-    EventSendFailure(String),
-}
-
-impl From<mpsc::error::TryRecvError> for TaskWorkerError {
-    fn from(err: mpsc::error::TryRecvError) -> Self {
-        match err {
-            mpsc::error::TryRecvError::Empty => TaskWorkerError::ChannelEmpty,
-            mpsc::error::TryRecvError::Disconnected => TaskWorkerError::ChannelDisconnected,
-        }
-    }
-}
-
-
-impl TaskWorkerError {
-    pub fn into_grpc_status(&self) -> tonic::Status {
-        todo!()
-    }
-}
-
+use crate::errors::taskmanager::TaskWorkerError;
 
 #[derive(Default)]
 pub struct TaskWorker {
@@ -167,6 +141,7 @@ impl TaskWorker {
         }
     }
 
+    #[inline]
     pub async fn batch_send_event_to_operator(
         &self,
         event_set: KeyedEventSet,

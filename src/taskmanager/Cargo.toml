@@ -7,7 +7,6 @@ edition = "2021"
 
 [dependencies]
 lightflus-core = { path = "../lightflus-core", features = ["taskmanager"] }
-serde_json = "1.0.59"
 common = { path = "../common" }
 stream = { path = "../stream", features = ["v8_init"] }
 tonic = "0.8"

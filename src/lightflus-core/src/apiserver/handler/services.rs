@@ -11,7 +11,7 @@ use proto::{
     coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
 };
 
-use crate::{err::ApiError, types::GetResourceArgs};
+use crate::{apiserver::types::GetResourceArgs, errors::coordinator::ApiError};
 
 use super::COORDINATOR_URI_ENV;
 

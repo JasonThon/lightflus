@@ -9,7 +9,7 @@ option java_package = "lightflus.proto.common.stream";
 StreamGraph metadata, it stores the structural information of a stream graph
  */
 message DataflowMeta {
-  uint32 center = 1; // center node id
+  uint32 center = 1;             // center node id
   repeated uint32 neighbors = 2; // center's neighbors
 }
 
@@ -24,7 +24,7 @@ message OperatorInfo {
   // optional for different operator type
   oneof details {
     Source source = 5; // for source
-    Sink sink = 6; // for sink
+    Sink sink = 6;     // for sink
     Mapper mapper = 7;
     Filter filter = 8;
     KeyBy key_by = 9;
@@ -35,21 +35,15 @@ message OperatorInfo {
   }
 }
 message Reducer {
-  oneof value {
-    Func func = 1;
-  }
+  oneof value { Func func = 1; }
 }
 
 message FlatMap {
-  oneof value {
-    Func func = 1;
-  }
+  oneof value { Func func = 1; }
 }
 
 message Join {
-  oneof value {
-    StreamJoin stream_join = 1;
-  }
+  oneof value { StreamJoin stream_join = 1; }
 
   message StreamJoin {
     uint32 operator_id = 1;
@@ -58,25 +52,17 @@ message Join {
 }
 
 message Mapper {
-  oneof value {
-    Func func = 1;
-  }
+  oneof value { Func func = 1; }
 }
 
-message Func {
-  string function = 1;
-}
+message Func { string function = 1; }
 
 message Filter {
-  oneof value {
-    Func func = 1;
-  }
+  oneof value { Func func = 1; }
 }
 
 message KeyBy {
-  oneof value {
-    Func func = 1;
-  }
+  oneof value { Func func = 1; }
 }
 
 message Sink {
@@ -93,13 +79,11 @@ Constant operator
  */
 message ConstOp {
   bytes value = 1; // value of constant, format: [<flag byte>, <data bytes>]
-  uint32 operator_id = 2;  // operator id
+  uint32 operator_id = 2; // operator id
 }
 
 message Source {
-  oneof desc {
-    KafkaDesc kafka = 3;
-  }
+  oneof desc { KafkaDesc kafka = 3; }
 }
 
 message KafkaDesc {
@@ -163,7 +147,8 @@ enum DataflowStatus {
 // An union linked-list structure of the description of Dataflow.
 // Dataflow can be shared between API, Coordinator and TaskManager.
 // However, they may check the Dataflow by distinct validators.
-// Each part's concern is different and they must be sure it's a legal Dataflow to them.
+// Each part's concern is different and they must be sure it's a legal Dataflow
+// to them.
 message Dataflow {
   // job id, for now it is which table the stream graph output will sink
   common.ResourceId job_id = 1;
@@ -199,13 +184,9 @@ message Window {
 }
 
 message Trigger {
-  oneof value {
-    Watermark watermark = 1;
-  }
+  oneof value { Watermark watermark = 1; }
 
-  message Watermark {
-    common.Time trigger_time = 1;
-  }
+  message Watermark { common.Time trigger_time = 1; }
 }
 
 enum OperatorStatus {
@@ -219,11 +200,11 @@ enum DeliveryGuarentee {
   DELIVERY_EXACTLY_ONCE = 2;
 }
 
-
 message DataflowStates {
   // the structure of the dataflow
   common.Dataflow graph = 1;
   // task infos of all subdataflow
-  map<common.SubDataflowId, common.TaskInfo> task_infos = 2;
+  repeated common.TaskInfo task_infos = 2;
+  // dataflow status
   common.DataflowStatus status = 3;
 }

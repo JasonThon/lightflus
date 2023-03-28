@@ -155,62 +155,16 @@ pub struct TaskInfo {
     pub execution_id: ::core::option::Option<SubDataflowId>,
     /// information of executors
     #[prost(map = "uint32, message", tag = "2")]
-    pub executors_info: ::std::collections::HashMap<u32, task_info::ExecutorInfo>,
+    pub executors_info: ::std::collections::HashMap<u32, ExecutorInfo>,
 }
-/// Nested message and enum types in `TaskInfo`.
-pub mod task_info {
-    /// Basic information of executor
-    #[allow(clippy::derive_partial_eq_without_eq)]
-    #[derive(Clone, PartialEq, ::prost::Message)]
-    pub struct ExecutorInfo {
-        #[prost(uint32, tag = "1")]
-        pub executor_id: u32,
-        #[prost(enumeration = "ExecutorStatus", tag = "2")]
-        pub status: i32,
-    }
-    /// status of executor
-    #[derive(
-        Clone,
-        Copy,
-        Debug,
-        PartialEq,
-        Eq,
-        Hash,
-        PartialOrd,
-        Ord,
-        ::prost::Enumeration
-    )]
-    #[repr(i32)]
-    pub enum ExecutorStatus {
-        Initialized = 0,
-        Running = 1,
-        Terminating = 2,
-        Terminated = 3,
-    }
-    impl ExecutorStatus {
-        /// String value of the enum field names used in the ProtoBuf definition.
-        ///
-        /// The values are not transformed in any way and thus are considered stable
-        /// (if the ProtoBuf definition does not change) and safe for programmatic use.
-        pub fn as_str_name(&self) -> &'static str {
-            match self {
-                ExecutorStatus::Initialized => "EXECUTOR_STATUS_INITIALIZED",
-                ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
-                ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
-                ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
-            }
-        }
-        /// Creates an enum from field names used in the ProtoBuf definition.
-        pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
-            match value {
-                "EXECUTOR_STATUS_INITIALIZED" => Some(Self::Initialized),
-                "EXECUTOR_STATUS_RUNNING" => Some(Self::Running),
-                "EXECUTOR_STATUS_TERMINATING" => Some(Self::Terminating),
-                "EXECUTOR_STATUS_TERMINATED" => Some(Self::Terminated),
-                _ => None,
-            }
-        }
-    }
+/// Basic information of executor
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct ExecutorInfo {
+    #[prost(uint32, tag = "1")]
+    pub executor_id: u32,
+    #[prost(enumeration = "ExecutorStatus", tag = "2")]
+    pub status: i32,
 }
 /// Enum of Data Type. each one corresponds to a primitive type in JavaScript
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
@@ -346,6 +300,39 @@ impl NodeType {
         match value {
             "JOB_MANAGER" => Some(Self::JobManager),
             "TASK_WORKER" => Some(Self::TaskWorker),
+            _ => None,
+        }
+    }
+}
+/// status of executor
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, ::prost::Enumeration)]
+#[repr(i32)]
+pub enum ExecutorStatus {
+    Initialized = 0,
+    Running = 1,
+    Terminating = 2,
+    Terminated = 3,
+}
+impl ExecutorStatus {
+    /// String value of the enum field names used in the ProtoBuf definition.
+    ///
+    /// The values are not transformed in any way and thus are considered stable
+    /// (if the ProtoBuf definition does not change) and safe for programmatic use.
+    pub fn as_str_name(&self) -> &'static str {
+        match self {
+            ExecutorStatus::Initialized => "EXECUTOR_STATUS_INITIALIZED",
+            ExecutorStatus::Running => "EXECUTOR_STATUS_RUNNING",
+            ExecutorStatus::Terminating => "EXECUTOR_STATUS_TERMINATING",
+            ExecutorStatus::Terminated => "EXECUTOR_STATUS_TERMINATED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "EXECUTOR_STATUS_INITIALIZED" => Some(Self::Initialized),
+            "EXECUTOR_STATUS_RUNNING" => Some(Self::Running),
+            "EXECUTOR_STATUS_TERMINATING" => Some(Self::Terminating),
+            "EXECUTOR_STATUS_TERMINATED" => Some(Self::Terminated),
             _ => None,
         }
     }
@@ -723,7 +710,8 @@ pub mod redis_desc {
 /// An union linked-list structure of the description of Dataflow.
 /// Dataflow can be shared between API, Coordinator and TaskManager.
 /// However, they may check the Dataflow by distinct validators.
-/// Each part's concern is different and they must be sure it's a legal Dataflow to them.
+/// Each part's concern is different and they must be sure it's a legal Dataflow
+/// to them.
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Dataflow {
@@ -803,6 +791,19 @@ pub mod trigger {
         #[prost(message, tag = "1")]
         Watermark(Watermark),
     }
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct DataflowStates {
+    /// the structure of the dataflow
+    #[prost(message, optional, tag = "1")]
+    pub graph: ::core::option::Option<Dataflow>,
+    /// task infos of all subdataflow
+    #[prost(message, repeated, tag = "2")]
+    pub task_infos: ::prost::alloc::vec::Vec<TaskInfo>,
+    /// dataflow status
+    #[prost(enumeration = "DataflowStatus", tag = "3")]
+    pub status: i32,
 }
 /// *
 /// Stream Graph Status. It shows which status a stream job is now.

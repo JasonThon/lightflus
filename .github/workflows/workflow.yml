@@ -54,7 +54,6 @@ jobs:
           cargo check --manifest-path src/proto/Cargo.toml --all-features
           cargo check --manifest-path src/coordinator/Cargo.toml
           cargo check --manifest-path src/taskmanager/Cargo.toml
-          cargo check --manifest-path src/apiserver/Cargo.toml
       - name: Run tests
         run: |
           cargo test --manifest-path src/common/Cargo.toml
@@ -143,7 +142,6 @@ jobs:
         run: |
           docker build . --file docker/worker/Dockerfile --tag lightflus/worker:${{ github.event.release.tag_name }}
           docker build . --file docker/coordinator/Dockerfile --tag lightflus/coordinator:${{ github.event.release.tag_name }}
-          docker build . --file docker/apiserver/Dockerfile --tag lightflus/apiserver:${{ github.event.release.tag_name }}
       - name: Log in to Docker Hub
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
@@ -153,10 +151,8 @@ jobs:
         run: |
           docker push lightflus/worker:${{ github.event.release.tag_name }}
           docker push lightflus/coordinator:${{ github.event.release.tag_name }}
-          docker push lightflus/apiserver:${{ github.event.release.tag_name }}
           docker tag lightflus/worker:${{ github.event.release.tag_name }} lightflus/worker:latest
           docker tag lightflus/coordinator:${{ github.event.release.tag_name }} lightflus/coordinator:latest
-          docker tag lightflus/apiserver:${{ github.event.release.tag_name }} lightflus/apiserver:latest
           docker push lightflus/worker:latest
           docker push lightflus/coordinator:latest
           docker push lightflus/apiserver:latest

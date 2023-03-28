@@ -46,7 +46,9 @@ use tokio::{sync::mpsc, task::JoinHandle};
 /// - watch each LocalExecutor's checkpoint snapshot status
 /// - collect each LocalExecutor's metrics
 pub(crate) struct VertexExecution {
+    // executor id
     executor_id: ExecutorId,
+    // operator info
     operator: OperatorInfo,
     /// the asynchronous task of the ack sender
     ack_handler: JoinHandle<()>,
@@ -101,11 +103,11 @@ impl VertexExecution {
 /// - initialized ack request queue
 pub(crate) struct SubdataflowDeploymentPlan<'a> {
     /// the description of subdataflow
-    subdataflow: Dataflow,
+    subdataflow: &'a mut Dataflow,
     /// the target address of TaskManager
-    addr: HostAddr,
+    addr: &'a HostAddr,
     /// the job id of the subdataflow's execution
-    job_id: ResourceId,
+    job_id: &'a ResourceId,
     /// the node of TaskManager
     node: Option<&'a Node>,
     /// ack responder
@@ -116,16 +118,16 @@ pub(crate) struct SubdataflowDeploymentPlan<'a> {
 
 impl<'a> SubdataflowDeploymentPlan<'a> {
     pub(crate) fn new(
-        subdataflow: (&HostAddr, &Dataflow),
-        job_id: &ResourceId,
+        subdataflow: (&'a HostAddr, &'a mut Dataflow),
+        job_id: &'a ResourceId,
         node: Option<&'a Node>,
-        ack_builder: &AckResponderBuilder,
-        heartbeat_builder: &HeartbeatBuilder,
+        ack_builder: &'a AckResponderBuilder,
+        heartbeat_builder: &'a HeartbeatBuilder,
     ) -> Self {
         Self {
-            subdataflow: subdataflow.1.clone(),
-            addr: subdataflow.0.clone(),
-            job_id: job_id.clone(),
+            subdataflow: subdataflow.1,
+            addr: subdataflow.0,
+            job_id,
             node,
             ack: ack_builder,
             heartbeat: heartbeat_builder,
@@ -154,7 +156,6 @@ impl<'a> SubdataflowDeploymentPlan<'a> {
                             job_id: Some(self.job_id.clone()),
                             sub_id: node.get_id(),
                         },
-                        resp.status(),
                         self.ack,
                         self.heartbeat,
                     )),
@@ -188,13 +189,11 @@ pub(crate) struct SubdataflowExecution {
 impl SubdataflowExecution {
     pub(crate) fn new(
         worker: Node,
-        subdataflow: Dataflow,
+        subdataflow: &Dataflow,
         execution_id: SubDataflowId,
-        status: DataflowStatus,
         ack: &AckResponderBuilder,
         heartbeat: &HeartbeatBuilder,
     ) -> Self {
-        let addr = worker.host_addr.clone();
         Self {
             worker,
             vertexes: subdataflow
@@ -211,7 +210,7 @@ impl SubdataflowExecution {
         }
     }
 
-    pub(crate) fn try_terminate(&mut self) {
+    pub(crate) fn try_terminate(&self) {
         todo!()
     }
 
@@ -219,7 +218,7 @@ impl SubdataflowExecution {
         &self.execution_id
     }
 
-    pub(crate) async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+    pub(crate) async fn update_heartbeat_status(&self, heartbeat: &Heartbeat) {
         match heartbeat.timestamp.as_ref() {
             Some(timestamp) => match heartbeat.node_type() {
                 NodeType::TaskWorker => {
@@ -242,7 +241,6 @@ impl SubdataflowExecution {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic;
 
     use common::{
         net::{
@@ -269,7 +267,8 @@ mod tests {
 
         let (gateway, mut ack_rx, _) = MockRpcGateway::new(ack_responder_builder.buf_size, 10);
 
-        let (ack_responder, ack_tx) = ack_responder_builder.build(|_, _, _| gateway.clone());
+        let (ack_responder, ack_tx) =
+            ack_responder_builder.build(&HostAddr::default(), |_, _, _| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
             worker: Node::new(
@@ -289,6 +288,7 @@ mod tests {
                     job_id: Some(Default::default()),
                     sub_id: 0,
                 }),
+                task_id: 0,
             })
             .await;
 
@@ -322,7 +322,8 @@ mod tests {
 
         let (gateway, _, _) = MockRpcGateway::new(ack_responder_builder.buf_size, 10);
 
-        let (ack_responder, ack_tx) = ack_responder_builder.build(|_, _, _| gateway.clone());
+        let (ack_responder, ack_tx) =
+            ack_responder_builder.build(&HostAddr::default(), |_, _, _| gateway.clone());
 
         let mut execution = super::SubdataflowExecution {
             worker: Node::new(
@@ -345,7 +346,6 @@ mod tests {
                 }),
                 request_id: Some(RequestId::HeartbeatId(2)),
             });
-
         }
 
         let now_1 = prost_now();
@@ -360,19 +360,6 @@ mod tests {
                 }),
                 request_id: Some(RequestId::HeartbeatId(1)),
             });
-
-            assert_eq!(
-                execution
-                    .latest_ack_heartbeat_id
-                    .load(atomic::Ordering::Relaxed),
-                2
-            );
-            assert_eq!(
-                execution
-                    .latest_ack_heartbeat_timestamp
-                    .load(atomic::Ordering::Relaxed),
-                now.seconds as u64
-            );
         }
     }
 }

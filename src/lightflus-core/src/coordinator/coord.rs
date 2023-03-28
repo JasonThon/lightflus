@@ -1,6 +1,9 @@
+use std::fs;
+
 use common::net::cluster;
 use common::net::AckResponderBuilder;
 use common::net::HeartbeatBuilder;
+use common::utils;
 use proto::common::Ack;
 use proto::common::Dataflow;
 use proto::common::DataflowStatus;
@@ -44,6 +47,23 @@ impl CoordinatorBuilder {
     }
 }
 
+pub fn load_builder() -> CoordinatorBuilder {
+    serde_json::from_str::<CoordinatorBuilder>(
+        utils::from_reader(
+            fs::File::open(
+                utils::Args::default()
+                    .arg("c")
+                    .map(|arg| arg.value.clone())
+                    .unwrap_or("src/coordinator/etc/coord.json".to_string()),
+            )
+            .expect("fail to read config file: "),
+        )
+        .expect("fail to read config file: ")
+        .as_str(),
+    )
+    .expect("fail to parser config file: ")
+}
+
 /// The coordinator of a Lightflus cluster
 /// Coordinator will manage:
 /// - [Dispatcher]
@@ -55,10 +75,7 @@ pub(crate) struct Coordinator {
 }
 
 impl Coordinator {
-    pub(crate) async fn create_dataflow(
-        &mut self,
-        dataflow: Dataflow,
-    ) -> Result<(), tonic::Status> {
+    pub(crate) async fn create_dataflow(&self, dataflow: Dataflow) -> Result<(), tonic::Status> {
         match dataflow
             .validate()
             .map_err(|err| tonic::Status::invalid_argument(format!("{:?}", err)))
@@ -80,7 +97,7 @@ impl Coordinator {
     }
 
     pub(crate) async fn terminate_dataflow(
-        &mut self,
+        &self,
         job_id: &ResourceId,
     ) -> Result<DataflowStatus, tonic::Status> {
         self.dispatcher
@@ -93,15 +110,15 @@ impl Coordinator {
         self.dispatcher.get_dataflow(job_id)
     }
 
-    pub(crate) async fn receive_heartbeart(&mut self, heartbeat: &Heartbeat) {
+    pub(crate) async fn receive_heartbeart(&self, heartbeat: &Heartbeat) {
         self.dispatcher
             .update_task_manager_heartbeat_status(heartbeat)
             .await
     }
 
-    pub(crate) async fn receive_ack(&mut self, ack: Ack) {
+    pub(crate) async fn receive_ack(&self, ack: Ack) {
         match ack.node_type() {
-            NodeType::TaskWorker => self.dispatcher.ack_from_task_manager(ack),
+            NodeType::TaskWorker => self.dispatcher.ack_from_task_manager(ack).await,
             _ => {}
         }
     }

@@ -5,6 +5,5 @@ members = [
     "src/common",
     "src/taskmanager",
     "src/coordinator",
-    "src/apiserver",
     "src/lightflus-core"
 ]

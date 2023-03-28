@@ -1,9 +1,8 @@
-use std::collections::BTreeMap;
-
 use common::net::{
     cluster::{self, ClusterBuilder},
     local, AckResponderBuilder, HeartbeatBuilder,
 };
+use crossbeam_skiplist::SkipMap;
 use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
 
 use super::{
@@ -50,14 +49,15 @@ impl JobManager {
         let _ = self.storage.save(&self.dataflow);
         cluster.partition_dataflow(&mut self.dataflow);
 
-        let subdataflow = cluster.split_into_subdataflow(&self.dataflow);
+        let mut subdataflow = cluster.split_into_subdataflow(&self.dataflow);
         let mut ack_builder = ack_builder.clone();
         ack_builder.nodes = vec![self.location.clone()];
-        let executions = subdataflow.iter().map(|pair| {
+        let executions = subdataflow.iter_mut().map(|pair| {
+            let host_addr = pair.0;
             let plan = SubdataflowDeploymentPlan::new(
                 pair,
                 &self.job_id,
-                cluster.get_node(pair.0),
+                cluster.get_node(host_addr),
                 &ack_builder,
                 heartbeat_builder,
             );
@@ -74,28 +74,22 @@ impl JobManager {
         Ok(())
     }
 
-    async fn terminate_dataflow(&mut self) -> Result<DataflowStatus, tonic::Status> {
+    async fn terminate_dataflow(&self) -> Result<DataflowStatus, tonic::Status> {
         self.scheduler
             .terminate_dataflow()
             .await
             .map_err(|err| err.to_tonic_status())
     }
 
-    async fn update_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
+    async fn update_heartbeat_status(&self, heartbeat: &Heartbeat) {
         for execution_id in heartbeat.subdataflow_id.as_ref().iter() {
-            match self.scheduler.get_execution_mut(*execution_id) {
-                Some(execution) => execution.update_heartbeat_status(heartbeat).await,
-                None => {}
-            }
+            self.scheduler.receive_heartbeat(heartbeat).await;
         }
     }
 
-    fn ack_from_execution(&mut self, ack: &Ack) {
+    fn ack_from_execution(&self, ack: &Ack) {
         for execution_id in ack.execution_id.as_ref().iter() {
-            match self.scheduler.get_execution_mut(*execution_id) {
-                Some(execution) => execution.ack(ack),
-                None => {}
-            }
+            self.scheduler.ack(ack);
         }
     }
 }
@@ -107,10 +101,7 @@ impl JobManager {
 /// - job recovery
 /// - heartbeat of remote cluster
 pub(crate) struct Dispatcher {
-    /// # TODO
-    ///
-    /// Change [`BTreeMap`] to an implementation of [`std::collections::HashMap`] to improve the request throughput
-    managers: BTreeMap<ResourceId, JobManager>,
+    managers: SkipMap<ResourceId, JobManager>,
     cluster: cluster::Cluster,
     location: HostAddr,
     heartbeat: HeartbeatBuilder,
@@ -141,21 +132,23 @@ impl Dispatcher {
         &self,
         dataflow: Dataflow,
     ) -> Result<(), DispatcherException> {
+        let job_id = dataflow.get_job_id();
         let mut job_manager = JobManager::new(&self.location, dataflow, &self.storage);
         let result = job_manager
             .deploy_dataflow(&self.cluster, &self.heartbeat, &self.ack)
             .await
             .map_err(|err| DispatcherException::DeploymentError(err));
+        self.managers.insert(job_id, job_manager);
 
         result
     }
 
     pub(crate) async fn terminate_dataflow(
-        &mut self,
+        &self,
         job_id: &ResourceId,
     ) -> Result<DataflowStatus, DispatcherException> {
-        match self.managers.get_mut(job_id) {
-            Some(manager) => match manager.terminate_dataflow().await {
+        match self.managers.get(job_id) {
+            Some(manager) => match manager.value().terminate_dataflow().await {
                 Ok(status) => match &status {
                     DataflowStatus::Initialized => {
                         Err(DispatcherException::UnexpectedDataflowStatus(status))
@@ -179,30 +172,26 @@ impl Dispatcher {
         todo!()
     }
 
-    pub(crate) async fn update_task_manager_heartbeat_status(&mut self, heartbeat: &Heartbeat) {
-        match heartbeat.subdataflow_id.as_ref() {
-            Some(execution_id) => {
-                for resource_id in execution_id.job_id.as_ref().iter() {
-                    match self.managers.get_mut(*resource_id) {
-                        Some(manager) => manager.update_heartbeat_status(heartbeat).await,
-                        None => {}
-                    }
-                }
-            }
+    pub(crate) async fn update_task_manager_heartbeat_status(&self, heartbeat: &Heartbeat) {
+        match heartbeat
+            .subdataflow_id
+            .as_ref()
+            .and_then(|execution_id| execution_id.job_id.as_ref())
+            .and_then(|resource_id| self.managers.get(resource_id))
+        {
+            Some(entry) => entry.value().update_heartbeat_status(heartbeat).await,
             None => {}
         }
     }
 
-    pub(crate) fn ack_from_task_manager(&mut self, ack: Ack) {
-        match ack.execution_id.as_ref() {
-            Some(execution_id) => {
-                for resource_id in execution_id.job_id.as_ref().iter() {
-                    match self.managers.get_mut(*resource_id) {
-                        Some(manager) => manager.ack_from_execution(&ack),
-                        None => {}
-                    }
-                }
-            }
+    pub(crate) async fn ack_from_task_manager(&self, ack: Ack) {
+        match ack
+            .execution_id
+            .as_ref()
+            .and_then(|execution_id| execution_id.job_id.as_ref())
+            .and_then(|resource_id| self.managers.get(resource_id))
+        {
+            Some(manager) => manager.value().ack_from_execution(&ack),
             None => {}
         }
     }

@@ -121,6 +121,8 @@ pub enum TaskError {
 
 impl fmt::Display for TaskError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        match self {
+            TaskError::OutEdgeError(err) => f.write_fmt(format_args!("out edge error [{}]", err)),
+        }
     }
 }

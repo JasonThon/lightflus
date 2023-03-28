@@ -1,9 +1,6 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, fmt::Display};
 
-use common::{
-    err::{CommonException, ErrorKind},
-    utils,
-};
+use common::utils;
 use prost::Message;
 use proto::common::{Dataflow, ResourceId};
 
@@ -25,10 +22,10 @@ impl DataflowStorageBuilder {
 }
 
 pub trait DataflowStorage: Send + Sync {
-    fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException>;
+    fn save(&mut self, dataflow: &Dataflow) -> Result<(), StorageError>;
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow>;
     fn may_exists(&self, job_id: &ResourceId) -> bool;
-    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException>;
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), StorageError>;
 }
 
 #[derive(Clone, Debug)]
@@ -45,7 +42,7 @@ impl LocalDataflowStorage {
 }
 
 impl DataflowStorage for LocalDataflowStorage {
-    fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException> {
+    fn save(&mut self, dataflow: &Dataflow) -> Result<(), StorageError> {
         self.db
             .insert(
                 dataflow
@@ -56,10 +53,7 @@ impl DataflowStorage for LocalDataflowStorage {
                 dataflow.encode_to_vec(),
             )
             .map(|_| {})
-            .map_err(|err| CommonException {
-                kind: ErrorKind::SaveDataflowFailed,
-                message: err.to_string(),
-            })
+            .map_err(|err| StorageError::SaveDataflowFailed(err))
     }
 
     fn get(&self, job_id: &ResourceId) -> Option<Dataflow> {
@@ -67,13 +61,11 @@ impl DataflowStorage for LocalDataflowStorage {
             .db
             .get(&job_id.encode_to_vec())
             .map(|data| data.and_then(|buf| utils::from_pb_slice(&buf).ok()))
-            .map_err(|err| CommonException {
-                kind: ErrorKind::GetDataflowFailed,
-                message: err.to_string(),
-            }) {
+            .map_err(|err| StorageError::GetDataflowFailed(err))
+        {
             Ok(result) => result,
             Err(err) => {
-                tracing::error!("get dataflow {:?} failed because: {:?}", job_id, err);
+                tracing::error!("get dataflow {:?} failed because: {}", job_id, err);
                 None
             }
         }
@@ -85,14 +77,11 @@ impl DataflowStorage for LocalDataflowStorage {
             .unwrap_or(false)
     }
 
-    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), StorageError> {
         self.db
             .remove(job_id.encode_to_vec())
             .map(|_| {})
-            .map_err(|err| CommonException {
-                kind: ErrorKind::DeleteDataflowFailed,
-                message: err.to_string(),
-            })
+            .map_err(|err| StorageError::DeleteDataflowFailed(err))
     }
 }
 
@@ -102,7 +91,7 @@ pub(crate) struct MemDataflowStorage {
 }
 
 impl DataflowStorage for MemDataflowStorage {
-    fn save(&mut self, dataflow: &Dataflow) -> Result<(), CommonException> {
+    fn save(&mut self, dataflow: &Dataflow) -> Result<(), StorageError> {
         self.cache.insert(dataflow.get_job_id(), dataflow.clone());
         Ok(())
     }
@@ -115,8 +104,31 @@ impl DataflowStorage for MemDataflowStorage {
         self.cache.contains_key(job_id)
     }
 
-    fn delete(&mut self, job_id: &ResourceId) -> Result<(), CommonException> {
+    fn delete(&mut self, job_id: &ResourceId) -> Result<(), StorageError> {
         self.cache.remove(job_id);
         Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub enum StorageError {
+    SaveDataflowFailed(sled::Error),
+    DeleteDataflowFailed(sled::Error),
+    GetDataflowFailed(sled::Error),
+}
+
+impl Display for StorageError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            StorageError::SaveDataflowFailed(err) => {
+                f.write_fmt(format_args!("save dataflow failed: {}", err))
+            }
+            StorageError::DeleteDataflowFailed(err) => {
+                f.write_fmt(format_args!("delete dataflow failed: {}", err))
+            }
+            StorageError::GetDataflowFailed(err) => {
+                f.write_fmt(format_args!("get dataflow failed: {}", err))
+            }
+        }
     }
 }

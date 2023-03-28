@@ -30,7 +30,6 @@ use proto::common::{
     operator_info::Details, Ack, DataflowMeta, Heartbeat, KeyedDataEvent, KeyedEventSet,
     OperatorInfo, ResourceId,
 };
-use rayon::prelude::ParallelIterator;
 use tokio::task::JoinHandle;
 
 use crate::{
@@ -53,6 +52,7 @@ pub struct Task {
 }
 
 impl Task {
+    #[inline]
     pub fn receive_ack(&self, ack: &Ack) {}
 
     pub fn new(job_id: &ResourceId, adjacent_node: &DataflowMeta) -> Self {
@@ -111,6 +111,7 @@ impl Task {
         self.in_edge = Some(in_edge)
     }
 
+    #[inline]
     pub async fn batch_send_event_to_operator(
         &self,
         event_set: KeyedEventSet,

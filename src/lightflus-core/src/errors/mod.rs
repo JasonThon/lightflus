@@ -1,9 +1,9 @@
 pub mod taskmanager {
-    use common::err::{BizError, RpcError};
+    use common::err::{BizCode, BizError, RpcError};
     use proto::common_impl::DataflowValidateError;
     use tokio::sync::mpsc::error::TryRecvError;
 
-    use crate::taskmanager::TASK_MANAGER_BIZ_CODE;
+    pub const TASK_MANAGER_BIZ_CODE: BizCode = 200;
 
     pub fn resource_id_unprovided() -> RpcError {
         RpcError {
@@ -103,6 +103,48 @@ pub mod taskmanager {
 }
 
 pub mod coordinator {
+    use common::err::{BizCode, BizError, RpcError};
+    use proto::common::{DataflowStatus, ResourceId};
+
+    pub const COORDINATOR_BIZ_CODE: BizCode = 100;
+
+    pub fn unexpected_dataflow_staus(status: &DataflowStatus) -> RpcError {
+        let message = format!("unexpected dataflow status {:?}", status);
+        RpcError {
+            biz_err: BizError {
+                biz_code: COORDINATOR_BIZ_CODE,
+                error_code: 1,
+                message: message.clone(),
+            },
+            status: tonic::Status::internal(message.as_str()),
+        }
+    }
+
+    pub fn task_deployment_err(message: &str) -> RpcError {
+        RpcError {
+            biz_err: BizError {
+                biz_code: COORDINATOR_BIZ_CODE,
+                error_code: 2,
+                message: message.to_string(),
+            },
+            status: tonic::Status::internal(message),
+        }
+    }
+
+    pub fn not_found_dataflow(job_id: &ResourceId) -> RpcError {
+        let message = format!("not found dataflow {:?}", job_id);
+        RpcError {
+            biz_err: BizError {
+                biz_code: COORDINATOR_BIZ_CODE,
+                error_code: 3,
+                message: message.clone(),
+            },
+            status: tonic::Status::not_found(message),
+        }
+    }
+}
+
+pub mod apiserver {
     use std::fmt;
 
     use common::err::Error;

@@ -1,6 +1,9 @@
-use std::{task::Context, time::Duration};
+use std::{
+    task::{Context, Poll},
+    time::Duration,
+};
 
-use futures_util::StreamExt;
+use futures_util::{ready, FutureExt, StreamExt};
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
     producer::{FutureProducer, FutureRecord},
@@ -136,36 +139,29 @@ impl KafkaConsumer {
             })
     }
 
-    pub fn poll_fetch<M, F: Fn(KafkaMessage) -> M>(
-        &self,
-        processor: F,
-        cx: &mut Context<'_>,
-    ) -> std::task::Poll<Option<M>> {
-        match self.consumer.stream().poll_next_unpin(cx) {
-            std::task::Poll::Ready(t) => {
-                std::task::Poll::Ready(t.and_then(|result| match result {
-                    Ok(msg) => {
-                        let msg = msg.detach();
-                        msg.payload().map(|payload| {
-                            let key = msg
-                                .key()
-                                .map(|key| bytes::Bytes::copy_from_slice(key))
-                                .unwrap_or_default();
-                            processor(KafkaMessage {
-                                key,
-                                payload: bytes::Bytes::copy_from_slice(payload),
-                                timestamp: msg.timestamp().to_millis(),
-                            })
+    pub fn blocking_fetch<M, F: Fn(KafkaMessage) -> M>(&self, processor: F) -> Option<M> {
+        futures_executor::block_on_stream(self.consumer.stream())
+            .next()
+            .and_then(|result| match result {
+                Ok(msg) => {
+                    let msg = msg.detach();
+                    msg.payload().map(|payload| {
+                        let key = msg
+                            .key()
+                            .map(|key| bytes::Bytes::copy_from_slice(key))
+                            .unwrap_or_default();
+                        processor(KafkaMessage {
+                            key,
+                            payload: bytes::Bytes::copy_from_slice(payload),
+                            timestamp: msg.timestamp().to_millis(),
                         })
-                    }
-                    Err(err) => {
-                        tracing::error!("fail to fetch data from kafka: {}", err);
-                        None
-                    }
-                }))
-            }
-            std::task::Poll::Pending => std::task::Poll::Pending,
-        }
+                    })
+                }
+                Err(err) => {
+                    tracing::error!("fail to fetch data from kafka: {}", err);
+                    None
+                }
+            })
     }
 
     pub fn unsubscribe(&self) {

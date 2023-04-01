@@ -2,7 +2,10 @@ use std::{
     collections::{btree_set::Iter, BTreeMap, BTreeSet},
     ops::ControlFlow,
     pin::Pin,
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
     task::{Context, Poll},
     time::Duration,
 };
@@ -27,10 +30,10 @@ use common::{
 
 use futures_util::{ready, Future};
 use proto::common::{
-    operator_info::Details, Ack, DataflowMeta, Heartbeat, KeyedDataEvent, KeyedEventSet,
-    OperatorInfo, ResourceId,
+    operator_info::Details, Ack, DataflowMeta, ExecutorInfo, ExecutorStatus, Heartbeat,
+    KeyedDataEvent, KeyedEventSet, OperatorInfo, ResourceId,
 };
-use tokio::task::JoinHandle;
+use tokio::{sync::RwLock, task::JoinHandle};
 
 use crate::{
     connector::{Sink, SinkImpl, Source, SourceImpl},
@@ -38,7 +41,7 @@ use crate::{
     edge::{InEdge, LocalInEdge, LocalOutEdge, OutEdge, RemoteOutEdge},
     err::{ExecutionError, TaskError},
     new_event_channel,
-    state::{new_state_mgt, StateManager},
+    state::new_state_mgt,
     Receiver, Sender,
 };
 
@@ -49,6 +52,7 @@ pub struct Task {
     downstream: BTreeSet<ExecutorId>,
     last_receive_heartbeat_id: AtomicU64,
     in_edge: Option<Box<dyn OutEdge<Output = LocalEvent>>>,
+    states: Arc<RwLock<ExecutorInfo>>,
 }
 
 impl Task {
@@ -63,6 +67,10 @@ impl Task {
             downstream: adjacent_node.neighbors.iter().map(|id| *id).collect(),
             last_receive_heartbeat_id: Default::default(),
             in_edge: None,
+            states: Arc::new(RwLock::new(ExecutorInfo {
+                executor_id: adjacent_node.center,
+                status: ExecutorStatus::Initialized as i32,
+            })),
         }
     }
 
@@ -90,11 +98,12 @@ impl Task {
             source,
             operator_details: details,
             job_id: self.job_id.clone(),
+            states: self.states.clone(),
         }
     }
 
     pub fn start(&mut self, executor: StreamExecutor) {
-        self.main_executor_handle = Some(tokio::spawn(executor))
+        self.main_executor_handle = Some(tokio::spawn(executor));
     }
 
     pub async fn send_event_to_operator(&self, event: LocalEvent) -> Result<(), TaskError> {
@@ -140,6 +149,10 @@ impl Task {
                 .fetch_max(heartbeat.heartbeat_id, Ordering::Relaxed),
             Ordering::SeqCst,
         )
+    }
+
+    pub async fn get_state(&self) -> ExecutorInfo {
+        self.states.read().await.clone()
     }
 }
 
@@ -220,6 +233,8 @@ pub struct StreamExecutor {
     operator_details: Details,
     // job id
     job_id: ResourceId,
+    // inner states
+    states: Arc<RwLock<ExecutorInfo>>,
 }
 
 unsafe impl Send for StreamExecutor {}
@@ -242,16 +257,16 @@ impl StreamExecutor {
         self.in_edge = in_edge;
     }
 
-    pub fn poll_recv_data_stream(&mut self, cx: &mut Context<'_>) -> Poll<Option<LocalEvent>> {
+    pub fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<LocalEvent>> {
         if self.in_edge.is_some() {
             match &mut self.in_edge {
-                Some(in_edge) => in_edge.poll_receive_data_stream(cx),
+                Some(in_edge) => in_edge.poll_next(cx),
                 None => Poll::Pending,
             }
         } else if self.source.is_some() {
             match &mut self.source {
-                Some(source) => source.poll_recv_msg(cx),
-                None => Poll::Pending,
+                Some(source) => source.poll_next(cx),
+                None => Poll::Ready(None),
             }
         } else {
             Poll::Pending
@@ -259,14 +274,23 @@ impl StreamExecutor {
     }
 
     #[inline]
-    fn process<T: StateManager>(
-        &mut self,
-        execution: &Execution<'_, '_, T>,
-        event: KeyedDataEvent,
-        cx: &mut Context<'_>,
-    ) {
+    fn process(&mut self, event: KeyedDataEvent, cx: &mut Context<'_>) {
+        if self.source.is_some() {
+            self.sink_event_to_external_and_local(event, cx);
+            return;
+        }
+
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let scope = &mut v8::HandleScope::new(isolate);
+        let execution = Execution::new(
+            self.executor_id,
+            &self.operator_details,
+            new_state_mgt(&self.job_id),
+            scope,
+        );
+
         match execution.process(&event) {
-            Ok(events) => self.sink_to_external_and_local(KeyedEventSet {
+            Ok(events) => self.sink_event_set_to_external_and_local(KeyedEventSet {
                 events,
                 job_id: event.job_id.clone(),
                 to_operator_id: event.to_operator_id,
@@ -280,7 +304,7 @@ impl StreamExecutor {
                         to_operator_id: self.executor_id,
                         from_operator_id: self.executor_id,
                     };
-                    self.sink_to_external_and_local(event_set, cx)
+                    self.sink_event_set_to_external_and_local(event_set, cx)
                 },
                 _ => tracing::error!("process event failed: job_id: {:?}, operator_id: {}, event: {:?}. error details: {}", &self.job_id,self.executor_id, event, err)
             },
@@ -288,7 +312,35 @@ impl StreamExecutor {
     }
 
     #[inline]
-    fn sink_to_external_and_local(&self, event_set: KeyedEventSet, cx: &mut Context<'_>) {
+    fn sink_event_to_external_and_local(&self, event: KeyedDataEvent, cx: &mut Context<'_>) {
+        let ref mut external_sink_futures =
+            map_iter!(self.external_sinks, |(executor_id, sink)| {
+                let mut new_event = event.clone();
+                new_event.to_operator_id = *executor_id;
+                sink.sink(LocalEvent::KeyedDataStreamEvent(new_event))
+            })
+            .collect::<Vec<_>>();
+
+        let ref mut out_edge_futures = map_iter!(self.out_edges, |(executor_id, out_edge)| {
+            let mut new_event = event.clone();
+            new_event.to_operator_id = *executor_id;
+            out_edge.write(LocalEvent::KeyedDataStreamEvent(new_event))
+        })
+        .collect::<Vec<_>>();
+
+        join_all(cx, out_edge_futures, |r| match r {
+            Ok(_) => {}
+            Err(err) => tracing::error!("sink to out edge failed: {}", err),
+        });
+
+        join_all(cx, external_sink_futures, |r| match r {
+            Ok(_) => {}
+            Err(err) => tracing::error!("send to external sink failed: {}", err),
+        })
+    }
+
+    #[inline]
+    fn sink_event_set_to_external_and_local(&self, event_set: KeyedEventSet, cx: &mut Context<'_>) {
         let ref mut external_sink_futures =
             map_iter!(self.external_sinks, |(executor_id, sink)| {
                 let mut new_event_set = event_set.clone();
@@ -333,24 +385,24 @@ impl Future for StreamExecutor {
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
-        let isolate = &mut v8::Isolate::new(Default::default());
-        let scope = &mut v8::HandleScope::new(isolate);
-        let execution = Execution::new(
-            this.executor_id,
-            &this.operator_details,
-            new_state_mgt(&this.job_id),
-            scope,
-        );
+
+        match this.states.try_write() {
+            Ok(mut guard) => {
+                guard.set_status(ExecutorStatus::Running);
+                drop(guard)
+            }
+            Err(_) => return Poll::Pending,
+        }
         loop {
-            let event = ready!(this.poll_recv_data_stream(cx));
+            let event = ready!(this.poll_next(cx));
             match event.into_iter().try_for_each(|event| match event {
                 LocalEvent::Terminate { .. } => return ControlFlow::Break(()),
                 LocalEvent::KeyedDataStreamEvent(event) => {
-                    this.process(&execution, event, cx);
+                    this.process(event, cx);
                     ControlFlow::Continue(())
                 }
             }) {
-                ControlFlow::Continue(_) => continue,
+                ControlFlow::Continue(_) => return Poll::Pending,
                 ControlFlow::Break(_) => return Poll::Ready(()),
             }
         }
@@ -362,8 +414,8 @@ mod tests {
 
     use common::{event::LocalEvent, types::TypedValue, utils::times::now_timestamp};
     use proto::common::{
-        mapper, operator_info, source, DataTypeEnum, DataflowMeta, Entry, Func, KafkaDesc,
-        KeyedDataEvent, Mapper, OperatorInfo, ResourceId, Source,
+        mapper, operator_info, source, DataTypeEnum, DataflowMeta, Entry, ExecutorStatus, Func,
+        KafkaDesc, KeyedDataEvent, Mapper, OperatorInfo, ResourceId, Source,
     };
 
     use crate::{
@@ -459,6 +511,10 @@ mod tests {
             neighbors: vec![1, 2, 3, 4],
         };
         let task = Task::new(&job_id, &meta);
+        assert_eq!(
+            task.states.read().await.status(),
+            ExecutorStatus::Initialized
+        );
         let mut executor = task.create_stream_executor(&OperatorInfo {
             operator_id: 1,
             host_addr: None,
@@ -537,6 +593,8 @@ mod tests {
                 );
             }
         }
+
+        assert_eq!(task.states.read().await.status(), ExecutorStatus::Running);
 
         let result = suite
             .in_edge_tx_endpoint

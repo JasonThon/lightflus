@@ -249,6 +249,29 @@ pub mod task_manager_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
+        /// Get sub dataflow states
+        pub async fn get_sub_dataflow(
+            &mut self,
+            request: impl tonic::IntoRequest<super::super::common::ResourceId>,
+        ) -> Result<
+            tonic::Response<super::super::common::SubDataflowStates>,
+            tonic::Status,
+        > {
+            self.inner
+                .ready()
+                .await
+                .map_err(|e| {
+                    tonic::Status::new(
+                        tonic::Code::Unknown,
+                        format!("Service was not ready: {}", e.into()),
+                    )
+                })?;
+            let codec = tonic::codec::ProstCodec::default();
+            let path = http::uri::PathAndQuery::from_static(
+                "/taskmanager.TaskManagerApi/GetSubDataflow",
+            );
+            self.inner.unary(request.into_request(), path, codec).await
+        }
     }
 }
 /// Generated server implementations.
@@ -289,6 +312,14 @@ pub mod task_manager_api_server {
             request: tonic::Request<super::super::common::KeyedEventSet>,
         ) -> Result<
             tonic::Response<super::BatchSendEventsToOperatorResponse>,
+            tonic::Status,
+        >;
+        /// Get sub dataflow states
+        async fn get_sub_dataflow(
+            &self,
+            request: tonic::Request<super::super::common::ResourceId>,
+        ) -> Result<
+            tonic::Response<super::super::common::SubDataflowStates>,
             tonic::Status,
         >;
     }
@@ -579,6 +610,46 @@ pub mod task_manager_api_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = BatchSendEventsToOperatorSvc(inner);
+                        let codec = tonic::codec::ProstCodec::default();
+                        let mut grpc = tonic::server::Grpc::new(codec)
+                            .apply_compression_config(
+                                accept_compression_encodings,
+                                send_compression_encodings,
+                            );
+                        let res = grpc.unary(method, req).await;
+                        Ok(res)
+                    };
+                    Box::pin(fut)
+                }
+                "/taskmanager.TaskManagerApi/GetSubDataflow" => {
+                    #[allow(non_camel_case_types)]
+                    struct GetSubDataflowSvc<T: TaskManagerApi>(pub Arc<T>);
+                    impl<
+                        T: TaskManagerApi,
+                    > tonic::server::UnaryService<super::super::common::ResourceId>
+                    for GetSubDataflowSvc<T> {
+                        type Response = super::super::common::SubDataflowStates;
+                        type Future = BoxFuture<
+                            tonic::Response<Self::Response>,
+                            tonic::Status,
+                        >;
+                        fn call(
+                            &mut self,
+                            request: tonic::Request<super::super::common::ResourceId>,
+                        ) -> Self::Future {
+                            let inner = self.0.clone();
+                            let fut = async move {
+                                (*inner).get_sub_dataflow(request).await
+                            };
+                            Box::pin(fut)
+                        }
+                    }
+                    let accept_compression_encodings = self.accept_compression_encodings;
+                    let send_compression_encodings = self.send_compression_encodings;
+                    let inner = self.inner.clone();
+                    let fut = async move {
+                        let inner = inner.0;
+                        let method = GetSubDataflowSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

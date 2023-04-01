@@ -3,7 +3,13 @@ use common::net::{
     local, AckResponderBuilder, HeartbeatBuilder,
 };
 use crossbeam_skiplist::SkipMap;
-use proto::common::{Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, ResourceId};
+use proto::common::{
+    Ack, Dataflow, DataflowStates, DataflowStatus, Heartbeat, HostAddr, ResourceId,
+};
+
+use crate::errors::coordinator::{
+    not_found_dataflow, task_deployment_err, unexpected_dataflow_staus,
+};
 
 use super::{
     executions::{SubdataflowDeploymentPlan, TaskDeploymentException},
@@ -50,15 +56,13 @@ impl JobManager {
         cluster.partition_dataflow(&mut self.dataflow);
 
         let mut subdataflow = cluster.split_into_subdataflow(&self.dataflow);
-        let mut ack_builder = ack_builder.clone();
-        ack_builder.nodes = vec![self.location.clone()];
         let executions = subdataflow.iter_mut().map(|pair| {
             let host_addr = pair.0;
             let plan = SubdataflowDeploymentPlan::new(
                 pair,
                 &self.job_id,
                 cluster.get_node(host_addr),
-                &ack_builder,
+                ack_builder,
                 heartbeat_builder,
             );
             plan
@@ -91,6 +95,10 @@ impl JobManager {
         for execution_id in ack.execution_id.as_ref().iter() {
             self.scheduler.ack(ack);
         }
+    }
+
+    async fn get_dataflow(&self) -> DataflowStates {
+        self.scheduler.get_dataflow(&self.dataflow).await
     }
 }
 
@@ -168,8 +176,14 @@ impl Dispatcher {
         }
     }
 
-    pub(crate) fn get_dataflow(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        todo!()
+    pub(crate) async fn get_dataflow(
+        &self,
+        job_id: &ResourceId,
+    ) -> Result<DataflowStates, DispatcherException> {
+        match self.managers.get(job_id) {
+            Some(entry) => Ok(entry.value().get_dataflow().await),
+            None => Err(DispatcherException::NotFoundDataflow(job_id.clone())),
+        }
     }
 
     pub(crate) async fn update_task_manager_heartbeat_status(&self, heartbeat: &Heartbeat) {
@@ -201,6 +215,7 @@ pub(crate) enum DispatcherException {
     Tonic(tonic::Status),
     DeploymentError(TaskDeploymentException),
     UnexpectedDataflowStatus(DataflowStatus),
+    NotFoundDataflow(ResourceId),
 }
 
 impl DispatcherException {
@@ -208,9 +223,17 @@ impl DispatcherException {
         match self {
             DispatcherException::Tonic(status) => status.clone(),
             DispatcherException::UnexpectedDataflowStatus(status) => {
-                tonic::Status::internal(format!("unexpected dataflow status {:?}", status))
+                unexpected_dataflow_staus(status).into_tonic_status()
             }
-            DispatcherException::DeploymentError(_) => todo!(),
+            DispatcherException::DeploymentError(err) => match err {
+                TaskDeploymentException::InvalidWorkerEndpoint => {
+                    task_deployment_err("invalid worker endpoint").into_tonic_status()
+                }
+                TaskDeploymentException::RpcError(status) => status.clone(),
+            },
+            DispatcherException::NotFoundDataflow(job_id) => {
+                not_found_dataflow(job_id).into_tonic_status()
+            }
         }
     }
 }

@@ -1,7 +1,6 @@
 use crate::collections::lang;
 use crate::types;
 use crate::types::SingleKV;
-use crate::utils::times::from_prost_timestamp_to_utc_chrono;
 
 use proto::common::DataflowMeta;
 use proto::common::{Dataflow, HostAddr};
@@ -13,6 +12,7 @@ use std::time::Duration;
 use std::vec;
 
 use super::gateway::taskmanager::SafeTaskManagerRpcGateway;
+use super::DEFAULT_TASKMANAGER_PORT;
 
 #[derive(Clone, Eq, PartialEq, Debug, Copy)]
 pub enum NodeStatus {
@@ -48,7 +48,7 @@ impl Node {
         }
     }
 
-    pub fn update_status(&mut self, status: NodeStatus, timestamp: &prost_types::Timestamp) {
+    pub fn update_status(&mut self, status: NodeStatus) {
         self.status = status;
     }
 
@@ -187,13 +187,37 @@ impl NodeBuilder {
     }
 }
 
+impl From<&str> for NodeBuilder {
+    fn from(value: &str) -> Self {
+        let url = value.trim().split(":").collect::<Vec<&str>>();
+        if url.len() == 0 {
+            panic!("invalid node url: {}", value.trim())
+        } else if url.len() == 1 {
+            let hostname = url[0];
+
+            Self {
+                host: hostname.to_string(),
+                port: DEFAULT_TASKMANAGER_PORT,
+            }
+        } else {
+            let hostname = url[0];
+            let port = u16::from_str_radix(url[1], 10).expect("invalid port format");
+
+            Self {
+                host: hostname.to_string(),
+                port,
+            }
+        }
+    }
+}
+
 /// Builder for [Cluster]
 /// It also can be used as structure of the configuration of [Cluster] in a config file.
 /// Config file with types `json` and `yaml` are both supported
 #[derive(Clone, serde::Deserialize, Debug)]
 pub struct ClusterBuilder {
     /// task manager nodes configurations
-    pub nodes: Vec<NodeBuilder>,
+    pub nodes: String,
     /// rpc request timeout
     pub rpc_timeout: u64,
     /// rpc connection timeout
@@ -203,7 +227,7 @@ pub struct ClusterBuilder {
 impl ClusterBuilder {
     pub fn build(&self) -> Cluster {
         Cluster {
-            workers: lang::index_map(&self.nodes, |index, builder| {
+            workers: lang::index_map(&self.get_nodes(), |index, builder| {
                 let mut node = builder.build(SafeTaskManagerRpcGateway::with_timeout(
                     &HostAddr {
                         host: builder.host.clone(),
@@ -217,6 +241,13 @@ impl ClusterBuilder {
                 node
             }),
         }
+    }
+
+    fn get_nodes(&self) -> Vec<NodeBuilder> {
+        self.nodes
+            .split(",")
+            .map(|uri| NodeBuilder::from(uri))
+            .collect()
     }
 }
 
@@ -234,12 +265,8 @@ mod cluster_tests {
 
     #[tokio::test]
     pub async fn test_cluster_available() {
-        use super::NodeBuilder;
         let builder = ClusterBuilder {
-            nodes: vec![NodeBuilder {
-                host: "localhost".to_string(),
-                port: 8080,
-            }],
+            nodes: "localhost:8080".to_string(),
             rpc_timeout: 3,
             connect_timeout: 3,
         };
@@ -255,7 +282,6 @@ mod cluster_tests {
 
     #[tokio::test]
     pub async fn test_cluster_partition_dataflow() {
-        use super::NodeBuilder;
         use proto::common::Dataflow;
         use std::collections::HashMap;
 
@@ -263,20 +289,7 @@ mod cluster_tests {
 
         use crate::net::cluster::NodeStatus;
         let builder = ClusterBuilder {
-            nodes: vec![
-                NodeBuilder {
-                    host: "198.0.0.1".to_string(),
-                    port: 8080,
-                },
-                NodeBuilder {
-                    host: "198.0.0.2".to_string(),
-                    port: 8080,
-                },
-                NodeBuilder {
-                    host: "198.0.0.3".to_string(),
-                    port: 8080,
-                },
-            ],
+            nodes: "198.0.0.1:8080,198.0.0.2:8080,198.0.0.3:8080".to_string(),
             rpc_timeout: 3,
             connect_timeout: 3,
         };
@@ -331,7 +344,6 @@ mod cluster_tests {
 
     #[tokio::test]
     pub async fn test_split_into_subdataflow() {
-        use super::NodeBuilder;
         use proto::common::Dataflow;
         use std::collections::HashMap;
 
@@ -339,20 +351,7 @@ mod cluster_tests {
 
         use crate::net::cluster::NodeStatus;
         let builder = ClusterBuilder {
-            nodes: vec![
-                NodeBuilder {
-                    host: "198.0.0.1".to_string(),
-                    port: 8080,
-                },
-                NodeBuilder {
-                    host: "198.0.0.2".to_string(),
-                    port: 8080,
-                },
-                NodeBuilder {
-                    host: "198.0.0.3".to_string(),
-                    port: 8080,
-                },
-            ],
+            nodes: "198.0.0.1:8080, 198.0.0.2:8080, 198.0.0.3:8080".to_string(),
             rpc_timeout: 3,
             connect_timeout: 3,
         };
@@ -415,12 +414,7 @@ mod cluster_tests {
     #[test]
     fn test_cluster_builder_derserialize() {
         let origin = "{
-                \"nodes\":[
-                    {
-                        \"host\":\"${WORKER_1}\",
-                        \"port\":8792
-                    }
-                ],
+                \"nodes\": \"${WORKER_1}:8792\",
                 \"rpc_timeout\":3,
                 \"connect_timeout\":3
             }";
@@ -436,7 +430,7 @@ mod cluster_tests {
         assert_eq!(builder.rpc_timeout, 3);
         assert_eq!(builder.connect_timeout, 3);
         assert_eq!(
-            &builder.nodes,
+            &builder.get_nodes(),
             &vec![NodeBuilder {
                 host: "localhost".to_string(),
                 port: 8792
@@ -459,7 +453,7 @@ mod cluster_tests {
         assert_eq!(node.get_status(), &super::NodeStatus::Pending);
         let now = prost_now();
 
-        node.update_status(super::NodeStatus::Running, &now);
+        node.update_status(super::NodeStatus::Running);
         assert_eq!(node.get_status(), &super::NodeStatus::Running);
         assert!(node.is_available());
     }
@@ -467,16 +461,7 @@ mod cluster_tests {
     #[tokio::test]
     async fn test_cluster_build() {
         let builder = super::ClusterBuilder {
-            nodes: vec![
-                super::NodeBuilder {
-                    host: "localhost_1".to_string(),
-                    port: 9999,
-                },
-                super::NodeBuilder {
-                    host: "localhost_2".to_string(),
-                    port: 9999,
-                },
-            ],
+            nodes: "localhost_1:9999,localhost_2:9999".to_string(),
             rpc_timeout: 3,
             connect_timeout: 3,
         };

@@ -28,3 +28,8 @@ coordinator = ["default", "sled", "crossbeam-skiplist", "prost", "prost-types"]
 apiserver = ["default", "actix-web", "futures-util"]
 errors = []
 default = ["errors"]
+
+[dev-dependencies]
+lightflus-core = { path = "../lightflus-core", features = ["taskmanager", "coordinator"]}
+tracing-subscriber = "0.3"
+stream = { path = "../stream", features = ["v8_init"] }

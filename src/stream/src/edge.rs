@@ -216,7 +216,7 @@ pub trait InEdge: Send + Sync + Unpin {
 
     async fn receive_data_stream(&mut self) -> Option<Self::Output>;
 
-    fn poll_receive_data_stream(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>>;
+    fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>>;
 }
 
 pub struct LocalInEdge<T> {
@@ -246,7 +246,7 @@ impl<T: StreamEvent> InEdge for LocalInEdge<T> {
         })
     }
 
-    fn poll_receive_data_stream(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>> {
+    fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>> {
         self.rx.poll_recv(cx).map(|r| {
             r.and_then(|data| {
                 T::from_slice(&data)

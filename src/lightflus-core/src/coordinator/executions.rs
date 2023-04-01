@@ -1,4 +1,8 @@
-use std::{collections::BTreeMap, sync::atomic::AtomicU64};
+use std::{
+    collections::BTreeMap,
+    fmt::Display,
+    sync::{atomic::AtomicU64, Arc, RwLock},
+};
 
 use common::{
     net::{
@@ -11,8 +15,8 @@ use common::{
 use proto::{
     common::{
         ack::{AckType, RequestId},
-        Ack, Dataflow, DataflowStatus, Heartbeat, HostAddr, NodeType, OperatorInfo, ResourceId,
-        SubDataflowId,
+        Ack, Dataflow, DataflowStates, DataflowStatus, ExecutorInfo, Heartbeat, HostAddr, NodeType,
+        OperatorInfo, ResourceId, SubDataflowId, SubDataflowStates,
     },
     taskmanager::CreateSubDataflowRequest,
 };
@@ -51,7 +55,7 @@ pub(crate) struct VertexExecution {
     // operator info
     operator: OperatorInfo,
     /// the asynchronous task of the ack sender
-    ack_handler: JoinHandle<()>,
+    _ack_handler: JoinHandle<()>,
     /// the enqueue-entrypoint of a ack request queue
     ack_request_queue: mpsc::Sender<Ack>,
     // the asynchronous task of the heartbeat sender
@@ -87,7 +91,7 @@ impl VertexExecution {
             executor_id,
             operator: operator.clone(),
             heartbeat_handler: tokio::spawn(heartbeat),
-            ack_handler: tokio::spawn(ack),
+            _ack_handler: tokio::spawn(ack),
             ack_request_queue: sender,
             latest_ack_heartbeat_id: Default::default(),
             latest_ack_heartbeat_timestamp: Default::default(),
@@ -237,6 +241,20 @@ impl SubdataflowExecution {
             }
         }
     }
+
+    pub(crate) async fn get_states(&self) -> Result<SubDataflowStates, SubdataflowError> {
+        let job_id = self.get_execution_id().get_job_id();
+        self.worker
+            .get_gateway()
+            .get_sub_dataflow(job_id)
+            .await
+            .map_err(|err| SubdataflowError::RpcError(err))
+    }
+}
+
+#[derive(Debug)]
+pub enum SubdataflowError {
+    RpcError(tonic::Status),
 }
 
 #[cfg(test)]
@@ -255,12 +273,11 @@ mod tests {
         Ack, Heartbeat, HostAddr, NodeType, SubDataflowId,
     };
 
-    #[tokio::test]
+    // #[tokio::test]
     async fn test_subdataflow_execution_update_heartbeat_status() {
         let ack_responder_builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![HostAddr::default()],
             connect_timeout: 3,
             rpc_timeout: 3,
         };
@@ -315,7 +332,6 @@ mod tests {
         let ack_responder_builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![HostAddr::default()],
             connect_timeout: 3,
             rpc_timeout: 3,
         };

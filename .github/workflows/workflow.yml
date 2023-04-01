@@ -51,9 +51,7 @@ jobs:
         run: rustup update
       - name: Check packages
         run: |
-          cargo check --manifest-path src/proto/Cargo.toml --all-features
-          cargo check --manifest-path src/coordinator/Cargo.toml
-          cargo check --manifest-path src/taskmanager/Cargo.toml
+          cargo check --workspace --all-features
       - name: Run tests
         run: |
           cargo test --manifest-path src/common/Cargo.toml
@@ -155,4 +153,3 @@ jobs:
           docker tag lightflus/coordinator:${{ github.event.release.tag_name }} lightflus/coordinator:latest
           docker push lightflus/worker:latest
           docker push lightflus/coordinator:latest
-          docker push lightflus/apiserver:latest

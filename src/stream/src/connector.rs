@@ -1,6 +1,7 @@
 use std::{
-    collections::hash_map::DefaultHasher,
+    collections::{hash_map::DefaultHasher, BTreeMap},
     hash::{Hash, Hasher},
+    task::Poll,
 };
 
 use common::{
@@ -15,8 +16,8 @@ use prost::Message;
 
 use proto::common::{
     operator_info::{self, Details},
-    source, Entry, KafkaDesc, KeyedDataEvent, KeyedEventSet, MysqlDesc, OperatorInfo, RedisDesc,
-    ResourceId,
+    sink, source, Entry, KafkaDesc, KeyedDataEvent, KeyedEventSet, MysqlDesc, OperatorInfo,
+    RedisDesc, ResourceId,
 };
 use tokio::sync::mpsc::error::TryRecvError;
 use tonic::async_trait;
@@ -57,12 +58,10 @@ pub trait Source {
 
     /// fetch next message asynchronously
     /// no matter what form the source message is, they will all be turned into [`LocalEvent`]
-    async fn async_fetch_msg(&mut self) -> Option<LocalEvent>;
+    async fn next(&mut self) -> Option<LocalEvent>;
 
-    fn poll_recv_msg(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<LocalEvent>>;
+    fn poll_next(&mut self, cx: &mut std::task::Context<'_>)
+        -> std::task::Poll<Option<LocalEvent>>;
 }
 
 #[async_trait]
@@ -101,7 +100,7 @@ impl Source for SourceImpl {
         }
     }
 
-    async fn async_fetch_msg(&mut self) -> Option<LocalEvent> {
+    async fn next(&mut self) -> Option<LocalEvent> {
         match self {
             Self::Kafka(source, _, terminator_rx) => {
                 match terminator_rx.try_recv() {
@@ -113,7 +112,7 @@ impl Source for SourceImpl {
                             to: source.source_id(),
                             event_time: now().timestamp_millis(),
                         }),
-                        _ => source.async_fetch_msg().await,
+                        _ => source.next().await,
                     },
                 }
             }
@@ -121,12 +120,12 @@ impl Source for SourceImpl {
         }
     }
 
-    fn poll_recv_msg(
+    fn poll_next(
         &mut self,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<LocalEvent>> {
         match self {
-            Self::Kafka(source, _, _) => source.poll_recv_msg(cx),
+            Self::Kafka(source, _, _) => source.poll_next(cx),
             Self::Empty(.., terminator_rx) => terminator_rx.poll_recv(cx),
         }
     }
@@ -212,19 +211,25 @@ impl Sink for SinkImpl {
 impl From<(&ResourceId, &OperatorInfo)> for SinkImpl {
     fn from((resource_id, info): (&ResourceId, &OperatorInfo)) -> Self {
         match &info.details {
-            Some(detail) => {
-                match detail {
-                    Details::Source(source) => match &source.desc {
-                        Some(desc) => match desc {
-                            source::Desc::Kafka(desc) => SinkImpl::Kafka(
-                                Kafka::with_source_config(resource_id, info.operator_id, desc),
-                            ),
-                        },
-                        None => Self::Empty(info.operator_id),
+            Some(detail) => match detail {
+                Details::Sink(sink) => match &sink.desc {
+                    Some(desc) => match desc {
+                        sink::Desc::Kafka(desc) => SinkImpl::Kafka(Kafka::with_sink_config(
+                            resource_id,
+                            info.operator_id,
+                            desc,
+                        )),
+                        sink::Desc::Mysql(desc) => {
+                            SinkImpl::Mysql(Mysql::with_config(info.operator_id, desc))
+                        }
+                        sink::Desc::Redis(desc) => {
+                            SinkImpl::Redis(Redis::with_config(info.operator_id, desc))
+                        }
                     },
-                    _ => todo!(),
-                }
-            }
+                    None => Self::Empty(info.operator_id),
+                },
+                _ => todo!(),
+            },
             None => Self::Empty(info.operator_id),
         }
     }
@@ -364,21 +369,19 @@ impl Source for Kafka {
         })
     }
 
-    async fn async_fetch_msg(&mut self) -> Option<LocalEvent> {
+    async fn next(&mut self) -> Option<LocalEvent> {
         match &self.consumer {
             Some(consumer) => consumer.fetch(|message| self.process(message)).await,
             None => None,
         }
     }
 
-    fn poll_recv_msg(
-        &mut self,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<LocalEvent>> {
-        match &self.consumer {
-            Some(consumer) => consumer.poll_fetch(|message| self.process(message), cx),
-            None => std::task::Poll::Pending,
-        }
+    fn poll_next(&mut self, _cx: &mut std::task::Context<'_>) -> Poll<Option<LocalEvent>> {
+        Poll::Ready(
+            self.consumer
+                .as_ref()
+                .and_then(|consumer| consumer.blocking_fetch(|message| self.process(message))),
+        )
     }
 }
 
@@ -571,7 +574,7 @@ impl Redis {
         }
     }
 }
-
+const REDIS_EXTRACTOR_FUN_NAME: &str = "redis_extractor";
 #[async_trait]
 impl Sink for Redis {
     fn sink_id(&self) -> SinkId {
@@ -579,7 +582,6 @@ impl Sink for Redis {
     }
 
     async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
-        const REDIS_EXTRACTOR_FUN_NAME: &str = "redis_extractor";
         let key_values = extract_arguments(
             &[self.key_extractor.clone(), self.value_extractor.clone()],
             &msg,
@@ -603,8 +605,56 @@ impl Sink for Redis {
         self.value_extractor.clear();
     }
 
-    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
-        Ok(())
+    async fn batch_sink(&self, mut event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
+        let mut kv_set = BTreeMap::new();
+        event_set.events.sort_by_key(|event| event.event_time);
+        let isolate = &mut v8::Isolate::new(Default::default());
+        let scope = &mut v8::HandleScope::new(isolate);
+        event_set.events.into_iter().for_each(|event| {
+            extract_arguments_in_scope(
+                &[self.key_extractor.clone(), self.value_extractor.clone()],
+                &LocalEvent::KeyedDataStreamEvent(event),
+                REDIS_EXTRACTOR_FUN_NAME,
+                scope,
+            )
+            .into_iter()
+            .filter(|kv| !kv.is_empty())
+            .map(|kv| (kv[0].clone(), kv[1].clone()))
+            .for_each(|(key, value)| {
+                kv_set.insert(key, value);
+            })
+        });
+        let mut conn_result = self.client.connect();
+
+        conn_result
+            .as_mut()
+            .map_err(|err| err.into())
+            .and_then(|conn| {
+                self.client
+                    .set_multiple(conn, kv_set.iter().collect::<Vec<_>>().as_slice())
+                    .map_err(|err| err.into())
+            })
+    }
+}
+
+fn extract_arguments_in_scope(
+    extractors: &[String],
+    event: &LocalEvent,
+    fn_name: &str,
+    scope: &mut v8::HandleScope<'_, ()>,
+) -> Vec<Vec<TypedValue>> {
+    match event {
+        LocalEvent::Terminate { .. } => vec![],
+        LocalEvent::KeyedDataStreamEvent(e) => Vec::from_iter(e.data.iter().map(|entry| {
+            let val = TypedValue::from_slice(&entry.value);
+            extractors
+                .iter()
+                .map(|extractor| {
+                    let mut rt_engine = RuntimeEngine::new(extractor.as_str(), fn_name, scope);
+                    rt_engine.call_one_arg(&val).unwrap_or_default()
+                })
+                .collect::<Vec<TypedValue>>()
+        })),
     }
 }
 

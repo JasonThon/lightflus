@@ -16,6 +16,7 @@ use self::gateway::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway};
 
 pub(crate) const DEFAULT_RPC_TIMEOUT: u64 = 3;
 pub(crate) const DEFAULT_CONNECT_TIMEOUT: u64 = 3;
+pub(crate) const DEFAULT_TASKMANAGER_PORT: u16 = 8792;
 pub mod cluster;
 #[cfg(not(tarpaulin_include))]
 pub mod gateway;
@@ -251,8 +252,6 @@ pub struct AckResponderBuilder {
     pub delay: u64,
     // buffer ack queue size
     pub buf_size: usize,
-    // ack nodes
-    pub nodes: Vec<HostAddr>,
     /// timeout of ack rpc connection, in seconds
     pub connect_timeout: u64,
     /// timeout of ack rpc request, in seconds
@@ -294,6 +293,7 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
         let this = self.get_mut();
         ready!(Pin::new(&mut this.delay_interval).poll_tick(cx));
         let mut all_ack_futures = vec![];
+
         loop {
             match this.recv.poll_recv(cx) {
                 Poll::Ready(Some(ack)) => {
@@ -303,8 +303,8 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
                 Poll::Ready(None) => continue,
                 _ => {
                     join_all(cx, &mut all_ack_futures, |r| match r {
-                        Ok(_) => todo!(),
-                        Err(status) => {}
+                        Ok(_) => {}
+                        Err(status) => tracing::error!("ack failed: {}", status),
                     });
                     return Poll::Pending;
                 }
@@ -344,10 +344,6 @@ mod tests {
         let builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![HostAddr {
-                host: "198.0.0.1".to_string(),
-                port: 8970,
-            }],
             connect_timeout: 3,
             rpc_timeout: 3,
         };

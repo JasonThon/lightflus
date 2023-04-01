@@ -79,7 +79,10 @@ pub mod taskmanager {
 
     use prost::Message;
     use proto::{
-        common::{Ack, Heartbeat, HostAddr, KeyedDataEvent, KeyedEventSet, ResourceId, Response},
+        common::{
+            Ack, Heartbeat, HostAddr, KeyedDataEvent, KeyedEventSet, ResourceId, Response,
+            SubDataflowStates,
+        },
         taskmanager::{
             task_manager_api_client::TaskManagerApiClient, BatchSendEventsToOperatorResponse,
             CreateSubDataflowRequest, CreateSubDataflowResponse, SendEventToOperatorResponse,
@@ -240,10 +243,13 @@ pub mod taskmanager {
             let mut request = tonic::Request::new(req);
             request.set_timeout(self.rpc_timeout);
 
-            inner
+            let result = inner
                 .create_sub_dataflow(request)
                 .await
-                .map(|resp| resp.into_inner())
+                .map(|resp| resp.into_inner());
+
+            drop(guard);
+            result
         }
 
         pub fn close(&mut self) {
@@ -268,6 +274,27 @@ pub mod taskmanager {
 
             inner
                 .batch_send_events_to_operator(request)
+                .await
+                .map(|resp| resp.into_inner())
+        }
+
+        pub async fn get_sub_dataflow(
+            &self,
+            req: ResourceId,
+        ) -> Result<SubDataflowStates, tonic::Status> {
+            let mut guard = self.inner.lock().await;
+            let inner = guard.get_or_insert_with(|| {
+                TaskManagerApiClient::with_connection_timeout(
+                    self.host_addr.as_uri(),
+                    self.connect_timeout,
+                )
+            });
+
+            let mut request = tonic::Request::new(req);
+            request.set_timeout(self.rpc_timeout);
+
+            inner
+                .get_sub_dataflow(request)
                 .await
                 .map(|resp| resp.into_inner())
         }
@@ -352,9 +379,7 @@ pub mod coordinator {
     use tonic::async_trait;
 
     use proto::{
-        common::{
-            Ack, Dataflow, DataflowStates, Heartbeat, HostAddr, ResourceId, Response, TaskInfo,
-        },
+        common::{Ack, Dataflow, DataflowStates, Heartbeat, HostAddr, ResourceId, Response},
         coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
     };
 
@@ -422,11 +447,12 @@ pub mod coordinator {
     }
 
     impl SafeCoordinatorRpcGateway {
-        pub fn new(host_addr: &HostAddr) -> Self {
-            let client = futures_executor::block_on(CoordinatorApiClient::connect_with_timeout(
+        pub async fn new(host_addr: &HostAddr) -> Self {
+            let client = CoordinatorApiClient::connect_with_timeout(
                 host_addr.as_uri(),
                 Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
-            ));
+            )
+            .await;
             Self {
                 inner: Arc::new(tokio::sync::Mutex::new(client.ok())),
                 host_addr: host_addr.clone(),
@@ -444,10 +470,13 @@ pub mod coordinator {
                 )
             });
 
-            inner
+            let result = inner
                 .create_dataflow(tonic::Request::new(dataflow))
                 .await
-                .map(|resp| resp.into_inner())
+                .map(|resp| resp.into_inner());
+
+            drop(guard);
+            result
         }
 
         pub async fn terminate_dataflow(&self, req: ResourceId) -> Result<Response, tonic::Status> {

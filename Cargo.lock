@@ -498,6 +498,7 @@ dependencies = [
  "tokio",
  "tonic",
  "tracing",
+ "tracing-subscriber",
  "uuid",
 ]
 
@@ -1150,6 +1151,7 @@ dependencies = [
  "common",
  "crossbeam-skiplist",
  "futures-util",
+ "lightflus-core",
  "prost",
  "prost-types",
  "proto",
@@ -1160,6 +1162,7 @@ dependencies = [
  "tokio",
  "tonic",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

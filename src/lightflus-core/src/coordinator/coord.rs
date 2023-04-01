@@ -1,4 +1,5 @@
 use std::fs;
+use std::sync::Arc;
 
 use common::net::cluster;
 use common::net::AckResponderBuilder;
@@ -6,12 +7,12 @@ use common::net::HeartbeatBuilder;
 use common::utils;
 use proto::common::Ack;
 use proto::common::Dataflow;
+use proto::common::DataflowStates;
 use proto::common::DataflowStatus;
 
 use proto::common::Heartbeat;
 use proto::common::NodeType;
 use proto::common::ResourceId;
-use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 
 use super::api::CoordinatorApiImpl;
 use super::managers::Dispatcher;
@@ -34,8 +35,8 @@ pub struct CoordinatorBuilder {
 }
 
 impl CoordinatorBuilder {
-    pub fn build(&self) -> CoordinatorApiServer<CoordinatorApiImpl> {
-        CoordinatorApiServer::new(CoordinatorApiImpl::new(Coordinator {
+    pub fn build(&self) -> Coordinator {
+        Coordinator {
             dispatcher: Dispatcher::new(
                 &self.cluster,
                 &self.storage,
@@ -43,7 +44,7 @@ impl CoordinatorBuilder {
                 &self.ack,
                 self.port,
             ),
-        }))
+        }
     }
 }
 
@@ -70,7 +71,7 @@ pub fn load_builder() -> CoordinatorBuilder {
 /// - Checkpoint Coordinator
 /// - Backpressure Metrics
 /// - Scale Up and Scale Down
-pub(crate) struct Coordinator {
+pub struct Coordinator {
     dispatcher: Dispatcher,
 }
 
@@ -106,8 +107,14 @@ impl Coordinator {
             .map_err(|err| err.to_tonic_status())
     }
 
-    pub(crate) fn get_dataflow(&self, job_id: &ResourceId) -> Option<Dataflow> {
-        self.dispatcher.get_dataflow(job_id)
+    pub(crate) async fn get_dataflow(
+        &self,
+        job_id: &ResourceId,
+    ) -> Result<DataflowStates, tonic::Status> {
+        self.dispatcher
+            .get_dataflow(job_id)
+            .await
+            .map_err(|err| err.to_tonic_status())
     }
 
     pub(crate) async fn receive_heartbeart(&self, heartbeat: &Heartbeat) {

@@ -149,7 +149,7 @@ pub mod ack {
 /// Basic information of task
 #[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
-pub struct TaskInfo {
+pub struct SubdataflowInfo {
     /// execution id of task
     #[prost(message, optional, tag = "1")]
     pub execution_id: ::core::option::Option<SubDataflowId>,
@@ -800,10 +800,16 @@ pub struct DataflowStates {
     pub graph: ::core::option::Option<Dataflow>,
     /// task infos of all subdataflow
     #[prost(message, repeated, tag = "2")]
-    pub task_infos: ::prost::alloc::vec::Vec<TaskInfo>,
+    pub subdataflow_infos: ::prost::alloc::vec::Vec<SubdataflowInfo>,
     /// dataflow status
     #[prost(enumeration = "DataflowStatus", tag = "3")]
     pub status: i32,
+}
+#[allow(clippy::derive_partial_eq_without_eq)]
+#[derive(Clone, PartialEq, ::prost::Message)]
+pub struct SubDataflowStates {
+    #[prost(message, optional, tag = "1")]
+    pub subdataflow_infos: ::core::option::Option<SubdataflowInfo>,
 }
 /// *
 /// Stream Graph Status. It shows which status a stream job is now.

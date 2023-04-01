@@ -126,7 +126,7 @@ message Ack {
 
 
 // Basic information of task
-message TaskInfo {
+message SubdataflowInfo {
   // execution id of task
   common.SubDataflowId execution_id = 1;
   // information of executors

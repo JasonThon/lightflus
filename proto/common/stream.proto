@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package common;
 import "common/common.proto";
-option go_package = "lightflus/proto/stream";
-option java_package = "lightflus.proto.common.stream";
 
 /**
 StreamGraph metadata, it stores the structural information of a stream graph
@@ -204,7 +202,11 @@ message DataflowStates {
   // the structure of the dataflow
   common.Dataflow graph = 1;
   // task infos of all subdataflow
-  repeated common.TaskInfo task_infos = 2;
+  repeated common.SubdataflowInfo subdataflow_infos = 2;
   // dataflow status
   common.DataflowStatus status = 3;
+}
+
+message SubDataflowStates {
+  common.SubdataflowInfo subdataflow_infos = 1;
 }

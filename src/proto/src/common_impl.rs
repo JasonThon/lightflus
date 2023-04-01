@@ -518,7 +518,7 @@ impl HostAddr {
 
 impl Heartbeat {
     #[inline]
-    pub fn get_execution_id(&self) -> Option<&SubDataflowId> {
+    pub fn get_subdataflow_id(&self) -> Option<&SubDataflowId> {
         self.subdataflow_id.as_ref()
     }
 }

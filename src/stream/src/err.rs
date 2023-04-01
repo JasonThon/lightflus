@@ -87,6 +87,15 @@ impl From<&mut tonic::transport::Error> for SinkException {
     }
 }
 
+impl Display for SinkException {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "sink to external sinker failed: [kind: {:?}], [message: {}]",
+            self.kind, self.msg
+        ))
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct BatchSinkException {
     pub err: SinkException,
@@ -95,7 +104,28 @@ pub struct BatchSinkException {
 
 impl Display for BatchSinkException {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        todo!()
+        f.write_fmt(format_args!(
+            "batchly sink events failed: [event_id: {}],[details: {}]",
+            self.event_id, self.err
+        ))
+    }
+}
+
+impl From<&mut RedisException> for BatchSinkException {
+    fn from(err: &mut RedisException) -> Self {
+        Self {
+            err: SinkException::from(err),
+            event_id: 0,
+        }
+    }
+}
+
+impl From<RedisException> for BatchSinkException {
+    fn from(err: RedisException) -> Self {
+        Self {
+            err: SinkException::from(err),
+            event_id: 0,
+        }
     }
 }
 

@@ -1,15 +1,19 @@
-use std::time::Duration;
+use std::{env, sync::Arc, time::Duration};
 
 use actix_web::{web, App};
 
 use lightflus_core::{
     apiserver::handler::{
         resources::{create_resource, get_resource, list_resources, overview},
-        RESOURCES_HANDLER_ROOT,
+        COORDINATOR_URI_ENV, RESOURCES_HANDLER_ROOT,
     },
-    coordinator::coord::{self, load_builder},
+    coordinator::{
+        api::CoordinatorApiImpl,
+        coord::{self, load_builder},
+    },
 };
 
+use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 use tonic::transport::Server;
 
 #[tokio::main]
@@ -22,10 +26,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let coordinator = builder.build();
 
     let addr = format!("0.0.0.0:{}", builder.port).parse()?;
-    tracing::info!("service will start at {}", builder.port);
+    env::set_var(COORDINATOR_URI_ENV, format!("localhost:{}", builder.port));
 
     let handler = tokio::spawn(
-        actix_web::HttpServer::new(|| {
+        actix_web::HttpServer::new(move || {
             App::new()
                 .service(
                     web::scope(RESOURCES_HANDLER_ROOT)
@@ -43,9 +47,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .run(),
     );
 
+    tracing::info!("service will start at {}", builder.port);
+
     Server::builder()
         .timeout(Duration::from_secs(3))
-        .add_service(coordinator)
+        .add_service(CoordinatorApiServer::new(CoordinatorApiImpl::new(
+            coordinator,
+        )))
         .serve(addr)
         .await?;
 
@@ -54,4 +62,4 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn replace_builder_args_by_env(builder: &mut coord::CoordinatorBuilder) {}
+fn replace_builder_args_by_env(_builder: &mut coord::CoordinatorBuilder) {}

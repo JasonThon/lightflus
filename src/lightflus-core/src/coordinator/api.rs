@@ -1,7 +1,9 @@
+use std::sync::Arc;
+
+use crate::new_rpc_response;
+
 use super::coord;
-use proto::common::{
-    Ack, Dataflow, DataflowStates, DataflowStatus, Heartbeat, ResourceId, Response,
-};
+use proto::common::{Ack, Dataflow, DataflowStates, Heartbeat, ResourceId, Response};
 
 use proto::coordinator::coordinator_api_server::CoordinatorApi;
 use proto::coordinator::GetDataflowRequest;
@@ -13,7 +15,7 @@ pub struct CoordinatorApiImpl {
 }
 
 impl CoordinatorApiImpl {
-    pub(crate) fn new(coordinator: coord::Coordinator) -> CoordinatorApiImpl {
+    pub fn new(coordinator: coord::Coordinator) -> CoordinatorApiImpl {
         CoordinatorApiImpl { coordinator }
     }
 }
@@ -62,19 +64,9 @@ impl CoordinatorApi for CoordinatorApiImpl {
         &self,
         request: tonic::Request<GetDataflowRequest>,
     ) -> Result<tonic::Response<DataflowStates>, tonic::Status> {
-        match self
-            .coordinator
+        self.coordinator
             .get_dataflow(request.get_ref().job_id.as_ref().unwrap())
-        {
-            Some(resp) => Ok(tonic::Response::new(DataflowStates {
-                graph: Some(resp),
-                task_infos: vec![],
-                status: DataflowStatus::Running as i32,
-            })),
-            None => Err(tonic::Status::not_found(format!(
-                "dataflow {:?} does not found",
-                request.get_ref().job_id.as_ref().unwrap()
-            ))),
-        }
+            .await
+            .and_then(|dataflow| Ok(new_rpc_response(dataflow)))
     }
 }

@@ -34,3 +34,4 @@ features = [
 [dev-dependencies]
 common = { path = "../common" }
 tokio = { version = "1", features = ["test-util", "macros"] }
+tracing-subscriber = "0.3"

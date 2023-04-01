@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 
 use std::sync::atomic::AtomicU64;
@@ -13,6 +14,8 @@ use proto::common::KeyedDataEvent;
 use proto::common::KeyedEventSet;
 use proto::common::NodeType;
 
+use proto::common::SubDataflowId;
+use proto::common::SubdataflowInfo;
 use proto::taskmanager::SendEventToOperatorStatusEnum;
 
 use stream::connector::SinkImpl;
@@ -24,8 +27,8 @@ use crate::errors::taskmanager::TaskWorkerError;
 
 #[derive(Default)]
 pub struct TaskWorker {
-    last_receive_heartbeat_id: AtomicU64,
     tasks: HashMap<ExecutorId, Task>,
+    subdataflow_id: SubDataflowId,
 }
 
 pub(crate) struct TaskWorkerBuilder<'a> {
@@ -41,10 +44,16 @@ impl<'a> TaskWorkerBuilder<'a> {
         self.dataflow
             .validate()
             .map(|_| {
-                let mut raw_tasks = HashMap::new();
-                let mut edge_builders = HashMap::new();
+                let mut raw_tasks = BTreeMap::new();
+                let mut edge_builders = BTreeMap::new();
 
                 let mut worker = TaskWorker::default();
+                worker.subdataflow_id = self
+                    .dataflow
+                    .get_execution_id_ref()
+                    .map(|id| id.clone())
+                    .unwrap_or_default();
+
                 let job_id = self.dataflow.job_id.as_ref().unwrap();
                 let info_set = &self.dataflow.nodes;
                 self.dataflow.meta.iter().for_each(|meta| {
@@ -57,7 +66,9 @@ impl<'a> TaskWorkerBuilder<'a> {
                         if is_remote_operator(neighbor_info)
                             && !edge_builders.contains_key(neighbor_id)
                         {
-                            edge_builders.insert(meta.center, EdgeBuilder::remote(info));
+                            edge_builders.insert(*neighbor_id, EdgeBuilder::remote(neighbor_info));
+                        } else if !edge_builders.contains_key(neighbor_id) {
+                            edge_builders.insert(*neighbor_id, EdgeBuilder::local(info));
                         }
                     });
 
@@ -72,14 +83,8 @@ impl<'a> TaskWorkerBuilder<'a> {
                         let mut executor = task.create_stream_executor(operator_info);
                         task.get_downstream_id_iter().for_each(|dowstream_id| {
                             edge_builders.get(dowstream_id).iter().for_each(|builder| {
-                                let neighbor_info = info_set.get(dowstream_id).unwrap();
-                                if neighbor_info.has_sink() {
-                                    executor
-                                        .add_external_sink(SinkImpl::from((job_id, neighbor_info)))
-                                } else {
-                                    let out_edge = (*builder).build_out_edge();
-                                    executor.add_out_edge(*dowstream_id, out_edge);
-                                }
+                                let out_edge = (*builder).build_out_edge();
+                                executor.add_out_edge(*dowstream_id, out_edge);
                             });
                         });
 
@@ -88,6 +93,10 @@ impl<'a> TaskWorkerBuilder<'a> {
                             let builder = edge_builders.remove(&executor_id).unwrap();
                             task.set_in_edge(builder.build_out_edge());
                             executor.set_in_edge(builder.build_in_edge())
+                        }
+
+                        if operator_info.has_sink() {
+                            executor.add_external_sink(SinkImpl::from((job_id, operator_info)))
                         }
 
                         task.start(executor);
@@ -154,6 +163,20 @@ impl TaskWorker {
                 .map_err(|err| TaskWorkerError::EventSendFailure(err.to_string())),
             None => Ok(SendEventToOperatorStatusEnum::Done),
         }
+    }
+
+    pub async fn get_state(&self) -> SubdataflowInfo {
+        let mut info = SubdataflowInfo {
+            execution_id: Some(self.subdataflow_id.clone()),
+            executors_info: Default::default(),
+        };
+
+        for (executor_id, task) in &self.tasks {
+            info.executors_info
+                .insert(*executor_id, task.get_state().await);
+        }
+
+        info
     }
 }
 

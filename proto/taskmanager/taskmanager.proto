@@ -5,8 +5,6 @@ import "common/event.proto";
 import "common/common.proto";
 import "common/stream.proto";
 
-option go_package = "lightflus/proto/taskmanager";
-
 /// RPC Api for Task Manager
 service TaskManagerApi {
   /// Send event to operator
@@ -21,6 +19,8 @@ service TaskManagerApi {
   rpc ReceiveAck(common.Ack) returns (common.Response) {}
   /// Send all events batchly
   rpc BatchSendEventsToOperator(common.KeyedEventSet) returns (BatchSendEventsToOperatorResponse) {}
+  // Get sub dataflow states
+  rpc GetSubDataflow(common.ResourceId) returns (common.SubDataflowStates) {}
 }
 
 message SendEventToOperatorResponse {

@@ -1,9 +1,6 @@
-use std::{
-    task::{Context, Poll},
-    time::Duration,
-};
+use std::time::Duration;
 
-use futures_util::{ready, FutureExt, StreamExt};
+use futures_util::StreamExt;
 use rdkafka::{
     consumer::{Consumer, StreamConsumer},
     producer::{FutureProducer, FutureRecord},

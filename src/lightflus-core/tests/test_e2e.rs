@@ -3,8 +3,7 @@ use std::{collections::HashMap, sync::Once, time::Duration};
 use common::{
     kafka::run_producer,
     net::{
-        cluster::{ClusterBuilder, NodeBuilder},
-        gateway::coordinator::SafeCoordinatorRpcGateway,
+        cluster::ClusterBuilder, gateway::coordinator::SafeCoordinatorRpcGateway,
         AckResponderBuilder, HeartbeatBuilder,
     },
     redis::RedisClient,
@@ -207,10 +206,7 @@ async fn test_e2e() {
     let builder = CoordinatorBuilder {
         port: 8888,
         cluster: ClusterBuilder {
-            nodes: vec![NodeBuilder {
-                host: "localhost".to_string(),
-                port: taskmanager_port,
-            }],
+            nodes: format!("localhost:{}", taskmanager_port),
             rpc_timeout: 5,
             connect_timeout: 5,
         },

@@ -242,13 +242,6 @@ async fn test_e2e() {
         port: builder.port as u32,
     })
     .await;
-
-    let dataflow = setup_wordcount_dataflow(taskmanager_port as u32);
-
-    let r = gateway.create_dataflow(dataflow).await;
-    assert!(r.is_ok());
-    println!("success create dataflow");
-
     let producer = run_producer("localhost:9092", "topic-1", "", 0).expect("msg");
 
     let r = time::timeout(
@@ -261,6 +254,12 @@ async fn test_e2e() {
     .await;
     assert!(r.is_ok());
     println!("success send event");
+
+    let dataflow = setup_wordcount_dataflow(taskmanager_port as u32);
+
+    let r = gateway.create_dataflow(dataflow).await;
+    assert!(r.is_ok());
+    println!("success create dataflow");
 
     let desc = RedisDesc {
         connection_opts: Some(ConnectionOpts {

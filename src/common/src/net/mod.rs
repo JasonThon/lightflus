@@ -78,16 +78,17 @@ pub fn local_ip() -> Option<String> {
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         period: 3,
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3,
 ///     };
 ///     
-///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
+///     
+///     let heartbeat = builder.build(addr, 0, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let handler = tokio::spawn(heartbeat);
 ///     handler.abort();
 /// }
@@ -103,16 +104,17 @@ pub fn local_ip() -> Option<String> {
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         period: 3,
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3,
 ///     };
 ///     
-///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
+///     
+///     let heartbeat = builder.build(addr, 0, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let _ = tokio::time::timeout(Duration::from_secs(1), heartbeat);
 /// }
 /// ```
@@ -222,15 +224,16 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///     let builder = AckResponderBuilder {
 ///         delay: 3,
 ///         buf_size: 10,
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3
 ///     };
 ///     
-///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
+/// 
+///     let (responder, _) = builder.build(addr, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let _ = tokio::spawn(responder);
 /// }
 /// ```
@@ -246,15 +249,16 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///     let builder = AckResponderBuilder {
 ///         delay: 3,
 ///         buf_size: 10,
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3
 ///     };
+/// 
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
 ///     
-///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let (responder, _) = builder.build(addr, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let _ = tokio::time::timeout(Duration::from_secs(1), responder);
 /// }
 /// ```

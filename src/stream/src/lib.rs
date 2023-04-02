@@ -9,6 +9,8 @@ mod v8_runtime;
 pub type Receiver<Output> = tokio::sync::mpsc::Receiver<Output>;
 pub type Sender<Output> = tokio::sync::mpsc::Sender<Output>;
 
+pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
+
 #[cfg(feature = "v8_init")]
 pub fn initialize_v8() {
     // v8::V8::set_flags_from_string(

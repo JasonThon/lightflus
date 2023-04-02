@@ -48,9 +48,7 @@ impl RedisClient {
         &mut self,
         items: &[(&K, &V)],
     ) -> Result<(), RedisException> {
-        if self.inner.is_none() {
-            self.connect()?;
-        }
+        self.connect()?;
 
         let conn = self.inner.as_mut().unwrap();
         conn.set_multiple(items)

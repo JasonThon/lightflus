@@ -214,7 +214,7 @@ impl OutEdge for RemoteOutEdge {
 pub trait InEdge: Send + Sync + Unpin {
     type Output;
 
-    async fn receive_data_stream(&mut self) -> Option<Self::Output>;
+    async fn next(&mut self) -> Option<Self::Output>;
 
     fn poll_next(&mut self, cx: &mut Context<'_>) -> Poll<Option<Self::Output>>;
 }
@@ -238,7 +238,7 @@ impl<T> Unpin for LocalInEdge<T> {}
 impl<T: StreamEvent> InEdge for LocalInEdge<T> {
     type Output = T;
 
-    async fn receive_data_stream(&mut self) -> Option<T> {
+    async fn next(&mut self) -> Option<T> {
         self.rx.recv().await.and_then(|buf| {
             T::from_slice(&buf)
                 .map_err(|err| tracing::error!("{:?}", err))
@@ -287,7 +287,7 @@ mod tests {
             .await;
         assert!(result.is_ok());
 
-        let opt = in_edge.receive_data_stream().await;
+        let opt = in_edge.next().await;
         assert!(opt.is_some());
     }
 }

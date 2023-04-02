@@ -56,7 +56,7 @@ jobs:
         run: |
           cargo test --manifest-path src/common/Cargo.toml
           cargo test --manifest-path src/stream/Cargo.toml
-          cargo test --manifest-path src/coordinator/Cargo.toml
+          cargo test --manifest-path src/lightflus-core/Cargo.toml
         env:
           KAFKA_HOST: localhost
           REDIS_HOST: localhost

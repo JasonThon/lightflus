@@ -687,10 +687,9 @@ mod tests {
         mysql_desc, redis_desc, Entry, Func, KafkaDesc, MysqlDesc, RedisDesc, ResourceId,
     };
 
-    use crate::new_event_channel;
+    use crate::{new_event_channel, MOD_TEST_START};
 
     use super::{Sink, SinkImpl, Source, SourceImpl};
-    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 
     struct SetupGuard {}
 

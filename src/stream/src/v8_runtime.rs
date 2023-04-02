@@ -278,9 +278,8 @@ fn try_catch_log(try_catch: &mut v8::TryCatch<v8::HandleScope>) {
 mod tests {
     use std::collections::BTreeMap;
 
-    use crate::v8_runtime::wrap_value;
+    use crate::{v8_runtime::wrap_value, MOD_TEST_START};
 
-    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
     struct SetupGuard {}
 
     impl Drop for SetupGuard {

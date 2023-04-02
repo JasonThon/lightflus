@@ -406,7 +406,13 @@ impl Future for StreamExecutor {
                     ControlFlow::Continue(())
                 }
             }) {
-                ControlFlow::Continue(_) => return Poll::Pending,
+                ControlFlow::Continue(_) => {
+                    if this.source.is_some() {
+                        return Poll::Pending;
+                    } else {
+                        continue;
+                    }
+                }
                 ControlFlow::Break(_) => return Poll::Ready(()),
             }
         }
@@ -424,12 +430,11 @@ mod tests {
 
     use crate::{
         edge::{InEdge, LocalInEdge, LocalOutEdge, OutEdge},
-        new_event_channel,
+        new_event_channel, MOD_TEST_START,
     };
 
     use super::Task;
 
-    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
     struct TestStreamExecutorSuite {
         pub in_edge_tx_endpoint: LocalOutEdge<LocalEvent>,
         pub out_edge_rx_endpoint: LocalInEdge<LocalEvent>,
@@ -575,7 +580,7 @@ mod tests {
                     }))
                     .await;
                 assert!(result.is_ok());
-                let opt = suite.out_edge_rx_endpoint.receive_data_stream().await;
+                let opt = suite.out_edge_rx_endpoint.next().await;
                 assert_eq!(
                     opt,
                     Some(LocalEvent::KeyedDataStreamEvent(KeyedDataEvent {

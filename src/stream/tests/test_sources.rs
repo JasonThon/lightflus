@@ -10,7 +10,7 @@ use proto::common::{kafka_desc::KafkaOptions, DataTypeEnum, KafkaDesc, ResourceI
 use stream::connector::{Kafka, Source};
 
 #[tokio::test]
-async fn test_kafka_source_async_fetch_msg() {
+async fn test_kafka_source_next() {
     let kafka_host = get_env("KAFKA_HOST").unwrap_or("localhost".to_string());
     let kafka_desc = KafkaDesc {
         brokers: vec![format!("{kafka_host}:9092")],

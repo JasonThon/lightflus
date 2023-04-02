@@ -54,9 +54,9 @@ jobs:
           cargo check --workspace --all-features
       - name: Run tests
         run: |
-          cargo test --manifest-path src/common/Cargo.toml
-          cargo test --manifest-path src/stream/Cargo.toml
-          cargo test --manifest-path src/lightflus-core/Cargo.toml
+          cargo test --manifest-path src/common/Cargo.toml --all-features
+          cargo test --manifest-path src/stream/Cargo.toml --all-features
+          cargo test --manifest-path src/lightflus-core/Cargo.toml --all-features
         env:
           KAFKA_HOST: localhost
           REDIS_HOST: localhost
@@ -117,7 +117,7 @@ jobs:
         run: cargo install cargo-tarpaulin
       - name: Generate code coverage
         run: |
-          cargo tarpaulin --all-features --line -p `cargo pkgid --manifest-path src/common/Cargo.toml` `cargo pkgid --manifest-path src/stream/Cargo.toml` --exclude-files src/proto/* src/apiserver/* src/coordinator/* src/taskmanager/*  --out Xml
+          cargo tarpaulin --all-features --line -p `cargo pkgid --manifest-path src/common/Cargo.toml` `cargo pkgid --manifest-path src/lightflus-core/Cargo.toml` `cargo pkgid --manifest-path src/stream/Cargo.toml` --exclude-files src/proto/* src/coordinator/* src/taskmanager/*  --out Xml
         env:
           KAFKA_HOST: localhost
           REDIS_HOST: localhost

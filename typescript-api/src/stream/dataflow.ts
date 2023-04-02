@@ -1,5 +1,5 @@
-import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp, WindowOp } from "./operator";
-import { apiserver, common } from "../proto/apiserver";
+import { Filter, FlatMap, KeyBy, MapOp, Reduce, SinkOp } from "./operator";
+import { apiserver } from "../proto/apiserver";
 import axios from "axios";
 import { ApplicationStream, createResourceApiEndpoint } from "../common/consts";
 import { connectors } from "../connectors/connectors";
@@ -7,7 +7,6 @@ import { context } from "./context";
 import CreateResourceRequest = apiserver.CreateResourceRequest;
 import ResourceTypeEnum = apiserver.ResourceTypeEnum;
 import CreateResourceResponse = apiserver.CreateResourceResponse;
-import IWindow = common.IWindow;
 import Sink = connectors.Sink;
 import ExecutionContext = context.ExecutionContext;
 
@@ -102,8 +101,4 @@ export class KeyedDataflow<K, T> extends Dataflow<T> {
     super.flatMap(callbackFn);
     return new KeyedDataflow<K, U>(this.ctx);
   }
-}
-
-export class WindowDataflow<T> extends Dataflow<T> {
-
 }

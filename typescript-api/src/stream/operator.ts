@@ -1,6 +1,5 @@
 import { injectFunctionName } from "../common/common";
 import { common } from "../proto/apiserver";
-import IWindow = common.IWindow;
 import ISource = common.ISource;
 import ISink = common.ISink;
 
@@ -12,12 +11,10 @@ export enum OperatorType {
   Sink = "sink",
   Map = "map",
   Filter = "filter",
-  Window = "window"
 }
 
 export abstract class Operator {
   operatorId: number;
-  window: IWindow;
 
   protected constructor(operatorId: number) {
     this.operatorId = operatorId;

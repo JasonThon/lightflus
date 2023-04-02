@@ -6,12 +6,8 @@ mod state;
 pub mod task;
 mod v8_runtime;
 
-pub(crate) static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
-
-pub(crate) type Receiver<Output> = tokio::sync::mpsc::Receiver<Output>;
-pub(crate) type Sender<Output> = tokio::sync::mpsc::Sender<Output>;
-
-pub(crate) const DETAULT_WATERMARK: std::time::Duration = std::time::Duration::from_millis(100);
+pub type Receiver<Output> = tokio::sync::mpsc::Receiver<Output>;
+pub type Sender<Output> = tokio::sync::mpsc::Sender<Output>;
 
 #[cfg(feature = "v8_init")]
 pub fn initialize_v8() {
@@ -22,6 +18,6 @@ pub fn initialize_v8() {
     v8::V8::initialize();
 }
 
-pub(crate) fn new_event_channel<T>(buf_size: usize) -> (Sender<T>, Receiver<T>) {
+pub fn new_event_channel<T>(buf_size: usize) -> (Sender<T>, Receiver<T>) {
     tokio::sync::mpsc::channel(buf_size)
 }

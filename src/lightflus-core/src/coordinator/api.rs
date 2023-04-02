@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::new_rpc_response;
 
 use super::coord;

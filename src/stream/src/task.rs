@@ -22,7 +22,7 @@ use common::{
     },
     event::LocalEvent,
     futures::join_all,
-    map_iter,
+    map_iter_mut,
     net::gateway::taskmanager::SafeTaskManagerRpcGateway,
     types::{ExecutorId, SinkId},
     utils::get_env,
@@ -312,16 +312,16 @@ impl StreamExecutor {
     }
 
     #[inline]
-    fn sink_event_to_external_and_local(&self, event: KeyedDataEvent, cx: &mut Context<'_>) {
+    fn sink_event_to_external_and_local(&mut self, event: KeyedDataEvent, cx: &mut Context<'_>) {
         let ref mut external_sink_futures =
-            map_iter!(self.external_sinks, |(executor_id, sink)| {
+            map_iter_mut!(self.external_sinks, |(executor_id, sink)| {
                 let mut new_event = event.clone();
                 new_event.to_operator_id = *executor_id;
                 sink.sink(LocalEvent::KeyedDataStreamEvent(new_event))
             })
             .collect::<Vec<_>>();
 
-        let ref mut out_edge_futures = map_iter!(self.out_edges, |(executor_id, out_edge)| {
+        let ref mut out_edge_futures = map_iter_mut!(self.out_edges, |(executor_id, out_edge)| {
             let mut new_event = event.clone();
             new_event.to_operator_id = *executor_id;
             out_edge.write(LocalEvent::KeyedDataStreamEvent(new_event))
@@ -340,16 +340,20 @@ impl StreamExecutor {
     }
 
     #[inline]
-    fn sink_event_set_to_external_and_local(&self, event_set: KeyedEventSet, cx: &mut Context<'_>) {
+    fn sink_event_set_to_external_and_local(
+        &mut self,
+        event_set: KeyedEventSet,
+        cx: &mut Context<'_>,
+    ) {
         let ref mut external_sink_futures =
-            map_iter!(self.external_sinks, |(executor_id, sink)| {
+            map_iter_mut!(self.external_sinks, |(executor_id, sink)| {
                 let mut new_event_set = event_set.clone();
                 new_event_set.to_operator_id = *executor_id;
                 sink.batch_sink(new_event_set)
             })
             .collect::<Vec<_>>();
 
-        let ref mut out_edge_futures = map_iter!(self.out_edges, |(executor_id, out_edge)| {
+        let ref mut out_edge_futures = map_iter_mut!(self.out_edges, |(executor_id, out_edge)| {
             let mut new_event_set = event_set.clone();
             new_event_set.to_operator_id = *executor_id;
             out_edge.batch_write(
@@ -425,6 +429,7 @@ mod tests {
 
     use super::Task;
 
+    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
     struct TestStreamExecutorSuite {
         pub in_edge_tx_endpoint: LocalOutEdge<LocalEvent>,
         pub out_edge_rx_endpoint: LocalInEdge<LocalEvent>,
@@ -437,7 +442,6 @@ mod tests {
     }
 
     fn setup() -> SetupGuard {
-        use crate::MOD_TEST_START;
         MOD_TEST_START.call_once(|| {
             v8::V8::set_flags_from_string(
                 "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",

@@ -19,6 +19,7 @@ use proto::common::{
     sink, source, Entry, KafkaDesc, KeyedDataEvent, KeyedEventSet, MysqlDesc, OperatorInfo,
     RedisDesc, ResourceId,
 };
+
 use tokio::sync::mpsc::error::TryRecvError;
 use tonic::async_trait;
 
@@ -76,9 +77,9 @@ pub trait Sink {
      * However, if we want to make sure EXACTLY-ONCE or AT-LEAST-ONCE delivery, fault tolerance is essential.
      * In 1.0 release version, we will support checkpoint for fault tolerance and users can choose which guarantee they want Lightflus to satisfy.
      */
-    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException>;
+    async fn sink(&mut self, msg: LocalEvent) -> Result<(), SinkException>;
 
-    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException>;
+    async fn batch_sink(&mut self, event_set: KeyedEventSet) -> Result<(), BatchSinkException>;
 
     /**
      * Gracefully close sink
@@ -180,7 +181,7 @@ impl Sink for SinkImpl {
         }
     }
 
-    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&mut self, msg: LocalEvent) -> Result<(), SinkException> {
         match self {
             Self::Kafka(sink) => sink.sink(msg).await,
             Self::Mysql(sink) => sink.sink(msg).await,
@@ -198,7 +199,7 @@ impl Sink for SinkImpl {
         }
     }
 
-    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&mut self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         match self {
             Self::Kafka(sink) => sink.batch_sink(event_set).await,
             Self::Mysql(sink) => sink.batch_sink(event_set).await,
@@ -391,7 +392,7 @@ impl Sink for Kafka {
         self.connector_id
     }
 
-    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&mut self, msg: LocalEvent) -> Result<(), SinkException> {
         match &self.producer {
             Some(producer) => {
                 let result = msg.to_kafka_message();
@@ -422,7 +423,7 @@ impl Sink for Kafka {
             .for_each(|producer| producer.close())
     }
 
-    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&mut self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         match &self.producer {
             Some(producer) => {
                 for event in event_set
@@ -511,26 +512,20 @@ impl Sink for Mysql {
         self.connector_id
     }
 
-    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&mut self, msg: LocalEvent) -> Result<(), SinkException> {
         let row_arguments = self.get_arguments(&msg);
-        let ref mut conn_result = self.conn.connect().await;
-        match conn_result {
-            Ok(conn) => {
-                for arguments in row_arguments {
-                    let result = self
-                        .conn
-                        .execute(&self.statement, arguments, conn)
-                        .await
-                        .map_err(|err| err.into());
-                    if result.is_err() {
-                        return result.map(|_| {});
-                    }
-                }
-
-                Ok(())
+        for arguments in row_arguments {
+            let result = self
+                .conn
+                .execute(&self.statement, arguments)
+                .await
+                .map_err(|err| err.into());
+            if result.is_err() {
+                return result.map(|_| {});
             }
-            Err(err) => Err(err.into()),
         }
+
+        Ok(())
     }
 
     fn close_sink(&mut self) {
@@ -540,7 +535,25 @@ impl Sink for Mysql {
         self.statement.clear();
     }
 
-    async fn batch_sink(&self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&mut self, event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
+        let row_arguments = event_set
+            .events
+            .into_iter()
+            .map(|event| LocalEvent::KeyedDataStreamEvent(event))
+            .map(|event| self.get_arguments(&event))
+            .flatten()
+            .flatten()
+            .collect::<Vec<_>>();
+
+        self.conn
+            .execute(&self.statement, row_arguments)
+            .await
+            .map(|_| {})
+            .map_err(|err| {
+                tracing::error!("execute mysql statement failed: {}", err);
+                BatchSinkException::from(err)
+            })?;
+
         Ok(())
     }
 }
@@ -581,22 +594,16 @@ impl Sink for Redis {
         self.connector_id
     }
 
-    async fn sink(&self, msg: LocalEvent) -> Result<(), SinkException> {
+    async fn sink(&mut self, msg: LocalEvent) -> Result<(), SinkException> {
         let key_values = extract_arguments(
             &[self.key_extractor.clone(), self.value_extractor.clone()],
             &msg,
             REDIS_EXTRACTOR_FUN_NAME,
         );
-        let mut conn_result = self.client.connect();
-        conn_result
-            .as_mut()
+        let kvs = Vec::from_iter(key_values.iter().map(|kv| (&kv[0], &kv[1])));
+        self.client
+            .set_multiple(kvs.as_slice())
             .map_err(|err| err.into())
-            .and_then(|conn| {
-                let kvs = Vec::from_iter(key_values.iter().map(|kv| (&kv[0], &kv[1])));
-                self.client
-                    .set_multiple(conn, kvs.as_slice())
-                    .map_err(|err| err.into())
-            })
     }
 
     fn close_sink(&mut self) {
@@ -605,13 +612,14 @@ impl Sink for Redis {
         self.value_extractor.clear();
     }
 
-    async fn batch_sink(&self, mut event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
+    async fn batch_sink(&mut self, mut event_set: KeyedEventSet) -> Result<(), BatchSinkException> {
         let mut kv_set = BTreeMap::new();
         event_set.events.sort_by_key(|event| event.event_time);
         let isolate = &mut v8::Isolate::new(Default::default());
         let scope = &mut v8::HandleScope::new(isolate);
+
         event_set.events.into_iter().for_each(|event| {
-            extract_arguments_in_scope(
+            extract_arguments_scope(
                 &[self.key_extractor.clone(), self.value_extractor.clone()],
                 &LocalEvent::KeyedDataStreamEvent(event),
                 REDIS_EXTRACTOR_FUN_NAME,
@@ -624,20 +632,13 @@ impl Sink for Redis {
                 kv_set.insert(key, value);
             })
         });
-        let mut conn_result = self.client.connect();
-
-        conn_result
-            .as_mut()
+        self.client
+            .set_multiple(kv_set.iter().collect::<Vec<_>>().as_slice())
             .map_err(|err| err.into())
-            .and_then(|conn| {
-                self.client
-                    .set_multiple(conn, kv_set.iter().collect::<Vec<_>>().as_slice())
-                    .map_err(|err| err.into())
-            })
     }
 }
 
-fn extract_arguments_in_scope(
+fn extract_arguments_scope(
     extractors: &[String],
     event: &LocalEvent,
     fn_name: &str,
@@ -689,6 +690,7 @@ mod tests {
     use crate::new_event_channel;
 
     use super::{Sink, SinkImpl, Source, SourceImpl};
+    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 
     struct SetupGuard {}
 
@@ -697,7 +699,6 @@ mod tests {
     }
 
     fn setup_v8() -> SetupGuard {
-        use crate::MOD_TEST_START;
         MOD_TEST_START.call_once(|| {
             v8::V8::set_flags_from_string(
                 "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",

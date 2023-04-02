@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use actix_web::{error::ErrorBadRequest, get, post, web, HttpResponse};
 use common::utils::{from_pb_slice, pb_to_bytes_mut};
 use futures_util::StreamExt;

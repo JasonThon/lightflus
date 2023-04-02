@@ -33,3 +33,20 @@ services:
     image: 'redis:latest'
     ports:
       - '6379:6379'
+  coordinator:
+    image: lightflus/coordinator
+    hostname: coordinator
+    ports:
+      - '8791:8791'
+    environment:
+      RUST_LOG: INFO
+      TASKMANAGER_NODES: taskmanager:8792
+    depends_on:
+      - taskmanager
+  taskmanager:
+    image: lightflus/taskmanager
+    hostname: taskmanager
+    ports:
+      - '8792:8792'
+    environment:
+      RUST_LOG: INFO

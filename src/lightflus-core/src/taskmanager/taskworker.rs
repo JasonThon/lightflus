@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::collections::HashMap;
 
-use std::sync::atomic::AtomicU64;
-
 use common::event::LocalEvent;
 use common::types::ExecutorId;
 use common::utils::is_remote_operator;

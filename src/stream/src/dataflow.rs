@@ -410,6 +410,7 @@ mod tests {
     use proto::common::{
         filter, flat_map, key_by, mapper, operator_info::Details, reducer, OperatorInfo,
     };
+    static MOD_TEST_START: std::sync::Once = std::sync::Once::new();
 
     fn get_opeartor_udf(op_info: &OperatorInfo) -> String {
         match op_info.details.as_ref() {
@@ -457,7 +458,6 @@ mod tests {
     }
 
     fn setup() -> SetupGuard {
-        use crate::MOD_TEST_START;
         MOD_TEST_START.call_once(|| {
             v8::V8::set_flags_from_string(
                 "--no_freeze_flags_after_init --expose_gc --harmony-import-assertions --harmony-shadow-realm --allow_natives_syntax --turbo_fast_api_calls",

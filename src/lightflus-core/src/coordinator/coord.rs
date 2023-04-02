@@ -1,5 +1,4 @@
 use std::fs;
-use std::sync::Arc;
 
 use common::net::cluster;
 use common::net::AckResponderBuilder;
@@ -14,7 +13,6 @@ use proto::common::Heartbeat;
 use proto::common::NodeType;
 use proto::common::ResourceId;
 
-use super::api::CoordinatorApiImpl;
 use super::managers::Dispatcher;
 use super::storage::DataflowStorageBuilder;
 

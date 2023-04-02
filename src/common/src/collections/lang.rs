@@ -125,6 +125,13 @@ macro_rules! map_iter {
     };
 }
 
+#[macro_export]
+macro_rules! map_iter_mut {
+    ($val:expr,$callback:expr) => {
+        $val.iter_mut().map($callback)
+    };
+}
+
 #[cfg(test)]
 mod tests {
 

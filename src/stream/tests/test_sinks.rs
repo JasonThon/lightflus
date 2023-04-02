@@ -42,7 +42,7 @@ fn setup() -> SetupGuard {
 #[tokio::test]
 async fn test_kafka_sink() {
     let kafka_host = get_env("KAFKA_HOST").unwrap_or("localhost".to_string());
-    let kafka_sink = SinkImpl::Kafka(Kafka::with_sink_config(
+    let mut kafka_sink = SinkImpl::Kafka(Kafka::with_sink_config(
         &ResourceId::default(),
         1,
         &KafkaDesc {
@@ -149,7 +149,7 @@ async fn test_redis_sink_success() {
         }),
     };
 
-    let redis_sink = SinkImpl::Redis(Redis::with_config(1, desc));
+    let mut redis_sink = SinkImpl::Redis(Redis::with_config(1, desc));
 
     assert_eq!(redis_sink.sink_id(), 1);
 
@@ -198,18 +198,15 @@ async fn test_redis_sink_success() {
 
     assert!(result.is_ok());
 
-    let client = RedisClient::new(&desc);
-    let conn_result = client.connect();
-    assert!(conn_result.is_ok());
+    let mut client = RedisClient::new(&desc);
 
-    let ref mut conn = conn_result.expect("");
-    let result = client.get(conn, &TypedValue::String("word-1".to_string()));
+    let result = client.get(&TypedValue::String("word-1".to_string()));
     assert!(result.is_ok());
     let value = result.expect("msg");
 
     assert_eq!(value.as_slice().get_i64(), 10);
 
-    let result = client.get(conn, &TypedValue::String("word-2".to_string()));
+    let result = client.get(&TypedValue::String("word-2".to_string()));
     assert!(result.is_ok());
     let value = result.expect("msg");
 
@@ -226,16 +223,12 @@ async fn test_mysql_sink() {
         database: "ci".to_string(),
     };
 
-    let conn = MysqlConn::from(conn_opts.clone());
+    let mut conn = MysqlConn::from(conn_opts.clone());
 
-    let result = conn.connect().await;
-    assert!(result.is_ok());
-
-    let ref mut mysql_conn = result.unwrap();
-    let result = conn.execute("create table if not exists person (id int NOT NULL AUTO_INCREMENT, name varchar(36), age int, country varchar(36), address varchar(255), PRIMARY KEY (id))", vec![], mysql_conn).await;
+    let result = conn.execute("create table if not exists person (id int NOT NULL AUTO_INCREMENT, name varchar(36), age int, country varchar(36), address varchar(255), PRIMARY KEY (id))", vec![]).await;
 
     assert!(result.is_ok());
-    let mysql = SinkImpl::Mysql(Mysql::with_config(
+    let mut mysql = SinkImpl::Mysql(Mysql::with_config(
         0,
         &MysqlDesc {
             connection_opts: Some(conn_opts),
@@ -301,29 +294,22 @@ async fn test_mysql_sink() {
     assert!(result.is_ok());
 
     let result = conn
-        .try_for_each(
-            "select * from person",
-            vec![],
-            mysql_conn,
-            |row| async move {
-                let name = row.try_get::<&str, &str>("name");
-                assert_eq!(name.unwrap(), "jason thon");
-                let age = row.try_get::<i32, &str>("age");
-                assert_eq!(age.unwrap(), 25);
-                let country = row.try_get::<&str, &str>("country");
-                assert_eq!(country.unwrap(), "China");
-                let address = row.try_get::<&str, &str>("address");
-                assert_eq!(address.unwrap(), "Songjiang,Shanghai");
-                Ok(())
-            },
-        )
+        .try_for_each("select * from person", vec![], |row| async move {
+            let name = row.try_get::<&str, &str>("name");
+            assert_eq!(name.unwrap(), "jason thon");
+            let age = row.try_get::<i32, &str>("age");
+            assert_eq!(age.unwrap(), 25);
+            let country = row.try_get::<&str, &str>("country");
+            assert_eq!(country.unwrap(), "China");
+            let address = row.try_get::<&str, &str>("address");
+            assert_eq!(address.unwrap(), "Songjiang,Shanghai");
+            Ok(())
+        })
         .await;
 
     assert!(result.is_ok());
 
-    let result = conn
-        .execute("drop table if exists person", vec![], mysql_conn)
-        .await;
+    let result = conn.execute("drop table if exists person", vec![]).await;
 
     assert!(result.is_ok());
 }

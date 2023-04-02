@@ -1,4 +1,4 @@
-use std::{env, sync::Arc, time::Duration};
+use std::{env, time::Duration};
 
 use actix_web::{web, App};
 

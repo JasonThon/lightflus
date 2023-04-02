@@ -168,7 +168,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
         ready!(Pin::new(&mut this.interval).poll_tick(cx));
         let now = utils::times::now();
         tracing::debug!("heartbeat sent at time {:?}", now);
-        let mut future = this.gateway.receive_heartbeat(Heartbeat {
+        let future = this.gateway.receive_heartbeat(Heartbeat {
             heartbeat_id: this
                 .current_heartbeat_id
                 .fetch_add(1, atomic::Ordering::SeqCst),
@@ -178,9 +178,21 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
             }),
             node_type: NodeType::JobManager as i32,
             subdataflow_id: this.execution_id.clone(),
-            task_id: 0,
+            task_id: this.task_id,
         });
-        while let false = future.poll_unpin(cx).is_ready() {}
+        join_all(cx, &mut vec![future], |r| match r {
+            Ok(_) => tracing::info!(
+                "heartbeat sent success  [execution_id: {:?}, task_id: {}]",
+                &this.execution_id,
+                this.task_id,
+            ),
+            Err(err) => tracing::error!(
+                "heartbeat sent failed, [execution_id: {:?}, task_id: {}], err: {}",
+                &this.execution_id,
+                this.task_id,
+                err,
+            ),
+        });
         Poll::Pending
     }
 }
@@ -303,7 +315,7 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
                 Poll::Ready(None) => continue,
                 _ => {
                     join_all(cx, &mut all_ack_futures, |r| match r {
-                        Ok(_) => {}
+                        Ok(_) => tracing::info!("ack success"),
                         Err(status) => tracing::error!("ack failed: {}", status),
                     });
                     return Poll::Pending;

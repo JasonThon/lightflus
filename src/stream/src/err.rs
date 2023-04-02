@@ -129,6 +129,15 @@ impl From<RedisException> for BatchSinkException {
     }
 }
 
+impl From<sqlx::Error> for BatchSinkException {
+    fn from(err: sqlx::Error) -> Self {
+        Self {
+            err: SinkException::from(err),
+            event_id: 0,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum ExecutionError {
     OperatorUnimplemented(NodeIdx),

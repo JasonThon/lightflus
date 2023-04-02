@@ -16,9 +16,9 @@ use crate::types::TypedValue;
 /// Lightflus support SQL statment in two different formats:
 /// - raw format: e.g. 'select a, b from t';
 /// - with placeholder symbol '?': e.g. 'select a, b from t where b=?'
-#[derive(Clone)]
 pub struct MysqlConn {
     conn_opts: mysql_desc::ConnectionOpts,
+    inner: Option<sqlx::MySqlConnection>,
 }
 
 impl MysqlConn {
@@ -54,10 +54,9 @@ impl MysqlConn {
     // /}
     /// ```
     pub async fn execute(
-        &self,
+        &mut self,
         statement: &str,
         arguments: Vec<TypedValue>,
-        conn: &mut sqlx::mysql::MySqlConnection,
     ) -> Result<sqlx::mysql::MySqlQueryResult, sqlx::Error> {
         let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
         arguments.iter().for_each(|val| match val {
@@ -68,7 +67,11 @@ impl MysqlConn {
             _ => {}
         });
 
-        sqlx::query_with(statement, mysql_arg).execute(conn).await
+        self.connect().await?;
+
+        sqlx::query_with(statement, mysql_arg)
+            .execute(self.inner.as_mut().unwrap())
+            .await
     }
 
     /// # TryForEach, processing elements iteratively
@@ -117,10 +120,9 @@ impl MysqlConn {
         Fut: TryFuture<Ok = (), Error = sqlx::Error>,
         F: FnMut(sqlx::mysql::MySqlRow) -> Fut,
     >(
-        &self,
+        &mut self,
         statement: &str,
         arguments: Vec<TypedValue>,
-        conn: &mut sqlx::mysql::MySqlConnection,
         mut f: F,
     ) -> Result<(), sqlx::Error> {
         let mut mysql_arg = sqlx::mysql::MySqlArguments::default();
@@ -132,30 +134,39 @@ impl MysqlConn {
             _ => {}
         });
 
+        self.connect().await?;
         sqlx::query_with(statement, mysql_arg)
-            .fetch(conn)
+            .fetch(self.inner.as_mut().unwrap())
             .try_for_each(|row| f(row))
             .await
     }
 
-    pub async fn connect(&self) -> Result<sqlx::mysql::MySqlConnection, sqlx::Error> {
-        let opts = sqlx::mysql::MySqlConnectOptions::new()
-            .host(&self.conn_opts.host)
-            .port(3306)
-            .username(&self.conn_opts.username)
-            .password(&self.conn_opts.password)
-            .database(&self.conn_opts.database);
+    async fn connect(&mut self) -> Result<(), sqlx::Error> {
+        if self.inner.is_none() {
+            let opts = sqlx::mysql::MySqlConnectOptions::new()
+                .host(&self.conn_opts.host)
+                .port(3306)
+                .username(&self.conn_opts.username)
+                .password(&self.conn_opts.password)
+                .database(&self.conn_opts.database);
 
-        opts.connect().await
+            opts.connect().await.map(|conn| self.inner = Some(conn))
+        } else {
+            Ok(())
+        }
     }
 
     pub fn close(&mut self) {
-        self.conn_opts.clear()
+        self.conn_opts.clear();
+        self.inner = None;
     }
 }
 
 impl From<mysql_desc::ConnectionOpts> for MysqlConn {
     fn from(conn_opts: mysql_desc::ConnectionOpts) -> Self {
-        Self { conn_opts }
+        Self {
+            conn_opts,
+            inner: None,
+        }
     }
 }

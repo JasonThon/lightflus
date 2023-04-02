@@ -277,21 +277,17 @@ async fn test_e2e() {
             function: "function redis_extractor(a) { return a.t0.toString() }".to_string(),
         }),
     };
-    let redis = RedisClient::new(&desc);
-    let conn = redis.connect();
-    assert!(conn.is_ok());
+    let mut redis = RedisClient::new(&desc);
     let _ = tokio::time::sleep(Duration::from_secs(3)).await;
 
-    let mut conn = conn.expect("msg");
-
-    let r = redis.get(&mut conn, &TypedValue::String("word".to_string()));
+    let r = redis.get(&TypedValue::String("word".to_string()));
 
     assert!(r.is_ok());
     let r = r.expect("msg");
     let v = TypedValue::from_slice_with_type(&r, DataTypeEnum::String);
     assert_eq!(v, TypedValue::String("3".to_string()));
 
-    let r = redis.get(&mut conn, &TypedValue::String("count".to_string()));
+    let r = redis.get(&TypedValue::String("count".to_string()));
 
     assert!(r.is_ok());
     let r = r.expect("msg");

@@ -3,13 +3,13 @@ use std::time::Duration;
 use proto::common::RedisDesc;
 use redis::{Commands, ConnectionAddr, ConnectionInfo, RedisConnectionInfo, ToRedisArgs};
 
-use crate::{err::RedisException, types::TypedValue};
+use crate::err::RedisException;
 
 const REDIS_PORT: u16 = 6379;
 
-#[derive(Debug, Clone)]
 pub struct RedisClient {
     client: redis::Client,
+    inner: Option<redis::Connection>,
 }
 
 impl RedisClient {
@@ -18,48 +18,55 @@ impl RedisClient {
         let client = redis::Client::open(connection_info);
         Self {
             client: client.expect("create redis client failed"),
+            inner: None,
         }
     }
 
-    pub fn connect(&self) -> Result<redis::Connection, RedisException> {
-        self.client
-            .get_connection_with_timeout(Duration::from_secs(3))
-            .map_err(|err| RedisException::ConnectFailed(format!("{}", err)))
+    fn connect(&mut self) -> Result<(), RedisException> {
+        if self.inner.is_none() {
+            self.client
+                .get_connection_with_timeout(Duration::from_secs(3))
+                .map(|conn| self.inner = Some(conn))
+                .map_err(|err| RedisException::ConnectFailed(format!("{}", err)))
+        } else {
+            Ok(())
+        }
     }
 
     pub fn set<K: ToRedisArgs, V: ToRedisArgs>(
-        &self,
-        conn: &mut redis::Connection,
+        &mut self,
         key: &K,
         value: &V,
     ) -> Result<(), RedisException> {
+        self.connect()?;
+        let conn = self.inner.as_mut().unwrap();
         conn.set(key, value)
             .map_err(|err| RedisException::SetValueFailed(format!("{}", err)))
     }
 
     pub fn set_multiple<K: ToRedisArgs, V: ToRedisArgs>(
-        &self,
-        conn: &mut redis::Connection,
+        &mut self,
         items: &[(&K, &V)],
     ) -> Result<(), RedisException> {
+        if self.inner.is_none() {
+            self.connect()?;
+        }
+
+        let conn = self.inner.as_mut().unwrap();
         conn.set_multiple(items)
             .map_err(|err| RedisException::SetMultipleValueFailed(format!("{}", err)))
     }
 
-    pub fn get<K: ToRedisArgs>(
-        &self,
-        conn: &mut redis::Connection,
-        key: &K,
-    ) -> Result<Vec<u8>, RedisException> {
+    pub fn get<K: ToRedisArgs>(&mut self, key: &K) -> Result<Vec<u8>, RedisException> {
+        self.connect()?;
+        let conn = self.inner.as_mut().unwrap();
         conn.get(key)
             .map_err(|err| RedisException::GetValueFailed(format!("{}", err)))
     }
 
-    pub fn del<K: ToRedisArgs>(
-        &self,
-        conn: &mut redis::Connection,
-        key: &K,
-    ) -> Result<(), RedisException> {
+    pub fn del<K: ToRedisArgs>(&mut self, key: &K) -> Result<(), RedisException> {
+        self.connect()?;
+        let conn = self.inner.as_mut().unwrap();
         conn.del(key)
             .map_err(|err| RedisException::DelValueFailed(format!("{}", err)))
     }

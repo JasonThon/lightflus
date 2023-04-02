@@ -1,8 +1,4 @@
-use std::{
-    collections::BTreeMap,
-    fmt::Display,
-    sync::{atomic::AtomicU64, Arc, RwLock},
-};
+use std::{collections::BTreeMap, sync::atomic::AtomicU64};
 
 use common::{
     net::{
@@ -15,8 +11,8 @@ use common::{
 use proto::{
     common::{
         ack::{AckType, RequestId},
-        Ack, Dataflow, DataflowStates, DataflowStatus, ExecutorInfo, Heartbeat, HostAddr, NodeType,
-        OperatorInfo, ResourceId, SubDataflowId, SubDataflowStates,
+        Ack, Dataflow, Heartbeat, HostAddr, NodeType, OperatorInfo, ResourceId, SubDataflowId,
+        SubDataflowStates,
     },
     taskmanager::CreateSubDataflowRequest,
 };

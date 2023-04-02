@@ -1,5 +1,3 @@
-use common::err::BizCode;
-
 pub mod api;
 pub mod coord;
 pub mod executions;

@@ -5,7 +5,7 @@ use crossbeam_skiplist::SkipMap;
 use proto::{
     common::{
         Ack, DataflowStatus, Heartbeat, KeyedDataEvent, KeyedEventSet, ResourceId, Response,
-        SubDataflowId, SubDataflowStates,
+        SubDataflowStates,
     },
     taskmanager::{
         task_manager_api_server::{TaskManagerApi, TaskManagerApiServer},

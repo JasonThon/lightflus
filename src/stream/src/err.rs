@@ -1,8 +1,12 @@
+use std::fmt::{self, Display};
+
 use common::{
-    err::{KafkaException, RedisException, TaskWorkerError},
-    event::{KafkaEventError, SinkableMessageImpl},
+    err::{KafkaException, RedisException},
+    event::KafkaEventError,
+    types::NodeIdx,
 };
-use tokio::sync::mpsc::error::SendError;
+
+use crate::edge::OutEdgeError;
 
 #[derive(Debug, Clone)]
 pub enum ErrorKind {
@@ -10,7 +14,7 @@ pub enum ErrorKind {
     MessageSendFailed,
     KafkaMessageSendFailed,
     SqlExecutionFailed,
-    RemoteSinkFailed,
+    EventSentToRemoteFailed,
     RedisSinkFailed,
 }
 
@@ -18,21 +22,6 @@ pub enum ErrorKind {
 pub struct SinkException {
     pub kind: ErrorKind,
     pub msg: String,
-}
-
-impl SinkException {
-    pub fn into_task_worker_error(&self) -> TaskWorkerError {
-        TaskWorkerError::EventSendFailure(format!("{:?}", self))
-    }
-}
-
-impl From<SendError<SinkableMessageImpl>> for SinkException {
-    fn from(err: SendError<SinkableMessageImpl>) -> Self {
-        Self {
-            kind: ErrorKind::MessageSendFailed,
-            msg: format!("message {:?} send to channel failed", err.0),
-        }
-    }
 }
 
 impl From<KafkaException> for SinkException {
@@ -91,11 +80,88 @@ impl From<KafkaEventError> for SinkException {
 
 impl From<&mut tonic::transport::Error> for SinkException {
     fn from(err: &mut tonic::transport::Error) -> Self {
-        todo!()
+        Self {
+            kind: ErrorKind::EventSentToRemoteFailed,
+            msg: err.to_string(),
+        }
+    }
+}
+
+impl Display for SinkException {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "sink to external sinker failed: [kind: {:?}], [message: {}]",
+            self.kind, self.msg
+        ))
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct BatchSinkException {
+    pub err: SinkException,
+    pub event_id: u64,
+}
+
+impl Display for BatchSinkException {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_fmt(format_args!(
+            "batchly sink events failed: [event_id: {}],[details: {}]",
+            self.event_id, self.err
+        ))
+    }
+}
+
+impl From<&mut RedisException> for BatchSinkException {
+    fn from(err: &mut RedisException) -> Self {
+        Self {
+            err: SinkException::from(err),
+            event_id: 0,
+        }
+    }
+}
+
+impl From<RedisException> for BatchSinkException {
+    fn from(err: RedisException) -> Self {
+        Self {
+            err: SinkException::from(err),
+            event_id: 0,
+        }
+    }
+}
+
+impl From<sqlx::Error> for BatchSinkException {
+    fn from(err: sqlx::Error) -> Self {
+        Self {
+            err: SinkException::from(err),
+            event_id: 0,
+        }
     }
 }
 
 #[derive(Debug)]
-pub enum RunnableTaskError {
-    OperatorUnimplemented,
+pub enum ExecutionError {
+    OperatorUnimplemented(NodeIdx),
+}
+
+impl fmt::Display for ExecutionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::OperatorUnimplemented(operator_id) => {
+                f.write_str(format!("operator {} does not implement", operator_id).as_str())
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+pub enum TaskError {
+    OutEdgeError(OutEdgeError),
+}
+
+impl fmt::Display for TaskError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TaskError::OutEdgeError(err) => f.write_fmt(format_args!("out edge error [{}]", err)),
+        }
+    }
 }

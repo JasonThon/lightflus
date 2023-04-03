@@ -9,21 +9,28 @@ edition = "2021"
 common = { path = "../common" }
 chrono = "0.4"
 tokio = { version = "1", features = ["rt"] }
-proto = { path = "../proto", features = ["worker"] }
+proto = { path = "../proto", features = ["taskmanager"] }
 serde = { version = "1.0", features = ["derive"] }
 sled = "0.34.7"
-v8 = "0.51.0"
+v8 = "0.54"
 sqlx = { version = "0.6", features = [ "runtime-tokio-rustls" ] }
 futures-executor = "0.3"
+futures-util = "0.3"
 serde_json = "1.0.59"
 tonic = "0.8"
 prost = "0.11"
 prost-types = "0.11"
 rayon = "1.5"
 tracing = "0.1"
-async-trait = "0.1.58"
+bytes = { version = "1", features = ["serde"] }
+rmp-serde = "1.1.1"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util", "macros"] }
 stream = { path = "../stream" }
 bytes = "1.2.1"
+tracing-subscriber = "0.3"
+
+[features]
+v8_init = []
+default = []

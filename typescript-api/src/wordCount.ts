@@ -26,21 +26,6 @@ async function wordCount(ctx: ExecutionContext) {
     return { t0: 1, t1: v };
   }))
     .keyBy(v => v.t1)
-    .window({
-      fixed: {
-        size: {
-          seconds: 3
-        }
-      },
-      trigger: {
-        watermark: {
-          triggerTime: {
-            seconds: 3,
-            millis: 100
-          }
-        }
-      }
-    })
     .reduce((v1, v2) => {
       return { t1: v1.t1, t0: v1.t0 + v2.t0 };
     })

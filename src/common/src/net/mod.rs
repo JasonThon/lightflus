@@ -7,15 +7,16 @@ use std::{
 };
 
 use futures_util::{ready, Future, FutureExt};
-use proto::common::{Ack, ExecutionId, Heartbeat, HostAddr, NodeType};
+use proto::common::{Ack, Heartbeat, HostAddr, NodeType, SubDataflowId};
 use tokio::sync::mpsc;
 
-use crate::utils;
+use crate::{futures::join_all, types::ExecutorId, utils};
 
 use self::gateway::{ReceiveAckRpcGateway, ReceiveHeartbeatRpcGateway};
 
 pub(crate) const DEFAULT_RPC_TIMEOUT: u64 = 3;
 pub(crate) const DEFAULT_CONNECT_TIMEOUT: u64 = 3;
+pub(crate) const DEFAULT_TASKMANAGER_PORT: u16 = 8792;
 pub mod cluster;
 #[cfg(not(tarpaulin_include))]
 pub mod gateway;
@@ -71,22 +72,23 @@ pub fn local_ip() -> Option<String> {
 /// # Example of Tokio spawning
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         period: 3,
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3,
 ///     };
 ///     
-///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
+///     
+///     let heartbeat = builder.build(addr, 0, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let handler = tokio::spawn(heartbeat);
 ///     handler.abort();
 /// }
@@ -95,29 +97,29 @@ pub fn local_ip() -> Option<String> {
 /// # Example of async/await
 ///
 /// ```
-/// use common::net::{HeartbeatBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{HeartbeatBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
 /// use std::time::Duration;
 ///
 /// #[tokio::main]
 /// async fn main() {
 ///     let builder = HeartbeatBuilder {
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         period: 3,
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3,
 ///     };
 ///     
-///     let heartbeat = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
+///     
+///     let heartbeat = builder.build(addr, 0, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let _ = tokio::time::timeout(Duration::from_secs(1), heartbeat);
 /// }
 /// ```
 #[derive(serde::Deserialize, Clone, Debug)]
 pub struct HeartbeatBuilder {
-    pub nodes: Vec<HostAddr>,
     /// period of heartbeat, in seconds
     pub period: u64,
     /// timeout of heartbeat rpc connection, in seconds
@@ -127,32 +129,35 @@ pub struct HeartbeatBuilder {
 }
 
 impl HeartbeatBuilder {
-    pub fn build<F: Fn(&HostAddr, u64, u64) -> T, T: ReceiveHeartbeatRpcGateway>(
+    pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveHeartbeatRpcGateway>(
         &self,
+        host_addr: &HostAddr,
+        task_id: ExecutorId,
         f: F,
     ) -> HeartbeatSender<T> {
         HeartbeatSender {
-            gateways: self
-                .nodes
-                .iter()
-                .map(|addr| addr)
-                .map(|host_addr| f(&host_addr, self.connect_timeout, self.rpc_timeout))
-                .collect(),
+            gateway: f(
+                host_addr,
+                Duration::from_secs(self.connect_timeout),
+                Duration::from_secs(self.rpc_timeout),
+            ),
             interval: tokio::time::interval(Duration::from_secs(self.period)),
             execution_id: None,
             current_heartbeat_id: AtomicU64::default(),
+            task_id,
         }
     }
 }
 
 pub struct HeartbeatSender<T: ReceiveHeartbeatRpcGateway> {
-    gateways: Vec<T>,
+    gateway: T,
     interval: tokio::time::Interval,
-    execution_id: Option<ExecutionId>,
+    execution_id: Option<SubDataflowId>,
     current_heartbeat_id: AtomicU64,
+    task_id: ExecutorId,
 }
 impl<T: ReceiveHeartbeatRpcGateway> HeartbeatSender<T> {
-    pub fn update_execution_id(&mut self, execution_id: ExecutionId) {
+    pub fn update_execution_id(&mut self, execution_id: SubDataflowId) {
         self.execution_id = Some(execution_id)
     }
 }
@@ -162,34 +167,35 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
-        loop {
-            ready!(Pin::new(&mut this.interval).poll_tick(cx));
-            let now = utils::times::now();
-            tracing::debug!("heartbeat sent at time {:?}", now);
-
-            while let Some(true) = this
-                .gateways
-                .iter()
-                .map(|gateway| {
-                    gateway.receive_heartbeat(Heartbeat {
-                        heartbeat_id: this
-                            .current_heartbeat_id
-                            .fetch_add(1, atomic::Ordering::SeqCst),
-                        timestamp: Some(prost_types::Timestamp {
-                            seconds: now.timestamp(),
-                            nanos: now.timestamp_subsec_nanos() as i32,
-                        }),
-                        node_type: NodeType::JobManager as i32,
-                        execution_id: this.execution_id.clone(),
-                    })
-                })
-                .into_iter()
-                .map(|mut future| future.poll_unpin(cx).is_ready())
-                .reduce(|a, b| a && b)
-            {
-                break;
-            }
-        }
+        ready!(Pin::new(&mut this.interval).poll_tick(cx));
+        let now = utils::times::now();
+        tracing::debug!("heartbeat sent at time {:?}", now);
+        let future = this.gateway.receive_heartbeat(Heartbeat {
+            heartbeat_id: this
+                .current_heartbeat_id
+                .fetch_add(1, atomic::Ordering::SeqCst),
+            timestamp: Some(prost_types::Timestamp {
+                seconds: now.timestamp(),
+                nanos: now.timestamp_subsec_nanos() as i32,
+            }),
+            node_type: NodeType::JobManager as i32,
+            subdataflow_id: this.execution_id.clone(),
+            task_id: this.task_id,
+        });
+        join_all(cx, &mut vec![future], |r| match r {
+            Ok(_) => tracing::info!(
+                "heartbeat sent success  [execution_id: {:?}, task_id: {}]",
+                &this.execution_id,
+                this.task_id,
+            ),
+            Err(err) => tracing::error!(
+                "heartbeat sent failed, [execution_id: {:?}, task_id: {}], err: {}",
+                &this.execution_id,
+                this.task_id,
+                err,
+            ),
+        });
+        Poll::Pending
     }
 }
 
@@ -210,7 +216,7 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///
 /// # Example of Tokio spawn
 /// ```
-/// use common::net::{AckResponderBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use proto::common::HostAddr;
 ///
 /// #[tokio::main]
@@ -218,22 +224,23 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///     let builder = AckResponderBuilder {
 ///         delay: 3,
 ///         buf_size: 10,
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3
 ///     };
 ///     
-///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
+/// 
+///     let (responder, _) = builder.build(addr, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let _ = tokio::spawn(responder);
 /// }
 /// ```
 ///
 /// # Example of Tokio spwan
 /// ```
-/// use common::net::{AckResponderBuilder, gateway::worker::SafeTaskManagerRpcGateway};
+/// use common::net::{AckResponderBuilder, gateway::taskmanager::SafeTaskManagerRpcGateway};
 /// use std::time::Duration;
 /// use proto::common::HostAddr;
 ///
@@ -242,15 +249,16 @@ impl<T: ReceiveHeartbeatRpcGateway> Future for HeartbeatSender<T> {
 ///     let builder = AckResponderBuilder {
 ///         delay: 3,
 ///         buf_size: 10,
-///         nodes: vec![HostAddr {
-///             host: "localhost".to_string(),
-///             port: 8080
-///         }],
 ///         connect_timeout: 3,
 ///         rpc_timeout: 3
 ///     };
+/// 
+///     let ref addr = HostAddr {
+///         host: "localhost".to_string(),
+///         port: 8080
+///     };
 ///     
-///     let (responder, _) = builder.build(|addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
+///     let (responder, _) = builder.build(addr, |addr, connect_timeout, rpc_timeout| SafeTaskManagerRpcGateway::with_timeout(addr, connect_timeout, rpc_timeout));
 ///     let _ = tokio::time::timeout(Duration::from_secs(1), responder);
 /// }
 /// ```
@@ -260,8 +268,6 @@ pub struct AckResponderBuilder {
     pub delay: u64,
     // buffer ack queue size
     pub buf_size: usize,
-    // ack nodes
-    pub nodes: Vec<HostAddr>,
     /// timeout of ack rpc connection, in seconds
     pub connect_timeout: u64,
     /// timeout of ack rpc request, in seconds
@@ -269,8 +275,9 @@ pub struct AckResponderBuilder {
 }
 
 impl AckResponderBuilder {
-    pub fn build<F: Fn(&HostAddr, u64, u64) -> T, T: ReceiveAckRpcGateway>(
+    pub fn build<F: Fn(&HostAddr, Duration, Duration) -> T, T: ReceiveAckRpcGateway>(
         &self,
+        host_addr: &HostAddr,
         f: F,
     ) -> (AckResponder<T>, mpsc::Sender<Ack>) {
         let (tx, rx) = mpsc::channel(self.buf_size);
@@ -278,11 +285,11 @@ impl AckResponderBuilder {
             AckResponder {
                 delay_interval: tokio::time::interval(Duration::from_secs(self.delay)),
                 recv: rx,
-                gateway: self
-                    .nodes
-                    .iter()
-                    .map(|addr| f(addr, self.connect_timeout, self.rpc_timeout))
-                    .collect(),
+                gateway: f(
+                    host_addr,
+                    Duration::from_secs(self.connect_timeout),
+                    Duration::from_secs(self.rpc_timeout),
+                ),
             },
             tx,
         )
@@ -292,7 +299,7 @@ impl AckResponderBuilder {
 pub struct AckResponder<T: ReceiveAckRpcGateway> {
     delay_interval: tokio::time::Interval,
     recv: mpsc::Receiver<Ack>,
-    gateway: Vec<T>,
+    gateway: T,
 }
 
 impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
@@ -300,24 +307,23 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 
     fn poll(self: Pin<&mut Self>, cx: &mut task::Context<'_>) -> Poll<Self::Output> {
         let this = self.get_mut();
-        loop {
-            ready!(Pin::new(&mut this.delay_interval).poll_tick(cx));
-            this.delay_interval.reset();
+        ready!(Pin::new(&mut this.delay_interval).poll_tick(cx));
+        let mut all_ack_futures = vec![];
 
+        loop {
             match this.recv.poll_recv(cx) {
                 Poll::Ready(Some(ack)) => {
-                    while let Some(true) = this
-                        .gateway
-                        .iter()
-                        .map(|gateway| gateway.receive_ack(ack.clone()))
-                        .into_iter()
-                        .map(|mut future| future.poll_unpin(cx).is_ready())
-                        .reduce(|a, b| a && b)
-                    {
-                        break;
-                    }
+                    let future = this.gateway.receive_ack(ack.clone());
+                    all_ack_futures.push(future);
                 }
-                _ => {}
+                Poll::Ready(None) => continue,
+                _ => {
+                    join_all(cx, &mut all_ack_futures, |r| match r {
+                        Ok(_) => tracing::info!("ack success"),
+                        Err(status) => tracing::error!("ack failed: {}", status),
+                    });
+                    return Poll::Pending;
+                }
             }
         }
     }
@@ -327,7 +333,7 @@ impl<T: ReceiveAckRpcGateway> Future for AckResponder<T> {
 mod tests {
 
     use chrono::{Duration, Timelike};
-    use proto::common::{ack::AckType, Ack, ExecutionId, HostAddr, NodeType, ResourceId};
+    use proto::common::{ack::AckType, Ack, HostAddr, NodeType, ResourceId, SubDataflowId};
 
     use crate::net::gateway::MockRpcGateway;
 
@@ -354,17 +360,19 @@ mod tests {
         let builder = AckResponderBuilder {
             delay: 3,
             buf_size: 10,
-            nodes: vec![HostAddr {
-                host: "198.0.0.1".to_string(),
-                port: 8970,
-            }],
             connect_timeout: 3,
             rpc_timeout: 3,
         };
 
         let (gateway, mut rx, _) = MockRpcGateway::new(builder.buf_size, 10);
 
-        let (responder, tx) = builder.build(|_, _, _| gateway.clone());
+        let (responder, tx) = builder.build(
+            &HostAddr {
+                host: "198.0.0.1".to_string(),
+                port: 8970,
+            },
+            |_, _, _| gateway.clone(),
+        );
 
         let handler = tokio::spawn(responder);
         // send first time
@@ -435,10 +443,6 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_success() {
         let builder = HeartbeatBuilder {
-            nodes: vec![HostAddr {
-                host: "11".to_string(),
-                port: 11,
-            }],
             period: 3,
             connect_timeout: 3,
             rpc_timeout: 3,
@@ -446,7 +450,14 @@ mod tests {
 
         let (gateway, _, mut rx) = MockRpcGateway::new(10, 10);
 
-        let heartbeat = builder.build(|_, _, _| gateway.clone());
+        let heartbeat = builder.build(
+            &HostAddr {
+                host: "11".to_string(),
+                port: 11,
+            },
+            0,
+            |_, _, _| gateway.clone(),
+        );
         let handler = tokio::spawn(heartbeat);
 
         {
@@ -472,10 +483,6 @@ mod tests {
     #[tokio::test]
     async fn test_heartbeat_update_execution_id() {
         let builder = HeartbeatBuilder {
-            nodes: vec![HostAddr {
-                host: "11".to_string(),
-                port: 11,
-            }],
             period: 3,
             connect_timeout: 3,
             rpc_timeout: 3,
@@ -483,8 +490,15 @@ mod tests {
 
         let (gateway, _, _) = MockRpcGateway::new(10, 10);
 
-        let mut heartbeat = builder.build(|_, _, _| gateway.clone());
-        heartbeat.update_execution_id(ExecutionId {
+        let mut heartbeat = builder.build(
+            &HostAddr {
+                host: "11".to_string(),
+                port: 11,
+            },
+            0,
+            |_, _, _| gateway.clone(),
+        );
+        heartbeat.update_execution_id(SubDataflowId {
             job_id: Some(ResourceId {
                 resource_id: "resource_id".to_string(),
                 namespace_id: "namespace_id".to_string(),
@@ -493,7 +507,7 @@ mod tests {
         });
         assert_eq!(
             heartbeat.execution_id,
-            Some(ExecutionId {
+            Some(SubDataflowId {
                 job_id: Some(ResourceId {
                     resource_id: "resource_id".to_string(),
                     namespace_id: "namespace_id".to_string(),

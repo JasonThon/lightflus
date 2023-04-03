@@ -13,12 +13,11 @@ services:
       - '9092:9092'
     environment:
       - KAFKA_BROKER_ID=1
-      - KAFKA_CFG_LISTENERS=CLIENT://:9092,EXTERNAL://:9093
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CLIENT:PLAINTEXT,EXTERNAL:PLAINTEXT
-      - KAFKA_CFG_ADVERTISED_LISTENERS=CLIENT://kafka:9092,EXTERNAL://localhost:9093
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=CLIENT
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
     depends_on:
       - zookeeper
   mysql:
@@ -31,11 +30,9 @@ services:
       - MYSQL_USER=ci
       - MYSQL_PASSWORD=123
   redis:
-    image: 'bitnami/redis:latest'
+    image: 'redis:latest'
     ports:
       - '6379:6379'
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes
   coordinator:
     image: lightflus/coordinator
     hostname: coordinator
@@ -43,22 +40,13 @@ services:
       - '8791:8791'
     environment:
       RUST_LOG: INFO
-      WORKER_1: worker
+      TASKMANAGER_NODES: taskmanager:8792
     depends_on:
-      - worker
-  worker:
-    image: lightflus/worker
-    hostname: worker
+      - taskmanager
+  taskmanager:
+    image: lightflus/taskmanager
+    hostname: taskmanager
     ports:
       - '8792:8792'
     environment:
       RUST_LOG: INFO
-  apiserver:
-    image: lightflus/apiserver
-    environment:
-      RUST_LOG: INFO
-      LIGHTFLUS_COORDINATOR_URI: http://coordinator:8791
-    ports:
-      - "8080:8080"
-    depends_on:
-      - coordinator

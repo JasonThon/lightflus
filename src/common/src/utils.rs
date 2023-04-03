@@ -16,13 +16,6 @@ use std::io::Read;
 /// The utils for time convertion
 #[cfg(not(tarpaulin_include))]
 pub mod times {
-    use std::time::{Duration, SystemTime};
-
-    pub fn from_millis_to_utc_chrono(millis: i64) -> Option<chrono::DateTime<chrono::Utc>> {
-        SystemTime::UNIX_EPOCH
-            .checked_add(Duration::from_millis(millis as u64))
-            .map(|sys_time| chrono::DateTime::<chrono::Utc>::from(sys_time))
-    }
 
     pub fn from_prost_timestamp_to_utc_chrono(
         timestamp: &prost_types::Timestamp,
@@ -50,6 +43,27 @@ pub mod times {
         prost_types::Timestamp {
             seconds: now.timestamp(),
             nanos: now.timestamp_subsec_nanos() as i32,
+        }
+    }
+
+    pub fn now_timestamp() -> i64 {
+        now().timestamp_millis()
+    }
+
+    pub fn timestamp(timestamp: &chrono::DateTime<chrono::Utc>) -> i64 {
+        timestamp.timestamp_millis()
+    }
+}
+
+pub mod results {
+    pub fn match_process_result<F0: Fn(E) -> T1, F1: Fn(T) -> T1, T, E, T1>(
+        result: Result<T, E>,
+        err_processor: F0,
+        ok_processor: F1,
+    ) -> T1 {
+        match result {
+            Ok(val) => ok_processor(val),
+            Err(err) => err_processor(err),
         }
     }
 }
@@ -164,7 +178,7 @@ fn replace_by_env(value: &str) -> String {
 }
 
 pub fn is_remote_operator(operator: &OperatorInfo) -> bool {
-    let host_addr = &operator.host_addr.as_ref();
+    let host_addr = operator.host_addr.as_ref();
     if host_addr.is_none() || host_addr.filter(|addr| &addr.host == "localhost").is_some() {
         return false;
     }
@@ -238,6 +252,7 @@ pub fn uuid() -> String {
 
 #[cfg(test)]
 mod tests {
+
     use proto::{
         common::{operator_info::Details, ResourceId},
         common_impl::DataflowValidateError,

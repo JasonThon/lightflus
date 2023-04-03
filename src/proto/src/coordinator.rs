@@ -1,21 +1,15 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetDataflowRequest {
     #[prost(message, optional, tag = "1")]
     pub job_id: ::core::option::Option<super::common::ResourceId>,
-}
-#[derive(Clone, PartialEq, ::prost::Message)]
-pub struct GetDataflowResponse {
-    #[prost(enumeration = "super::common::DataflowStatus", tag = "1")]
-    pub status: i32,
-    #[prost(message, optional, tag = "2")]
-    pub graph: ::core::option::Option<super::common::Dataflow>,
 }
 /// Generated client implementations.
 pub mod coordinator_api_client {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
     use tonic::codegen::http::Uri;
-    #[doc = "/ RPC Api for Coordinator"]
+    /// / RPC Api for Coordinator
     #[derive(Debug, Clone)]
     pub struct CoordinatorApiClient<T> {
         inner: tonic::client::Grpc<T>,
@@ -80,8 +74,8 @@ pub mod coordinator_api_client {
             self.inner = self.inner.accept_compressed(encoding);
             self
         }
-        #[doc = "/ Attempt to deploy a new dataflow and create a JobManager."]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
+        /// / Attempt to deploy a new dataflow and create a JobManager.
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
         pub async fn create_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Dataflow>,
@@ -101,9 +95,9 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Attempt to terminate a dataflow"]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
-        #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
+        /// / Attempt to terminate a dataflow
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
+        /// / After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator
         pub async fn terminate_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::ResourceId>,
@@ -123,12 +117,15 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Get the details of a dataflow."]
-        #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
+        /// / Get the details of a dataflow.
+        /// / The details contains: each operator's status, metrics, basic information, checkpoint status, etc.
         pub async fn get_dataflow(
             &mut self,
             request: impl tonic::IntoRequest<super::GetDataflowRequest>,
-        ) -> Result<tonic::Response<super::GetDataflowResponse>, tonic::Status> {
+        ) -> Result<
+            tonic::Response<super::super::common::DataflowStates>,
+            tonic::Status,
+        > {
             self.inner
                 .ready()
                 .await
@@ -144,7 +141,7 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Receive ack"]
+        /// / Receive ack
         pub async fn receive_ack(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Ack>,
@@ -164,27 +161,7 @@ pub mod coordinator_api_client {
             );
             self.inner.unary(request.into_request(), path, codec).await
         }
-        #[doc = "/ Report task info"]
-        pub async fn report_task_info(
-            &mut self,
-            request: impl tonic::IntoRequest<super::super::common::TaskInfo>,
-        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status> {
-            self.inner
-                .ready()
-                .await
-                .map_err(|e| {
-                    tonic::Status::new(
-                        tonic::Code::Unknown,
-                        format!("Service was not ready: {}", e.into()),
-                    )
-                })?;
-            let codec = tonic::codec::ProstCodec::default();
-            let path = http::uri::PathAndQuery::from_static(
-                "/coordinator.CoordinatorApi/ReportTaskInfo",
-            );
-            self.inner.unary(request.into_request(), path, codec).await
-        }
-        #[doc = "/ Receive heartbeat"]
+        /// / Receive heartbeat
         pub async fn receive_heartbeat(
             &mut self,
             request: impl tonic::IntoRequest<super::super::common::Heartbeat>,
@@ -210,45 +187,43 @@ pub mod coordinator_api_client {
 pub mod coordinator_api_server {
     #![allow(unused_variables, dead_code, missing_docs, clippy::let_unit_value)]
     use tonic::codegen::*;
-    ///Generated trait containing gRPC methods that should be implemented for use with CoordinatorApiServer.
+    /// Generated trait containing gRPC methods that should be implemented for use with CoordinatorApiServer.
     #[async_trait]
     pub trait CoordinatorApi: Send + Sync + 'static {
-        #[doc = "/ Attempt to deploy a new dataflow and create a JobManager."]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
+        /// / Attempt to deploy a new dataflow and create a JobManager.
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
         async fn create_dataflow(
             &self,
             request: tonic::Request<super::super::common::Dataflow>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Attempt to terminate a dataflow"]
-        #[doc = "/ Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously."]
-        #[doc = "/ After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator"]
+        /// / Attempt to terminate a dataflow
+        /// / Unless bump into network problems, JobManager will be informed the status of the deployed dataflow asynchronously.
+        /// / After the status is transitioned into TERMINATED, the JobManager will be removed from coordinator
         async fn terminate_dataflow(
             &self,
             request: tonic::Request<super::super::common::ResourceId>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Get the details of a dataflow."]
-        #[doc = "/ The details contains: each operator's status, metrics, basic information, checkpoint status, etc."]
+        /// / Get the details of a dataflow.
+        /// / The details contains: each operator's status, metrics, basic information, checkpoint status, etc.
         async fn get_dataflow(
             &self,
             request: tonic::Request<super::GetDataflowRequest>,
-        ) -> Result<tonic::Response<super::GetDataflowResponse>, tonic::Status>;
-        #[doc = "/ Receive ack"]
+        ) -> Result<
+            tonic::Response<super::super::common::DataflowStates>,
+            tonic::Status,
+        >;
+        /// / Receive ack
         async fn receive_ack(
             &self,
             request: tonic::Request<super::super::common::Ack>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Report task info"]
-        async fn report_task_info(
-            &self,
-            request: tonic::Request<super::super::common::TaskInfo>,
-        ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
-        #[doc = "/ Receive heartbeat"]
+        /// / Receive heartbeat
         async fn receive_heartbeat(
             &self,
             request: tonic::Request<super::super::common::Heartbeat>,
         ) -> Result<tonic::Response<super::super::common::Response>, tonic::Status>;
     }
-    #[doc = "/ RPC Api for Coordinator"]
+    /// / RPC Api for Coordinator
     #[derive(Debug)]
     pub struct CoordinatorApiServer<T: CoordinatorApi> {
         inner: _Inner<T>,
@@ -395,7 +370,7 @@ pub mod coordinator_api_server {
                         T: CoordinatorApi,
                     > tonic::server::UnaryService<super::GetDataflowRequest>
                     for GetDataflowSvc<T> {
-                        type Response = super::GetDataflowResponse;
+                        type Response = super::super::common::DataflowStates;
                         type Future = BoxFuture<
                             tonic::Response<Self::Response>,
                             tonic::Status,
@@ -455,46 +430,6 @@ pub mod coordinator_api_server {
                     let fut = async move {
                         let inner = inner.0;
                         let method = ReceiveAckSvc(inner);
-                        let codec = tonic::codec::ProstCodec::default();
-                        let mut grpc = tonic::server::Grpc::new(codec)
-                            .apply_compression_config(
-                                accept_compression_encodings,
-                                send_compression_encodings,
-                            );
-                        let res = grpc.unary(method, req).await;
-                        Ok(res)
-                    };
-                    Box::pin(fut)
-                }
-                "/coordinator.CoordinatorApi/ReportTaskInfo" => {
-                    #[allow(non_camel_case_types)]
-                    struct ReportTaskInfoSvc<T: CoordinatorApi>(pub Arc<T>);
-                    impl<
-                        T: CoordinatorApi,
-                    > tonic::server::UnaryService<super::super::common::TaskInfo>
-                    for ReportTaskInfoSvc<T> {
-                        type Response = super::super::common::Response;
-                        type Future = BoxFuture<
-                            tonic::Response<Self::Response>,
-                            tonic::Status,
-                        >;
-                        fn call(
-                            &mut self,
-                            request: tonic::Request<super::super::common::TaskInfo>,
-                        ) -> Self::Future {
-                            let inner = self.0.clone();
-                            let fut = async move {
-                                (*inner).report_task_info(request).await
-                            };
-                            Box::pin(fut)
-                        }
-                    }
-                    let accept_compression_encodings = self.accept_compression_encodings;
-                    let send_compression_encodings = self.send_compression_encodings;
-                    let inner = self.inner.clone();
-                    let fut = async move {
-                        let inner = inner.0;
-                        let method = ReportTaskInfoSvc(inner);
                         let codec = tonic::codec::ProstCodec::default();
                         let mut grpc = tonic::server::Grpc::new(codec)
                             .apply_compression_config(

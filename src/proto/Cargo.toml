@@ -14,13 +14,16 @@ chrono = "0.4"
 tokio = { version = "1", features = ["sync"] }
 futures-executor = "0.3"
 tracing = "0.1"
+bytes = { version = "1", features = ["serde"] }
+apache-avro = "0.14"
 
 [features]
-worker = ["proto-common"]
+taskmanager = ["proto-common"]
 coordinator = ["proto-common"]
 apiserver = ["proto-common"]
 proto-common = []
-all = ["worker", "coordinator", "proto-common"]
+all = ["taskmanager", "coordinator", "proto-common"]
 
 [build-dependencies]
 tonic-build = "0.8"
+prost-build = "0.11.6"

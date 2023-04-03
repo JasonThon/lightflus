@@ -16,6 +16,7 @@ services:
       - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://127.0.0.1:9092
       - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
       - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE=true
     depends_on:
       - zookeeper
   mysql:
@@ -28,8 +29,6 @@ services:
       - MYSQL_USER=ci
       - MYSQL_PASSWORD=123
   redis:
-    image: 'bitnami/redis:latest'
+    image: 'redis:latest'
     ports:
       - '6379:6379'
-    environment:
-      - ALLOW_EMPTY_PASSWORD=yes

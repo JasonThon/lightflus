@@ -1,65 +1,65 @@
-use std::{fs, time::Duration};
+use std::{env, time::Duration};
 
-use api::CoordinatorApiImpl;
-use common::utils;
+use actix_web::{web, App};
+
+use lightflus_core::{
+    apiserver::handler::{
+        resources::{create_resource, get_resource, list_resources, overview},
+        COORDINATOR_URI_ENV, RESOURCES_HANDLER_ROOT,
+    },
+    coordinator::{
+        api::CoordinatorApiImpl,
+        coord::{self, load_builder},
+    },
+};
+
 use proto::coordinator::coordinator_api_server::CoordinatorApiServer;
 use tonic::transport::Server;
-
-mod api;
-mod coord;
-mod executions;
-mod managers;
-mod scheduler;
-mod storage;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt::init();
-    let config_file_path = utils::Args::default().arg("c").map(|arg| arg.value.clone());
+    let builder = &mut load_builder();
 
-    let file_result =
-        fs::File::open(config_file_path.unwrap_or("src/coordinator/etc/coord.json".to_string()));
-    if file_result.is_err() {
-        panic!(
-            "{}",
-            format!("fail to read config file: {:?}", file_result.unwrap_err())
-        )
-    }
-    let file = file_result.unwrap();
-    let env_setup = common::utils::from_reader(file);
-    if env_setup.is_err() {
-        panic!(
-            "{}",
-            format!("fail to read config file: {:?}", env_setup.unwrap_err())
-        )
-    }
-    let value = env_setup.unwrap();
-
-    let reader = serde_json::from_str::<coord::CoordinatorBuilder>(value.as_str());
-    if reader.is_err() {
-        panic!(
-            "{}",
-            format!("fail to parser config file: {:?}", reader.unwrap_err())
-        )
-    }
-
-    let mut builder = reader.unwrap();
-    replace_builder_args_by_env(&mut builder);
+    replace_builder_args_by_env(builder);
 
     let coordinator = builder.build();
-    let server = CoordinatorApiImpl::new(coordinator);
 
     let addr = format!("0.0.0.0:{}", builder.port).parse()?;
+    env::set_var(COORDINATOR_URI_ENV, format!("localhost:{}", builder.port));
+
+    let handler = tokio::spawn(
+        actix_web::HttpServer::new(move || {
+            App::new()
+                .service(
+                    web::scope(RESOURCES_HANDLER_ROOT)
+                        .service(create_resource)
+                        .service(get_resource)
+                        .service(list_resources),
+                )
+                .service(overview)
+        })
+        .client_disconnect_timeout(Duration::from_secs(3))
+        .client_request_timeout(Duration::from_secs(3))
+        .worker_max_blocking_threads(10)
+        .workers(3)
+        .bind(("0.0.0.0", 8080))?
+        .run(),
+    );
+
     tracing::info!("service will start at {}", builder.port);
 
     Server::builder()
         .timeout(Duration::from_secs(3))
-        .concurrency_limit_per_connection(5)
-        .add_service(CoordinatorApiServer::new(server))
+        .add_service(CoordinatorApiServer::new(CoordinatorApiImpl::new(
+            coordinator,
+        )))
         .serve(addr)
         .await?;
+
+    handler.abort();
 
     Ok(())
 }
 
-fn replace_builder_args_by_env(builder: &mut coord::CoordinatorBuilder) {}
+fn replace_builder_args_by_env(_builder: &mut coord::CoordinatorBuilder) {}

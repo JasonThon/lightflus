@@ -1,3 +1,4 @@
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateResourceRequest {
     /// namespace
@@ -11,12 +12,14 @@ pub struct CreateResourceRequest {
 }
 /// Nested message and enum types in `CreateResourceRequest`.
 pub mod create_resource_request {
+    #[allow(clippy::derive_partial_eq_without_eq)]
     #[derive(Clone, PartialEq, ::prost::Oneof)]
     pub enum Options {
         #[prost(message, tag = "3")]
         Dataflow(super::CreateDataflowOptions),
     }
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateResourceResponse {
     #[prost(enumeration = "ResourceStatusEnum", tag = "1")]
@@ -26,11 +29,13 @@ pub struct CreateResourceResponse {
     #[prost(string, tag = "3")]
     pub error_msg: ::prost::alloc::string::String,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct CreateDataflowOptions {
     #[prost(message, optional, tag = "1")]
     pub dataflow: ::core::option::Option<super::common::Dataflow>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListResourcesRequest {
     /// namespace
@@ -40,11 +45,13 @@ pub struct ListResourcesRequest {
     #[prost(enumeration = "ResourceTypeEnum", tag = "2")]
     pub resource_type: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct ListResourcesResponse {
     #[prost(message, repeated, tag = "1")]
     pub resources: ::prost::alloc::vec::Vec<Resource>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct Resource {
     #[prost(message, optional, tag = "1")]
@@ -57,21 +64,25 @@ pub struct Resource {
     #[prost(enumeration = "ResourceStatusEnum", tag = "4")]
     pub status: i32,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetResourceRequest {
     #[prost(message, optional, tag = "1")]
     pub resource_id: ::core::option::Option<super::common::ResourceId>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct GetResourceResponse {
     #[prost(message, optional, tag = "1")]
     pub resource: ::core::option::Option<Resource>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteResourceRequest {
     #[prost(message, optional, tag = "1")]
     pub resource_id: ::core::option::Option<super::common::ResourceId>,
 }
+#[allow(clippy::derive_partial_eq_without_eq)]
 #[derive(Clone, PartialEq, ::prost::Message)]
 pub struct DeleteResourceResponse {
     #[prost(message, optional, tag = "1")]
@@ -92,6 +103,14 @@ impl ResourceTypeEnum {
         match self {
             ResourceTypeEnum::Unspecific => "RESOURCE_TYPE_ENUM_UNSPECIFIC",
             ResourceTypeEnum::Dataflow => "RESOURCE_TYPE_ENUM_DATAFLOW",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "RESOURCE_TYPE_ENUM_UNSPECIFIC" => Some(Self::Unspecific),
+            "RESOURCE_TYPE_ENUM_DATAFLOW" => Some(Self::Dataflow),
+            _ => None,
         }
     }
 }
@@ -118,6 +137,18 @@ impl ResourceStatusEnum {
             ResourceStatusEnum::Failure => "RESOURCE_STATUS_ENUM_FAILURE",
             ResourceStatusEnum::Stopping => "RESOURCE_STATUS_ENUM_STOPPING",
             ResourceStatusEnum::Deleted => "RESOURCE_STATUS_ENUM_DELETED",
+        }
+    }
+    /// Creates an enum from field names used in the ProtoBuf definition.
+    pub fn from_str_name(value: &str) -> ::core::option::Option<Self> {
+        match value {
+            "RESOURCE_STATUS_ENUM_UNSPECIFIC" => Some(Self::Unspecific),
+            "RESOURCE_STATUS_ENUM_STARTING" => Some(Self::Starting),
+            "RESOURCE_STATUS_ENUM_RUNNING" => Some(Self::Running),
+            "RESOURCE_STATUS_ENUM_FAILURE" => Some(Self::Failure),
+            "RESOURCE_STATUS_ENUM_STOPPING" => Some(Self::Stopping),
+            "RESOURCE_STATUS_ENUM_DELETED" => Some(Self::Deleted),
+            _ => None,
         }
     }
 }

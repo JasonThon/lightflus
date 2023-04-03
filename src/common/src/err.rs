@@ -1,92 +1,77 @@
-use core::fmt;
-use std::io;
+use std::fmt::Display;
 
-use proto::{
-    common::{ErrorCode, ResourceId, Response},
-    common_impl::DataflowValidateError,
-};
+use proto::{common::ErrorCode, common_impl::DataflowValidateError};
 
 use rdkafka::error::KafkaError;
-use tokio::sync::mpsc;
+use tonic::metadata::MetadataValue;
 
-use crate::{event::LocalEvent, types::SinkId};
+pub type BizCode = i32;
+pub type ErrorTypeCode = i32;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct ApiError {
-    pub code: i32,
-    pub msg: String,
+const X_LIGHTFLUS_CODE_METADATA_KEY: &str = "x-lightflus-code";
+const LIGHTFLUS_RPC_CODE: &str = "999";
+
+#[derive(Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, Clone, Debug)]
+pub struct BizError {
+    pub biz_code: BizCode,
+    pub error_code: ErrorTypeCode,
+    pub message: String,
 }
 
-impl From<&mut tonic::transport::Error> for ApiError {
-    fn from(err: &mut tonic::transport::Error) -> Self {
-        Self {
-            code: ErrorCode::InternalError as i32,
-            msg: err.to_string(),
-        }
+impl Display for BizError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "code [{}], errorCode [{}], message [{}]",
+            self.biz_code, self.error_code, self.message
+        ))
     }
 }
 
-impl From<tonic::transport::Error> for ApiError {
-    fn from(err: tonic::transport::Error) -> Self {
-        Self {
-            code: ErrorCode::InternalError as i32,
-            msg: err.to_string(),
-        }
+#[derive(Clone, Debug)]
+pub struct RpcError {
+    pub biz_err: BizError,
+    pub status: tonic::Status,
+}
+
+impl Display for RpcError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!(
+            "RpcError status: [{}], details: [{}]",
+            self.status, self.biz_err
+        ))
     }
 }
 
-impl fmt::Display for ApiError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(serde_json::to_string(self).unwrap().as_str())
-    }
-}
-
-impl ApiError {
-    pub fn from_error<T: Error>(err: T) -> Self {
-        Self {
-            code: err.code() as i32,
-            msg: err.msg(),
-        }
-    }
-
+impl RpcError {
     pub fn into_tonic_status(&self) -> tonic::Status {
-        todo!()
+        match serde_json::to_string(&self.biz_err).map(|message| {
+            let mut r = tonic::Status::new(self.status.code(), message);
+            r.metadata_mut().append(
+                X_LIGHTFLUS_CODE_METADATA_KEY,
+                MetadataValue::from_static(LIGHTFLUS_RPC_CODE),
+            );
+            r
+        }) {
+            Ok(status) => status,
+            Err(err) => tonic::Status::internal(err.to_string()),
+        }
     }
-}
 
-impl From<tonic::Status> for ApiError {
-    fn from(err: tonic::Status) -> Self {
-        let msg = format!("{}", err);
-        match err.code() {
-            tonic::Code::InvalidArgument => Self {
-                code: ErrorCode::RpcInvalidArgument as i32,
-                msg,
-            },
-            tonic::Code::NotFound => Self {
-                code: ErrorCode::ResourceNotFound as i32,
-                msg,
-            },
-            tonic::Code::PermissionDenied => Self {
-                code: ErrorCode::RpcPermissionDenied as i32,
-                msg,
-            },
-            tonic::Code::Unauthenticated => Self {
-                code: ErrorCode::RpcUnauthorized as i32,
-                msg,
-            },
-            _ => Self {
-                code: ErrorCode::InternalError as i32,
-                msg,
-            },
+    pub fn parse(status: tonic::Status) -> Result<Self, tonic::Status> {
+        if matches!(status
+            .metadata()
+            .get(X_LIGHTFLUS_CODE_METADATA_KEY), Some(val) if val == LIGHTFLUS_RPC_CODE)
+        {
+            serde_json::from_str::<BizError>(status.message())
+                .map(|biz_err| Self { biz_err, status })
+                .map_err(|err| tonic::Status::internal(err.to_string()))
+        } else {
+            Err(status)
         }
     }
 }
 
 impl Error for DataflowValidateError {
-    fn kind(&self) -> ErrorKind {
-        ErrorKind::DataflowValidateFailed
-    }
-
     fn msg(&self) -> String {
         serde_json::to_string(self).unwrap_or_default()
     }
@@ -104,198 +89,9 @@ impl Error for DataflowValidateError {
 }
 
 pub trait Error {
-    fn to_string(&self) -> String {
-        serde_json::to_string(&ApiError {
-            code: self.code() as i32,
-            msg: format!("Error Kind: {:?}. Message: {}", self.kind(), self.msg()),
-        })
-        .unwrap()
-    }
-
-    fn kind(&self) -> ErrorKind;
-
     fn msg(&self) -> String;
 
     fn code(&self) -> ErrorCode;
-}
-
-impl From<&Response> for ApiError {
-    fn from(_resp: &Response) -> Self {
-        todo!()
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct CommonException {
-    pub kind: ErrorKind,
-    pub message: String,
-}
-
-#[derive(Clone, Debug)]
-pub enum ErrorKind {
-    NoAvailableWorker,
-    InvalidDataflow,
-    SinkLocalEventFailure,
-    IllegalConnectionType,
-    Timeout,
-    InvalidEndpoint,
-    ConnectionRefused,
-    ConnectionAborted,
-    NetworkDown,
-    UnexpectedEof,
-    NotConnected,
-    NotFound,
-    Unknown,
-    InvalidJson,
-    SaveDataflowFailed,
-    GetDataflowFailed,
-    UnexpectedWireType,
-    IncorrectWireTag,
-    IncompleteWireMap,
-    IncorrectVarint,
-    Utf8Error,
-    InvalidEnumValue,
-    OverRecursionLimit,
-    TruncatedMessage,
-    MessageNotInitialized,
-    OpenDBFailed,
-    DeleteDataflowFailed,
-    Other,
-    DataflowValidateFailed,
-}
-
-impl From<std::io::Error> for CommonException {
-    fn from(err: std::io::Error) -> Self {
-        match err.kind() {
-            io::ErrorKind::TimedOut => CommonException::new(ErrorKind::Timeout, "request timeout"),
-            io::ErrorKind::AddrNotAvailable => {
-                CommonException::new(ErrorKind::InvalidEndpoint, "endpoint address is invalid")
-            }
-            io::ErrorKind::ConnectionRefused => {
-                CommonException::new(ErrorKind::ConnectionRefused, "connection refused")
-            }
-            io::ErrorKind::ConnectionAborted => {
-                CommonException::new(ErrorKind::ConnectionAborted, "connection abort")
-            }
-            io::ErrorKind::UnexpectedEof => {
-                CommonException::new(ErrorKind::UnexpectedEof, "unexpected eof")
-            }
-            io::ErrorKind::NotConnected => {
-                CommonException::new(ErrorKind::NotConnected, "not connected")
-            }
-            io::ErrorKind::NotFound => CommonException::new(ErrorKind::NotFound, "not found"),
-            _ => CommonException::new(ErrorKind::Unknown, "unknown error"),
-        }
-    }
-}
-
-impl From<serde_json::Error> for CommonException {
-    fn from(err: serde_json::Error) -> Self {
-        Self::new(
-            ErrorKind::InvalidJson,
-            format!("invalid json: {}", err).as_str(),
-        )
-    }
-}
-
-impl CommonException {
-    pub fn new(kind: ErrorKind, msg: &str) -> CommonException {
-        CommonException {
-            kind,
-            message: msg.to_string(),
-        }
-    }
-
-    pub fn to_api_error(&self) -> Result<(), ApiError> {
-        todo!()
-    }
-}
-
-impl Error for CommonException {
-    fn kind(&self) -> ErrorKind {
-        self.kind.clone()
-    }
-
-    fn msg(&self) -> String {
-        self.message.clone()
-    }
-
-    fn code(&self) -> ErrorCode {
-        ErrorCode::InternalError
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ExecutionException {
-    pub kind: ErrorKind,
-    pub msg: String,
-}
-
-impl Error for ExecutionException {
-    fn kind(&self) -> ErrorKind {
-        self.kind.clone()
-    }
-
-    fn msg(&self) -> String {
-        self.msg.clone()
-    }
-
-    fn code(&self) -> ErrorCode {
-        ErrorCode::InternalError
-    }
-}
-
-impl ExecutionException {
-    pub fn invalid_dataflow(job_id: &ResourceId) -> ExecutionException {
-        ExecutionException {
-            kind: ErrorKind::InvalidDataflow,
-            msg: format!("Invalid job graph with id {:?}", job_id),
-        }
-    }
-
-    pub fn sink_local_event_failure(
-        job_id: &ResourceId,
-        event: &LocalEvent,
-        sink_id: SinkId,
-        err_msg: String,
-    ) -> ExecutionException {
-        ExecutionException {
-            kind: ErrorKind::SinkLocalEventFailure,
-            msg: format!(
-                "job id {job_id:?} sink msg {event:?} to {} failed. {err_msg:?}",
-                sink_id
-            ),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub enum TaskWorkerError {
-    ChannelDisconnected,
-    ChannelEmpty,
-    ExecutionError(String),
-    EventSendFailure(String),
-}
-
-impl From<mpsc::error::TryRecvError> for TaskWorkerError {
-    fn from(err: mpsc::error::TryRecvError) -> Self {
-        match err {
-            mpsc::error::TryRecvError::Empty => TaskWorkerError::ChannelEmpty,
-            mpsc::error::TryRecvError::Disconnected => TaskWorkerError::ChannelDisconnected,
-        }
-    }
-}
-
-impl From<ExecutionException> for TaskWorkerError {
-    fn from(err: ExecutionException) -> Self {
-        Self::ExecutionError(err.to_string())
-    }
-}
-
-impl TaskWorkerError {
-    pub fn into_grpc_status(&self) -> tonic::Status {
-        todo!()
-    }
 }
 
 #[derive(Debug)]

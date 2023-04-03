@@ -95,10 +95,12 @@ pub struct KafkaConsumer {
     consumer: StreamConsumer,
 }
 
-#[derive(Clone)]
+/// A wrapper of kafka message with key, payload and timestamp
+/// Differently, key and payload are [bytes::Bytes] which may zero-copy when sharing kafka message between threads
+#[derive(Clone, Debug)]
 pub struct KafkaMessage {
-    pub key: Vec<u8>,
-    pub payload: Vec<u8>,
+    pub key: bytes::Bytes,
+    pub payload: bytes::Bytes,
     pub timestamp: Option<i64>,
 }
 
@@ -116,10 +118,38 @@ impl KafkaConsumer {
                 Ok(msg) => {
                     let msg = msg.detach();
                     msg.payload().map(|payload| {
-                        let key = msg.key().map(|key| key.to_vec()).unwrap_or_default();
+                        let key = msg
+                            .key()
+                            .map(|key| bytes::Bytes::copy_from_slice(key))
+                            .unwrap_or_default();
                         processor(KafkaMessage {
                             key,
-                            payload: payload.to_vec(),
+                            payload: bytes::Bytes::copy_from_slice(payload),
+                            timestamp: msg.timestamp().to_millis(),
+                        })
+                    })
+                }
+                Err(err) => {
+                    tracing::error!("fail to fetch data from kafka: {}", err);
+                    None
+                }
+            })
+    }
+
+    pub fn blocking_fetch<M, F: Fn(KafkaMessage) -> M>(&self, processor: F) -> Option<M> {
+        futures_executor::block_on_stream(self.consumer.stream())
+            .next()
+            .and_then(|result| match result {
+                Ok(msg) => {
+                    let msg = msg.detach();
+                    msg.payload().map(|payload| {
+                        let key = msg
+                            .key()
+                            .map(|key| bytes::Bytes::copy_from_slice(key))
+                            .unwrap_or_default();
+                        processor(KafkaMessage {
+                            key,
+                            payload: bytes::Bytes::copy_from_slice(payload),
                             timestamp: msg.timestamp().to_millis(),
                         })
                     })

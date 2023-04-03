@@ -74,18 +74,23 @@ impl MockRpcGateway {
     }
 }
 
-pub mod worker {
+pub mod taskmanager {
     use std::{sync::Arc, time::Duration};
 
     use prost::Message;
     use proto::{
-        common::{Ack, Heartbeat, HostAddr, KeyedDataEvent, ResourceId, Response},
-        worker::{
-            task_worker_api_client::TaskWorkerApiClient, CreateSubDataflowRequest,
-            CreateSubDataflowResponse, SendEventToOperatorResponse, StopDataflowResponse,
+        common::{
+            Ack, Heartbeat, HostAddr, KeyedDataEvent, KeyedEventSet, ResourceId, Response,
+            SubDataflowStates,
+        },
+        taskmanager::{
+            task_manager_api_client::TaskManagerApiClient, BatchSendEventsToOperatorResponse,
+            CreateSubDataflowRequest, CreateSubDataflowResponse, SendEventToOperatorResponse,
+            StopDataflowResponse,
         },
     };
-    use tonic::async_trait;
+    use tokio::sync::Mutex;
+    use tonic::{async_trait, transport::Channel};
 
     use crate::net::DEFAULT_RPC_TIMEOUT;
 
@@ -94,15 +99,15 @@ pub mod worker {
         RpcGateway,
     };
 
-    /// A thread-safe RpcGateway wrapper for [`TaskWorkerApiClient`]. It's also reponsible for concurrency control of client-side gRPC.
-    /// [`SafeTaskWorkerRpcGateway`] ensures only one thread can call [`TaskWorkerApiClient`] at the same time. Requests have to be sent FIFO, without any fault tolerance.
+    /// A thread-safe RpcGateway wrapper for [`TaskManagerApiClient`]. It's also reponsible for concurrency control of client-side gRPC.
+    /// [`SafeTaskWorkerRpcGateway`] ensures only one thread can call [`TaskManagerApiClient`] at the same time. Requests have to be sent FIFO, without any fault tolerance.
     /// [`SafeTaskWorkerRpcGateway`] can be shared in different threads safely.
     #[derive(Debug, Clone)]
     pub struct SafeTaskManagerRpcGateway {
-        inner: Arc<tokio::sync::Mutex<Option<TaskWorkerApiClient<tonic::transport::Channel>>>>,
+        inner: Arc<Mutex<Option<TaskManagerApiClient<Channel>>>>,
         host_addr: HostAddr,
-        connect_timeout: u64,
-        rpc_timeout: u64,
+        connect_timeout: Duration,
+        rpc_timeout: Duration,
     }
 
     unsafe impl Send for SafeTaskManagerRpcGateway {}
@@ -121,7 +126,7 @@ pub mod worker {
         async fn receive_ack(&self, request: Ack) -> Result<Response, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
-                TaskWorkerApiClient::with_connection_timeout(
+                TaskManagerApiClient::with_connection_timeout(
                     self.host_addr.as_uri(),
                     Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
                 )
@@ -139,7 +144,7 @@ pub mod worker {
         async fn receive_heartbeat(&self, request: Heartbeat) -> Result<Response, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
-                TaskWorkerApiClient::with_connection_timeout(
+                TaskManagerApiClient::with_connection_timeout(
                     self.host_addr.as_uri(),
                     Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
                 )
@@ -154,23 +159,25 @@ pub mod worker {
 
     impl SafeTaskManagerRpcGateway {
         pub fn new(host_addr: &HostAddr) -> Self {
-            let client = TaskWorkerApiClient::with_connection_timeout(
+            let client = TaskManagerApiClient::with_connection_timeout(
                 host_addr.as_uri(),
                 Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
             );
             Self {
                 inner: Arc::new(tokio::sync::Mutex::new(Some(client))),
                 host_addr: host_addr.clone(),
-                connect_timeout: DEFAULT_CONNECT_TIMEOUT,
-                rpc_timeout: DEFAULT_RPC_TIMEOUT,
+                connect_timeout: Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
+                rpc_timeout: Duration::from_secs(DEFAULT_RPC_TIMEOUT),
             }
         }
 
-        pub fn with_timeout(host_addr: &HostAddr, connect_timeout: u64, rpc_timeout: u64) -> Self {
-            let client = TaskWorkerApiClient::with_connection_timeout(
-                host_addr.as_uri(),
-                Duration::from_secs(connect_timeout),
-            );
+        pub fn with_timeout(
+            host_addr: &HostAddr,
+            connect_timeout: Duration,
+            rpc_timeout: Duration,
+        ) -> Self {
+            let client =
+                TaskManagerApiClient::with_connection_timeout(host_addr.as_uri(), connect_timeout);
             Self {
                 inner: Arc::new(tokio::sync::Mutex::new(Some(client))),
                 host_addr: host_addr.clone(),
@@ -185,14 +192,14 @@ pub mod worker {
         ) -> Result<SendEventToOperatorResponse, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
-                TaskWorkerApiClient::with_connection_timeout(
+                TaskManagerApiClient::with_connection_timeout(
                     self.host_addr.as_uri(),
-                    Duration::from_secs(self.connect_timeout),
+                    self.connect_timeout,
                 )
             });
 
             let mut request = tonic::Request::new(event);
-            request.set_timeout(Duration::from_secs(self.rpc_timeout));
+            request.set_timeout(self.rpc_timeout);
 
             inner
                 .send_event_to_operator(request)
@@ -206,14 +213,14 @@ pub mod worker {
         ) -> Result<StopDataflowResponse, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
-                TaskWorkerApiClient::with_connection_timeout(
+                TaskManagerApiClient::with_connection_timeout(
                     self.host_addr.as_uri(),
-                    Duration::from_secs(self.connect_timeout),
+                    self.connect_timeout,
                 )
             });
 
             let mut request = tonic::Request::new(job_id);
-            request.set_timeout(Duration::from_secs(self.rpc_timeout));
+            request.set_timeout(self.rpc_timeout);
 
             inner
                 .stop_dataflow(request)
@@ -227,14 +234,115 @@ pub mod worker {
         ) -> Result<CreateSubDataflowResponse, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
-                TaskWorkerApiClient::with_connection_timeout(
+                TaskManagerApiClient::with_connection_timeout(
                     self.host_addr.as_uri(),
-                    Duration::from_secs(self.connect_timeout),
+                    self.connect_timeout,
                 )
             });
 
             let mut request = tonic::Request::new(req);
-            request.set_timeout(Duration::from_secs(self.rpc_timeout));
+            request.set_timeout(self.rpc_timeout);
+
+            let result = inner
+                .create_sub_dataflow(request)
+                .await
+                .map(|resp| resp.into_inner());
+
+            drop(guard);
+            result
+        }
+
+        pub fn close(&mut self) {
+            self.host_addr.clear();
+            drop(self.inner.as_ref())
+        }
+
+        pub async fn batch_send_events_to_operator(
+            &self,
+            req: KeyedEventSet,
+        ) -> Result<BatchSendEventsToOperatorResponse, tonic::Status> {
+            let mut guard = self.inner.lock().await;
+            let inner = guard.get_or_insert_with(|| {
+                TaskManagerApiClient::with_connection_timeout(
+                    self.host_addr.as_uri(),
+                    self.connect_timeout,
+                )
+            });
+
+            let mut request = tonic::Request::new(req);
+            request.set_timeout(self.rpc_timeout);
+
+            inner
+                .batch_send_events_to_operator(request)
+                .await
+                .map(|resp| resp.into_inner())
+        }
+
+        pub async fn get_sub_dataflow(
+            &self,
+            req: ResourceId,
+        ) -> Result<SubDataflowStates, tonic::Status> {
+            let mut guard = self.inner.lock().await;
+            let inner = guard.get_or_insert_with(|| {
+                TaskManagerApiClient::with_connection_timeout(
+                    self.host_addr.as_uri(),
+                    self.connect_timeout,
+                )
+            });
+
+            let mut request = tonic::Request::new(req);
+            request.set_timeout(self.rpc_timeout);
+
+            inner
+                .get_sub_dataflow(request)
+                .await
+                .map(|resp| resp.into_inner())
+        }
+    }
+
+    #[derive(Clone)]
+    pub struct UnsafeTaskManagerRpcGateway {
+        inner: Option<TaskManagerApiClient<tonic::transport::Channel>>,
+        connect_timeout: Duration,
+        rpc_timeout: Duration,
+        host_addr: HostAddr,
+    }
+
+    impl RpcGateway for UnsafeTaskManagerRpcGateway {
+        fn get_host_addr(&self) -> &HostAddr {
+            &self.host_addr
+        }
+    }
+
+    impl UnsafeTaskManagerRpcGateway {
+        pub fn with_timeout(
+            host_addr: &HostAddr,
+            connect_timeout: Duration,
+            rpc_timeout: Duration,
+        ) -> Self {
+            Self {
+                inner: Some(TaskManagerApiClient::with_connection_timeout(
+                    host_addr.as_uri(),
+                    connect_timeout,
+                )),
+                connect_timeout,
+                rpc_timeout,
+                host_addr: host_addr.clone(),
+            }
+        }
+
+        pub async fn create_sub_dataflow(
+            &mut self,
+            req: CreateSubDataflowRequest,
+        ) -> Result<CreateSubDataflowResponse, tonic::Status> {
+            let inner = self.inner.get_or_insert_with(|| {
+                TaskManagerApiClient::with_connection_timeout(
+                    self.host_addr.as_uri(),
+                    self.connect_timeout,
+                )
+            });
+            let mut request = tonic::Request::new(req);
+            request.set_timeout(self.rpc_timeout);
 
             inner
                 .create_sub_dataflow(request)
@@ -242,9 +350,24 @@ pub mod worker {
                 .map(|resp| resp.into_inner())
         }
 
-        pub fn close(&mut self) {
-            self.host_addr.clear();
-            drop(self.inner.as_ref())
+        pub async fn send_event_to_operator(
+            &mut self,
+            event: KeyedDataEvent,
+        ) -> Result<SendEventToOperatorResponse, tonic::Status> {
+            let inner = self.inner.get_or_insert_with(|| {
+                TaskManagerApiClient::with_connection_timeout(
+                    self.host_addr.as_uri(),
+                    self.connect_timeout,
+                )
+            });
+
+            let mut request = tonic::Request::new(event);
+            request.set_timeout(self.rpc_timeout);
+
+            inner
+                .send_event_to_operator(request)
+                .await
+                .map(|resp| resp.into_inner())
         }
     }
 }
@@ -256,10 +379,8 @@ pub mod coordinator {
     use tonic::async_trait;
 
     use proto::{
-        common::{Ack, Dataflow, Heartbeat, HostAddr, ResourceId, Response, TaskInfo},
-        coordinator::{
-            coordinator_api_client::CoordinatorApiClient, GetDataflowRequest, GetDataflowResponse,
-        },
+        common::{Ack, Dataflow, DataflowStates, Heartbeat, HostAddr, ResourceId, Response},
+        coordinator::{coordinator_api_client::CoordinatorApiClient, GetDataflowRequest},
     };
 
     use crate::net::{DEFAULT_CONNECT_TIMEOUT, DEFAULT_RPC_TIMEOUT};
@@ -326,11 +447,12 @@ pub mod coordinator {
     }
 
     impl SafeCoordinatorRpcGateway {
-        pub fn new(host_addr: &HostAddr) -> Self {
-            let client = futures_executor::block_on(CoordinatorApiClient::connect_with_timeout(
+        pub async fn new(host_addr: &HostAddr) -> Self {
+            let client = CoordinatorApiClient::connect_with_timeout(
                 host_addr.as_uri(),
                 Duration::from_secs(DEFAULT_CONNECT_TIMEOUT),
-            ));
+            )
+            .await;
             Self {
                 inner: Arc::new(tokio::sync::Mutex::new(client.ok())),
                 host_addr: host_addr.clone(),
@@ -348,10 +470,13 @@ pub mod coordinator {
                 )
             });
 
-            inner
+            let result = inner
                 .create_dataflow(tonic::Request::new(dataflow))
                 .await
-                .map(|resp| resp.into_inner())
+                .map(|resp| resp.into_inner());
+
+            drop(guard);
+            result
         }
 
         pub async fn terminate_dataflow(&self, req: ResourceId) -> Result<Response, tonic::Status> {
@@ -374,7 +499,7 @@ pub mod coordinator {
         pub async fn get_dataflow(
             &self,
             req: GetDataflowRequest,
-        ) -> Result<GetDataflowResponse, tonic::Status> {
+        ) -> Result<DataflowStates, tonic::Status> {
             let mut guard = self.inner.lock().await;
             let inner = guard.get_or_insert_with(|| {
                 CoordinatorApiClient::with_connection_timeout(
@@ -388,27 +513,6 @@ pub mod coordinator {
 
             inner
                 .get_dataflow(request)
-                .await
-                .map(|resp| resp.into_inner())
-        }
-
-        pub async fn report_task_info(
-            &mut self,
-            request: TaskInfo,
-        ) -> Result<Response, tonic::Status> {
-            let mut guard = self.inner.lock().await;
-            let inner = guard.get_or_insert_with(|| {
-                CoordinatorApiClient::with_connection_timeout(
-                    self.host_addr.as_uri(),
-                    Duration::from_secs(self.connect_timeout),
-                )
-            });
-
-            let mut request = tonic::Request::new(request);
-            request.set_timeout(Duration::from_secs(self.rpc_timeout));
-
-            inner
-                .report_task_info(request)
                 .await
                 .map(|resp| resp.into_inner())
         }

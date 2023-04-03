@@ -7,145 +7,12 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'proto'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--lib",
-                    "--package=proto"
-                ],
-                "filter": {
-                    "name": "proto",
-                    "kind": "lib"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in library 'stream'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--lib",
-                    "--package=stream"
-                ],
-                "filter": {
-                    "name": "stream",
-                    "kind": "lib"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug unit tests in library 'common'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--lib",
-                    "--package=common"
-                ],
-                "filter": {
-                    "name": "common",
-                    "kind": "lib"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug integration test 'test_net'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--test=test_net",
-                    "--package=common"
-                ],
-                "filter": {
-                    "name": "test_net",
-                    "kind": "test"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug integration test 'test_utils'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--test=test_utils",
-                    "--package=common"
-                ],
-                "filter": {
-                    "name": "test_utils",
-                    "kind": "test"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug integration test 'test_types'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--test=test_types",
-                    "--package=common"
-                ],
-                "filter": {
-                    "name": "test_types",
-                    "kind": "test"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug integration test 'tests'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--test=tests",
-                    "--package=common"
-                ],
-                "filter": {
-                    "name": "tests",
-                    "kind": "test"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'worker'",
+            "name": "Debug taskmanager",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=worker",
-                    "--package=worker"
+                    "--bin=taskmanager",
+                    "--package=taskmanager"
                 ],
                 "filter": {
                     "name": "worker",
@@ -158,33 +25,14 @@
             },
             "args": [
                 "-c",
-                "src/worker/etc/worker.json"
+                "src/taskmanager/etc/taskmanager.json"
             ],
             "cwd": "${workspaceFolder}"
         },
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'worker'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=worker",
-                    "--package=worker"
-                ],
-                "filter": {
-                    "name": "worker",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'coordinator'",
+            "name": "Debug coordinator",
             "cargo": {
                 "args": [
                     "build",
@@ -206,26 +54,7 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'coordinator'",
-            "cargo": {
-                "args": [
-                    "test",
-                    "--no-run",
-                    "--bin=coordinator",
-                    "--package=coordinator"
-                ],
-                "filter": {
-                    "name": "coordinator",
-                    "kind": "bin"
-                }
-            },
-            "args": [],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "type": "lldb",
-            "request": "launch",
-            "name": "Debug executable 'apiserver'",
+            "name": "Debug apiserver",
             "cargo": {
                 "args": [
                     "build",

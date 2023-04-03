@@ -6,17 +6,14 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros", "signal"] }
-serde = { version = "1.0", features = ["derive"] }
+tokio = { version = "1", features = ["rt-multi-thread", "sync", "macros"] }
 common = { path = "../common" }
-proto = { path = "../proto", features = ["all"] }
-serde_json = "1.0.59"
+proto = { path = "../proto", features = ["coordinator"] }
 
-prost = "0.11"
-prost-types = "0.11"
 tonic = "0.8"
-sled = "0.34.7"
 tracing = "0.1"
 tracing-subscriber = "0.3"
-mockall = "0.11.3"
-mockall_double = "0.3.0"
+actix-web = "4"
+
+lightflus-core = { path = "../lightflus-core", features = ["coordinator", "apiserver"] }
+

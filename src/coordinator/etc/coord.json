@@ -1,12 +1,7 @@
 {
   "port": 8791,
   "cluster": {
-    "nodes": [
-      {
-        "host": "${WORKER_1}",
-        "port": 8792
-      }
-    ],
+    "nodes": "${TASKMANAGER_NODES}",
     "rpc_timeout": 3,
     "connect_timeout": 3
   },
@@ -16,12 +11,7 @@
     }
   },
   "heartbeat": {
-    "nodes": [
-      {
-        "host": "${WORKER_1}",
-        "port": 8792
-      }
-    ],
+    "nodes": "${TASKMANAGER_NODES}",
     "period": 3,
     "connect_timeout": 3,
     "rpc_timeout": 3
@@ -29,12 +19,7 @@
   "ack": {
     "delay": 1,
     "buf_size": 500,
-    "nodes": [
-      {
-        "host": "${WORKER_1}",
-        "port": 8792
-      }
-    ],
+    "nodes": "${TASKMANAGER_NODES}",
     "connect_timeout": 3,
     "rpc_timeout": 3
   }

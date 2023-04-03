@@ -47,7 +47,7 @@ You can join [Gitter](https://gitter.im/lightflus/community) community!
 ### Start from Source
 
 ```bash
-$ cargo run --manifest-path src/worker/Cargo.toml
+$ cargo run --manifest-path src/taskmanager/Cargo.toml
 $ cargo run --manifest-path src/coordinator/Cargo.toml
 $ cargo run --manifest-path src/apiserver/Cargo.toml
 ```
